@@ -128,6 +128,9 @@ SUPPOX_TO_FIO2 = {
     13: 70,
     14: 73,
     15: 75}
+
+# Mapping endpoints for HIRID specific dataset
+
 VAR_IDS_EP = {"FiO2": "vm58",
               "PaO2": "vm140",
               "PaCO2": "vm139",

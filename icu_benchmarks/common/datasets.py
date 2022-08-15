@@ -4,12 +4,12 @@ from pathlib import Path
 
 SUCCESS_FILE_NAME = "_SUCCESS"
 
-
+# TODO: Rework this class to be in line with RICU
 class Dataset:
     """
     A dataset can consist of a directory of part files following a regex or a single file representing a single part
 
-    A dataset constisting of parts is marked as complete/done using an empty file called "_SUCCESS"
+    A dataset consisting of parts is marked as complete/done using an empty file called "_SUCCESS"
     """
     def __init__(self, path, part_re=re.compile("part-([0-9]+).*"), force=True):
         self.path = Path(path)

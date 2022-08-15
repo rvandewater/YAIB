@@ -8,7 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-
+# TODO: Adjust/recreate the dataloader to adapt the RICU format
 @gin.configurable('ICUVariableLengthDataset')
 class ICUVariableLengthDataset(Dataset):
     """torch.Dataset built around ICUVariableLengthLoaderTables """
@@ -96,7 +96,7 @@ class ICUVariableLengthDataset(Dataset):
             labels = self.scaler.transform(labels.reshape(-1, 1))[:, 0]
         return rep, labels
 
-
+# TODO: Adapt this class to process RICU output
 @gin.configurable('ICUVariableLengthLoaderTables')
 class ICUVariableLengthLoaderTables(object):
     """
