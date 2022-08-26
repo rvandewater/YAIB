@@ -541,12 +541,14 @@ class ICUVariableLengthLoaderTables(object):
         pad_mask = np.ones((window.shape[0],))
 
         if length_diff > 0:
+            # pad array
             window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
             labels = np.concatenate([labels, np.ones((length_diff,)) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros((length_diff,))], axis=0)
             label_resampling_mask = np.concatenate([label_resampling_mask, np.zeros((length_diff,))], axis=0)
 
         elif length_diff < 0:
+            # cut array to max length
             window = window[:self.maxlen]
             labels = labels[:self.maxlen]
             pad_mask = pad_mask[:self.maxlen]
