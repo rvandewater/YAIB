@@ -2,13 +2,295 @@ import logging
 
 import gin
 import numpy as np
+import pandas
 import tables
 import torch
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import Dataset
 from tqdm import tqdm
+from enum import Enum
+from icu_benchmarks.common import constants
+import pyarrow.parquet as pq
+import os.path as pth
 
 # TODO: Adjust/recreate the dataloader to adapt the RICU format
+@gin.configurable('RICUDataset')
+class RICUDataset(Dataset):
+
+
+    def __init__(self, source_path, dataset_name, split="train", maxlen=-1, scale_label=False):
+        """
+        Args:
+            source_path (string): Path to the source folder with
+            dataset_name (constants.ICUDataset): Name of the dataset to load
+            split (string): Either 'train','val' or 'test'.
+            maxlen (int): Max size of the generated sequence. If -1, takes the max size existing in split.
+            scale_label (bool): Whether to train a min_max scaler on labels (For regression stability).
+        """
+        self.loader = ICUVariableLengthLoaderTables(source_path, batch_size=1, maxlen=maxlen, splits=[split])
+        self.name = dataset_name
+        self.split = split
+
+    def __len__(self):
+        return
+
+    def __getitem__(self, item):
+        return
+
+    def get_data_and_labels(self):
+        return
+
+
+
+
+@gin.configurable('RICULoader')
+class RICULoader(object):
+    def __init__(self, data_path, on_RAM=True, shuffle=True, batch_size=1, splits=['train', 'val'], maxlen=-1, task=0,
+                 data_resampling=1, label_resampling=1, use_feat=False):
+        """
+        Args:
+            data_path (string): Path to the h5 data file which should have 3/4 subgroups :data, labels, patient_windows
+            and optionally features. Here because arrays have variable length we can't stack them. Instead we
+            concatenate them and keep track of the windows in a third file.
+            on_RAM (boolean): Boolean whether to load data on RAM. If you don't have ram capacity set it to False.
+            shuffle (boolean): Boolean to decide whether to shuffle data between two epochs when using self.iterate
+            method. As we wrap this Loader in a torch Dataset this feature is not used.
+            batch_size (int): Integer with size of the batch we return. As we wrap this Loader in a torch Dataset this
+            is set to 1.
+            splits (list): list of splits name . Default is ['train', 'val']
+            maxlen (int): Integer with the maximum length of a sequence. If -1 take the maximum length in the data.
+            task (int/string): Integer with the index of the task we want to train on in the labels. If string we find
+            the matching tring in data_h5['tasks']
+            data_resampling (int): Number of step at which we want to resample the data. Default to 1 (5min)
+            label_resampling (int): Number of step at which we want to resample the labels (if they exists.
+            Default to 1 (5min)
+        """
+        # We set sampling config
+        self.shuffle = shuffle
+        self.batch_size = batch_size
+        #self.data_h5 = tables.open_file(data_path, "r").root
+        self.splits = splits
+        self.maxlen = maxlen
+        self.resampling = data_resampling
+        self.label_resampling = label_resampling
+        self.use_feat = use_feat
+
+        # Define different parquet files
+        self.dyn = pq.read_table(pth.join(data_path, "dyn.parquet"))
+        self.outc = pq.read_table(pth.join(data_path, "outc.parquet"))
+        self.sta = pq.ParquetFile(pth.join(data_path, "sta.parquet"))
+
+
+
+        self.columns = self.dyn.schema.names
+
+
+
+        reindex_label = False
+        # Checks the task that is defined
+        # if isinstance(task, str):
+        #     tasks = np.array([name.decode('utf-8') for name in self.data_h5['labels']['tasks'][:]])
+        #     self.task = task
+        #     if self.task == 'Phenotyping_APACHEGroup':
+        #         reindex_label = True
+        #
+        #     self.task_idx = np.where(tasks == task)[0][0]
+        # else:
+        #     self.task_idx = task
+        #     self.task = None
+
+        # self.on_RAM = on_RAM
+        # Processing the data part
+        # if self.data_h5.__contains__('data'):
+        #     if on_RAM:  # Faster but comsumes more RAM
+        #         self.lookup_table = {split: self.data_h5['data'][split][:] for split in self.splits}
+        #     else:
+        #         self.lookup_table = {split: self.data_h5['data'][split] for split in self.splits}
+        # else:
+        #     logging.warning('There is no data provided')
+        #     self.lookup_table = None
+
+        # Processing the feature part
+        # if self.data_h5.__contains__('features') and self.use_feat:
+        #     if on_RAM:  # Faster but comsumes more RAM
+        #         self.feature_table = {split: self.data_h5['features'][split][:] for split in self.splits}
+        #     else:
+        #         self.feature_table = {split: self.data_h5['features'][split] for split in self.splits}
+        # else:
+        #     self.feature_table = None
+
+        # Processing the label part
+        stay_id = self.outc.column("stay_id").to_numpy()
+        stay_label = self.outc.column("label").to_numpy()
+
+
+        # Computing window indices of dynamic features
+        stay_windows = self.compute_windows(self.dyn.column("stay_id").to_numpy())
+        data_dyn = np.array()
+
+        # Stack dynamic features to one 2D numpy array with row time index and column feature
+        dyn_features = ["dbp", "hr", "map", "o2sat", "resp", "sbp", "temp"]
+        data_dyn = np.column_stack(map(lambda x: self.dyn.column(x).to_nplist(), dyn_features))
+
+
+        # if self.data_h5.__contains__('labels'):
+        #     self.labels = {split: self.data_h5['labels'][split][:, self.task_idx] for split in self.splits}
+        #
+        #     # We reindex Apache groups to [0,15]
+        #     if reindex_label:
+        #         label_values = np.unique(self.labels[self.splits[0]][np.where(~np.isnan(self.labels[self.splits[0]]))])
+        #         assert len(label_values) == 15
+        #
+        #         for split in self.splits:
+        #             self.labels[split][np.where(~np.isnan(self.labels[split]))] = np.array(list(
+        #                 map(lambda x: np.where(label_values == x)[0][0],
+        #                     self.labels[split][np.where(~np.isnan(self.labels[split]))])))
+        #
+        #     # Some steps might not be labeled so we use valid indexes to avoid them
+        #     self.valid_indexes_labels = {split: np.argwhere(~np.isnan(self.labels[split][:])).T[0]
+        #                                  for split in self.splits}
+        #
+        #     self.num_labels = {split: len(self.valid_indexes_labels[split])
+        #                        for split in self.splits}
+        # else:
+        #     raise Exception('There is no labels provided')
+
+        if self.data_h5.__contains__('patient_windows'):
+            # Shape is N_stays x 3. Last dim contains [stay_start, stay_stop, patient_id]
+            self.patient_windows = {split: self.data_h5['patient_windows'][split][:] for split in self.splits}
+        else:
+            raise Exception("patient_windows is necessary to split samples")
+
+        # Some patient might have no labeled time points so we don't consider them in valid samples.
+        self.valid_indexes_samples = {split: np.array([i for i, k in enumerate(self.patient_windows[split])
+                                                       if np.any(~np.isnan(self.labels[split][k[0]:k[1]]))])
+                                      for split in self.splits}
+        self.num_samples = {split: len(self.valid_indexes_samples[split])
+                            for split in self.splits}
+
+        # Iterate counters
+        self.current_index_training = {'train': 0, 'test': 0, 'val': 0}
+
+        if self.maxlen == -1:
+            seq_lengths = [
+                np.max(self.patient_windows[split][:, 1] - self.patient_windows[split][:, 0]) // self.resampling for
+                split in
+                self.splits]
+            self.maxlen = np.max(seq_lengths)
+        else:
+            self.maxlen = self.maxlen // self.resampling
+
+
+    # function to get a dictionary of pairs for each stay_id
+    def compute_windows(stay_ids):
+        stay_windows = {}
+        i = 0
+        while i < len(stay_ids) - 1:
+            index_start = i
+            curr_stay_id = stay_ids[i]
+            while stay_ids[i] == curr_stay_id:
+                i += 1
+                if i > len(stay_ids) - 1:
+                    break
+            index_end = i
+            stay_windows[curr_stay_id] = (index_start, index_end - 1)
+        return stay_windows
+
+
+
+    def get_window(self, start, stop, split, pad_value=0.0):
+        """Windowing function
+
+        Args:
+            start (int): Index of the first element.
+            stop (int):  Index of the last element.
+            split (string): Name of the split to get window from.
+            pad_value (float): Value to pad with if stop - start < self.maxlen.
+
+        Returns:
+            window (np.array) : Array with data.
+            pad_mask (np.array): 1D array with 0 if no labels are provided for the timestep.
+            labels (np.array): 1D array with corresponding labels for each timestep.
+        """
+        # We resample data frequency
+        window = np.copy(self.lookup_table[split][start:stop][::self.resampling])
+        labels = np.copy(self.labels[split][start:stop][::self.resampling])
+        if self.feature_table is not None:
+            feature = np.copy(self.feature_table[split][start:stop][::self.resampling])
+            window = np.concatenate([window, feature], axis=-1)
+
+        label_resampling_mask = np.zeros((stop - start,))
+        label_resampling_mask[::self.label_resampling] = 1.0
+        label_resampling_mask = label_resampling_mask[::self.resampling]
+        length_diff = self.maxlen - window.shape[0]
+        pad_mask = np.ones((window.shape[0],))
+
+        if length_diff > 0:
+            window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
+            labels = np.concatenate([labels, np.ones((length_diff,)) * pad_value], axis=0)
+            pad_mask = np.concatenate([pad_mask, np.zeros((length_diff,))], axis=0)
+            label_resampling_mask = np.concatenate([label_resampling_mask, np.zeros((length_diff,))], axis=0)
+
+        elif length_diff < 0:
+            window = window[:self.maxlen]
+            labels = labels[:self.maxlen]
+            pad_mask = pad_mask[:self.maxlen]
+            label_resampling_mask = label_resampling_mask[:self.maxlen]
+
+        not_labeled = np.argwhere(np.isnan(labels))
+        if len(not_labeled) > 0:
+            labels[not_labeled] = -1
+            pad_mask[not_labeled] = 0
+
+        # We resample prediction frequency
+        pad_mask = pad_mask * label_resampling_mask
+        pad_mask = pad_mask.astype(bool)
+        labels = labels.astype(np.float32)
+        window = window.astype(np.float32)
+        return window, pad_mask, labels
+
+    def sample(self, random_state, split='train', idx_patient=None):
+        """Function to sample from the data split of choice.
+        Args:
+            random_state (np.random.RandomState): np.random.RandomState instance for the idx choice if idx_patient
+            is None.
+            split (string): String representing split to sample from, either 'train', 'val' or 'test'.
+            idx_patient (int): (Optional) Possibility to sample a particular sample given a index.
+        Returns:
+            A sample from the desired distribution as tuple of numpy arrays (sample, label, mask).
+        """
+
+        assert split in self.splits
+
+        if idx_patient is None:
+            idx_patient = random_state.randint(self.num_samples[split], size=(self.batch_size,))
+            state_idx = self.valid_indexes_samples[split][idx_patient]
+        else:
+            state_idx = self.valid_indexes_samples[split][idx_patient]
+
+        patient_windows = self.patient_windows[split][state_idx]
+
+        X = []
+        y = []
+        pad_masks = []
+        if self.batch_size == 1:
+            X, y, pad_masks = self.get_window(patient_windows[0], patient_windows[1], split)
+            return X, y, pad_masks
+        else:
+            for start, stop, id_ in patient_windows:
+                window, pad_mask, labels = self.get_window(start, stop, split)
+                X.append(window)
+                y.append(labels)
+                pad_masks.append(pad_mask)
+            X = np.stack(X, axis=0)
+            pad_masks = np.stack(pad_masks, axis=0)
+            y = np.stack(y, axis=0)
+
+            return X, y, pad_masks
+
+
+
+
 @gin.configurable('ICUVariableLengthDataset')
 class ICUVariableLengthDataset(Dataset):
     """torch.Dataset built around ICUVariableLengthLoaderTables """
@@ -133,7 +415,7 @@ class ICUVariableLengthLoaderTables(object):
         self.label_resampling = label_resampling
         self.use_feat = use_feat
 
-        self.columns = np.array([name.decode('utf-8') for name in self.data_h5['data']['columns'][:]])
+        self.columns = np.array([name.decode('utf-8') for name in self.data_h5['columns'][:]])
         reindex_label = False
         if isinstance(task, str):
             tasks = np.array([name.decode('utf-8') for name in self.data_h5['labels']['tasks'][:]])
@@ -304,6 +586,7 @@ class ICUVariableLengthLoaderTables(object):
 
             return X, y, pad_masks
 
+    #YAIB: Seems to be only for Tensorflow implementations? We can disregard this for our implementation
     def iterate(self, random_state, split='train'):
         """Function to iterate over the data split of choice.
         This methods is further wrapped into a generator to build a tf.data.Dataset
@@ -329,3 +612,5 @@ class ICUVariableLengthLoaderTables(object):
         sample = self.sample(random_state, split, idx_patient=next_idx)
 
         return sample
+
+

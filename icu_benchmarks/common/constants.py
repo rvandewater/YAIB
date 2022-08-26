@@ -1,3 +1,11 @@
+from enum import Enum
+
+class ICUDataset(Enum):
+    HIRID = 1
+    AUMC = 2
+    MIMICIII = 3
+    EICU = 4
+
 # Common constants
 METAVAR_ID = 'metavariableid'
 METAVAR_UNIT = 'metavariableunit'
@@ -181,3 +189,4 @@ VAR_IDS_EP = {"FiO2": "vm58",
               "Epinephrine": ["pm40"],
               "Vasopressin": ["pm45"],
               "Weight": ["vm131"]}
+

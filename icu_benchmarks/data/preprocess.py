@@ -72,7 +72,7 @@ def _normalize_cols(df, output_cols):
 
     return df
 
-
+# Preprocesses dataset and does feature scaling, and augmentation
 def to_ml(save_path, parts, labels, features, endpoint_names, df_var_ref, fill_string, output_cols, split_path=None,
           random_seed=42):
     df_part = pd.read_parquet(parts[0])
