@@ -121,12 +121,15 @@ class RICULoader(object):
 
         # Processing the label part
         stay_id = self.outc.column("stay_id").to_numpy()
+        unique_stays = np.unique(stay_id)
         stay_label = self.outc.column("label").to_numpy()
 
 
-        # Computing window indices of dynamic features
-        stay_windows = self.compute_windows(self.dyn.column("stay_id").to_numpy())
-        data_dyn = np.array()
+        # Get number of unique stays
+        unique_stays = len(np.unique(self.outc.column("stay_id").to_numpy()))
+
+        # Computing stay window array. Shape is N_stays x 3. Last dim contains [stay_start, stay_stop, patient_id]
+        stay_windows = self.compute_windows_np(self.dyn.column("stay_id").to_numpy(), unique_stays)
 
         # Stack dynamic features to one 2D numpy array with row time index and column feature
         dyn_features = ["dbp", "hr", "map", "o2sat", "resp", "sbp", "temp"]
@@ -155,11 +158,6 @@ class RICULoader(object):
         # else:
         #     raise Exception('There is no labels provided')
 
-        if self.data_h5.__contains__('patient_windows'):
-            # Shape is N_stays x 3. Last dim contains [stay_start, stay_stop, patient_id]
-            self.patient_windows = {split: self.data_h5['patient_windows'][split][:] for split in self.splits}
-        else:
-            raise Exception("patient_windows is necessary to split samples")
 
         # Some patient might have no labeled time points so we don't consider them in valid samples.
         self.valid_indexes_samples = {split: np.array([i for i, k in enumerate(self.patient_windows[split])
@@ -182,7 +180,7 @@ class RICULoader(object):
 
 
     # function to get a dictionary of pairs for each stay_id
-    def compute_windows(stay_ids):
+    def compute_windows_dict(stay_ids):
         stay_windows = {}
         i = 0
         while i < len(stay_ids) - 1:
@@ -196,7 +194,23 @@ class RICULoader(object):
             stay_windows[curr_stay_id] = (index_start, index_end - 1)
         return stay_windows
 
-
+    # function to get a numpy array of pairs for each stay_id
+    def compute_windows_np(stay_ids, stay_num):
+        stay_array = np.zeros((stay_num, 3))
+        array_count = 0
+        i = 0
+        while i < len(stay_ids) - 1:
+            index_start = i
+            curr_stay_id = stay_ids[i]
+            while stay_ids[i] == curr_stay_id:
+                i += 1
+                if i > len(stay_ids) - 1:
+                    break
+            index_end = i
+            stay_array[array_count] = [curr_stay_id, index_start, index_end - 1]
+            # increase array row
+            array_count += 1
+        return stay_array
 
     def get_window(self, start, stop, split, pad_value=0.0):
         """Windowing function
@@ -223,6 +237,8 @@ class RICULoader(object):
         label_resampling_mask[::self.label_resampling] = 1.0
         label_resampling_mask = label_resampling_mask[::self.resampling]
         length_diff = self.maxlen - window.shape[0]
+
+        # Padding the array to fulfill size requirement
         pad_mask = np.ones((window.shape[0],))
 
         if length_diff > 0:
@@ -249,6 +265,7 @@ class RICULoader(object):
         window = window.astype(np.float32)
         return window, pad_mask, labels
 
+    # Important to implement for pytorch dataset
     def sample(self, random_state, split='train', idx_patient=None):
         """Function to sample from the data split of choice.
         Args:
@@ -510,7 +527,7 @@ class ICUVariableLengthLoaderTables(object):
             pad_mask (np.array): 1D array with 0 if no labels are provided for the timestep.
             labels (np.array): 1D array with corresponding labels for each timestep.
         """
-        # We resample data frequency
+        # We resample data frequency, i.e. get every ith element to create variable time windows (standard for HIRID=5 min)
         window = np.copy(self.lookup_table[split][start:stop][::self.resampling])
         labels = np.copy(self.labels[split][start:stop][::self.resampling])
         if self.feature_table is not None:
