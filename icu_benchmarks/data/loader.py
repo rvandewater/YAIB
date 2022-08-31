@@ -432,7 +432,7 @@ class ICUVariableLengthLoaderTables(object):
         self.label_resampling = label_resampling
         self.use_feat = use_feat
 
-        self.columns = np.array([name.decode('utf-8') for name in self.data_h5['columns'][:]])
+        self.columns = np.array([name.decode('utf-8') for name in self.data_h5['data']['columns'][:]])
         reindex_label = False
         if isinstance(task, str):
             tasks = np.array([name.decode('utf-8') for name in self.data_h5['labels']['tasks'][:]])
