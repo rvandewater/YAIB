@@ -300,9 +300,9 @@ class ICUVariableLengthDataset(Dataset):
             maxlen (int): Max size of the generated sequence. If -1, takes the max size existing in split.
             scale_label (bool): Whether or not to train a min_max scaler on labels (For regression stability).
         """
-        self.h5_loader = ICUVariableLengthLoaderTables(source_path, batch_size=1, maxlen=maxlen, splits=[split])
+        self.loader = ICUVariableLengthLoaderTables(source_path, batch_size=1, maxlen=maxlen, splits=[split])
         self.split = split
-        self.maxlen = self.h5_loader.maxlen
+        self.maxlen = self.loader.maxlen
         self.scale_label = scale_label
         if self.scale_label:
             self.scaler = MinMaxScaler()
@@ -311,10 +311,10 @@ class ICUVariableLengthDataset(Dataset):
             self.scaler = None
 
     def __len__(self):
-        return self.h5_loader.num_samples[self.split]
+        return self.loader.num_samples[self.split]
 
     def __getitem__(self, idx):
-        data, pad_mask, label = self.h5_loader.sample(None, self.split, idx)
+        data, pad_mask, label = self.loader.sample(None, self.split, idx)
 
         if isinstance(data, list):
             data = [torch.from_numpy(d) for d in data]
@@ -334,7 +334,7 @@ class ICUVariableLengthDataset(Dataset):
         self.scaler = scaler
 
     def get_labels(self):
-        return self.h5_loader.labels[self.split]
+        return self.loader.labels[self.split]
 
     def get_balance(self):
         """Return the weight balance for the split of interest.
@@ -342,7 +342,7 @@ class ICUVariableLengthDataset(Dataset):
         Returns: (list) Weights for each label.
 
         """
-        labels = self.h5_loader.labels[self.split]
+        labels = self.loader.labels[self.split]
         _, counts = np.unique(labels[np.where(~np.isnan(labels))], return_counts=True)
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
@@ -355,14 +355,14 @@ class ICUVariableLengthDataset(Dataset):
         """
         labels = []
         rep = []
-        windows = self.h5_loader.patient_windows[self.split][:]
-        resampling = self.h5_loader.label_resampling
+        windows = self.loader.patient_windows[self.split][:]
+        resampling = self.loader.label_resampling
         logging.info('Gathering the samples for split ' + self.split)
         for start, stop, id_ in tqdm(windows):
-            label = self.h5_loader.labels[self.split][start:stop][::resampling][:self.maxlen]
-            sample = self.h5_loader.lookup_table[self.split][start:stop][::resampling][:self.maxlen][~np.isnan(label)]
-            if self.h5_loader.feature_table is not None:
-                features = self.h5_loader.feature_table[self.split][start:stop, 1:][::resampling][:self.maxlen][
+            label = self.loader.labels[self.split][start:stop][::resampling][:self.maxlen]
+            sample = self.loader.lookup_table[self.split][start:stop][::resampling][:self.maxlen][~np.isnan(label)]
+            if self.loader.feature_table is not None:
+                features = self.loader.feature_table[self.split][start:stop, 1:][::resampling][:self.maxlen][
                     ~np.isnan(label)]
                 sample = np.concatenate((sample, features), axis=-1)
             label = label[~np.isnan(label)]

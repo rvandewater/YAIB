@@ -39,10 +39,15 @@ class DLWrapper(object):
             device = torch.device('cuda')
             self.pin_memory = True
             self.n_worker = 1
+        # elif torch.backends.mps.is_available():
+        #     logging.info('Model will be trained using Apple’s MPS')
+        #     device = torch.device("mps")
+        #     self.pin_memory = True
+        #     self.n_worker = 0
         else:
             logging.info('Model will be trained using CPU Hardware. This should be considerably slower')
             self.pin_memory = False
-            self.n_worker = 16
+            self.n_worker = 0
             device = torch.device('cpu')
         self.device = device
         self.encoder = encoder
