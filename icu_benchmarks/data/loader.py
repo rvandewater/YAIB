@@ -18,7 +18,7 @@ import os.path as pth
 class RICUDataset(Dataset):
 
 
-    def __init__(self, source_path, dataset_name, split="train", maxlen=-1, scale_label=False):
+    def __init__(self, source_path, split="train", maxlen=-1, scale_label=False):
         """
         Args:
             source_path (string): Path to the source folder with
@@ -27,25 +27,35 @@ class RICUDataset(Dataset):
             maxlen (int): Max size of the generated sequence. If -1, takes the max size existing in split.
             scale_label (bool): Whether to train a min_max scaler on labels (For regression stability).
         """
-        self.loader = ICUVariableLengthLoaderTables(source_path, batch_size=1, maxlen=maxlen, splits=[split])
-        self.name = dataset_name
+        self.loader = RICULoader(source_path, maxlen=maxlen, splits=[split])
         self.split = split
 
     def __len__(self):
-        return
+        return self.loader.num_samples
 
-    def __getitem__(self, item):
-        return
+    def __getitem__(self, idx):
+        data, pad_mask, label = self.loader.sample(None, self.split, idx)
 
+        # if self.scale_label:
+        #     label = self.scaler.transform(label.reshape(-1, 1))[:, 0]
+        return torch.from_numpy(data), torch.from_numpy(label), torch.from_numpy(pad_mask)
+
+    def set_scaler(self, scaler):
+        """Sets the scaler for labels in case of regression.
+
+        Args:
+            scaler: sklearn scaler instance
+
+        """
+        self.scaler = scaler
+    
     def get_data_and_labels(self):
         return
 
 
-
-
 @gin.configurable('RICULoader')
 class RICULoader(object):
-    def __init__(self, data_path, on_RAM=True, shuffle=True, batch_size=1, splits=['train', 'val'], maxlen=-1, task=0,
+    def __init__(self, data_path, on_RAM=True, splits=['train', 'val'], maxlen=-1, task=0,
                  data_resampling=1, label_resampling=1, use_feat=False):
         """
         Args:
@@ -53,10 +63,6 @@ class RICULoader(object):
             and optionally features. Here because arrays have variable length we can't stack them. Instead we
             concatenate them and keep track of the windows in a third file.
             on_RAM (boolean): Boolean whether to load data on RAM. If you don't have ram capacity set it to False.
-            shuffle (boolean): Boolean to decide whether to shuffle data between two epochs when using self.iterate
-            method. As we wrap this Loader in a torch Dataset this feature is not used.
-            batch_size (int): Integer with size of the batch we return. As we wrap this Loader in a torch Dataset this
-            is set to 1.
             splits (list): list of splits name . Default is ['train', 'val']
             maxlen (int): Integer with the maximum length of a sequence. If -1 take the maximum length in the data.
             task (int/string): Integer with the index of the task we want to train on in the labels. If string we find
@@ -66,9 +72,7 @@ class RICULoader(object):
             Default to 1 (5min)
         """
         # We set sampling config
-        self.shuffle = shuffle
-        self.batch_size = batch_size
-        #self.data_h5 = tables.open_file(data_path, "r").root
+        self.batch_size = 1
         self.splits = splits
         self.maxlen = maxlen
         self.resampling = data_resampling
@@ -76,15 +80,15 @@ class RICULoader(object):
         self.use_feat = use_feat
 
         # Define different parquet files
-        self.dyn = pq.read_table(pth.join(data_path, "dyn.parquet"))
-        self.outc = pq.read_table(pth.join(data_path, "outc.parquet"))
+        self.dyn = pq.ParquetFile(pth.join(data_path, "dyn.parquet"))
+        self.dyn_table = self.dyn.read()
+        self.outc = pq.ParquetFile(pth.join(data_path, "outc.parquet"))
+        self.outc_table = self.outc.read()
         self.sta = pq.ParquetFile(pth.join(data_path, "sta.parquet"))
 
-
+        # TODO create splits (beforehand?)
 
         self.columns = self.dyn.schema.names
-
-
 
         reindex_label = False
         # Checks the task that is defined
@@ -120,20 +124,17 @@ class RICULoader(object):
         #     self.feature_table = None
 
         # Processing the label part
-        stay_id = self.outc.column("stay_id").to_numpy()
-        unique_stays = np.unique(stay_id)
-        stay_label = self.outc.column("label").to_numpy()
-
-
-        # Get number of unique stays
-        unique_stays = len(np.unique(self.outc.column("stay_id").to_numpy()))
+        self.stay_ids = self.outc_table.column("stay_id").to_numpy()
+        self.stay_labels = self.outc_table.column("label").to_numpy()
+        self.unique_stays = len(np.unique(self.stay_ids))
+        self.num_measurements = len(self.dyn_table)
 
         # Computing stay window array. Shape is N_stays x 3. Last dim contains [stay_start, stay_stop, patient_id]
-        stay_windows = self.compute_windows_np(self.dyn.column("stay_id").to_numpy(), unique_stays)
+        self.stay_windows = self.compute_windows_np(self.dyn_table.column("stay_id").to_numpy(), self.unique_stays)
 
         # Stack dynamic features to one 2D numpy array with row time index and column feature
         dyn_features = ["dbp", "hr", "map", "o2sat", "resp", "sbp", "temp"]
-        data_dyn = np.column_stack(map(lambda x: self.dyn.column(x).to_nplist(), dyn_features))
+        self.data_dyn = np.column_stack([self.dyn_table.column(feature).to_numpy() for feature in dyn_features])
 
 
         # if self.data_h5.__contains__('labels'):
@@ -160,21 +161,16 @@ class RICULoader(object):
 
 
         # Some patient might have no labeled time points so we don't consider them in valid samples.
-        self.valid_indexes_samples = {split: np.array([i for i, k in enumerate(self.patient_windows[split])
-                                                       if np.any(~np.isnan(self.labels[split][k[0]:k[1]]))])
-                                      for split in self.splits}
-        self.num_samples = {split: len(self.valid_indexes_samples[split])
-                            for split in self.splits}
+        # self.valid_indexes_samples = {split: np.array([i for i, k in enumerate(self.patient_windows[split])
+        #                                                if np.any(~np.isnan(self.labels[split][k[0]:k[1]]))])
+        #                               for split in self.splits}
+        self.num_samples = len(self.stay_windows)
 
         # Iterate counters
-        self.current_index_training = {'train': 0, 'test': 0, 'val': 0}
+        # self.current_index_training = {'train': 0, 'test': 0, 'val': 0}
 
         if self.maxlen == -1:
-            seq_lengths = [
-                np.max(self.patient_windows[split][:, 1] - self.patient_windows[split][:, 0]) // self.resampling for
-                split in
-                self.splits]
-            self.maxlen = np.max(seq_lengths)
+            self.maxlen = np.max((self.stay_windows[:, 2] - self.stay_windows[:, 1]) // self.resampling)
         else:
             self.maxlen = self.maxlen // self.resampling
 
@@ -195,7 +191,7 @@ class RICULoader(object):
         return stay_windows
 
     # function to get a numpy array of pairs for each stay_id
-    def compute_windows_np(stay_ids, stay_num):
+    def compute_windows_np(self, stay_ids, stay_num):
         stay_array = np.zeros((stay_num, 3))
         array_count = 0
         i = 0
@@ -227,11 +223,13 @@ class RICULoader(object):
             labels (np.array): 1D array with corresponding labels for each timestep.
         """
         # We resample data frequency
-        window = np.copy(self.lookup_table[split][start:stop][::self.resampling])
-        labels = np.copy(self.labels[split][start:stop][::self.resampling])
-        if self.feature_table is not None:
-            feature = np.copy(self.feature_table[split][start:stop][::self.resampling])
-            window = np.concatenate([window, feature], axis=-1)
+        window = np.copy(self.data_dyn[start:stop][::self.resampling])
+        labels = np.copy(self.labels[start:stop][::self.resampling])
+
+        # TODO reimplement features
+        # if self.feature_table is not None:
+        #     feature = np.copy(self.feature_table[start:stop][::self.resampling])
+        #     window = np.concatenate([window, feature], axis=-1)
 
         label_resampling_mask = np.zeros((stop - start,))
         label_resampling_mask[::self.label_resampling] = 1.0
@@ -266,44 +264,26 @@ class RICULoader(object):
         return window, pad_mask, labels
 
     # Important to implement for pytorch dataset
-    def sample(self, random_state, split='train', idx_patient=None):
+    def sample(self, random_state, stay_id=None):
         """Function to sample from the data split of choice.
         Args:
             random_state (np.random.RandomState): np.random.RandomState instance for the idx choice if idx_patient
             is None.
-            split (string): String representing split to sample from, either 'train', 'val' or 'test'.
-            idx_patient (int): (Optional) Possibility to sample a particular sample given a index.
         Returns:
             A sample from the desired distribution as tuple of numpy arrays (sample, label, mask).
         """
 
-        assert split in self.splits
+        if stay_id is None:
+            stay_id = self.stay_ids[random_state.randint(self.unique_stays)]
+        
+        stay_window = self.stay_windows[0]
 
-        if idx_patient is None:
-            idx_patient = random_state.randint(self.num_samples[split], size=(self.batch_size,))
-            state_idx = self.valid_indexes_samples[split][idx_patient]
-        else:
-            state_idx = self.valid_indexes_samples[split][idx_patient]
+        return self.get_window(stay_window[1], stay_window[2])
 
-        patient_windows = self.patient_windows[split][state_idx]
 
-        X = []
-        y = []
-        pad_masks = []
-        if self.batch_size == 1:
-            X, y, pad_masks = self.get_window(patient_windows[0], patient_windows[1], split)
-            return X, y, pad_masks
-        else:
-            for start, stop, id_ in patient_windows:
-                window, pad_mask, labels = self.get_window(start, stop, split)
-                X.append(window)
-                y.append(labels)
-                pad_masks.append(pad_mask)
-            X = np.stack(X, axis=0)
-            pad_masks = np.stack(pad_masks, axis=0)
-            y = np.stack(y, axis=0)
 
-            return X, y, pad_masks
+
+
 
 
 
