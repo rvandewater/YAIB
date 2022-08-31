@@ -29,6 +29,12 @@ class RICUDataset(Dataset):
         """
         self.loader = RICULoader(source_path, maxlen=maxlen, splits=[split])
         self.split = split
+        self.scale_label = scale_label
+        if self.scale_label:
+            self.scaler = MinMaxScaler()
+            self.scaler.fit(self.get_labels().reshape(-1, 1))
+        else:
+            self.scaler = None
 
     def __len__(self):
         return self.loader.num_samples
@@ -39,6 +45,9 @@ class RICUDataset(Dataset):
         # if self.scale_label:
         #     label = self.scaler.transform(label.reshape(-1, 1))[:, 0]
         return torch.from_numpy(data), torch.from_numpy(label), torch.from_numpy(pad_mask)
+
+    def get_labels(self):
+        return self.loader.labels
 
     def set_scaler(self, scaler):
         """Sets the scaler for labels in case of regression.
@@ -72,12 +81,12 @@ class RICULoader(object):
             Default to 1 (5min)
         """
         # We set sampling config
-        self.batch_size = 1
         self.splits = splits
         self.maxlen = maxlen
         self.resampling = data_resampling
         self.label_resampling = label_resampling
         self.use_feat = use_feat
+        self.on_RAM = on_RAM
 
         # Define different parquet files
         self.dyn = pq.ParquetFile(pth.join(data_path, "dyn.parquet"))
@@ -131,6 +140,11 @@ class RICULoader(object):
 
         # Computing stay window array. Shape is N_stays x 3. Last dim contains [stay_start, stay_stop, patient_id]
         self.stay_windows = self.compute_windows_np(self.dyn_table.column("stay_id").to_numpy(), self.unique_stays)
+
+        # Build an np-array with same length as dyn_table that only has the label at the end of each window
+        self.labels = np.empty(self.num_measurements)
+        self.labels[:] = np.nan
+        self.labels[self.stay_windows[:,2]] = self.stay_labels
 
         # Stack dynamic features to one 2D numpy array with row time index and column feature
         dyn_features = ["dbp", "hr", "map", "o2sat", "resp", "sbp", "temp"]
@@ -192,7 +206,7 @@ class RICULoader(object):
 
     # function to get a numpy array of pairs for each stay_id
     def compute_windows_np(self, stay_ids, stay_num):
-        stay_array = np.zeros((stay_num, 3))
+        stay_array = np.zeros((stay_num, 3), dtype=int)
         array_count = 0
         i = 0
         while i < len(stay_ids) - 1:
