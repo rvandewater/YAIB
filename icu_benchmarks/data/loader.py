@@ -29,6 +29,7 @@ class RICUDataset(Dataset):
         """
         self.loader = RICULoader(source_path, maxlen=maxlen, splits=[split])
         self.split = split
+        self.maxlen = self.loader.maxlen
         self.scale_label = scale_label
         if self.scale_label:
             self.scaler = MinMaxScaler()
@@ -59,7 +60,35 @@ class RICUDataset(Dataset):
         self.scaler = scaler
     
     def get_data_and_labels(self):
-        return
+        """Function to return all the data and labels aligned at once.
+        We use this function for the ML methods which don't require a iterator.
+
+        Returns: (np.array, np.array) a tuple containing  data points and label for the split.
+
+        """
+        labels = []
+        rep = []
+        windows = self.loader.stay_windows
+        resampling = self.loader.label_resampling
+        # logging.info('Gathering the samples for split ' + self.split)
+        for id_, start, stop in tqdm(windows):
+            # offset stop by one for correct array slicing
+            stop += 1
+            label = self.loader.labels[start:stop][::resampling][:self.maxlen]
+            sample = self.loader.dyn_df[start:stop][::resampling][:self.maxlen][~np.isnan(label)]
+            # if self.loader.feature_table is not None:
+            #     features = self.loader.feature_table[start:stop, 1:][::resampling][:self.maxlen][
+            #         ~np.isnan(label)]
+            #     sample = np.concatenate((sample, features), axis=-1)
+            label = label[~np.isnan(label)]
+            if label.shape[0] > 0:
+                rep.append(sample)
+                labels.append(label)
+        rep = np.concatenate(rep, axis=0)
+        labels = np.concatenate(labels)
+        if self.scaler is not None:
+            labels = self.scaler.transform(labels.reshape(-1, 1))[:, 0]
+        return rep, labels
 
 
 @gin.configurable('RICULoader')
@@ -91,6 +120,7 @@ class RICULoader(object):
         # Define different parquet files
         self.dyn = pq.ParquetFile(pth.join(data_path, "dyn.parquet"))
         self.dyn_table = self.dyn.read()
+        self.dyn_df = self.dyn_table.to_pandas()
         self.outc = pq.ParquetFile(pth.join(data_path, "outc.parquet"))
         self.outc_table = self.outc.read()
         self.sta = pq.ParquetFile(pth.join(data_path, "sta.parquet"))
@@ -184,7 +214,7 @@ class RICULoader(object):
         # self.current_index_training = {'train': 0, 'test': 0, 'val': 0}
 
         if self.maxlen == -1:
-            self.maxlen = np.max((self.stay_windows[:, 2] - self.stay_windows[:, 1]) // self.resampling)
+            self.maxlen = np.max((self.stay_windows[:, 2] - self.stay_windows[:, 1] + 1) // self.resampling)
         else:
             self.maxlen = self.maxlen // self.resampling
 
