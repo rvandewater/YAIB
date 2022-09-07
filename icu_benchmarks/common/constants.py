@@ -190,3 +190,6 @@ VAR_IDS_EP = {"FiO2": "vm58",
               "Vasopressin": ["pm45"],
               "Weight": ["vm131"]}
 
+
+# RICU
+DYN_FEATURES = ["dbp", "hr", "map", "o2sat", "resp", "sbp", "temp"]
