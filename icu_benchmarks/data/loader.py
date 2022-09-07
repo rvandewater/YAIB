@@ -284,19 +284,19 @@ class RICULoader(object):
         return window, pad_mask, labels
 
     # Important to implement for pytorch dataset
-    def sample(self, split, stay_id=None):
+    def sample(self, split, idx=None):
         """Function to sample from the data split of choice.
         Args:
-            stay_id (int): A specific stay_id to sample. If None is provided, sample randomly.
+            idx (int): A specific idx to sample. If None is provided, sample randomly.
         Returns:
             A sample from the desired distribution as tuple of numpy arrays (sample, label, mask).
         """
-        if stay_id is None:
-            stay_id = self.stay_ids[np.random.randint(self.num_stays)]
+        if idx is None:
+            idx = self.stay_ids[np.random.randint(self.num_stays)]
         
-        stay_window = self.stay_windows_df[self.stay_windows_df['stay_id'] == stay_id]
+        stay_window = self.stay_windows_df.loc[idx]
 
-        return self.get_window(stay_window[1], stay_window[2])
+        return self.get_window(stay_window[1], stay_window[2], split)
 
 
 
