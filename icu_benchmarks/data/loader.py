@@ -38,10 +38,10 @@ class RICUDataset(Dataset):
             self.scaler = None
 
     def __len__(self):
-        return self.loader.num_samples
+        return self.loader.num_stays
 
     def __getitem__(self, idx):
-        data, pad_mask, label = self.loader.sample(None, self.split, idx)
+        data, pad_mask, label = self.loader.sample(self.split, idx)
 
         # if self.scale_label:
         #     label = self.scaler.transform(label.reshape(-1, 1))[:, 0]
@@ -50,6 +50,19 @@ class RICUDataset(Dataset):
     def get_labels(self):
         return self.loader.labels
 
+    # TODO reimplement with splits
+    def get_balance(self):
+        """Return the weight balance for the split of interest.
+
+        Returns: (list) Weights for each label.
+
+        """
+        # labels = self.loader.labels[self.split]
+        # _, counts = np.unique(labels[np.where(~np.isnan(labels))], return_counts=True)
+        # return list((1 / counts) * np.sum(counts) / counts.shape[0])
+        return 1
+
+    # TODO understand and use correctly
     def set_scaler(self, scaler):
         """Sets the scaler for labels in case of regression.
 
@@ -68,14 +81,14 @@ class RICUDataset(Dataset):
         """
         labels = []
         rep = []
-        windows = self.loader.stay_windows
+        windows = self.loader.stay_windows_np
         resampling = self.loader.label_resampling
         # logging.info('Gathering the samples for split ' + self.split)
         for id_, start, stop in tqdm(windows):
             # offset stop by one for correct array slicing
             stop += 1
             label = self.loader.labels[start:stop][::resampling][:self.maxlen]
-            sample = self.loader.dyn_df[start:stop][::resampling][:self.maxlen][~np.isnan(label)]
+            sample = self.loader.lookup_table[start:stop][::resampling][:self.maxlen][~np.isnan(label)]
             # if self.loader.feature_table is not None:
             #     features = self.loader.feature_table[start:stop, 1:][::resampling][:self.maxlen][
             #         ~np.isnan(label)]
@@ -118,16 +131,22 @@ class RICULoader(object):
         self.on_RAM = on_RAM
 
         # Define different parquet files
-        self.dyn = pq.ParquetFile(pth.join(data_path, "dyn.parquet"))
+        self.dyn = pq.ParquetFile(pth.join(data_path, "dyn_imputed.parquet"))
         self.dyn_table = self.dyn.read()
         self.dyn_df = self.dyn_table.to_pandas()
+        # Select feature columns as ndarray
+        self.lookup_table = self.dyn_df[constants.DYN_FEATURES].to_numpy()
         self.outc = pq.ParquetFile(pth.join(data_path, "outc.parquet"))
         self.outc_table = self.outc.read()
         self.sta = pq.ParquetFile(pth.join(data_path, "sta.parquet"))
-
-        # TODO create splits (beforehand?)
+        self.stay_windows = pq.ParquetFile(pth.join(data_path, "stay_windows_lookup.parquet"))
+        self.stay_windows_table = self.stay_windows.read()
+        self.stay_windows_df = self.stay_windows_table.to_pandas()
+        self.stay_windows_np = self.stay_windows_df.to_numpy()
 
         self.columns = self.dyn.schema.names
+
+        # TODO create splits (beforehand?)
 
         reindex_label = False
         # Checks the task that is defined
@@ -162,24 +181,15 @@ class RICULoader(object):
         # else:
         #     self.feature_table = None
 
-        # Processing the label part
         self.stay_ids = self.outc_table.column("stay_id").to_numpy()
         self.stay_labels = self.outc_table.column("label").to_numpy()
-        self.unique_stays = len(np.unique(self.stay_ids))
-        self.num_measurements = len(self.dyn_table)
-
-        # Computing stay window array. Shape is N_stays x 3. Last dim contains [stay_start, stay_stop, patient_id]
-        self.stay_windows = self.compute_windows_np(self.dyn_table.column("stay_id").to_numpy(), self.unique_stays)
+        self.num_stays = len(self.stay_windows_np)
+        self.num_measurements = len(self.lookup_table)
 
         # Build an np-array with same length as dyn_table that only has the label at the end of each window
         self.labels = np.empty(self.num_measurements)
         self.labels[:] = np.nan
-        self.labels[self.stay_windows[:,2]] = self.stay_labels
-
-        # Stack dynamic features to one 2D numpy array with row time index and column feature
-        dyn_features = ["dbp", "hr", "map", "o2sat", "resp", "sbp", "temp"]
-        self.data_dyn = np.column_stack([self.dyn_table.column(feature).to_numpy() for feature in dyn_features])
-
+        self.labels[self.stay_windows_np[:,2]] = self.stay_labels
 
         # if self.data_h5.__contains__('labels'):
         #     self.labels = {split: self.data_h5['labels'][split][:, self.task_idx] for split in self.splits}
@@ -208,49 +218,15 @@ class RICULoader(object):
         # self.valid_indexes_samples = {split: np.array([i for i, k in enumerate(self.patient_windows[split])
         #                                                if np.any(~np.isnan(self.labels[split][k[0]:k[1]]))])
         #                               for split in self.splits}
-        self.num_samples = len(self.stay_windows)
 
         # Iterate counters
         # self.current_index_training = {'train': 0, 'test': 0, 'val': 0}
 
         if self.maxlen == -1:
-            self.maxlen = np.max((self.stay_windows[:, 2] - self.stay_windows[:, 1] + 1) // self.resampling)
+            self.maxlen = np.max((self.stay_windows_np[:, 2] - self.stay_windows_np[:, 1] + 1) // self.resampling)
         else:
             self.maxlen = self.maxlen // self.resampling
 
-
-    # function to get a dictionary of pairs for each stay_id
-    def compute_windows_dict(stay_ids):
-        stay_windows = {}
-        i = 0
-        while i < len(stay_ids) - 1:
-            index_start = i
-            curr_stay_id = stay_ids[i]
-            while stay_ids[i] == curr_stay_id:
-                i += 1
-                if i > len(stay_ids) - 1:
-                    break
-            index_end = i
-            stay_windows[curr_stay_id] = (index_start, index_end - 1)
-        return stay_windows
-
-    # function to get a numpy array of pairs for each stay_id
-    def compute_windows_np(self, stay_ids, stay_num):
-        stay_array = np.zeros((stay_num, 3), dtype=int)
-        array_count = 0
-        i = 0
-        while i < len(stay_ids) - 1:
-            index_start = i
-            curr_stay_id = stay_ids[i]
-            while stay_ids[i] == curr_stay_id:
-                i += 1
-                if i > len(stay_ids) - 1:
-                    break
-            index_end = i
-            stay_array[array_count] = [curr_stay_id, index_start, index_end - 1]
-            # increase array row
-            array_count += 1
-        return stay_array
 
     def get_window(self, start, stop, split, pad_value=0.0):
         """Windowing function
@@ -267,7 +243,7 @@ class RICULoader(object):
             labels (np.array): 1D array with corresponding labels for each timestep.
         """
         # We resample data frequency
-        window = np.copy(self.data_dyn[start:stop][::self.resampling])
+        window = np.copy(self.lookup_table[start:stop][::self.resampling])
         labels = np.copy(self.labels[start:stop][::self.resampling])
 
         # TODO reimplement features
@@ -308,19 +284,17 @@ class RICULoader(object):
         return window, pad_mask, labels
 
     # Important to implement for pytorch dataset
-    def sample(self, random_state, stay_id=None):
+    def sample(self, split, stay_id=None):
         """Function to sample from the data split of choice.
         Args:
-            random_state (np.random.RandomState): np.random.RandomState instance for the idx choice if idx_patient
-            is None.
+            stay_id (int): A specific stay_id to sample. If None is provided, sample randomly.
         Returns:
             A sample from the desired distribution as tuple of numpy arrays (sample, label, mask).
         """
-
         if stay_id is None:
-            stay_id = self.stay_ids[random_state.randint(self.unique_stays)]
+            stay_id = self.stay_ids[np.random.randint(self.num_stays)]
         
-        stay_window = self.stay_windows[0]
+        stay_window = self.stay_windows_df[self.stay_windows_df['stay_id'] == stay_id]
 
         return self.get_window(stay_window[1], stay_window[2])
 
