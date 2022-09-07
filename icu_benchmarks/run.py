@@ -21,6 +21,7 @@ from icu_benchmarks.common.constants import MORTALITY_NAME, CIRC_FAILURE_NAME, R
 from icu_benchmarks.data import imputation_for_endpoints, extended_general_table_generation, endpoint_generation, \
     labels, schemata
 from icu_benchmarks.data.preprocess import to_ml
+from icu_benchmarks.data.preprocess_ricu import generate_stay_windows_lookup_table, impute_forward_then_backward
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
 from icu_benchmarks.preprocessing import merge
@@ -47,12 +48,14 @@ def build_parser():
     preprocess_arguments.add_argument('--work-dir',
                                       required=False, type=Path,
                                       help="")
-    preprocess_arguments.add_argument('--hirid-data-root',
-                                      type=Path,
-                                      required=True,
-                                      help="Path to the decompressed parquet data directory as published on physionet.")
-    preprocess_arguments.add_argument('--var-ref-path', dest="var_ref_path",
+    # preprocess_arguments.add_argument('--hirid-data-root',
+    #                                   required=True, type=Path,
+    #                                   help="Path to the decompressed parquet data directory as published on physionet.")
+    preprocess_arguments.add_argument('--ricu-data-root',
                                       required=True, type=Path,
+                                      help="Path to the parquet data directory as preprocessed by RICU.")
+    preprocess_arguments.add_argument('--var-ref-path', dest="var_ref_path",
+                                      default=None, required=False, type=Path,
                                       help="Path to load the variable references from ")
     preprocess_arguments.add_argument('-nw', '--nr-workers', default=1,
                                       required=False, type=int,
@@ -356,6 +359,48 @@ def run_preprocessing_pipeline(hirid_data_root, work_dir, var_ref_path, imputati
                  imputation_method, seed, split_path)
 
 
+def run_preprocessing_ricu(ricu_data_root, work_dir, var_ref_path, imputation_method, split_path=None, horizon=12):
+    stay_windows_lookup_path = work_dir / 'stay_windows_lookup.parquet'
+    imputed_data_path = work_dir / 'dyn_imputed.parquet'
+    # label_name = "_".join(['labels', str(horizon)]) + 'h'
+    # label_path = work_dir / label_name
+    # features_path = work_dir / 'features_stage'
+    # ml_name = 'ml_stage' + '_' + str(horizon) + 'h' + '.h5'
+    # ml_path = work_dir / 'ml_stage' / ml_name
+
+    if not stay_windows_lookup_path.exists():
+        logging.info("Running window lookup generation")
+        generate_stay_windows_lookup_table(ricu_data_root, stay_windows_lookup_path)
+    else:
+        logging.info(f"Stay windows in {stay_windows_lookup_path} seem to exist, skipping")
+
+    if not imputed_data_path.exists():
+        logging.info("Running imputation step for endpoints")
+        impute_forward_then_backward(ricu_data_root, imputed_data_path)
+    else:
+        logging.info(f"Data for imputation for endpoints in {imputed_data_path} seems to exist, skipping")
+
+    # if not label_path.exists():
+    #     logging.info("Running label generation")
+    #     labels.generate_labels(endpoints_path, imputation_for_endpoints_path, extended_general_data_path, label_path,
+    #                            nr_workers=nr_workers)
+    # else:
+    #     logging.info(f"Labels in {label_path} seem to exist, skipping")
+    
+    # run_feature_extraction_step(common_path, var_ref_path, features_path, nr_workers)
+
+    # endpoints = (MORTALITY_NAME,
+    #              CIRC_FAILURE_NAME + '_' + str(horizon) + 'Hours',
+    #              RESP_FAILURE_NAME + '_' + str(horizon) + 'Hours',
+    #              URINE_REG_NAME,
+    #              URINE_BINARY_NAME,
+    #              PHENOTYPING_NAME,
+    #              LOS_NAME)
+
+    # run_build_ml(common_path, label_path, features_path, ml_path, var_ref_path, endpoints,
+    #              imputation_method, seed, split_path)
+
+
 def main(my_args=tuple(sys.argv[1:])):
     args = build_parser().parse_args(my_args)
 
@@ -364,11 +409,15 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.getLogger().setLevel(logging.INFO)
 
     # Dispatch
+    # if args.command == 'preprocess':
+    #     run_preprocessing_pipeline(args.hirid_data_root, args.work_dir, args.var_ref_path,
+    #                                imputation_method=args.imputation,
+    #                                split_path=args.split_path,
+    #                                seed=args.seed, nr_workers=args.nr_workers, horizon=args.horizon)
+
     if args.command == 'preprocess':
-        run_preprocessing_pipeline(args.hirid_data_root, args.work_dir, args.var_ref_path,
-                                   imputation_method=args.imputation,
-                                   split_path=args.split_path,
-                                   seed=args.seed, nr_workers=args.nr_workers, horizon=args.horizon)
+        run_preprocessing_ricu(args.ricu_data_root, args.work_dir, args.var_ref_path,
+                               imputation_method=args.imputation, split_path=args.split_path, horizon=args.horizon)
 
     if args.command in ['train', 'evaluate']:
         load_weights = args.command == 'evaluate'
