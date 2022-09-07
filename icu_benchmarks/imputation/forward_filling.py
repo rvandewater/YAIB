@@ -22,7 +22,7 @@ def empty_nan(sz):
 
 """ ONLY FORWARD FILLING imputation schema"""
 
-
+# UNDERSTANDING: They always use global_mean = np.nan and fill_interval_secs = np.inf which makes a bunch of their code pointless
 def impute_forward_fill_simple(raw_ts, raw_values, timegrid_pred, global_mean, fill_interval_secs=np.inf):
     """
     Simple forward filling algorithm used in the respiratory failure endpoints
