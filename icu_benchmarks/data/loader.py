@@ -296,7 +296,7 @@ class RICULoader(object):
         
         stay_window = self.stay_windows_df.loc[idx]
 
-        return self.get_window(stay_window[1], stay_window[2], split)
+        return self.get_window(stay_window[1], stay_window[2] + 1, split)
 
 
 
@@ -589,6 +589,7 @@ class ICUVariableLengthLoaderTables(object):
         y = []
         pad_masks = []
         if self.batch_size == 1:
+            # UNDERSTANDING get_window() returns window, pad_mask, labels; switched back again in __getitem__
             X, y, pad_masks = self.get_window(patient_windows[0], patient_windows[1], split)
             return X, y, pad_masks
         else:
