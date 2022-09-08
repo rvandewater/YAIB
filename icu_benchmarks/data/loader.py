@@ -41,7 +41,7 @@ class RICUDataset(Dataset):
         return self.loader.num_stays
 
     def __getitem__(self, idx):
-        data, pad_mask, label = self.loader.sample(self.split, idx)
+        data, label, pad_mask = self.loader.sample(self.split, idx)
 
         # if self.scale_label:
         #     label = self.scaler.transform(label.reshape(-1, 1))[:, 0]
@@ -281,7 +281,7 @@ class RICULoader(object):
         pad_mask = pad_mask.astype(bool)
         labels = labels.astype(np.float32)
         window = window.astype(np.float32)
-        return window, pad_mask, labels
+        return window, labels, pad_mask
 
     # Important to implement for pytorch dataset
     def sample(self, split, idx=None):
