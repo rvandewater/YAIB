@@ -13,6 +13,9 @@ from icu_benchmarks.common import constants
 import pyarrow.parquet as pq
 import os.path as pth
 
+VARS = constants.VARS
+FILE_NAMES = constants.FILE_NAMES
+
 # TODO: Adjust/recreate the dataloader to adapt the RICU format
 @gin.configurable('RICUDataset')
 class RICUDataset(Dataset):
@@ -23,7 +26,6 @@ class RICUDataset(Dataset):
             source_path (string): Path to the source folder with
             dataset_name (constants.ICUDataset): Name of the dataset to load
             split (string): Either 'train','val' or 'test'.
-            maxlen (int): Max size of the generated sequence. If -1, takes the max size existing in split.
             scale_label (bool): Whether to train a min_max scaler on labels (For regression stability).
         """
         self.loader = RICULoader(source_path, split=split)
@@ -131,21 +133,21 @@ class RICULoader(object):
         self.on_RAM = on_RAM
 
         # Define different dataframes
-        self.dyn = pq.read_table(pth.join(data_path, "dyn_imputed_splits.parquet"))
+        self.dyn = pq.read_table(pth.join(data_path, FILE_NAMES['DYNAMIC_SPLITS']))
         self.dyn_df = self.dyn.to_pandas().loc[self.split]
-        self.dyn_data_df = self.dyn_df[constants.DYN_FEATURES]
-        self.outc = pq.read_table(pth.join(data_path, "outc.parquet"))
+        self.dyn_data_df = self.dyn_df[VARS['DYN_FEATURES']]
+        self.outc = pq.read_table(pth.join(data_path, FILE_NAMES['OUTCOME']))
         self.outc_df = self.outc.to_pandas()
-        self.sta = pq.read_table(pth.join(data_path, "sta.parquet"))
-        self.stays_splits = pq.read_table(pth.join(data_path, "stays_splits.parquet"))
+        self.sta = pq.read_table(pth.join(data_path, FILE_NAMES['STATIC']))
+        self.stays_splits = pq.read_table(pth.join(data_path, FILE_NAMES['STAYS_SPLITS']))
         self.stays_splits_df = self.stays_splits.to_pandas().loc[self.split]
-        self.labels_splits = pq.read_table(pth.join(data_path, "labels_splits.parquet"))
+        self.labels_splits = pq.read_table(pth.join(data_path, FILE_NAMES['LABELS_SPLITS']))
         self.labels_splits_df = self.labels_splits.to_pandas().loc[self.split]
 
         #  calculate basic info for the data
         self.num_stays = self.stays_splits_df.shape[0]
         self.num_measurements = self.dyn_df.shape[0]
-        self.maxlen = self.dyn_df.groupby(["stay_id"]).size().max() // self.resampling
+        self.maxlen = self.dyn_df.groupby([VARS['STAY_ID']]).size().max() // self.resampling
 
         reindex_label = False
         # Checks the task that is defined

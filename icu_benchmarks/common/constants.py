@@ -192,4 +192,17 @@ VAR_IDS_EP = {"FiO2": "vm58",
 
 
 # RICU
-DYN_FEATURES = ["dbp", "hr", "map", "o2sat", "resp", "sbp", "temp"]
+FILE_NAMES = {
+    'DYNAMIC': 'dyn.parquet',
+    'OUTCOME': 'outc.parquet',
+    'STATIC': 'sta.parquet',
+    'DYNAMIC_IMPUTED': 'dynamic_imputed.parquet',
+    'STAYS_SPLITS': 'stays_splits.parquet',
+    'LABELS_SPLITS': 'labels_splits.parquet',
+    'DYNAMIC_SPLITS': 'dynamic_imputed_splits.parquet'
+}
+VARS = {
+    'STAY_ID': 'stay_id',
+    'TIME': 'time',
+    'DYN_FEATURES': ['dbp', 'hr', 'map', 'o2sat', 'resp', 'sbp', 'temp']
+}

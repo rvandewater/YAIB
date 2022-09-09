@@ -7,6 +7,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Sequence, Optional
+from icu_benchmarks.common import constants
 
 import pandas as pd
 from icu_benchmarks.data.feature_extraction import extract_feature_df
@@ -361,10 +362,10 @@ def run_preprocessing_pipeline(hirid_data_root, work_dir, var_ref_path, imputati
 
 def run_preprocessing_ricu(ricu_data_root, work_dir, var_ref_path, imputation_method, split_path=None, horizon=12):
     # stay_windows_lookup_path = work_dir / 'stay_windows_lookup.parquet'
-    dyn_imputed_path = work_dir / 'dyn_imputed.parquet'
-    stays_splits_path = work_dir / 'stays_splits.parquet'
-    labels_splits_path = work_dir / 'labels_splits.parquet'
-    dyn_splits_path = work_dir / 'dyn_imputed_splits.parquet'
+    dyn_imputed_path = work_dir / constants.FILE_NAMES['DYNAMIC_IMPUTED']
+    stays_splits_path = work_dir / constants.FILE_NAMES['STAYS_SPLITS']
+    labels_splits_path = work_dir / constants.FILE_NAMES['LABELS_SPLITS']
+    dyn_splits_path = work_dir / constants.FILE_NAMES['DYNAMIC_SPLITS']
     # label_name = "_".join(['labels', str(horizon)]) + 'h'
     # label_path = work_dir / label_name
     # features_path = work_dir / 'features_stage'
@@ -383,11 +384,11 @@ def run_preprocessing_ricu(ricu_data_root, work_dir, var_ref_path, imputation_me
     else:
         logging.info(f"Data for imputation for endpoints in {dyn_imputed_path} seems to exist, skipping")
 
-    if not dyn_splits_path.exists():
+    if not stays_splits_path.exists() or not labels_splits_path.exists() or not dyn_splits_path.exists():
         logging.info("Running splits generation")
         generate_splits(ricu_data_root, dyn_imputed_path, stays_splits_path, labels_splits_path, dyn_splits_path)
     else:
-        logging.info(f"Splits in {dyn_splits_path} seems to exist, skipping")
+        logging.info(f"Splits in {work_dir} seem to exist, skipping")
 
     # if not label_path.exists():
     #     logging.info("Running label generation")
