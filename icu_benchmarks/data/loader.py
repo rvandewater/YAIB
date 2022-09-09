@@ -248,6 +248,9 @@ class RICULoader(object):
         window = self.dyn_data_df.loc[stay_id].to_numpy()
         labels = self.labels_splits_df.loc[stay_id]['label'].to_numpy().astype(float)
 
+        if len(labels) == 1:
+            labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
+
         # TODO reimplement features
         # if self.feature_table is not None:
         #     feature = np.copy(self.feature_table[start:stop][::self.resampling])
@@ -530,6 +533,7 @@ class ICUVariableLengthLoaderTables(object):
         # We resample data frequency, i.e. get every ith element to create variable time windows (standard for HIRID=5 min)
         window = np.copy(self.lookup_table[split][start:stop][::self.resampling])
         labels = np.copy(self.labels[split][start:stop][::self.resampling])
+
         if self.feature_table is not None:
             feature = np.copy(self.feature_table[split][start:stop][::self.resampling])
             window = np.concatenate([window, feature], axis=-1)
