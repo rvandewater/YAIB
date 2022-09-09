@@ -49,17 +49,14 @@ class RICUDataset(Dataset):
     def get_labels(self):
         return self.loader.labels
 
-    # TODO reimplement with splits
     def get_balance(self):
         """Return the weight balance for the split of interest.
 
         Returns: (list) Weights for each label.
 
         """
-        # labels = self.loader.labels[self.split]
-        # _, counts = np.unique(labels[np.where(~np.isnan(labels))], return_counts=True)
-        # return list((1 / counts) * np.sum(counts) / counts.shape[0])
-        return 1
+        counts = self.loader.outc_df.groupby('label').count()['stay_id']
+        return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
     # TODO understand and use correctly
     def set_scaler(self, scaler):
@@ -140,14 +137,9 @@ class RICULoader(object):
         self.dyn = pq.read_table(pth.join(data_path, "dyn_imputed_splits.parquet"))
         self.dyn_df = self.dyn.to_pandas().loc[self.split]
         self.dyn_data_df = self.dyn_df.drop(labels='time', axis=1)
-        # Select feature columns as ndarray
-        self.lookup_table = self.dyn_df[constants.DYN_FEATURES].to_numpy()
         self.outc = pq.read_table(pth.join(data_path, "outc.parquet"))
         self.outc_df = self.outc.to_pandas()
         self.sta = pq.read_table(pth.join(data_path, "sta.parquet"))
-        # self.stays = pq.read_table(pth.join(data_path, "stay_windows_lookup.parquet"))
-        # self.stays_df = self.stays.to_pandas()
-        # self.stay_windows_np = self.stay_windows_df.to_numpy()
         self.stays_splits = pq.read_table(pth.join(data_path, "stays_splits.parquet"))
         self.stays_splits_df = self.stays_splits.to_pandas().loc[self.split]
         self.labels_splits = pq.read_table(pth.join(data_path, "labels_splits.parquet"))
@@ -396,7 +388,6 @@ class ICUVariableLengthDataset(Dataset):
             labels = self.scaler.transform(labels.reshape(-1, 1))[:, 0]
         return rep, labels
 
-# TODO: Adapt this class to process RICU output
 @gin.configurable('ICUVariableLengthLoaderTables')
 class ICUVariableLengthLoaderTables(object):
     """
