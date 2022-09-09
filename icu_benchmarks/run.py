@@ -21,7 +21,7 @@ from icu_benchmarks.common.constants import MORTALITY_NAME, CIRC_FAILURE_NAME, R
 from icu_benchmarks.data import imputation_for_endpoints, extended_general_table_generation, endpoint_generation, \
     labels, schemata
 from icu_benchmarks.data.preprocess import to_ml
-from icu_benchmarks.data.preprocess_ricu import generate_stay_windows_lookup_table, impute_forward_then_backward
+from icu_benchmarks.data.preprocess_ricu import impute_forward_then_backward, generate_splits
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
 from icu_benchmarks.preprocessing import merge
@@ -360,25 +360,34 @@ def run_preprocessing_pipeline(hirid_data_root, work_dir, var_ref_path, imputati
 
 
 def run_preprocessing_ricu(ricu_data_root, work_dir, var_ref_path, imputation_method, split_path=None, horizon=12):
-    stay_windows_lookup_path = work_dir / 'stay_windows_lookup.parquet'
-    imputed_data_path = work_dir / 'dyn_imputed.parquet'
+    # stay_windows_lookup_path = work_dir / 'stay_windows_lookup.parquet'
+    dyn_imputed_path = work_dir / 'dyn_imputed.parquet'
+    stays_splits_path = work_dir / 'stays_splits.parquet'
+    labels_splits_path = work_dir / 'labels_splits.parquet'
+    dyn_splits_path = work_dir / 'dyn_imputed_splits.parquet'
     # label_name = "_".join(['labels', str(horizon)]) + 'h'
     # label_path = work_dir / label_name
     # features_path = work_dir / 'features_stage'
     # ml_name = 'ml_stage' + '_' + str(horizon) + 'h' + '.h5'
     # ml_path = work_dir / 'ml_stage' / ml_name
 
-    if not stay_windows_lookup_path.exists():
-        logging.info("Running window lookup generation")
-        generate_stay_windows_lookup_table(ricu_data_root, stay_windows_lookup_path)
-    else:
-        logging.info(f"Stay windows in {stay_windows_lookup_path} seem to exist, skipping")
+    # if not stay_windows_lookup_path.exists():
+    #     logging.info("Running window lookup generation")
+    #     generate_stay_windows_lookup_table(ricu_data_root, stay_windows_lookup_path)
+    # else:
+    #     logging.info(f"Stay windows in {stay_windows_lookup_path} seem to exist, skipping")
 
-    if not imputed_data_path.exists():
+    if not dyn_imputed_path.exists():
         logging.info("Running imputation step for endpoints")
-        impute_forward_then_backward(ricu_data_root, imputed_data_path)
+        impute_forward_then_backward(ricu_data_root, dyn_imputed_path)
     else:
-        logging.info(f"Data for imputation for endpoints in {imputed_data_path} seems to exist, skipping")
+        logging.info(f"Data for imputation for endpoints in {dyn_imputed_path} seems to exist, skipping")
+
+    if not dyn_splits_path.exists():
+        logging.info("Running splits generation")
+        generate_splits(ricu_data_root, dyn_imputed_path, stays_splits_path, labels_splits_path, dyn_splits_path)
+    else:
+        logging.info(f"Splits in {dyn_splits_path} seems to exist, skipping")
 
     # if not label_path.exists():
     #     logging.info("Running label generation")
