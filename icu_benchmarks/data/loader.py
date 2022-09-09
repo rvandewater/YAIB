@@ -220,10 +220,8 @@ class RICULoader(object):
         # Iterate counters
         # self.current_index_training = {'train': 0, 'test': 0, 'val': 0}
 
-        # TODO fix maxlen
         if self.maxlen == -1:
-            # self.maxlen = np.max((self.stay_windows_np[:, 2] - self.stay_windows_np[:, 1] + 1) // self.resampling)
-            self.maxlen = 25
+            self.maxlen = self.dyn_df.groupby(["stay_id"]).size().max() // self.resampling
         else:
             self.maxlen = self.maxlen // self.resampling
 
