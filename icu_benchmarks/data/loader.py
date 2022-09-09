@@ -17,7 +17,7 @@ import os.path as pth
 @gin.configurable('RICUDataset')
 class RICUDataset(Dataset):
 
-    def __init__(self, source_path, split="train", maxlen=-1, scale_label=False):
+    def __init__(self, source_path, split="train", scale_label=False):
         """
         Args:
             source_path (string): Path to the source folder with
@@ -26,9 +26,8 @@ class RICUDataset(Dataset):
             maxlen (int): Max size of the generated sequence. If -1, takes the max size existing in split.
             scale_label (bool): Whether to train a min_max scaler on labels (For regression stability).
         """
-        self.loader = RICULoader(source_path, maxlen=maxlen, split=split)
+        self.loader = RICULoader(source_path, split=split)
         self.split = split
-        self.maxlen = self.loader.maxlen
         self.scale_label = scale_label
         if self.scale_label:
             self.scaler = MinMaxScaler()
@@ -109,7 +108,7 @@ class RICUDataset(Dataset):
 
 @gin.configurable('RICULoader')
 class RICULoader(object):
-    def __init__(self, data_path, on_RAM=True, split='train', maxlen=-1, task=0,
+    def __init__(self, data_path, on_RAM=True, split='train', task=0,
                  data_resampling=1, label_resampling=1, use_feat=False):
         """
         Args:
@@ -118,7 +117,6 @@ class RICULoader(object):
             concatenate them and keep track of the windows in a third file.
             on_RAM (boolean): Boolean whether to load data on RAM. If you don't have ram capacity set it to False.
             splits (list): list of splits name . Default is ['train', 'val']
-            maxlen (int): Integer with the maximum length of a sequence. If -1 take the maximum length in the data.
             task (int/string): Integer with the index of the task we want to train on in the labels. If string we find
             the matching tring in data_h5['tasks']
             data_resampling (int): Number of step at which we want to resample the data. Default to 1 (5min)
@@ -127,16 +125,15 @@ class RICULoader(object):
         """
         # We set sampling config
         self.split = split
-        self.maxlen = maxlen
         self.resampling = data_resampling
         self.label_resampling = label_resampling
         self.use_feat = use_feat
         self.on_RAM = on_RAM
 
-        # Define different parquet files
+        # Define different dataframes
         self.dyn = pq.read_table(pth.join(data_path, "dyn_imputed_splits.parquet"))
         self.dyn_df = self.dyn.to_pandas().loc[self.split]
-        self.dyn_data_df = self.dyn_df.drop(labels='time', axis=1)
+        self.dyn_data_df = self.dyn_df[constants.DYN_FEATURES]
         self.outc = pq.read_table(pth.join(data_path, "outc.parquet"))
         self.outc_df = self.outc.to_pandas()
         self.sta = pq.read_table(pth.join(data_path, "sta.parquet"))
@@ -145,8 +142,10 @@ class RICULoader(object):
         self.labels_splits = pq.read_table(pth.join(data_path, "labels_splits.parquet"))
         self.labels_splits_df = self.labels_splits.to_pandas().loc[self.split]
 
+        #  calculate basic info for the data
         self.num_stays = self.stays_splits_df.shape[0]
         self.num_measurements = self.dyn_df.shape[0]
+        self.maxlen = self.dyn_df.groupby(["stay_id"]).size().max() // self.resampling
 
         reindex_label = False
         # Checks the task that is defined
@@ -212,11 +211,6 @@ class RICULoader(object):
         # Iterate counters
         # self.current_index_training = {'train': 0, 'test': 0, 'val': 0}
 
-        if self.maxlen == -1:
-            self.maxlen = self.dyn_df.groupby(["stay_id"]).size().max() // self.resampling
-        else:
-            self.maxlen = self.maxlen // self.resampling
-
 
     def get_window(self, stay_id, pad_value=0.0):
         """Windowing function
@@ -259,12 +253,6 @@ class RICULoader(object):
             labels = np.concatenate([labels, np.ones((length_diff,)) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros((length_diff,))], axis=0)
             label_resampling_mask = np.concatenate([label_resampling_mask, np.zeros((length_diff,))], axis=0)
-
-        elif length_diff < 0:
-            window = window[:self.maxlen]
-            labels = labels[:self.maxlen]
-            pad_mask = pad_mask[:self.maxlen]
-            label_resampling_mask = label_resampling_mask[:self.maxlen]
 
         not_labeled = np.argwhere(np.isnan(labels))
         if len(not_labeled) > 0:
