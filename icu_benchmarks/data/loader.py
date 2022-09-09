@@ -17,7 +17,6 @@ import os.path as pth
 @gin.configurable('RICUDataset')
 class RICUDataset(Dataset):
 
-
     def __init__(self, source_path, split="train", maxlen=-1, scale_label=False):
         """
         Args:
@@ -27,7 +26,7 @@ class RICUDataset(Dataset):
             maxlen (int): Max size of the generated sequence. If -1, takes the max size existing in split.
             scale_label (bool): Whether to train a min_max scaler on labels (For regression stability).
         """
-        self.loader = RICULoader(source_path, maxlen=maxlen, splits=[split])
+        self.loader = RICULoader(source_path, maxlen=maxlen, split=split)
         self.split = split
         self.maxlen = self.loader.maxlen
         self.scale_label = scale_label
@@ -41,7 +40,7 @@ class RICUDataset(Dataset):
         return self.loader.num_stays
 
     def __getitem__(self, idx):
-        data, label, pad_mask = self.loader.sample(self.split, idx)
+        data, label, pad_mask = self.loader.sample(idx)
 
         # if self.scale_label:
         #     label = self.scaler.transform(label.reshape(-1, 1))[:, 0]
@@ -79,26 +78,33 @@ class RICUDataset(Dataset):
         Returns: (np.array, np.array) a tuple containing  data points and label for the split.
 
         """
-        labels = []
-        rep = []
-        windows = self.loader.stay_windows_np
-        resampling = self.loader.label_resampling
+        # labels = []
+        # rep = []
+        # stays = self.loader.stays_splits_df.loc[self.split]['stay_id'].to_numpy()
+        # print(stays)
+        # resampling = self.loader.label_resampling
         # logging.info('Gathering the samples for split ' + self.split)
-        for id_, start, stop in tqdm(windows):
-            # offset stop by one for correct array slicing
-            stop += 1
-            label = self.loader.labels[start:stop][::resampling][:self.maxlen]
-            sample = self.loader.lookup_table[start:stop][::resampling][:self.maxlen][~np.isnan(label)]
-            # if self.loader.feature_table is not None:
-            #     features = self.loader.feature_table[start:stop, 1:][::resampling][:self.maxlen][
-            #         ~np.isnan(label)]
-            #     sample = np.concatenate((sample, features), axis=-1)
-            label = label[~np.isnan(label)]
-            if label.shape[0] > 0:
-                rep.append(sample)
-                labels.append(label)
-        rep = np.concatenate(rep, axis=0)
-        labels = np.concatenate(labels)
+        # for id_, stay_id in tqdm(np.ndenumerate(stays)):
+        #     print(self.loader.labels)
+        #     label = self.loader.labels_splits_df.loc[self.split].loc[stay_id].to_numpy()[::resampling][:self.maxlen]
+        #     sample = self.loader.dyn_df.loc[self.split].loc[stay_id].to_numpy()[::resampling][:self.maxlen][~np.isnan(label)]
+        #     # if self.loader.feature_table is not None:
+        #     #     features = self.loader.feature_table[start:stop, 1:][::resampling][:self.maxlen][
+        #     #         ~np.isnan(label)]
+        #     #     sample = np.concatenate((sample, features), axis=-1)
+        #     label = label[~np.isnan(label)]
+        #     if label.shape[0] > 0:
+        #         rep.append(sample)
+        #         labels.append(label)
+        # rep = np.concatenate(rep, axis=0)
+        # labels = np.concatenate(labels)
+
+        labels = self.loader.labels_splits_df['label'].to_numpy().astype(float)
+        rep = self.loader.dyn_data_df
+        if len(labels) == self.loader.num_stays:
+            rep = rep.groupby(level='stay_id').last()
+        rep = rep.to_numpy()
+
         if self.scaler is not None:
             labels = self.scaler.transform(labels.reshape(-1, 1))[:, 0]
         return rep, labels
@@ -106,7 +112,7 @@ class RICUDataset(Dataset):
 
 @gin.configurable('RICULoader')
 class RICULoader(object):
-    def __init__(self, data_path, on_RAM=True, splits=['train', 'val'], maxlen=-1, task=0,
+    def __init__(self, data_path, on_RAM=True, split='train', maxlen=-1, task=0,
                  data_resampling=1, label_resampling=1, use_feat=False):
         """
         Args:
@@ -123,7 +129,7 @@ class RICULoader(object):
             Default to 1 (5min)
         """
         # We set sampling config
-        self.splits = splits
+        self.split = split
         self.maxlen = maxlen
         self.resampling = data_resampling
         self.label_resampling = label_resampling
@@ -131,22 +137,24 @@ class RICULoader(object):
         self.on_RAM = on_RAM
 
         # Define different parquet files
-        self.dyn = pq.ParquetFile(pth.join(data_path, "dyn_imputed.parquet"))
-        self.dyn_table = self.dyn.read()
-        self.dyn_df = self.dyn_table.to_pandas()
+        self.dyn = pq.read_table(pth.join(data_path, "dyn_imputed_splits.parquet"))
+        self.dyn_df = self.dyn.to_pandas().loc[self.split]
+        self.dyn_data_df = self.dyn_df.drop(labels='time', axis=1)
         # Select feature columns as ndarray
         self.lookup_table = self.dyn_df[constants.DYN_FEATURES].to_numpy()
-        self.outc = pq.ParquetFile(pth.join(data_path, "outc.parquet"))
-        self.outc_table = self.outc.read()
-        self.sta = pq.ParquetFile(pth.join(data_path, "sta.parquet"))
-        self.stay_windows = pq.ParquetFile(pth.join(data_path, "stay_windows_lookup.parquet"))
-        self.stay_windows_table = self.stay_windows.read()
-        self.stay_windows_df = self.stay_windows_table.to_pandas()
-        self.stay_windows_np = self.stay_windows_df.to_numpy()
+        self.outc = pq.read_table(pth.join(data_path, "outc.parquet"))
+        self.outc_df = self.outc.to_pandas()
+        self.sta = pq.read_table(pth.join(data_path, "sta.parquet"))
+        # self.stays = pq.read_table(pth.join(data_path, "stay_windows_lookup.parquet"))
+        # self.stays_df = self.stays.to_pandas()
+        # self.stay_windows_np = self.stay_windows_df.to_numpy()
+        self.stays_splits = pq.read_table(pth.join(data_path, "stays_splits.parquet"))
+        self.stays_splits_df = self.stays_splits.to_pandas().loc[self.split]
+        self.labels_splits = pq.read_table(pth.join(data_path, "labels_splits.parquet"))
+        self.labels_splits_df = self.labels_splits.to_pandas().loc[self.split]
 
-        self.columns = self.dyn.schema.names
-
-        # TODO create splits (beforehand?)
+        self.num_stays = self.stays_splits_df.shape[0]
+        self.num_measurements = self.dyn_df.shape[0]
 
         reindex_label = False
         # Checks the task that is defined
@@ -181,16 +189,6 @@ class RICULoader(object):
         # else:
         #     self.feature_table = None
 
-        self.stay_ids = self.outc_table.column("stay_id").to_numpy()
-        self.stay_labels = self.outc_table.column("label").to_numpy()
-        self.num_stays = len(self.stay_windows_np)
-        self.num_measurements = len(self.lookup_table)
-
-        # Build an np-array with same length as dyn_table that only has the label at the end of each window
-        self.labels = np.empty(self.num_measurements)
-        self.labels[:] = np.nan
-        self.labels[self.stay_windows_np[:,2]] = self.stay_labels
-
         # if self.data_h5.__contains__('labels'):
         #     self.labels = {split: self.data_h5['labels'][split][:, self.task_idx] for split in self.splits}
         #
@@ -222,13 +220,15 @@ class RICULoader(object):
         # Iterate counters
         # self.current_index_training = {'train': 0, 'test': 0, 'val': 0}
 
+        # TODO fix maxlen
         if self.maxlen == -1:
-            self.maxlen = np.max((self.stay_windows_np[:, 2] - self.stay_windows_np[:, 1] + 1) // self.resampling)
+            # self.maxlen = np.max((self.stay_windows_np[:, 2] - self.stay_windows_np[:, 1] + 1) // self.resampling)
+            self.maxlen = 25
         else:
             self.maxlen = self.maxlen // self.resampling
 
 
-    def get_window(self, start, stop, split, pad_value=0.0):
+    def get_window(self, stay_id, pad_value=0.0):
         """Windowing function
 
         Args:
@@ -243,21 +243,23 @@ class RICULoader(object):
             labels (np.array): 1D array with corresponding labels for each timestep.
         """
         # We resample data frequency
-        window = np.copy(self.lookup_table[start:stop][::self.resampling])
-        labels = np.copy(self.labels[start:stop][::self.resampling])
+        # window = np.copy(self.lookup_table[start:stop][::self.resampling])
+        # labels = np.copy(self.labels[start:stop][::self.resampling])
+        window = self.dyn_data_df.loc[stay_id].to_numpy()
+        labels = self.labels_splits_df.loc[stay_id]['label'].to_numpy().astype(float)
 
         # TODO reimplement features
         # if self.feature_table is not None:
         #     feature = np.copy(self.feature_table[start:stop][::self.resampling])
         #     window = np.concatenate([window, feature], axis=-1)
 
-        label_resampling_mask = np.zeros((stop - start,))
+        label_resampling_mask = np.zeros(window.shape[0])
         label_resampling_mask[::self.label_resampling] = 1.0
         label_resampling_mask = label_resampling_mask[::self.resampling]
         length_diff = self.maxlen - window.shape[0]
 
         # Padding the array to fulfill size requirement
-        pad_mask = np.ones((window.shape[0],))
+        pad_mask = np.ones(window.shape[0])
 
         if length_diff > 0:
             window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
@@ -284,7 +286,7 @@ class RICULoader(object):
         return window, labels, pad_mask
 
     # Important to implement for pytorch dataset
-    def sample(self, split, idx=None):
+    def sample(self, idx=None):
         """Function to sample from the data split of choice.
         Args:
             idx (int): A specific idx to sample. If None is provided, sample randomly.
@@ -292,11 +294,11 @@ class RICULoader(object):
             A sample from the desired distribution as tuple of numpy arrays (sample, label, mask).
         """
         if idx is None:
-            idx = self.stay_ids[np.random.randint(self.num_stays)]
+            idx = np.random.randint(self.num_stays)
         
-        stay_window = self.stay_windows_df.loc[idx]
+        stay_id = self.stays_splits_df.iloc[idx]
 
-        return self.get_window(stay_window[1], stay_window[2] + 1, split)
+        return self.get_window(stay_id)
 
 
 
