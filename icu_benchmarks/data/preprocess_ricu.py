@@ -11,12 +11,14 @@ def impute_forward_then_backward(ricu_data_root, dyn_imputed_path):
     """
     1. Get all rows of a specific stay as separate Object, making sure it is sorted by time.
     2. Forward fill missing values for all columns containing measurements.
-    3. Backward fill leftover missing values at the start of a stay.
+    3. Fill leftover missing values at the start of a stay with the mean of the variable.
     """
     dyn_df = pa.parquet.read_table(os.path.join(ricu_data_root, "dyn.parquet")).to_pandas()
 
     # TODO stay_id, time as constant
-    dyn_df[constants.DYN_FEATURES] = dyn_df.sort_values(['stay_id','time']).groupby('stay_id')[constants.DYN_FEATURES].ffill().bfill()
+    dyn_data_grouped_df = dyn_df.sort_values(['stay_id','time']).groupby('stay_id')[constants.DYN_FEATURES]
+    dyn_data_mean_per_stay = dyn_data_grouped_df.transform('mean')
+    dyn_df[constants.DYN_FEATURES] = dyn_data_grouped_df.ffill().fillna(value=dyn_data_mean_per_stay)
     
     return pa.parquet.write_table(pa.Table.from_pandas(dyn_df), dyn_imputed_path)
 
