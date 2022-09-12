@@ -33,7 +33,7 @@ class RICUDataset(Dataset):
         self.scale_label = scale_label
         if self.scale_label:
             self.scaler = MinMaxScaler()
-            self.scaler.fit(self.get_labels().reshape(-1, 1))
+            self.scaler.fit(self.loader.labels_splits_df.to_numpy().astype(float))
         else:
             self.scaler = None
 
@@ -43,12 +43,9 @@ class RICUDataset(Dataset):
     def __getitem__(self, idx):
         data, label, pad_mask = self.loader.sample(idx)
 
-        # if self.scale_label:
-        #     label = self.scaler.transform(label.reshape(-1, 1))[:, 0]
+        if self.scale_label:
+            label = self.scaler.transform(label.reshape(-1, 1))[:, 0]
         return torch.from_numpy(data), torch.from_numpy(label), torch.from_numpy(pad_mask)
-
-    def get_labels(self):
-        return self.loader.labels
 
     def get_balance(self):
         """Return the weight balance for the split of interest.
