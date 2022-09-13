@@ -2,7 +2,7 @@ import logging
 
 import gin
 import numpy as np
-import pandas
+import pandas as pd
 import tables
 import torch
 from sklearn.preprocessing import MinMaxScaler
@@ -80,11 +80,6 @@ class RICUDataset(Dataset):
             rep = rep.groupby(level='stay_id').last()
         rep = rep.to_numpy()
 
-        # if self.loader.feature_table is not None:
-        #     features = self.loader.feature_table[start:stop, 1:][::resampling][:self.maxlen][
-        #         ~np.isnan(label)]
-        #     sample = np.concatenate((sample, features), axis=-1)
-
         if self.scaler is not None:
             labels = self.scaler.transform(labels.reshape(-1, 1))[:, 0]
         return rep, labels
@@ -107,40 +102,27 @@ class RICULoader(object):
         self.use_feat = use_feat
         self.on_RAM = on_RAM
 
-        # Define different dataframes
-        self.dyn = pq.read_table(pth.join(data_path, FILE_NAMES['DYNAMIC_SPLITS']))
-        self.dyn_df = self.dyn.to_pandas().loc[self.split]
-        self.dyn_data_df = self.dyn_df[VARS['DYN_FEATURES']]
-        self.outc = pq.read_table(pth.join(data_path, FILE_NAMES['OUTCOME']))
-        self.outc_df = self.outc.to_pandas()
-        self.sta = pq.read_table(pth.join(data_path, FILE_NAMES['STATIC']))
-        self.stays_splits = pq.read_table(pth.join(data_path, FILE_NAMES['STAYS_SPLITS']))
-        self.stays_splits_df = self.stays_splits.to_pandas().loc[self.split]
-        self.labels_splits = pq.read_table(pth.join(data_path, FILE_NAMES['LABELS_SPLITS']))
-        self.labels_splits_df = self.labels_splits.to_pandas().loc[self.split]
+        # Load parquet into dataframes, selecting the split from the data
+        self.dyn_df = pq.read_table(pth.join(data_path, FILE_NAMES['DYNAMIC_IMPUTED'])).to_pandas().loc[self.split]
+        if self.use_feat:
+            self.features_df = pq.read_table(pth.join(data_path, FILE_NAMES['FEATURES'])).to_pandas().loc[self.split]
+            self.dyn_df = pd.concat([self.dyn_df, self.features_df], axis=1)
+        self.dyn_data_df = self.dyn_df.drop(labels='time', axis=1)
+        self.outc_df = pq.read_table(pth.join(data_path, FILE_NAMES['OUTCOME'])).to_pandas()
+        self.stays_splits_df = pq.read_table(pth.join(data_path, FILE_NAMES['STAYS_SPLITS'])).to_pandas().loc[self.split]
+        self.labels_splits_df = pq.read_table(pth.join(data_path, FILE_NAMES['LABELS_SPLITS'])).to_pandas().loc[self.split]
 
         #  calculate basic info for the data
         self.num_stays = self.stays_splits_df.shape[0]
         self.num_measurements = self.dyn_df.shape[0]
         self.maxlen = self.dyn_df.groupby([VARS['STAY_ID']]).size().max() // self.resampling
 
-        # Processing the feature part
-        # if self.data_h5.__contains__('features') and self.use_feat:
-        #     if on_RAM:  # Faster but comsumes more RAM
-        #         self.feature_table = {split: self.data_h5['features'][split][:] for split in self.splits}
-        #     else:
-        #         self.feature_table = {split: self.data_h5['features'][split] for split in self.splits}
-        # else:
-        #     self.feature_table = None
-
 
     def get_window(self, stay_id, pad_value=0.0):
         """Windowing function
 
         Args:
-            start (int): Index of the first element.
-            stop (int):  Index of the last element.
-            split (string): Name of the split to get window from.
+            stay_id (int): Id of the stay we want to sample.
             pad_value (float): Value to pad with if stop - start < self.maxlen.
 
         Returns:
@@ -153,11 +135,6 @@ class RICULoader(object):
 
         if len(labels) == 1:
             labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
-
-        # TODO reimplement features
-        # if self.feature_table is not None:
-        #     feature = np.copy(self.feature_table[start:stop][::self.resampling])
-        #     window = np.concatenate([window, feature], axis=-1)
 
         length_diff = self.maxlen - window.shape[0]
 
