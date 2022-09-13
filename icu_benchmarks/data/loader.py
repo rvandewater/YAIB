@@ -56,7 +56,7 @@ class RICUDataset(Dataset):
         counts = self.loader.outc_df.groupby('label').count()['stay_id']
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
-    # TODO understand and use correctly
+    # TODO check whether this works for seq2seq task
     def set_scaler(self, scaler):
         """Sets the scaler for labels in case of regression.
 
@@ -68,7 +68,7 @@ class RICUDataset(Dataset):
     
     def get_data_and_labels(self):
         """Function to return all the data and labels aligned at once.
-        We use this function for the ML methods which don't require a iterator.
+        We use this function for the ML methods which don't require an iterator.
 
         Returns: (np.array, np.array) a tuple containing  data points and label for the split.
 
@@ -134,6 +134,7 @@ class RICULoader(object):
         labels = self.labels_splits_df.loc[stay_id]['label'].to_numpy().astype(float)
 
         if len(labels) == 1:
+            # only one label per stay, align with window
             labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
 
         length_diff = self.maxlen - window.shape[0]
@@ -142,6 +143,7 @@ class RICULoader(object):
         pad_mask = np.ones(window.shape[0])
 
         if length_diff > 0:
+            # window shorter than longest window in dataset, pad to same length
             window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
             labels = np.concatenate([labels, np.ones((length_diff,)) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros((length_diff,))], axis=0)
@@ -156,7 +158,6 @@ class RICULoader(object):
         window = window.astype(np.float32)
         return window, labels, pad_mask
 
-    # Important to implement for pytorch dataset
     def sample(self, idx=None):
         """Function to sample from the data split of choice.
         Args:
