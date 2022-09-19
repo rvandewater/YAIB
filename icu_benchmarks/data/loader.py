@@ -10,13 +10,12 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 from enum import Enum
 from icu_benchmarks.common import constants
-import pyarrow.parquet as pq
+from pyarrow import parquet
 import os.path as pth
 
 VARS = constants.VARS
 FILE_NAMES = constants.FILE_NAMES
 
-# TODO: Adjust/recreate the dataloader to adapt the RICU format
 @gin.configurable('RICUDataset')
 class RICUDataset(Dataset):
 
@@ -74,7 +73,7 @@ class RICUDataset(Dataset):
 
         """
         logging.info('Gathering the samples for split ' + self.split)
-        labels = self.loader.labels_splits_df['label'].to_numpy().astype(float)
+        labels = self.loader.labels_df['label'].to_numpy().astype(float)
         rep = self.loader.dyn_data_df
         if len(labels) == self.loader.num_stays:
             rep = rep.groupby(level='stay_id').last()
@@ -87,35 +86,32 @@ class RICUDataset(Dataset):
 
 @gin.configurable('RICULoader')
 class RICULoader(object):
-    def __init__(self, data_path, on_RAM=True, split='train', data_resampling=1, use_feat=False):
+    def __init__(self, data_path, split='train', use_features=True, use_static=False):
         """
         Args:
             data_path (string): Path to the folder containing the preprocessed files with static and dynamic data, 
             labels and splits.
-            on_RAM (boolean): Boolean whether to load data on RAM. If you don't have ram capacity set it to False.
             split (string): Name of split to load.
-            data_resampling (int): Number of step at which we want to resample the data.
         """
         # We set sampling config
         self.split = split
-        self.resampling = data_resampling
-        self.use_feat = use_feat
-        self.on_RAM = on_RAM
 
         # Load parquet into dataframes, selecting the split from the data
-        self.dyn_df = pq.read_table(pth.join(data_path, FILE_NAMES['DYNAMIC_IMPUTED'])).to_pandas().loc[self.split]
-        if self.use_feat:
-            self.features_df = pq.read_table(pth.join(data_path, FILE_NAMES['FEATURES'])).to_pandas().loc[self.split]
+        self.static_df = parquet.read_table(pth.join(data_path, FILE_NAMES['STATIC_IMPUTED'])).to_pandas().loc[self.split]
+        self.outc_df = parquet.read_table(pth.join(data_path, FILE_NAMES['OUTCOME'])).to_pandas()
+        self.labels_df = parquet.read_table(pth.join(data_path, FILE_NAMES['LABELS_SPLITS'])).to_pandas().loc[self.split]
+        self.dyn_df = parquet.read_table(pth.join(data_path, FILE_NAMES['DYNAMIC_IMPUTED'])).to_pandas().loc[self.split]
+        if use_features:
+            self.features_df = parquet.read_table(pth.join(data_path, FILE_NAMES['FEATURES_IMPUTED'])).to_pandas().loc[self.split]
             self.dyn_df = pd.concat([self.dyn_df, self.features_df], axis=1)
+        if use_static:
+            self.dyn_df = pd.concat([self.dyn_df, self.static_df.set_index(VARS['STAY_ID'])], axis=1).drop(labels='sex', axis=1)
         self.dyn_data_df = self.dyn_df.drop(labels='time', axis=1)
-        self.outc_df = pq.read_table(pth.join(data_path, FILE_NAMES['OUTCOME'])).to_pandas()
-        self.stays_splits_df = pq.read_table(pth.join(data_path, FILE_NAMES['STAYS_SPLITS'])).to_pandas().loc[self.split]
-        self.labels_splits_df = pq.read_table(pth.join(data_path, FILE_NAMES['LABELS_SPLITS'])).to_pandas().loc[self.split]
 
-        #  calculate basic info for the data
-        self.num_stays = self.stays_splits_df.shape[0]
+        # calculate basic info for the data
+        self.num_stays = self.static_df.shape[0]
         self.num_measurements = self.dyn_df.shape[0]
-        self.maxlen = self.dyn_df.groupby([VARS['STAY_ID']]).size().max() // self.resampling
+        self.maxlen = self.dyn_df.groupby([VARS['STAY_ID']]).size().max()
 
 
     def get_window(self, stay_id, pad_value=0.0):
@@ -131,7 +127,7 @@ class RICULoader(object):
             labels (np.array): 1D array with corresponding labels for each timestep.
         """
         window = self.dyn_data_df.loc[stay_id].to_numpy()
-        labels = self.labels_splits_df.loc[stay_id]['label'].to_numpy().astype(float)
+        labels = self.labels_df.loc[stay_id]['label'].to_numpy().astype(float)
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -168,7 +164,7 @@ class RICULoader(object):
         if idx is None:
             idx = np.random.randint(self.num_stays)
         
-        stay_id = self.stays_splits_df.iloc[idx]
+        stay_id = self.static_df.iloc[idx][VARS['STAY_ID']]
 
         return self.get_window(stay_id)
 
