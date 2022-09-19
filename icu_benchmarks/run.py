@@ -365,32 +365,53 @@ def run_preprocessing_ricu(ricu_data_root, work_dir, var_ref_path, imputation_me
     dyn_path = work_dir / constants.FILE_NAMES['DYNAMIC']
     outc_path = work_dir / constants.FILE_NAMES['OUTCOME']
     
-    stays_splits_path = work_dir / constants.FILE_NAMES['STAYS_SPLITS']
+    static_splits_path = work_dir / constants.FILE_NAMES['STATIC_SPLITS']
     labels_splits_path = work_dir / constants.FILE_NAMES['LABELS_SPLITS']
     dyn_splits_path = work_dir / constants.FILE_NAMES['DYNAMIC_SPLITS']
 
-    if not stays_splits_path.exists() or not labels_splits_path.exists() or not dyn_splits_path.exists():
+    if not static_splits_path.exists() or not labels_splits_path.exists() or not dyn_splits_path.exists():
         logging.info("Generating splits")
-        generate_splits(sta_path, outc_path, dyn_path, stays_splits_path, labels_splits_path, dyn_splits_path)
+        generate_splits(sta_path, outc_path, dyn_path, static_splits_path, labels_splits_path, dyn_splits_path)
     else:
-        logging.info(f"Splits in {work_dir} seem to exist, skipping")
+        logging.info(f"Splits in {work_dir} exist, skipping")
 
+    dyn_df = parquet.read_table(dyn_splits_path).to_pandas()
+    
     extracted_features_path = work_dir / constants.FILE_NAMES['FEATURES']
-
     if not extracted_features_path.exists():
         logging.info("Extracting features")
-        extract_features(dyn_splits_path, extracted_features_path)
+        features_df = extract_features(dyn_df)
+        parquet.write_table(Table.from_pandas(features_df), extracted_features_path)
     else:
-        logging.info(f"Features in {extracted_features_path} seem to exist, skipping")
+        logging.info(f"Features in {extracted_features_path} exist, skipping")
 
     dyn_imputed_path = work_dir / constants.FILE_NAMES['DYNAMIC_IMPUTED']
-    
     if not dyn_imputed_path.exists():
         logging.info("Imputing dynamic data")
-        impute_forward_then_backward(dyn_splits_path, dyn_imputed_path)
+        dyn_imputed_df = impute(dyn_df, impute_function=forward_fill, exclude_cols=[VARS['TIME']], sort_col=[VARS['TIME']], fill_method='mean')
+        parquet.write_table(Table.from_pandas(dyn_imputed_df), dyn_imputed_path)
     else:
-        logging.info(f"Imputed data in {dyn_imputed_path} seems to exist, skipping")
+        logging.info(f"Imputed dynamic data in {dyn_imputed_path} exists, skipping")
 
+    static_imputed_path = work_dir / constants.FILE_NAMES['STATIC_IMPUTED']
+    if not static_imputed_path.exists():
+        logging.info("Imputing dynamic data")
+        static_df = parquet.read_table(static_splits_path).to_pandas()
+        static_imputed_df = impute(static_df, exclude_cols=[VARS['STAY_ID'], VARS['SEX']], fill_method='mean')
+        parquet.write_table(Table.from_pandas(static_imputed_df), static_imputed_path)
+    else:
+        logging.info(f"Imputed static data in {static_imputed_path} exists, skipping")
+
+    features_imputed_path = work_dir / constants.FILE_NAMES['FEATURES_IMPUTED']
+    if not features_imputed_path.exists():
+        logging.info("Imputing features")
+        features_df = parquet.read_table(extracted_features_path).to_pandas()
+        features_imputed_df = impute(features_df, impute_function=forward_fill, fill_method='zero')
+        parquet.write_table(Table.from_pandas(features_imputed_df), features_imputed_path)
+    else:
+        logging.info(f"Imputed features in {features_imputed_path} exist, skipping")
+
+    # TODO figure out
     # run_build_ml(common_path, label_path, features_path, ml_path, var_ref_path, endpoints,
     #              imputation_method, seed, split_path)
 
