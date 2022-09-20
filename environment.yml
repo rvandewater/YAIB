@@ -11,7 +11,7 @@ dependencies:
   - pandas=1.4.4
   - pyarrow=9.0.0
   - pytest=7.1.2
-  - python=3.10.6
+  - python=3.9.14
   - pytorch=1.12.1
   - scikit-learn=1.1.1
   - tensorboard=2.10.0
