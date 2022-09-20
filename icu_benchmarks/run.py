@@ -18,11 +18,11 @@ from icu_benchmarks.common.processing import map_df
 from icu_benchmarks.common.reference_data import read_static
 from icu_benchmarks.common.resampling import irregular_to_gridded
 from icu_benchmarks.common.constants import MORTALITY_NAME, CIRC_FAILURE_NAME, RESP_FAILURE_NAME, URINE_REG_NAME, \
-    URINE_BINARY_NAME, PHENOTYPING_NAME, LOS_NAME
+    URINE_BINARY_NAME, PHENOTYPING_NAME, LOS_NAME, VARS
 from icu_benchmarks.data import imputation_for_endpoints, extended_general_table_generation, endpoint_generation, \
     labels, schemata
 from icu_benchmarks.data.preprocess import to_ml
-from icu_benchmarks.data.preprocess_ricu import generate_splits, extract_features, impute_forward_then_backward
+from icu_benchmarks.data.preprocess_ricu import generate_splits, extract_features, impute, forward_fill
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
 from icu_benchmarks.preprocessing import merge
