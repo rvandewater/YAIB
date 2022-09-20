@@ -1,7 +1,7 @@
 name: yaib_updated
 channels:
-  - conda-forge
   - pytorch
+  - conda-forge
   - anaconda
 dependencies:
   - gin-config=0.5.0
