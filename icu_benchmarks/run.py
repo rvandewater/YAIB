@@ -1,16 +1,29 @@
 # -*- coding: utf-8 -*-
 import argparse
+import functools
 import logging
 import os
+import re
 import sys
 from pathlib import Path
-from pyarrow import Table, parquet
-from icu_benchmarks.common import constants
+from typing import Sequence, Optional
 
-from icu_benchmarks.common.constants import VARS
-from icu_benchmarks.data.preprocess import generate_splits, extract_features, impute, forward_fill
+import pandas as pd
+from icu_benchmarks.data.feature_extraction import extract_feature_df
+
+from icu_benchmarks.common.datasets import Dataset
+from icu_benchmarks.common.lookups import read_var_ref_table
+from icu_benchmarks.common.processing import map_df
+from icu_benchmarks.common.reference_data import read_static
+from icu_benchmarks.common.resampling import irregular_to_gridded
+from icu_benchmarks.common.constants import MORTALITY_NAME, CIRC_FAILURE_NAME, RESP_FAILURE_NAME, URINE_REG_NAME, \
+    URINE_BINARY_NAME, PHENOTYPING_NAME, LOS_NAME
+from icu_benchmarks.data import imputation_for_endpoints, extended_general_table_generation, endpoint_generation, \
+    labels, schemata
+from icu_benchmarks.data.preprocess import to_ml
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
+from icu_benchmarks.preprocessing import merge
 
 default_seed = 42
 
@@ -31,22 +44,32 @@ def build_parser():
     preprocess_arguments = parser_prep_ml.add_argument_group(
         'Preprocess arguments')
 
-    preprocess_arguments.add_argument('--data-dir',
+    preprocess_arguments.add_argument('--work-dir',
+                                      required=False, type=Path,
+                                      help="")
+    preprocess_arguments.add_argument('--hirid-data-root',
+                                      type=Path,
+                                      required=True,
+                                      help="Path to the decompressed parquet data directory as published on physionet.")
+    preprocess_arguments.add_argument('--var-ref-path', dest="var_ref_path",
                                       required=True, type=Path,
-                                      help="Path to the parquet data directory as preprocessed by RICU.")
+                                      help="Path to load the variable references from ")
     preprocess_arguments.add_argument('-nw', '--nr-workers', default=1,
                                       required=False, type=int,
                                       dest='nr_workers',
                                       help='Number of process to use at preprocessing, Default to 1 ')
+    preprocess_arguments.add_argument('--split-path', dest="split_path",
+                                      default=None, required=False, type=Path,
+                                      help="Path to load the data split from from ")
     preprocess_arguments.add_argument('--seed', dest="seed",
                                       default=default_seed, required=False, type=int,
                                       help="Seed for the train/val/test split")
-    # preprocess_arguments.add_argument('--imputation', dest="imputation",
-    #                                   default='ffill', required=False, type=str,
-    #                                   help="Type of imputation. Default: 'ffill' ")
-    # preprocess_arguments.add_argument('--horizon', dest="horizon",
-    #                                   default=12, required=False, type=int,
-    #                                   help="Horizon of prediction in hours for failure tasks")
+    preprocess_arguments.add_argument('--imputation', dest="imputation",
+                                      default='ffill', required=False, type=str,
+                                      help="Type of imputation. Default: 'ffill' ")
+    preprocess_arguments.add_argument('--horizon', dest="horizon",
+                                      default=12, required=False, type=int,
+                                      help="Horizon of prediction in hours for failure tasks")
 
     model_arguments = parent_parser.add_argument_group('Model arguments')
     model_arguments.add_argument('-l', '--logdir', dest="logdir",
@@ -61,12 +84,12 @@ def build_parser():
     model_arguments.add_argument('-t', '--task', default=None, dest="task",
                                  required=False, nargs='+', type=str,
                                  help="Name of the task : Default None")
-    # model_arguments.add_argument('-r', '--resampling', default=None, dest="res",
-    #                              required=False, type=int,
-    #                              help="resampling for the data")
-    # model_arguments.add_argument('-rl', '--resampling_label', default=None,
-    #                              dest="res_lab", required=False, type=int,
-    #                              help="resampling for the prediction")
+    model_arguments.add_argument('-r', '--resampling', default=None, dest="res",
+                                 required=False, type=int,
+                                 help="resampling for the data")
+    model_arguments.add_argument('-rl', '--resampling_label', default=None,
+                                 dest="res_lab", required=False, type=int,
+                                 help="resampling for the prediction")
     model_arguments.add_argument('-bs', '--batch-size', default=None,
                                  dest="batch_size", required=False,
                                  type=int, nargs='+',
@@ -74,6 +97,9 @@ def build_parser():
     model_arguments.add_argument('-lr', '--learning-rate', default=None, nargs='+',
                                  dest="lr", required=False, type=float,
                                  help="Learning rate for the model")
+    model_arguments.add_argument('--maxlen', default=None, dest="maxlen",
+                                 required=False, type=int,
+                                 help="Max length of considered time-series for the model")
     model_arguments.add_argument('--num-class', default=None, dest="num_class",
                                  required=False, type=int,
                                  help="Number of classes considered for the task")
@@ -86,9 +112,11 @@ def build_parser():
     model_arguments.add_argument('-do', '--do', default=None, dest="do",
                                  required=False, nargs='+', type=float,
                                  help="Dropout probability for the Transformer block")
+
     model_arguments.add_argument('-do_att', '--do_att', default=None, dest="do_att",
                                  required=False, nargs='+', type=float,
                                  help="Dropout probability for the Self-Attention layer only")
+
     model_arguments.add_argument('-depth', '--depth', default=None,
                                  dest="depth", required=False, nargs='+',
                                  type=int,
@@ -148,56 +176,184 @@ def build_parser():
     return parser
 
 
-def run_preprocessing(work_dir):
-    sta_path = work_dir / constants.FILE_NAMES['STATIC']
-    dyn_path = work_dir / constants.FILE_NAMES['DYNAMIC']
-    outc_path = work_dir / constants.FILE_NAMES['OUTCOME']
-    
-    static_splits_path = work_dir / constants.FILE_NAMES['STATIC_SPLITS']
-    labels_splits_path = work_dir / constants.FILE_NAMES['LABELS_SPLITS']
-    dyn_splits_path = work_dir / constants.FILE_NAMES['DYNAMIC_SPLITS']
+def run_merge_step(hirid_path, var_ref_path, merged_path, nr_workers, static_data_path=None, part_nr=None):
+    static_data_path = Path(static_data_path) if static_data_path else hirid_path / 'general_table'
 
-    if not static_splits_path.exists() or not labels_splits_path.exists() or not dyn_splits_path.exists():
-        logging.info("Generating splits")
-        generate_splits(sta_path, outc_path, dyn_path, static_splits_path, labels_splits_path, dyn_splits_path)
+    if not Dataset(merged_path).is_done():
+        logging.info("Running merge step...")
+        merge.merge_tables(
+            hirid_path / 'observation_tables' if not part_nr else hirid_path / 'observation_tables' / f'part-{part_nr}.parquet',
+            hirid_path / 'pharma_records' if not part_nr else hirid_path / 'pharma_records' / f'part-{part_nr}.parquet',
+            static_data_path,
+            var_ref_path,
+            merged_path,
+            nr_workers
+        )
     else:
-        logging.info(f"Splits in {work_dir} exist, skipping")
+        logging.info(f"Skipping merging, as outputdata seems to exist in {merged_path}")
 
-    dyn_df = parquet.read_table(dyn_splits_path).to_pandas()
-    
-    extracted_features_path = work_dir / constants.FILE_NAMES['FEATURES']
-    if not extracted_features_path.exists():
-        logging.info("Extracting features")
-        features_df = extract_features(dyn_df)
-        parquet.write_table(Table.from_pandas(features_df), extracted_features_path)
-    else:
-        logging.info(f"Features in {extracted_features_path} exist, skipping")
 
-    dyn_imputed_path = work_dir / constants.FILE_NAMES['DYNAMIC_IMPUTED']
-    if not dyn_imputed_path.exists():
-        logging.info("Imputing dynamic data")
-        dyn_imputed_df = impute(dyn_df, impute_function=forward_fill, exclude_cols=[VARS['TIME']], sort_col=[VARS['STAY_ID'], VARS['TIME']], fill_method='mean')
-        parquet.write_table(Table.from_pandas(dyn_imputed_df), dyn_imputed_path)
-    else:
-        logging.info(f"Imputed dynamic data in {dyn_imputed_path} exists, skipping")
+def run_resample_step(merged_path: Path, static_path, var_ref_path, common_path, nr_workers: int):
+    merged_ds = Dataset(merged_path)
+    output_ds = Dataset(common_path)
 
-    static_imputed_path = work_dir / constants.FILE_NAMES['STATIC_IMPUTED']
-    if not static_imputed_path.exists():
-        logging.info("Imputing static data")
-        static_df = parquet.read_table(static_splits_path).to_pandas()
-        static_imputed_df = impute(static_df, exclude_cols=[VARS['STAY_ID'], VARS['SEX']], fill_method='mean')
-        parquet.write_table(Table.from_pandas(static_imputed_df), static_imputed_path)
-    else:
-        logging.info(f"Imputed static data in {static_imputed_path} exists, skipping")
+    if output_ds.is_done():
+        logging.info(f"Skipping resampling, as outputdata seems to exist in {common_path}")
+        return
 
-    features_imputed_path = work_dir / constants.FILE_NAMES['FEATURES_IMPUTED']
-    if not features_imputed_path.exists():
-        logging.info("Imputing features")
-        features_df = parquet.read_table(extracted_features_path).to_pandas()
-        features_imputed_df = impute(features_df, impute_function=forward_fill, fill_method='zero')
-        parquet.write_table(Table.from_pandas(features_imputed_df), features_imputed_path)
+    logging.info("Running resample step...")
+    parts = merged_ds.list_parts()
+
+    df_static = read_static(static_path)
+    df_var_ref = read_var_ref_table(var_ref_path)
+
+    prepare_data_fn = functools.partial(irregular_to_gridded,
+                                        df_static=df_static,
+                                        df_var_ref=df_var_ref)
+
+    output_ds.prepare()
+
+    map_df(prepare_data_fn, parts,
+           lambda p: pd.read_parquet(p),
+           lambda df, p: df.to_parquet(common_path / p,
+                                       index=False), nr_workers)
+
+    output_ds.mark_done()
+
+
+def run_feature_extraction_step(common_path: Path, var_ref_path, feature_path, nr_workers: int):
+    common_ds = Dataset(common_path)
+    feature_ds = Dataset(feature_path)
+
+    if feature_ds.is_done():
+        logging.info(f"Skipping feature extraction, as outputdata seems to exist in {feature_path}")
+        return
+
+    logging.info("Running feature extraction step")
+    parts = common_ds.list_parts()
+
+    df_var_ref = read_var_ref_table(var_ref_path)
+
+    prepare_data_fn = functools.partial(extract_feature_df,
+                                        df_var_ref=df_var_ref)
+
+    feature_ds.prepare()
+
+    map_df(prepare_data_fn, parts,
+           lambda p: pd.read_parquet(p),
+           lambda df, p: df.to_parquet(feature_path / p,
+                                       index=False), nr_workers)
+
+    feature_ds.mark_done()
+
+
+def run_build_ml(common_path, labels_path, features_path: Optional[Path], ml_path, var_ref_path,
+                 endpoint_names: Sequence[str],
+                 imputation: str, seed: int, split_path=None):
+    common_ds = Dataset(common_path)
+    parts = common_ds.list_parts()
+
+    labels_ds = Dataset(labels_path, part_re=re.compile('batch_([0-9]+).parquet'))
+    labels = labels_ds.list_parts()
+
+    if features_path:
+        features_ds = Dataset(features_path)
+        features = features_ds.list_parts()
     else:
-        logging.info(f"Imputed features in {features_imputed_path} exist, skipping")
+        features = []
+
+    df_var_ref = read_var_ref_table(var_ref_path)
+
+    output_ds = Dataset(ml_path)
+
+    output_cols = schemata.cols_ml_stage_v1
+
+    if not output_ds.is_done():
+        logging.info("Running build_ml")
+        output_ds.prepare(single_part=True)
+        to_ml(ml_path, parts, labels, features, endpoint_names, df_var_ref,
+              imputation, output_cols, split_path=split_path,
+              random_seed=seed)
+    else:
+        logging.info(f"Data in {ml_path} seem to exist, skipping")
+
+
+def _get_general_data_path(general_data_path, hirid_data_root):
+    if general_data_path:
+        return Path(general_data_path)
+    else:
+        general_data_path_physionet_download = (hirid_data_root / 'general_table.csv')
+        if general_data_path_physionet_download.exists():
+            return general_data_path_physionet_download
+
+    return hirid_data_root / 'general_table'
+
+
+def run_preprocessing_pipeline(hirid_data_root, work_dir, var_ref_path, imputation_method,
+                               general_data_path=None, split_path=None, seed=default_seed, nr_workers=1, horizon=12):
+    work_dir.mkdir(exist_ok=True, parents=True)
+
+    general_data_path = _get_general_data_path(general_data_path, hirid_data_root)
+
+    extended_general_data_path = work_dir / 'general_table_extended.parquet'
+
+    if not extended_general_data_path.exists():
+        logging.info(f"Generating extended general table in {extended_general_data_path}")
+
+        extended_general_table_generation.generate_extended_general_table(hirid_data_root / 'observation_tables',
+                                                                          general_data_path,
+                                                                          extended_general_data_path)
+    else:
+        logging.info(f"Using extended general table in {extended_general_data_path}")
+
+    merged_path = work_dir / 'merged_stage'
+
+    imputation_for_endpoints_path = work_dir / 'imputation_for_endpoints'
+    endpoints_path = work_dir / 'endpoints'
+    common_path = work_dir / 'common_stage'
+    label_name = "_".join(['labels', str(horizon)]) + 'h'
+    label_path = work_dir / label_name
+
+    features_path = work_dir / 'features_stage'
+    ml_name = 'ml_stage' + '_' + str(horizon) + 'h' + '.h5'
+    ml_path = work_dir / 'ml_stage' / ml_name
+
+    run_merge_step(hirid_data_root, var_ref_path, merged_path, nr_workers, extended_general_data_path)
+
+    run_resample_step(merged_path, extended_general_data_path, var_ref_path, common_path, nr_workers)
+
+    if not imputation_for_endpoints_path.exists():
+        logging.info("Running imputation step for endpoints")
+        imputation_for_endpoints.impute_for_endpoints(merged_path, imputation_for_endpoints_path, nr_workers=nr_workers)
+    else:
+        logging.info(f"Data for imputation for endpoints in {imputation_for_endpoints_path} seems to exist, skipping")
+
+    if not endpoints_path.exists():
+        logging.info("Running endpoint generation")
+        endpoint_generation.generate_endpoints(merged_path, imputation_for_endpoints_path, endpoints_path,
+                                               nr_workers=nr_workers)
+    else:
+        logging.info(f"Endpoints in {endpoints_path} seem to exist, skipping")
+
+    if not label_path.exists():
+        logging.info("Running label generation")
+        labels.generate_labels(endpoints_path, imputation_for_endpoints_path, extended_general_data_path, label_path,
+                               nr_workers=nr_workers)
+    else:
+        logging.info(f"Labels in {label_path} seem to exist, skipping")
+
+    run_feature_extraction_step(common_path, var_ref_path, features_path, nr_workers)
+
+    endpoints = (MORTALITY_NAME,
+                 CIRC_FAILURE_NAME + '_' + str(horizon) + 'Hours',
+                 RESP_FAILURE_NAME + '_' + str(horizon) + 'Hours',
+                 URINE_REG_NAME,
+                 URINE_BINARY_NAME,
+                 PHENOTYPING_NAME,
+                 LOS_NAME)
+
+    run_build_ml(common_path, label_path, features_path, ml_path, var_ref_path, endpoints,
+                 imputation_method, seed, split_path)
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -209,7 +365,10 @@ def main(my_args=tuple(sys.argv[1:])):
 
     # Dispatch
     if args.command == 'preprocess':
-        run_preprocessing(args.data_dir)
+        run_preprocessing_pipeline(args.hirid_data_root, args.work_dir, args.var_ref_path,
+                                   imputation_method=args.imputation,
+                                   split_path=args.split_path,
+                                   seed=args.seed, nr_workers=args.nr_workers, horizon=args.horizon)
 
     if args.command in ['train', 'evaluate']:
         load_weights = args.command == 'evaluate'
