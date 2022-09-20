@@ -39,16 +39,11 @@ class DLWrapper(object):
             device = torch.device('cuda')
             self.pin_memory = True
             self.n_worker = 1
-        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-            logging.info('Model will be trained using Apple’s MPS')
-            device = torch.device('mps')
-            self.pin_memory = True
-            self.n_worker = 1
         else:
             logging.info('Model will be trained using CPU Hardware. This should be considerably slower')
-            device = torch.device('cpu')
             self.pin_memory = False
             self.n_worker = 16
+            device = torch.device('cpu')
         self.device = device
         self.encoder = encoder
         self.encoder.to(device)
@@ -155,9 +150,9 @@ class DLWrapper(object):
         metrics = self.metrics
 
         torch.autograd.set_detect_anomaly(True)  # Check for any nans in gradients
-        # if not train_dataset.loader.on_RAM:
-        #     self.n_worker = 1
-        #     logging.info('Data is not loaded to RAM, thus number of worker has been set to 1')
+        if not train_dataset.h5_loader.on_RAM:
+            self.n_worker = 1
+            logging.info('Data is not loaded to RAM, thus number of worker has been set to 1')
 
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=self.n_worker,
                                   pin_memory=self.pin_memory, prefetch_factor=2)

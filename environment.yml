@@ -1,18 +1,31 @@
-name: yaib_updated
+name: icu-benchmark
 channels:
   - pytorch
-  - conda-forge
   - anaconda
+  - defaults
+  - conda-forge
+  - bioconda
 dependencies:
-  - gin-config=0.5.0
-  - ignite=0.4.10
-  - lightgbm=3.3.2
-  - numpy=1.23.3
-  - pandas=1.4.4
-  - pyarrow=9.0.0
-  - pytest=7.1.2
-  - python=3.9.13
-  - pytorch=1.12.1
-  - scikit-learn=1.1.1
-  - tensorboard=2.10.0
-  - tqdm=4.64.1
+  - fdasrsf=2.2.8
+  - lightgbm=3.2.1
+  - ipykernel=5.3.4
+  - ignite=0.4.4
+  - numpy=1.20.2
+  - pandas=1.2.4
+  - pip=21.0.1
+  - pyarrow=3.0.0
+  - pytables=3.6.1
+  - python=3.8.8
+  - pytorch=1.8.1
+  - scikit-learn=0.24.1
+  - tensorboard=2.4.1
+  - torchvision=0.9.1
+  - tqdm=4.60.0
+  - pip:
+     - h5py==3.1.0
+     # taking gin from master branch, as latest 0.4.0 release does not include the fix https://github.com/google/gin-config/issues/31
+     - git+https://github.com/google/gin-config.git@cadd4fee4d64cede4e6234dbffd40d9d6de2518d
+     - pytest==6.2.3
+     - pathos==0.2.9
+     - routing-transformer==1.5.1
+     - scikit-fda==0.5

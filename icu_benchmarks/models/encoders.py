@@ -15,13 +15,7 @@ class LSTMNet(nn.Module):
         self.layer_dim = layer_dim
         self.rnn = nn.LSTM(input_dim, hidden_dim, layer_dim, batch_first=True)
         self.logit = nn.Linear(hidden_dim, num_classes)
-
-        if torch.cuda.is_available():
-            self.device = torch.device("cuda:0")
-        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-            self.device = torch.device("mps:0")
-        else:
-            self.device = torch.device("cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def init_hidden(self, x):
         h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
@@ -44,13 +38,7 @@ class GRUNet(nn.Module):
         self.layer_dim = layer_dim
         self.rnn = nn.GRU(input_dim, hidden_dim, layer_dim, batch_first=True)
         self.logit = nn.Linear(hidden_dim, num_classes)
-        
-        if torch.cuda.is_available():
-            self.device = torch.device("cuda:0")
-        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-            self.device = torch.device("mps:0")
-        else:
-            self.device = torch.device("cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def init_hidden(self, x):
         h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim).to(self.device)

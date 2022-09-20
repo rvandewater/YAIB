@@ -1,0 +1,66 @@
+import gin.torch.external_configurables
+import icu_benchmarks.data.loader
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+import icu_benchmarks.models.wrappers
+
+# Macros:
+# ==============================================================================
+DEPTH = 2
+EMB = 231
+HIDDEN = 256
+LOSS_WEIGHT = None
+LR = 0.0003
+MAXLEN = 2016
+NUM_CLASSES = 2
+RES = 1
+RES_LAB = 1
+TASK = 'Dynamic_CircFailure_12Hours'
+
+# Parameters for Adam:
+# ==============================================================================
+Adam.amsgrad = False
+Adam.betas = (0.9, 0.999)
+Adam.capturable = False
+Adam.eps = 1e-08
+Adam.foreach = None
+Adam.lr = %LR
+Adam.maximize = False
+Adam.weight_decay = 1e-06
+
+# Parameters for DLWrapper:
+# ==============================================================================
+DLWrapper.encoder = @GRU()
+DLWrapper.loss = @cross_entropy
+DLWrapper.optimizer_fn = @Adam
+
+# Parameters for GRU:
+# ==============================================================================
+GRU.hidden_dim = %HIDDEN
+GRU.input_dim = %EMB
+GRU.layer_dim = %DEPTH
+GRU.num_classes = %NUM_CLASSES
+
+# Parameters for ICUVariableLengthDataset:
+# ==============================================================================
+ICUVariableLengthDataset.maxlen = %MAXLEN
+ICUVariableLengthDataset.scale_label = False
+
+# Parameters for ICUVariableLengthLoaderTables:
+# ==============================================================================
+ICUVariableLengthLoaderTables.data_resampling = %RES
+ICUVariableLengthLoaderTables.label_resampling = %RES_LAB
+ICUVariableLengthLoaderTables.on_RAM = True
+ICUVariableLengthLoaderTables.shuffle = True
+ICUVariableLengthLoaderTables.task = %TASK
+ICUVariableLengthLoaderTables.use_feat = False
+
+# Parameters for train_common:
+# ==============================================================================
+train_common.data_path = \
+    ('C:\\Users\\Robin van de '
+     'Water\\Documents\\Datasets\\hirid_preprocessed\\ml_stage\\ml_stage_12h.h5')
+train_common.dataset_fn = @ICUVariableLengthDataset
+train_common.do_test = True
+train_common.model = @DLWrapper()
+train_common.weight = %LOSS_WEIGHT

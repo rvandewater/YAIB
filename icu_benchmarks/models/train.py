@@ -93,9 +93,13 @@ def train_common(log_dir, overwrite=False, load_weights=False, model=gin.REQUIRE
                               "to train with the synthetic data, this is expected behaviour")
             sys.exit(1)
 
+    del dataset.h5_loader.lookup_table
+    del val_dataset.h5_loader.lookup_table
+
     if do_test:
         test_dataset = dataset_fn(data_path, split='test')
         test_dataset.set_scaler(dataset.scaler)
         weight = dataset.get_balance()
         model.test(test_dataset, weight)
+        del test_dataset.h5_loader.lookup_table
     save_config_file(log_dir)
