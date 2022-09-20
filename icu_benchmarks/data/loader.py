@@ -8,7 +8,6 @@ import torch
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import Dataset
 from tqdm import tqdm
-from enum import Enum
 from icu_benchmarks.common import constants
 from pyarrow import parquet
 import os.path as pth
