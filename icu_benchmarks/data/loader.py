@@ -126,8 +126,9 @@ class RICULoader(object):
             pad_mask (np.array): 1D array with 0 if no labels are provided for the timestep.
             labels (np.array): 1D array with corresponding labels for each timestep.
         """
-        window = self.dyn_data_df.loc[stay_id].to_numpy()
-        labels = self.labels_df.loc[stay_id]['label'].to_numpy().astype(float)
+        # slice to make sure to always return a DF
+        window = self.dyn_data_df.loc[stay_id:stay_id].to_numpy()
+        labels = self.labels_df.loc[stay_id][['label']].to_numpy().astype(float)
 
         if len(labels) == 1:
             # only one label per stay, align with window
