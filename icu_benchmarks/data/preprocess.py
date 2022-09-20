@@ -1,5 +1,6 @@
 import pandas as pd
 import pyarrow as pa
+from sklearn.base import TransformerMixin
 
 from icu_benchmarks.common import constants
 
@@ -8,6 +9,62 @@ FILE_NAMES = constants.FILE_NAMES
 
 # TODO finish doc strings
 # TODO use type hints
+
+
+class AllColumns:
+    def __init__(self):
+        return
+
+    def __call__(self, X:pd.DataFrame=None):
+        return X.columns.tolist()
+
+
+class ExcludeColumns:
+    def __init__(self, exclude_cols):
+        self.exclude_cols = exclude_cols
+
+    def __call__(self, X:pd.DataFrame=None):
+        return X.columns.difference(self.exclude_cols).tolist()
+
+
+class HistoricalMin(TransformerMixin):
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        return X.groupby(VARS['STAY_ID']).cummin()
+
+
+class HistoricalMax(TransformerMixin):
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        return X.groupby(VARS['STAY_ID']).cummax()
+
+
+class NumMeasurements(TransformerMixin):
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        return X.notna().groupby(VARS['STAY_ID']).cumsum()
+
+
+class HistoricalMean(TransformerMixin):
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        return X.groupby(VARS['STAY_ID']).cumsum() / X.notna().groupby(VARS['STAY_ID']).cumsum()
+
+
+class FFill(TransformerMixin):
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        return X.groupby(VARS['STAY_ID']).ffill()
 
 
 # TODO make function take df like the rest
