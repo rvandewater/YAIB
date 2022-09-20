@@ -388,7 +388,7 @@ def run_preprocessing_ricu(ricu_data_root, work_dir, var_ref_path, imputation_me
     dyn_imputed_path = work_dir / constants.FILE_NAMES['DYNAMIC_IMPUTED']
     if not dyn_imputed_path.exists():
         logging.info("Imputing dynamic data")
-        dyn_imputed_df = impute(dyn_df, impute_function=forward_fill, exclude_cols=[VARS['TIME']], sort_col=[VARS['TIME']], fill_method='mean')
+        dyn_imputed_df = impute(dyn_df, impute_function=forward_fill, exclude_cols=[VARS['TIME']], sort_col=[VARS['STAY_ID'], VARS['TIME']], fill_method='mean')
         parquet.write_table(Table.from_pandas(dyn_imputed_df), dyn_imputed_path)
     else:
         logging.info(f"Imputed dynamic data in {dyn_imputed_path} exists, skipping")
