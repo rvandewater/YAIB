@@ -35,15 +35,15 @@ def get_bindings_and_params(args):
         num_class = args.num_class
         gin_bindings += ['NUM_CLASSES = ' + str(num_class)]
 
-    if args.res:
-        res = args.res
-        gin_bindings += ['RES = ' + str(res)]
-        log_dir = os.path.join(log_dir, 'data-res_' + str(res))
+    # if args.res:
+    #     res = args.res
+    #     gin_bindings += ['RES = ' + str(res)]
+    #     log_dir = os.path.join(log_dir, 'data-res_' + str(res))
 
-    if args.res_lab:
-        res_lab = args.res_lab
-        gin_bindings += ['RES_LAB = ' + str(res_lab)]
-        log_dir = os.path.join(log_dir, 'pre-res_' + str(res_lab))
+    # if args.res_lab:
+    #     res_lab = args.res_lab
+    #     gin_bindings += ['RES_LAB = ' + str(res_lab)]
+    #     log_dir = os.path.join(log_dir, 'pre-res_' + str(res_lab))
 
     if args.horizon:
         if args.rs:
@@ -68,6 +68,7 @@ def get_bindings_and_params(args):
             batch_size = args.batch_size[0]
         gin_bindings += ['BS = ' + str(batch_size)]
         log_dir = log_dir + '_bs_' + str(batch_size)
+
     if args.lr:
         if args.rs:
             lr = args.lr[np.random.randint(len(args.lr))]
@@ -75,10 +76,6 @@ def get_bindings_and_params(args):
             lr = args.lr[0]
         gin_bindings += ['LR = ' + str(lr)]
         log_dir = log_dir + '_lr_' + str(lr)
-    if args.maxlen:
-        maxlen = args.maxlen
-        gin_bindings += ['MAXLEN = ' + str(maxlen)]
-        log_dir = log_dir + '_maxlen_' + str(maxlen)
 
     if args.emb:
         if args.rs:
@@ -146,6 +143,7 @@ def get_bindings_and_params(args):
             hidden = args.hidden[0]
         gin_bindings += ['HIDDEN = ' + str(hidden)]
         log_dir = log_dir + '_hidden_' + str(hidden)
+
     if args.subsample_data:
         if args.rs:
             subsample_data = args.subsample_data[np.random.randint(len(args.subsample_data))]
@@ -153,6 +151,7 @@ def get_bindings_and_params(args):
             subsample_data = args.subsample_data[0]
         gin_bindings += ['SUBSAMPLE_DATA = ' + str(subsample_data)]
         log_dir = log_dir + '_subsample-data_' + str(subsample_data)
+
     if args.subsample_feat:
         if args.rs:
             subsample_feat = args.subsample_feat[np.random.randint(len(args.subsample_feat))]

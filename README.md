@@ -40,3 +40,34 @@ We currently use the following libraries:
     - Gin provides a lightweight configuration framework for Python
 - [Pathos](https://pathos.readthedocs.io/en/latest/)
   - Parallel computing framework, used for preprocessing
+
+# Preprocess
+
+```
+python -m icu_benchmarks.run preprocess --data-dir ../data/ricu/mimic
+```
+
+# Train
+
+```
+python -m icu_benchmarks.run train \                                                                     
+                            -c configs/ricu/Classification/LogisticRegression.gin \
+                            -l logs/benchmark_exp/LogisticRegression/ \
+                            -t Dynamic_CircFailure_12Hours\
+                            -o True \
+                            --penalty 'l2' \
+                            --c_parameter 0.01 \
+                            -sd 1111 2222 3333 4444 5555 6666 7777 8888 9999 0000
+
+python -m icu_benchmarks.run train \                                                                     
+                            -c configs/ricu/Classification/LGBM.gin \
+                            -l logs/ricu/random_search/24_binary/LGBM/run \
+                            -t Mortality_At24Hours \
+                            -rs True\
+                            -sd 1111 2222 3333 \
+                            --depth 3 4 5 6 7 \
+                            --loss-weight balanced None \
+                            --subsample-feat 0.33 0.66 1.00 \
+                            --subsample-data 0.33 0.66 1.00
+```
+
