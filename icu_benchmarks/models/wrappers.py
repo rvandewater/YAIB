@@ -155,9 +155,9 @@ class DLWrapper(object):
         metrics = self.metrics
 
         torch.autograd.set_detect_anomaly(True)  # Check for any nans in gradients
-        if not train_dataset.loader.on_RAM:
-            self.n_worker = 1
-            logging.info('Data is not loaded to RAM, thus number of worker has been set to 1')
+        # if not train_dataset.loader.on_RAM:
+        #     self.n_worker = 1
+        #     logging.info('Data is not loaded to RAM, thus number of worker has been set to 1')
 
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=self.n_worker,
                                   pin_memory=self.pin_memory, prefetch_factor=2)
