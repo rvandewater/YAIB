@@ -7,7 +7,6 @@ import icu_benchmarks.data.loader
 TASK = 'Dynamic_CircFailure_12Hours'
 RES = 1
 RES_LAB = 1
-MAXLEN = 2016
 LOSS_WEIGHT = None
 
 BAGGING_FREQ  = 1
@@ -27,17 +26,8 @@ train_common.data_path = "/Users/hendrikschmidt/projects/thesis/data/ricu/mimic"
 train_common.weight = %LOSS_WEIGHT
 train_common.do_test = True
 
-
 MLWrapper.model = @LGBMClassifier()
 MLWrapper.train.patience = 10
-
-
-
-ICUVariableLengthLoaderTables.splits = ['train','test','val']
-ICUVariableLengthLoaderTables.task = %TASK
-ICUVariableLengthLoaderTables.data_resampling = %RES
-ICUVariableLengthLoaderTables.label_resampling = %RES_LAB
-ICUVariableLengthDataset.maxlen = %MAXLEN
 
 LGBMClassifier.max_depth = %DEPTH
 LGBMClassifier.num_leaves = %NUM_LEAVES
