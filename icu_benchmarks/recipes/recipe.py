@@ -39,6 +39,8 @@ class Recipe():
     def _check_data(self, data):
         if data is None:
             data = self.data
+        elif data.__class__ == pd.DataFrame:
+            data = Ingredients(data, roles=self.data.roles)
         if not data.columns.equals(self.data.columns):
             raise ValueError('Columns of data argument differs from recipe data.')
         return data
@@ -60,12 +62,12 @@ class Recipe():
             else:
                 data = step.transform(data)
 
-        return self
+        return pd.DataFrame(data)
 
     def bake(self, data=None):
         data = self._check_data(data)
         data = copy(data)
-
+        
         for step in self.steps:
             data = self._apply_group(data, step)
             if not step.trained:
@@ -73,7 +75,7 @@ class Recipe():
             else:
                 data = step.transform(data)
 
-        return data
+        return pd.DataFrame(data)
 
     def __repr__(self):
         repr = 'Recipe\n\n'
