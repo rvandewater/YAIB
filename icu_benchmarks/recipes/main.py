@@ -16,6 +16,6 @@ if __name__ == "__main__":
     rec.add_step(StepImputeFill(method='ffill'))
     rec.add_step(StepImputeFill(value=0))
     
-    rec.prep()
-    rec.bake()
+    rec.prep(df.iloc[:-10000, :])
+    rec.bake(df.iloc[10000:, :])
 

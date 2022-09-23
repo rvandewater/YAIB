@@ -39,6 +39,8 @@ class Recipe():
     def _check_data(self, data):
         if data is None:
             data = self.data
+        elif data.__class__ == pd.DataFrame:
+            data = Ingredients(data, roles=self.data.roles)
         if not data.columns.equals(self.data.columns):
             raise ValueError('Columns of data argument differs from recipe data.')
         return data
@@ -60,7 +62,8 @@ class Recipe():
         data = copy(data)
         self._apply_fit_transform(self, data, refit)
         return self
-
+        return pd.DataFrame(data)
+        
     def bake(self, data=None):
         """
         Transforms, or bakes, the data if it has been prepped.
@@ -69,10 +72,6 @@ class Recipe():
         """
         data = self._check_data(data)
         data = copy(data)
-        for step in self.steps:
-            if not step.trained:
-                raise RuntimeError(f'Step {step} not trained. Run prep first.')
-
         self._apply_fit_transform(self, data)
         return data
 
@@ -84,7 +83,7 @@ class Recipe():
                 data = step.fit_transform(data)
             else:
                 data = step.transform(data)
-        return data
+        return pd.DataFrame(data)
 
     def __repr__(self):
         repr = 'Recipe\n\n'
