@@ -6,12 +6,13 @@ import pandas as pd
 
 from icu_benchmarks.recipes.ingredients import Ingredients
 from icu_benchmarks.recipes.selector import groups
+from icu_benchmarks.recipes.step import Step
 
 
 class Recipe():
-    def __init__(self, data, outcomes=None, predictors=None, groups=None) -> None:
+    def __init__(self, data, outcomes=None, predictors=None, groups=None, steps=[]) -> None:
         self.data = Ingredients(data)
-        self.steps = []
+        self.steps = steps
 
         if outcomes:
             self.add_role(outcomes, 'outcome')
@@ -32,8 +33,23 @@ class Recipe():
         for v in vars:
             self.data.update_role(v, new_role)
 
-    def add_step(self, step):
+    def add_step(self, step: Step):
+        """
+
+        @param step: Preprocessing step to add to the sequential operation list
+        @return: Recipe
+        """
         self.steps.append(step)
+        return self
+
+    def add_steps(self, steps: [Step]):
+        """
+
+        @param step: Preprocessing steps to add to the sequential operation list
+        @return: Recipe
+        """
+        for step in steps:
+            self.steps.append(step)
         return self
 
     def _check_data(self, data):
