@@ -1,13 +1,18 @@
 # -*- coding: utf-8 -*-
 import argparse
+import numpy as np
 import logging
 import os
+from sklearn_pandas import DataFrameMapper, gen_features
 import sys
+import pandas as pd
+from sklearn.impute import SimpleImputer
 from pathlib import Path
 from pyarrow import Table, parquet
 from icu_benchmarks.common import constants
 
 from icu_benchmarks.common.constants import VARS
+from icu_benchmarks.data.preprocess import AllColumns, ExcludeColumns, HistoricalMin, HistoricalMax, NumMeasurements, HistoricalMean, FFill
 from icu_benchmarks.data.preprocess import generate_splits, extract_features, impute, forward_fill
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
@@ -164,40 +169,58 @@ def run_preprocessing(work_dir):
         logging.info(f"Splits in {work_dir} exist, skipping")
 
     dyn_df = parquet.read_table(dyn_splits_path).to_pandas()
+    # TODO add static if needed
+
+    columns = [[col] for col in VARS['DYNAMIC_VARS']]
+    ZeroImputator = {'class': SimpleImputer, 'strategy': 'constant', 'fill_value': 0}
+
+    # TODO only use mean of train?
+    feature_extractor_w_imputation = DataFrameMapper(
+            gen_features(columns=columns, classes=[FFill, {'class': SimpleImputer, 'strategy': 'mean'}]) +
+            gen_features(columns=columns, classes=[HistoricalMin, FFill, ZeroImputator], prefix='min_') +
+            gen_features(columns=columns, classes=[HistoricalMax, FFill, ZeroImputator], prefix='max_') +
+            gen_features(columns=columns, classes=[NumMeasurements, FFill, ZeroImputator], prefix='n_meas_') +
+            gen_features(columns=columns, classes=[HistoricalMean, FFill, ZeroImputator], prefix='mean_'),
+            input_df=True,
+            df_out=True,
+            drop_cols=[VARS['TIME']]
+        )
+    dyn_df_w_features_imputed = feature_extractor_w_imputation.fit_transform(dyn_df.copy())
+    print(dyn_df_w_features_imputed)
     
-    extracted_features_path = work_dir / constants.FILE_NAMES['FEATURES']
-    if not extracted_features_path.exists():
-        logging.info("Extracting features")
-        features_df = extract_features(dyn_df)
-        parquet.write_table(Table.from_pandas(features_df), extracted_features_path)
-    else:
-        logging.info(f"Features in {extracted_features_path} exist, skipping")
+    # extracted_features_path = work_dir / constants.FILE_NAMES['FEATURES']
+    # if not extracted_features_path.exists():
+    #     logging.info("Extracting features")
+    #     features_df = extract_features(dyn_df)
+    #     parquet.write_table(Table.from_pandas(features_df), extracted_features_path)
+    # else:
+    #     logging.info(f"Features in {extracted_features_path} exist, skipping")
 
-    dyn_imputed_path = work_dir / constants.FILE_NAMES['DYNAMIC_IMPUTED']
-    if not dyn_imputed_path.exists():
-        logging.info("Imputing dynamic data")
-        dyn_imputed_df = impute(dyn_df, impute_function=forward_fill, exclude_cols=[VARS['TIME']], sort_col=[VARS['STAY_ID'], VARS['TIME']], fill_method='mean')
-        parquet.write_table(Table.from_pandas(dyn_imputed_df), dyn_imputed_path)
-    else:
-        logging.info(f"Imputed dynamic data in {dyn_imputed_path} exists, skipping")
+    # dyn_imputed_path = work_dir / constants.FILE_NAMES['DYNAMIC_IMPUTED']
+    # if not dyn_imputed_path.exists():
+    #     logging.info("Imputing dynamic data")
+    #     dyn_imputed_df = impute(dyn_df, impute_function=forward_fill, exclude_cols=[VARS['TIME']], sort_col=[VARS['STAY_ID'], VARS['TIME']], fill_method='mean')
+    #     parquet.write_table(Table.from_pandas(dyn_imputed_df), dyn_imputed_path)
+    # else:
+    #     logging.info(f"Imputed dynamic data in {dyn_imputed_path} exists, skipping")
 
-    static_imputed_path = work_dir / constants.FILE_NAMES['STATIC_IMPUTED']
-    if not static_imputed_path.exists():
-        logging.info("Imputing static data")
-        static_df = parquet.read_table(static_splits_path).to_pandas()
-        static_imputed_df = impute(static_df, exclude_cols=[VARS['STAY_ID'], VARS['SEX']], fill_method='mean')
-        parquet.write_table(Table.from_pandas(static_imputed_df), static_imputed_path)
-    else:
-        logging.info(f"Imputed static data in {static_imputed_path} exists, skipping")
+    # static_imputed_path = work_dir / constants.FILE_NAMES['STATIC_IMPUTED']
+    # if not static_imputed_path.exists():
+    #     logging.info("Imputing static data")
+    #     static_df = parquet.read_table(static_splits_path).to_pandas()
+    #     static_imputed_df = impute(static_df, exclude_cols=[VARS['STAY_ID'], VARS['SEX']], fill_method='mean')
+    #     parquet.write_table(Table.from_pandas(static_imputed_df), static_imputed_path)
+    # else:
+    #     logging.info(f"Imputed static data in {static_imputed_path} exists, skipping")
 
-    features_imputed_path = work_dir / constants.FILE_NAMES['FEATURES_IMPUTED']
-    if not features_imputed_path.exists():
-        logging.info("Imputing features")
-        features_df = parquet.read_table(extracted_features_path).to_pandas()
-        features_imputed_df = impute(features_df, impute_function=forward_fill, fill_method='zero')
-        parquet.write_table(Table.from_pandas(features_imputed_df), features_imputed_path)
-    else:
-        logging.info(f"Imputed features in {features_imputed_path} exist, skipping")
+    # features_imputed_path = work_dir / constants.FILE_NAMES['FEATURES_IMPUTED']
+    # if not features_imputed_path.exists():
+    #     logging.info("Imputing features")
+    #     features_df = parquet.read_table(extracted_features_path).to_pandas()
+    #     features_imputed_df = impute(features_df, impute_function=forward_fill, fill_method='zero')
+    #     parquet.write_table(Table.from_pandas(features_imputed_df), features_imputed_path)
+    # else:
+    #     logging.info(f"Imputed features in {features_imputed_path} exist, skipping")
 
 
 def main(my_args=tuple(sys.argv[1:])):
