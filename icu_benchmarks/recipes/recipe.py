@@ -49,30 +49,42 @@ class Recipe():
             data = data.groupby(group_vars)
         return data
 
-    def prep(self, data=None, fresh=False):
+    def prep(self, data=None, refit=False):
+        """
+        Fits and transforms or preps the data
+        @param data:
+        @param refit: Refit all columns
+        @return:
+        """
         data = self._check_data(data)
         data = copy(data)
-
-        for step in self.steps:
-            data = self._apply_group(data, step)
-            if fresh or not step.trained:
-                data = step.fit_transform(data)
-            else:
-                data = step.transform(data)
-
+        self._apply_fit_transform(self, data, refit)
         return self
 
     def bake(self, data=None):
+        """
+        Transforms or bakes the data if it has been prepped.
+        @param data:
+        @return:
+        """
         data = self._check_data(data)
         data = copy(data)
-
         for step in self.steps:
-            data = self._apply_group(data, step)
             if not step.trained:
                 raise RuntimeError(f'Step {step} not trained. Run prep first.')
+
+        self._apply_fit_transform(self, data)
+        return data
+
+    def _apply_fit_transform(self, data=None, refit=False):
+        # applies transform or fit and transform (when refit or not trained yet)
+        for step in self.steps:
+            data = self._apply_group(data, step)
+
+            if refit or not step.trained:
+                data = step.fit_transform(data)
             else:
                 data = step.transform(data)
-
         return data
 
     def __repr__(self):
