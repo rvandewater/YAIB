@@ -7,9 +7,9 @@ import pandas as pd
 class Ingredients(pd.DataFrame):
     _metadata = ["roles"]
 
-    def __init__(self, data=None, index=None, columns=None, dtype=None, copy=None,):
-        super().__init__(data, index, columns, dtype, )
-        self.roles = {}
+    def __init__(self, data=None, index=None, columns=None, dtype=None, copy=None, roles = {}):
+        super().__init__(data, index, columns, dtype, copy, )
+        self.roles = roles
 
     @property
     def _constructor(self):
