@@ -51,7 +51,7 @@ class Recipe():
 
     def prep(self, data=None, refit=False):
         """
-        Fits and transforms or preps the data
+        Fits and transforms, in other words preps, the data.
         @param data:
         @param refit: Refit all columns
         @return:
@@ -63,7 +63,7 @@ class Recipe():
 
     def bake(self, data=None):
         """
-        Transforms or bakes the data if it has been prepped.
+        Transforms, or bakes, the data if it has been prepped.
         @param data:
         @return:
         """
@@ -80,7 +80,6 @@ class Recipe():
         # applies transform or fit and transform (when refit or not trained yet)
         for step in self.steps:
             data = self._apply_group(data, step)
-
             if refit or not step.trained:
                 data = step.fit_transform(data)
             else:
