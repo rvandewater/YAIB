@@ -4,7 +4,7 @@ from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.step import StepImputeFill, StepScale, StepHistorical
 
 if __name__ == "__main__":
-    df = pd.read_csv('/Users/patrick/datasets/benchmark/sepsis/mimic/dyn.csv.gz', compression='gzip')
+    df = pd.read_parquet(r'C:\Users\Robin\Documents\Datasets\yaib\mortality\mimic')
     df = df[['stay_id', 'time', 'hr', 'resp', 'temp', 'sbp', 'dbp', 'map']]
 
     rec = Recipe(df)

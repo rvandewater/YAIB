@@ -60,8 +60,7 @@ class Recipe():
         """
         data = self._check_data(data)
         data = copy(data)
-        self._apply_fit_transform(self, data, refit)
-        return self
+        self._apply_fit_transform(data, refit)
         return pd.DataFrame(data)
         
     def bake(self, data=None):
@@ -72,8 +71,8 @@ class Recipe():
         """
         data = self._check_data(data)
         data = copy(data)
-        self._apply_fit_transform(self, data)
-        return data
+        self._apply_fit_transform(data)
+        return pd.DataFrame(data)
 
     def _apply_fit_transform(self, data=None, refit=False):
         # applies transform or fit and transform (when refit or not trained yet)
@@ -83,7 +82,7 @@ class Recipe():
                 data = step.fit_transform(data)
             else:
                 data = step.transform(data)
-        return pd.DataFrame(data)
+        return self
 
     def __repr__(self):
         repr = 'Recipe\n\n'
