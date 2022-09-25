@@ -1,6 +1,8 @@
 from copy import copy
+from multiprocessing.sharedctypes import Value
 from typing import final
 
+import numpy as np
 import pandas as pd
 
 
@@ -11,6 +13,10 @@ class Ingredients(pd.DataFrame):
         super().__init__(data, index, columns, dtype, copy, )
         if roles is None:
             roles = {}
+        elif not isinstance(roles, dict):
+            raise ValueError(f'expected dict object for roles, got {roles.__class__}')
+        elif not np.all([k in self.columns for k in roles]):
+            raise ValueError(f'roles contains variable name that is not in the data.')
         self.roles = roles
 
     @property
