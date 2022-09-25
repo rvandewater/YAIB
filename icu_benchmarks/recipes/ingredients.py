@@ -7,8 +7,10 @@ import pandas as pd
 class Ingredients(pd.DataFrame):
     _metadata = ["roles"]
 
-    def __init__(self, data=None, index=None, columns=None, dtype=None, copy=None, roles = {}):
+    def __init__(self, data=None, index=None, columns=None, dtype=None, copy=None, roles=None):
         super().__init__(data, index, columns, dtype, copy, )
+        if roles is None:
+            roles = {}
         self.roles = roles
 
     @property
