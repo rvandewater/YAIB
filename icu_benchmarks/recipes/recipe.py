@@ -9,7 +9,7 @@ from icu_benchmarks.recipes.selector import groups
 
 
 class Recipe():
-    def __init__(self, data, outcomes=None, predictors=None, groups=None) -> None:
+    def __init__(self, data, outcomes=None, predictors=None, groups=None, sequences=None) -> None:
         self.data = Ingredients(data)
         self.steps = []
 
@@ -19,6 +19,8 @@ class Recipe():
             self.add_role(predictors, 'predictor')
         if groups:
             self.add_role(groups, 'group')
+        if sequences:
+            self.add_role(sequences, 'sequence')
 
     def add_role(self, vars, new_role='predictor'):
         if isinstance(vars, str):
