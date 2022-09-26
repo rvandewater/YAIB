@@ -30,6 +30,9 @@ class Ingredients(pd.DataFrame):
     def _constructor(self):
         return Ingredients
 
+    def to_df(self):
+        return pd.DataFrame(self)
+
     def _check_column(self, column):
         if not isinstance(column, str):
             raise ValueError(f'Expected string, got {column}')
