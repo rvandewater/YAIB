@@ -12,10 +12,12 @@ if __name__ == "__main__":
     rec.add_role(['hr', 'resp', 'temp', 'sbp', 'dbp', 'map'], 'predictor')
 
     rec.add_step(StepScale())
-    rec.add_step(StepHistorical(fun='max'))
+    rec.add_step(StepHistorical(fun='num_measurements'))
     rec.add_step(StepImputeFill(method='ffill'))
     rec.add_step(StepImputeFill(value=0))
     
     rec.prep(df.iloc[:-10000, :])
-    rec.bake(df.iloc[10000:, :])
+    rec = rec.bake(df.iloc[10000:, :])
+
+    print(rec)
 

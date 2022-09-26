@@ -104,6 +104,10 @@ class StepHistorical(Step):
             res = data[self.columns].cummax(skipna=True)
         elif self.fun == 'min':
             res = data[self.columns].cummin(skipna=True)
+        elif self.fun == 'mean':
+            res = data.cumsum() / data.notna().cumsum()
+        # elif self.fun == 'num_measurements':
+        #     res = data[self.columns].size()
         new_data[new_columns] = res
 
         for nc in new_columns:
