@@ -1,7 +1,4 @@
-from copy import copy
-from multiprocessing.sharedctypes import Value
-from typing import final
-
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 
@@ -11,23 +8,27 @@ class Ingredients(pd.DataFrame):
 
     def __init__(self, data=None, index=None, columns=None, dtype=None, copy=None, roles=None):
         super().__init__(data, index, columns, dtype, copy, )
-        if roles is None:
-            roles = {}
+        
+        if isinstance(data, Ingredients) and roles is None:
+            if copy is None or copy is True:
+                self.roles = deepcopy(data.roles)
+            else:
+                self.roles = data.roles
+        elif roles is None:
+            self.roles = {}
         elif not isinstance(roles, dict):
             raise ValueError(f'expected dict object for roles, got {roles.__class__}')
         elif not np.all([k in self.columns for k in roles]):
             raise ValueError(f'roles contains variable name that is not in the data.')
-        self.roles = roles
-
+        else:
+            if copy is None or copy is True:
+                self.roles = deepcopy(roles)
+            else:
+                self.roles = roles
+                
     @property
     def _constructor(self):
         return Ingredients
-
-    @final
-    def __finalize__(self, other, method=None, **kwargs):
-        super().__finalize__(other, method, **kwargs)
-        self.roles = copy({c: r for c, r in self.roles.items() if c in self.columns})
-        return self
 
     def _check_column(self, column):
         if not isinstance(column, str):
