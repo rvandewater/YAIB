@@ -1,7 +1,9 @@
 from abc import abstractmethod
 from copy import deepcopy
 from scipy.sparse import isspmatrix
+import pandas as pd
 from sklearn.preprocessing import StandardScaler
+from icu_benchmarks.recipes.ingredients import Ingredients
 
 from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
 from icu_benchmarks.recipes.ingredients import Ingredients
@@ -41,13 +43,24 @@ class Step():
         Args:
             data (Ingredients): The DataFrame to fit to.
         """
-        self.columns = self.sel(data.obj) if self._group else self.sel(data)
+        data = self._check_ingredients(data, remove_group=True)
+        self.columns = self.sel(data)
         self.do_fit(data)
         self._trained = True
 
     @abstractmethod
     def do_fit(self, data: Ingredients):
         pass
+
+    def _check_ingredients(self, data, remove_group=False):
+        if isinstance(data, pd.core.groupby.DataFrameGroupBy):
+            if not self._group:
+                raise ValueError(f'Step does not accept grouped data.')
+            if remove_group:
+                data = data.obj
+        if not isinstance(data, Ingredients):
+            raise ValueError(f'Expected Ingredients object, got {data.__class__}')
+        return data
 
     def transform(self, data: Ingredients) -> Ingredients:
         """This function transforms the data with the fitted transformer.
@@ -85,7 +98,7 @@ class StepImputeFill(Step):
         self.limit = limit
 
     def transform(self, data):
-        new_data = data.obj # FIXME: also deal with ungrouped DataFrames
+        new_data = self._check_ingredients(data, remove_group=True)
         new_data[self.columns] = \
             data[self.columns].fillna(self.value, method=self.method, axis=0, limit=self.limit)
         return new_data
@@ -106,7 +119,7 @@ class StepScale(Step):
         }
 
     def transform(self, data):
-        new_data = data
+        new_data = self._check_ingredients(data)
         for c, sclr in self.scalers.items():
             new_data[c] = sclr.transform(data[c].values[:, None])
         return new_data
@@ -123,7 +136,7 @@ class StepHistorical(Step):
         self.role = role
 
     def transform(self, data):
-        new_data = data.obj # FIXME: also deal with ungrouped DataFrames
+        new_data = self._check_ingredients(data, remove_group=True)
         new_columns = [c + '_' + self.suffix for c in self.columns]
 
         if self.fun == 'max':
