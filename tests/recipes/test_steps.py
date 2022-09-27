@@ -45,3 +45,4 @@ class TestSklearnStep:
         rec.add_step(StepSklearn(sel=all_numeric_predictors(), sklearn_transform=RobustScaler()))
         df = rec.prep()
         assert df['x1'].median() == 0
+        assert df['x2'].median() == 0
