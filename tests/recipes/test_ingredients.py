@@ -12,7 +12,7 @@ def test_init_role(example_df):
     assert True
 
 def test_init_role_wrong_type(example_df):
-    with pytest.raises(ValueError) as e_info:
+    with pytest.raises(TypeError) as e_info:
         Ingredients(example_df, roles=['outcome'])
     assert e_info.match('expected dict object')
 
