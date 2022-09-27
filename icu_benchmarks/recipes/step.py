@@ -110,3 +110,39 @@ class StepHistorical(Step):
             new_data.add_role(nc, self.role)
 
         return new_data
+
+
+class StepSKlearn(Step):
+    # TODO docstring
+    def __init__(self, sel=all_predictors(), sklearn_transform=None, columnwise=False, is_in_place=True):
+        super().__init__(sel)
+        self.desc = f'Use sklearn transform {sklearn_transform.__class__.__name__}'
+        self.sklearn_transform = sklearn_transform
+        self.columnwise = columnwise
+        self.is_in_place = is_in_place
+        self._group = False
+
+    def fit(self, data):
+        self.columns = self.sel(data)
+        if self.columnwise:
+            self._transformers = {}
+            for col in self.columns:
+                self._transformers[col] = self.sklearn_transform.fit(data[col])
+        else:
+            self.sklearn_transform.fit(data[self.columns])
+        self._trained = True
+
+    def transform(self, data):
+        new_data = data
+
+        if self.columnwise:
+            for col in self.columns:
+                new_cols = self._transformers[col].transform(new_data[col])
+                col_names = col if self.is_in_place else [f'{self.sklearn_transform.__class__.__name__}_{col}_{i+1}' for i in range(new_cols.shape[1])]
+                new_data[col_names] = new_cols
+        else:
+            new_cols = self.sklearn_transform.transform(new_data[self.columns])
+            col_names = self.columns if self.is_in_place else [f'{self.sklearn_transform.__class__.__name__}_{i+1}' for i in range(new_cols.shape[1])]
+            new_data[col_names] = new_cols
+        
+        return new_data
