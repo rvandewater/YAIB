@@ -9,28 +9,30 @@ from icu_benchmarks.recipes.selector import groups
 
 
 class Recipe():
-    def __init__(self, data, outcomes=None, predictors=None, groups=None) -> None:
+    def __init__(self, data, outcomes=None, predictors=None, groups=None, sequences=None) -> None:
         self.data = Ingredients(data)
         self.steps = []
 
         if outcomes:
-            self.add_role(outcomes, 'outcome')
+            self.update_roles(outcomes, 'outcome')
         if predictors:
-            self.add_role(predictors, 'predictor')
+            self.update_roles(predictors, 'predictor')
         if groups:
-            self.add_role(groups, 'group')
+            self.update_roles(groups, 'group')
+        if sequences:
+            self.update_roles(sequences, 'sequence')
 
-    def add_role(self, vars, new_role='predictor'):
+    def add_roles(self, vars, new_role='predictor'):
         if isinstance(vars, str):
             vars = [vars]
         for v in vars:
             self.data.add_role(v, new_role)
 
-    def update_role(self, vars, new_role='predictor'):
+    def update_roles(self, vars, new_role='predictor', old_role=None):
         if isinstance(vars, str):
             vars = [vars]
         for v in vars:
-            self.data.update_role(v, new_role)
+            self.data.update_role(v, new_role, old_role)
 
     def add_step(self, step):
         self.steps.append(step)
@@ -51,31 +53,38 @@ class Recipe():
             data = data.groupby(group_vars)
         return data
 
-    def prep(self, data=None, fresh=False):
+    def prep(self, data=None, refit=False):
+        """
+        Fits and transforms, in other words preps, the data.
+        @param data:
+        @param refit: Refit all columns
+        @return:
+        """
         data = self._check_data(data)
         data = copy(data)
+        self._apply_fit_transform(data, refit)
+        return pd.DataFrame(data)
+        
+    def bake(self, data=None):
+        """
+        Transforms, or bakes, the data if it has been prepped.
+        @param data:
+        @return:
+        """
+        data = self._check_data(data)
+        data = copy(data)
+        self._apply_fit_transform(data)
+        return pd.DataFrame(data)
 
+    def _apply_fit_transform(self, data=None, refit=False):
+        # applies transform or fit and transform (when refit or not trained yet)
         for step in self.steps:
             data = self._apply_group(data, step)
-            if fresh or not step.trained:
+            if refit or not step.trained:
                 data = step.fit_transform(data)
             else:
                 data = step.transform(data)
-
-        return pd.DataFrame(data)
-
-    def bake(self, data=None):
-        data = self._check_data(data)
-        data = copy(data)
-        
-        for step in self.steps:
-            data = self._apply_group(data, step)
-            if not step.trained:
-                raise RuntimeError(f'Step {step} not trained. Run prep first.')
-            else:
-                data = step.transform(data)
-
-        return pd.DataFrame(data)
+        return self
 
     def __repr__(self):
         repr = 'Recipe\n\n'
