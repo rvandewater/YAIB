@@ -3,8 +3,8 @@ class Selector():
     def __init__(self, description, names=None, roles=None, types=None):
         self.description = description
         self.names = names
-        self.roles = roles if roles else []
-        self.types = types if types else []
+        self.roles = roles
+        self.types = types
 
     def set_types(self, types):
         self.types = types
@@ -42,11 +42,11 @@ def contains(pattern):
     raise NotImplementedError()
 
 
-def has_role(roles):
+def has_roles(roles):
     return Selector(description=f'roles: {roles}', roles=roles)
 
 
-def has_type(types):
+def has_types(types):
     return Selector(description=f'types: {types}', types=types)
 
 
@@ -55,7 +55,7 @@ def groups():
 
 
 def all_predictors():
-    sel = has_role(['predictor'])
+    sel = has_roles(['predictor'])
     sel.description = 'all predictors'
     return sel
 
