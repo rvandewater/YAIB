@@ -42,5 +42,3 @@ if __name__ == "__main__":
 
     print(df.iloc[:-10000, :])
     print(df_i)
-
-
