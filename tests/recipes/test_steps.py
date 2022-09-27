@@ -5,7 +5,7 @@ from sklearn.preprocessing import *
 from sklearn.impute import *
 
 from icu_benchmarks.recipes.recipe import Recipe
-from icu_benchmarks.recipes.selector import all_numeric_predictors
+from icu_benchmarks.recipes.selector import all_numeric_predictors, has_types
 from icu_benchmarks.recipes.step import StepSklearn
 
 from tests.recipes.test_recipe import example_df
@@ -46,3 +46,18 @@ class TestSklearnStep:
         df = rec.prep()
         assert df['x1'].median() == 0
         assert df['x2'].median() == 0
+
+    def test_binarizer(self, example_df):
+        rec = Recipe(example_df, ['y'], ['x1', 'x2'], ['id']) # FIXME: add squence when merged
+        rec.add_step(StepSklearn(sel=all_numeric_predictors(), sklearn_transform=Binarizer()))
+        df = rec.prep()
+        assert (df['x1'].isin([0, 1])).all()
+        assert (df['x2'].isin([0, 1])).all()
+
+    def test_ordinal_encoder(self, example_df):
+        example_df['x3'] = ['a', 'b', 'c', 'a', 'c', 'b', 'c', 'a', 'b', 'c']
+        example_df['x3'] = example_df['x3'].astype('category')
+        rec = Recipe(example_df, ['y'], ['x1', 'x2', 'x3'], ['id']) # FIXME: add squence when merged
+        rec.add_step(StepSklearn(sel=has_types(['category']), sklearn_transform=OrdinalEncoder(), is_in_place=False))
+        df = rec.prep()
+        assert ((0 <= df['OrdinalEncoder_1']) & (df['OrdinalEncoder_1'] <= 2)).all()
