@@ -3,25 +3,19 @@ class Selector():
     def __init__(self, description, names=None, roles=None, types=None):
         self.description = description
         self.names = names
-        self.roles = roles
-        self.types = types
+        self.roles = roles if roles else []
+        self.types = types if types else []
 
     def set_types(self, types):
         self.types = types
 
     def __call__(self, data):
         # FIXME: think about how to combine names, roles, and types
-        if self.names is None:
-            vars = data.columns.tolist()
-        else:
-            vars = self.names
-
-        with_role = [v for v, r in data.roles.items() if len(intersection(r, self.roles)) > 0]
-        vars = [v for v in vars if v in with_role]
-
+        vars = self.names if self.names else data.columns.tolist()
+        if self.roles:
+            vars = [v for v in vars if intersection(data.roles.get(v, []), self.roles)]
         if self.types:
             vars = [v for v in vars if data.dtypes[v] in self.types]
-
         return vars
 
     def __repr__(self):
