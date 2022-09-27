@@ -6,7 +6,7 @@ class Selector():
         self.roles = roles
         self.types = types
 
-    def set_type(self, types):
+    def set_types(self, types):
         self.types = types
 
     def __call__(self, data):
@@ -19,7 +19,8 @@ class Selector():
         with_role = [v for v, r in data.roles.items() if len(intersection(r, self.roles)) > 0]
         vars = [v for v in vars if v in with_role]
 
-        # FIXME: filter types
+        if self.types:
+            vars = [v for v in vars if data.dtypes[v] in self.types]
 
         return vars
 
@@ -67,7 +68,7 @@ def all_predictors():
 
 def all_numeric_predictors():
     sel = all_predictors()
-    sel.add_type(['int16', 'int32', 'int64', 'float16', 'float32', 'float64'])
+    sel.set_types(['int16', 'int32', 'int64', 'float16', 'float32', 'float64'])
     sel.description = 'all numeric predictors'
     return sel
 
