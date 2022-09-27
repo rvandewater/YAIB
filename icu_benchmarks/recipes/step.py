@@ -112,7 +112,7 @@ class StepHistorical(Step):
         return new_data
 
 
-class StepSKlearn(Step):
+class StepSklearn(Step):
     # TODO docstring
     def __init__(self, sel=all_predictors(), sklearn_transform=None, columnwise=False, is_in_place=True):
         super().__init__(sel)
