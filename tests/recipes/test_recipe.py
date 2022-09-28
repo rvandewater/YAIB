@@ -12,7 +12,8 @@ def example_df():
         'y': rand_state.normal(size=(10, )),
         'x1': rand_state.normal(loc=10, scale=5, size=(10, )),
         'x2': rand_state.binomial(n=1, p=0.3, size=(10, )),
-        'x3': pd.Series(['a', 'b', 'c', 'a', 'c', 'b', 'c', 'a', 'b', 'c'], dtype='category')
+        'x3': pd.Series(['a', 'b', 'c', 'a', 'c', 'b', 'c', 'a', 'b', 'c'], dtype='category'),
+        'x4': pd.Series(['x', 'y', 'y', 'x', 'y', 'y', 'x', 'x', 'y', 'x'], dtype='category'),
     })
     return df
 
