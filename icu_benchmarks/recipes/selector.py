@@ -68,6 +68,6 @@ def all_numeric_predictors():
 
 
 def all_outcomess():
-    sel = has_role(['outcome'])
+    sel = has_roles(['outcome'])
     sel.description = 'all outcomes'
     return sel
