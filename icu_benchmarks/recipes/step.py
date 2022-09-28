@@ -1,3 +1,4 @@
+from copy import deepcopy
 from sklearn.preprocessing import StandardScaler
 
 from icu_benchmarks.recipes.selector import all_predictors
@@ -127,7 +128,8 @@ class StepSklearn(Step):
         if self.columnwise:
             self._transformers = {}
             for col in self.columns:
-                self._transformers[col] = self.sklearn_transform.fit(data[col])
+                # copy the transformer so we keep the distinct fit for each column and don't just refit
+                self._transformers[col] = deepcopy(self.sklearn_transform.fit(data[col]))
         else:
             self.sklearn_transform.fit(data[self.columns])
         self._trained = True
