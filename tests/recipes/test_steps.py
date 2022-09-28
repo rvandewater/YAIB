@@ -54,6 +54,38 @@ class TestSklearnStep:
         assert (df['x2'].isin([0, 1])).all()
 
     def test_ordinal_encoder(self, example_recipe):
-        example_recipe.add_step(StepSklearn(sel=has_types(['category']), sklearn_transform=OrdinalEncoder(), is_in_place=False))
+        example_recipe.add_step(StepSklearn(sel=has_types(['category']), sklearn_transform=OrdinalEncoder(), in_place=False))
         df = example_recipe.prep()
         assert ((0 <= df['OrdinalEncoder_1']) & (df['OrdinalEncoder_1'] <= 2)).all()
+    
+    def test_label_encoder(self, example_recipe):
+        example_recipe.add_step(StepSklearn(sel=has_types(['category']), sklearn_transform=LabelEncoder(), columnwise=True))
+        df = example_recipe.prep()
+        assert ((0 <= df['x3']) & (df['x3'] <= 2)).all()
+
+    def test_onehot_encoder(self, example_recipe):
+        example_recipe.add_step(StepSklearn(sel=has_types(['category']), sklearn_transform=OneHotEncoder(sparse=False), in_place=False))
+        df = example_recipe.prep()
+        assert (df['OneHotEncoder_1'].isin([0, 1])).all()
+        assert (df['OneHotEncoder_2'].isin([0, 1])).all()
+        assert (df['OneHotEncoder_3'].isin([0, 1])).all()
+        assert (df['OneHotEncoder_4'].isin([0, 1])).all()
+        assert (df['OneHotEncoder_5'].isin([0, 1])).all()
+
+    def test_wrong_columnwise(self, example_recipe):
+        example_recipe.add_step(StepSklearn(sel=has_types(['category']), sklearn_transform=LabelEncoder(), columnwise=False))
+        with pytest.raises(ValueError) as exc_info:
+            example_recipe.prep()
+        assert 'columnwise=True' in str(exc_info.value)
+
+    def test_wrong_in_place(self, example_recipe):
+        example_recipe.add_step(StepSklearn(sel=has_types(['category']), sklearn_transform=OneHotEncoder(sparse=False), in_place=True))
+        with pytest.raises(ValueError) as exc_info:
+            example_recipe.prep()
+        assert 'in_place=False' in str(exc_info.value)
+
+    def test_sparse_error(self, example_recipe):
+        example_recipe.add_step(StepSklearn(sel=has_types(['category']), sklearn_transform=OneHotEncoder(sparse=True), in_place=False))
+        with pytest.raises(ValueError) as exc_info:
+            example_recipe.prep()
+        assert 'sparse=False' in str(exc_info.value)
