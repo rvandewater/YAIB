@@ -1,4 +1,5 @@
 from copy import deepcopy
+from scipy.sparse._csr import csr_matrix
 from sklearn.preprocessing import StandardScaler
 
 from icu_benchmarks.recipes.selector import all_predictors
@@ -115,12 +116,12 @@ class StepHistorical(Step):
 
 class StepSklearn(Step):
     # TODO docstring
-    def __init__(self, sel=all_predictors(), sklearn_transform=None, columnwise=False, is_in_place=True):
+    def __init__(self, sel=all_predictors(), sklearn_transform=None, columnwise=False, in_place=True):
         super().__init__(sel)
         self.desc = f'Use sklearn transform {sklearn_transform.__class__.__name__}'
         self.sklearn_transform = sklearn_transform
         self.columnwise = columnwise
-        self.is_in_place = is_in_place
+        self.in_place = in_place
         self._group = False
 
     def fit(self, data):
@@ -131,7 +132,13 @@ class StepSklearn(Step):
                 # copy the transformer so we keep the distinct fit for each column and don't just refit
                 self._transformers[col] = deepcopy(self.sklearn_transform.fit(data[col]))
         else:
-            self.sklearn_transform.fit(data[self.columns])
+            try:
+                self.sklearn_transform.fit(data[self.columns])
+            except ValueError as e:
+                if 'should be a 1d array' in str(e):
+                    raise ValueError('The sklearn trasnformer expects a 1d array as input. Try running the step with columnwise=True.')
+                else:
+                    raise
         self._trained = True
 
     def transform(self, data):
@@ -140,11 +147,17 @@ class StepSklearn(Step):
         if self.columnwise:
             for col in self.columns:
                 new_cols = self._transformers[col].transform(new_data[col])
-                col_names = col if self.is_in_place else [f'{self.sklearn_transform.__class__.__name__}_{col}_{i+1}' for i in range(new_cols.shape[1])]
+                col_names = col if self.in_place else [f'{self.sklearn_transform.__class__.__name__}_{col}_{i+1}' for i in range(new_cols.shape[1])]
                 new_data[col_names] = new_cols
         else:
             new_cols = self.sklearn_transform.transform(new_data[self.columns])
-            col_names = self.columns if self.is_in_place else [f'{self.sklearn_transform.__class__.__name__}_{i+1}' for i in range(new_cols.shape[1])]
+            if isinstance(new_cols, csr_matrix):
+                raise ValueError('The sklearn transformer returns a sparse matrix, but recipes expects a dense numpy representation. Try setting sparse=False in the transformer initilisation if it supports the parameter.')
+
+            col_names = self.columns if self.in_place else [f'{self.sklearn_transform.__class__.__name__}_{i+1}' for i in range(new_cols.shape[1])]
+            if not new_cols.shape[1] is len(col_names):
+                raise ValueError('The sklearn transformer returns a different amount of columns. Try running the step with in_place=False.')
+
             new_data[col_names] = new_cols
         
         return new_data
