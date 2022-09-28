@@ -9,28 +9,30 @@ from icu_benchmarks.recipes.selector import groups
 
 
 class Recipe():
-    def __init__(self, data, outcomes=None, predictors=None, groups=None) -> None:
+    def __init__(self, data, outcomes=None, predictors=None, groups=None, sequences=None) -> None:
         self.data = Ingredients(data)
         self.steps = []
 
         if outcomes:
-            self.add_role(outcomes, 'outcome')
+            self.update_roles(outcomes, 'outcome')
         if predictors:
-            self.add_role(predictors, 'predictor')
+            self.update_roles(predictors, 'predictor')
         if groups:
-            self.add_role(groups, 'group')
+            self.update_roles(groups, 'group')
+        if sequences:
+            self.update_roles(sequences, 'sequence')
 
-    def add_role(self, vars, new_role='predictor'):
+    def add_roles(self, vars, new_role='predictor'):
         if isinstance(vars, str):
             vars = [vars]
         for v in vars:
             self.data.add_role(v, new_role)
 
-    def update_role(self, vars, new_role='predictor'):
+    def update_roles(self, vars, new_role='predictor', old_role=None):
         if isinstance(vars, str):
             vars = [vars]
         for v in vars:
-            self.data.update_role(v, new_role)
+            self.data.update_role(v, new_role, old_role)
 
     def add_step(self, step):
         self.steps.append(step)
