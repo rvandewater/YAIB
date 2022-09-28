@@ -110,3 +110,14 @@ class StepHistorical(Step):
             new_data.update_role(nc, self.role)
 
         return new_data
+
+class StepResampling(Step):
+    def __init__(self, resolution):
+        self.resolution = resolution
+        return NotImplementedError()
+
+    def transform(self, data):
+        return NotImplementedError()
+
+    def fit(self, data):
+        return NotImplementedError()
