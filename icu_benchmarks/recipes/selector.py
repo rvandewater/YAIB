@@ -32,7 +32,7 @@ def intersection(x, y):
 
 
 def all_of(names):
-    return Selector(descripton=str(names), names=names)
+    return Selector(description=str(names), names=names)
 
 
 def starts_with(pattern):
