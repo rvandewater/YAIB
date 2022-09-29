@@ -133,7 +133,7 @@ class StepHistorical(Step):
         new_data[new_columns] = res
 
         for nc in new_columns:
-            new_data.add_role(nc, self.role)
+            new_data.update_role(nc, self.role)
 
         return new_data
 
