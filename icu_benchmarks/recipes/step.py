@@ -104,8 +104,22 @@ class StepHistorical(Step):
             res = data[self.columns].cummax(skipna=True)
         elif self.fun == 'min':
             res = data[self.columns].cummin(skipna=True)
+        elif self.fun == 'mean':
+            # Reset index, as we get back a multi-index, and we want a simple rolling index
+            res = data[self.columns].expanding().mean().reset_index(drop=True)
+        elif self.fun == 'median':
+            # Reset index, as we get back a multi-index, and we want a simple rolling index
+            res = data[self.columns].expanding().median().reset_index(drop=True)
+        elif self.fun == 'count':
+            # Reset index, as we get back a multi-index, and we want a simple rolling index
+            res = data[self.columns].expanding().count().reset_index(drop=True)
+        elif self.fun == 'var':
+            # Reset index, as we get back a multi-index, and we want a simple rolling index
+            res = data[self.columns].expanding().var().reset_index(drop=True)
+
         new_data[new_columns] = res
 
+        # Update roles for the newly generated columns
         for nc in new_columns:
             new_data.update_role(nc, self.role)
 
