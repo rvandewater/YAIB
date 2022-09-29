@@ -70,8 +70,8 @@ class TestSklearnStep:
     def test_robust_scaler(self, example_recipe):
         example_recipe.add_step(StepSklearn(RobustScaler(), sel=all_numeric_predictors()))
         df = example_recipe.prep()
-        assert df['x1'].median() == 0
-        assert df['x2'].median() == 0
+        assert df['x1'].median() < 10e-12
+        assert df['x2'].median() < 10e-12
 
     def test_binarizer(self, example_recipe):
         example_recipe.add_step(StepSklearn(Binarizer(), sel=all_numeric_predictors()))
