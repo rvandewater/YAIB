@@ -173,8 +173,7 @@ class StepSklearn(Step):
             except ValueError as e:
                 if 'should be a 1d array' in str(e) or 'Multioutput target data is not supported' in str(e):
                     raise ValueError('The sklearn transformer expects a 1d array as input. Try running the step with columnwise=True.')
-                else:
-                    raise
+                raise
 
     def transform(self, data: Ingredients) -> Ingredients:
         """
