@@ -2,6 +2,7 @@ from sklearn.preprocessing import StandardScaler
 
 from icu_benchmarks.recipes.selector import all_predictors
 
+import datetime
 
 class Step():
     def __init__(self, sel=all_predictors()) -> None:
@@ -112,12 +113,24 @@ class StepHistorical(Step):
         return new_data
 
 class StepResampling(Step):
-    def __init__(self, resolution):
-        self.resolution = resolution
-        return NotImplementedError()
+    def __init__(self, old_resolution, new_resolution):
+        super().__init__(all_predictors())
+        self.resolution = old_resolution
+        self.new_resolution = new_resolution
 
-    def transform(self, data):
-        return NotImplementedError()
 
     def fit(self, data):
-        return NotImplementedError()
+        #self.columns = self.sel(data.obj)
+        self._trained = True
+
+    def transform(self, data):
+        print(data['time'])
+        # new_data = data.obj
+        new_data = data.obj
+        # new_data = new_data.set_index(keys="time")
+        new_data = new_data.resample("2h", on="time").mean()
+        # new_data = new_data.obj
+        return new_data
+        # return NotImplementedError()
+
+
