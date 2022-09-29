@@ -17,7 +17,7 @@ class Ingredients(pd.DataFrame):
         elif roles is None:
             self.roles = {}
         elif not isinstance(roles, dict):
-            raise ValueError(f'expected dict object for roles, got {roles.__class__}')
+            raise TypeError(f'expected dict object for roles, got {roles.__class__}')
         elif not np.all([k in self.columns for k in roles]):
             raise ValueError(f'roles contains variable name that is not in the data.')
         else:
@@ -38,7 +38,7 @@ class Ingredients(pd.DataFrame):
 
     def _check_role(self, new_role):
         if not isinstance(new_role, str):
-            raise ValueError(f'new_role must be string, was {new_role.__class__}')
+            raise TypeError(f'new_role must be string, was {new_role.__class__}')
 
     def add_role(self, column, new_role):
         self._check_column(column)
