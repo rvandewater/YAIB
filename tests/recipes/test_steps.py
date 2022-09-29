@@ -144,7 +144,6 @@ class TestSklearnStep:
     def test_function_transformer(self, example_recipe):
         example_recipe.add_step(StepSklearn(sel=all_numeric_predictors(), sklearn_transform=FunctionTransformer(np.log1p), in_place=False))
         df = example_recipe.prep()
-        print(df)
         # FIXME assert correct number of new columns
         assert not df['FunctionTransformer_1'].empty
 
