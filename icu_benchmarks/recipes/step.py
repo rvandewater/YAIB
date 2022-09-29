@@ -41,7 +41,7 @@ class Step():
         Args:
             data (Ingredients): The DataFrame to fit to.
         """
-        self.columns = self.sel(data)
+        self.columns = self.sel(data.obj) if self._group else self.sel(data)
         self.do_fit(data)
         self._trained = True
 
