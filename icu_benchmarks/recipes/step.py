@@ -1,10 +1,10 @@
 from abc import abstractmethod
 from copy import deepcopy
-import pandas as pd
 from scipy.sparse import isspmatrix
 from sklearn.preprocessing import StandardScaler
 
 from icu_benchmarks.recipes.selector import Selector, all_predictors
+from icu_benchmarks.recipes.ingredients import Ingredients
 
 
 class Step():
@@ -35,32 +35,32 @@ class Step():
     def group(self) -> bool:
         return self._group
 
-    def fit(self, data: pd.DataFrame):
+    def fit(self, data: Ingredients):
         """This function fits the transformer to the data.
 
         Args:
-            data (pd.DataFrame): The DataFrame to fit to.
+            data (Ingredients): The DataFrame to fit to.
         """
         self.columns = self.sel(data)
         self.do_fit(data)
         self._trained = True
 
     @abstractmethod
-    def do_fit(self, data: pd.DataFrame):
+    def do_fit(self, data: Ingredients):
         pass
 
-    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, data: Ingredients) -> Ingredients:
         """This function transforms the data with the fitted transformer.
 
         Args:
-            data (pd.DataFrame): The DataFrame to transform.
+            data (Ingredients): The DataFrame to transform.
 
         Returns:
             The transformed DataFrame.
         """
         pass
 
-    def fit_transform(self, data: pd.DataFrame) -> pd.DataFrame:
+    def fit_transform(self, data: Ingredients) -> Ingredients:
         self.fit(data)
         return self.transform(data)
 
@@ -157,7 +157,7 @@ class StepSklearn(Step):
         self.in_place = in_place
         self._group = False
 
-    def do_fit(self, data: pd.DataFrame) -> pd.DataFrame:
+    def do_fit(self, data: Ingredients) -> Ingredients:
         """
         Raises:
             ValueError: If the transformer expects a single column but gets multiple.
@@ -176,7 +176,7 @@ class StepSklearn(Step):
                 else:
                     raise
 
-    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, data: Ingredients) -> Ingredients:
         """
         Raises:
             TypeError: If the transformer returns a sparse matrix.
