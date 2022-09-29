@@ -1,5 +1,5 @@
 from copy import deepcopy
-from scipy.sparse._csr import csr_matrix
+from scipy.sparse import isspmatrix
 from sklearn.preprocessing import StandardScaler
 
 from icu_benchmarks.recipes.selector import all_predictors
@@ -135,8 +135,8 @@ class StepSklearn(Step):
             try:
                 self.sklearn_transform.fit(data[self.columns])
             except ValueError as e:
-                if 'should be a 1d array' in str(e):
-                    raise ValueError('The sklearn trasnformer expects a 1d array as input. Try running the step with columnwise=True.')
+                if 'should be a 1d array' in str(e) or 'Multioutput target data is not supported' in str(e):
+                    raise ValueError('The sklearn transformer expects a 1d array as input. Try running the step with columnwise=True.')
                 else:
                     raise
         self._trained = True
@@ -147,16 +147,18 @@ class StepSklearn(Step):
         if self.columnwise:
             for col in self.columns:
                 new_cols = self._transformers[col].transform(new_data[col])
+                if self.in_place and new_cols.ndim == 2 and new_cols.shape[1] > 1:
+                    raise ValueError('The sklearn transformer returned more than one column. Try running the step with in_place=False.')
                 col_names = col if self.in_place else [f'{self.sklearn_transform.__class__.__name__}_{col}_{i+1}' for i in range(new_cols.shape[1])]
                 new_data[col_names] = new_cols
         else:
             new_cols = self.sklearn_transform.transform(new_data[self.columns])
-            if isinstance(new_cols, csr_matrix):
-                raise ValueError('The sklearn transformer returns a sparse matrix, but recipes expects a dense numpy representation. Try setting sparse=False in the transformer initilisation if it supports the parameter.')
+            if isspmatrix(new_cols):
+                raise ValueError('The sklearn transformer returns a sparse matrix, but recipes expects a dense numpy representation. Try setting sparse=False or similar in the transformer initilisation.')
 
             col_names = self.columns if self.in_place else [f'{self.sklearn_transform.__class__.__name__}_{i+1}' for i in range(new_cols.shape[1])]
-            if not new_cols.shape[1] is len(col_names):
-                raise ValueError('The sklearn transformer returns a different amount of columns. Try running the step with in_place=False.')
+            if new_cols.shape[1] != len(col_names):
+                raise ValueError('The sklearn transformer returned a different amount of columns. Try running the step with in_place=False.')
 
             new_data[col_names] = new_cols
         
