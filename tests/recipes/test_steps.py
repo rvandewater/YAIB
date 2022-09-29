@@ -12,16 +12,18 @@ from icu_benchmarks.recipes.step import StepSklearn
 from tests.recipes.test_recipe import example_df
 
 
+@pytest.fixture()
+def example_recipe(example_df):
+    return Recipe(example_df, ['y'], ['x1', 'x2', 'x3', 'x4'], ['id']) # FIXME: add squence when merged
+
+
+@pytest.fixture()
+def example_recipe_w_nan(example_df):
+    example_df.loc[[1,2,4,7], 'x1'] = np.nan
+    return Recipe(example_df, ['y'], ['x1', 'x2', 'x3', 'x4'], ['id']) # FIXME: add squence when merged
+
+
 class TestSklearnStep:
-    @pytest.fixture()
-    def example_recipe(self, example_df):
-        return Recipe(example_df, ['y'], ['x1', 'x2', 'x3', 'x4'], ['id']) # FIXME: add squence when merged
-
-    @pytest.fixture()
-    def example_recipe_w_nan(self, example_df):
-        example_df.loc[[1,2,4,7], 'x1'] = np.nan
-        return Recipe(example_df, ['y'], ['x1', 'x2', 'x3', 'x4'], ['id']) # FIXME: add squence when merged
-
     @pytest.fixture()
     def example_recipe_w_categorical_label(self, example_df):
         example_df['y'] = pd.Series(['a', 'b', 'c', 'a', 'c', 'b', 'c', 'a', 'b', 'c'], dtype='category')
