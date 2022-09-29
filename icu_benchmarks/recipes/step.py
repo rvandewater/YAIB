@@ -145,16 +145,18 @@ class StepSklearn(Step):
         sklearn_transformer (object): Instance of scikit-learn transformer that implements fit() and transform().
         columnwise (bool, optional): Defaults to False. Set to True to fit and transform the DF column by column.
         in_place (bool, optional): Defaults to True. Set to False to have the step generate new columns instead of overwriting the existing ones.
+        role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
 
     Attributes:
         _transformers (dict): If the transformer is applied columnwise, this dict holds references to the separately fitted instances.
     """
-    def __init__(self, sklearn_transformer: object, sel: Selector=all_predictors(), columnwise: bool=False, in_place: bool=True):
+    def __init__(self, sklearn_transformer: object, sel: Selector=all_predictors(), columnwise: bool=False, in_place: bool=True, role: str='predictor'):
         super().__init__(sel)
         self.desc = f'Use sklearn transformer {sklearn_transformer.__class__.__name__}'
         self.sklearn_transformer = sklearn_transformer
         self.columnwise = columnwise
         self.in_place = in_place
+        self.role = role
         self._group = False
 
     def do_fit(self, data: Ingredients) -> Ingredients:
@@ -200,5 +202,10 @@ class StepSklearn(Step):
                 raise ValueError('The sklearn transformer returned a different amount of columns. Try running the step with in_place=False.')
 
             new_data[col_names] = new_cols
+
+        # set role of new columns
+        if not self.in_place:
+            for col in col_names:
+                new_data.update_role(col, self.role)
         
         return new_data

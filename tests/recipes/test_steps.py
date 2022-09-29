@@ -119,7 +119,7 @@ class TestSklearnStep:
         assert ((0 <= df['y']) & (df['y'] <= 2)).all()
 
     def test_label_binarizer(self, example_recipe_w_categorical_label):
-        example_recipe_w_categorical_label.add_step(StepSklearn(LabelBinarizer(), sel=has_roles(['outcome']), columnwise=True, in_place=False))
+        example_recipe_w_categorical_label.add_step(StepSklearn(LabelBinarizer(), sel=has_roles(['outcome']), columnwise=True, in_place=False, role='outcome'))
         df = example_recipe_w_categorical_label.prep()
         assert (df['LabelBinarizer_y_1'].isin([0, 1])).all()
         assert (df['LabelBinarizer_y_2'].isin([0, 1])).all()
