@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import *
 from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import *
+from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer, MissingIndicator
 
 from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_numeric_predictors, has_types, has_roles
