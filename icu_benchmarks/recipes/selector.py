@@ -65,11 +65,11 @@ def contains(pattern):
     raise NotImplementedError()
 
 
-def has_roles(roles):
+def has_role(roles):
     return Selector(description=f'roles: {roles}', roles=roles)
 
 
-def has_types(types):
+def has_type(types):
     return Selector(description=f'types: {types}', types=types)
 
 
@@ -78,7 +78,7 @@ def groups():
 
 
 def all_predictors():
-    sel = has_roles(['predictor'])
+    sel = has_role(['predictor'])
     sel.description = 'all predictors'
     return sel
 
@@ -90,12 +90,7 @@ def all_numeric_predictors():
     return sel
 
 
-<<<<<<< HEAD
-def all_outcomess():
-    sel = has_roles(['outcome'])
-=======
 def all_outcomes():
     sel = has_role(['outcome'])
->>>>>>> test-steps
     sel.description = 'all outcomes'
     return sel

@@ -6,7 +6,7 @@ from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer, MissingIndicator
 
 from icu_benchmarks.recipes.recipe import Recipe
-from icu_benchmarks.recipes.selector import all_numeric_predictors, has_types, has_roles
+from icu_benchmarks.recipes.selector import all_numeric_predictors, has_type, has_role
 from icu_benchmarks.recipes.step import StepSklearn
 
 from tests.recipes.test_recipe import example_df
@@ -98,13 +98,13 @@ class TestSklearnStep:
         assert ((0 <= df['x2']) & (df['x2'] <= 1)).all()
 
     def test_ordinal_encoder(self, example_recipe):
-        example_recipe.add_step(StepSklearn(OrdinalEncoder(), sel=has_types(['category']), in_place=False))
+        example_recipe.add_step(StepSklearn(OrdinalEncoder(), sel=has_type(['category']), in_place=False))
         df = example_recipe.prep()
         # FIXME assert correct number of new columns
         assert ((0 <= df['OrdinalEncoder_1']) & (df['OrdinalEncoder_1'] <= 2)).all()
 
     def test_onehot_encoder(self, example_recipe):
-        example_recipe.add_step(StepSklearn(OneHotEncoder(sparse=False), sel=has_types(['category']), in_place=False))
+        example_recipe.add_step(StepSklearn(OneHotEncoder(sparse=False), sel=has_type(['category']), in_place=False))
         df = example_recipe.prep()
         # FIXME assert correct number of new columns
         assert (df['OneHotEncoder_1'].isin([0, 1])).all()
@@ -114,12 +114,12 @@ class TestSklearnStep:
         assert (df['OneHotEncoder_5'].isin([0, 1])).all()
 
     def test_label_encoder(self, example_recipe_w_categorical_label):
-        example_recipe_w_categorical_label.add_step(StepSklearn(LabelEncoder(), sel=has_roles(['outcome']), columnwise=True))
+        example_recipe_w_categorical_label.add_step(StepSklearn(LabelEncoder(), sel=has_role(['outcome']), columnwise=True))
         df = example_recipe_w_categorical_label.prep()
         assert ((0 <= df['y']) & (df['y'] <= 2)).all()
 
     def test_label_binarizer(self, example_recipe_w_categorical_label):
-        example_recipe_w_categorical_label.add_step(StepSklearn(LabelBinarizer(), sel=has_roles(['outcome']), columnwise=True, in_place=False, role='outcome'))
+        example_recipe_w_categorical_label.add_step(StepSklearn(LabelBinarizer(), sel=has_role(['outcome']), columnwise=True, in_place=False, role='outcome'))
         df = example_recipe_w_categorical_label.prep()
         assert (df['LabelBinarizer_y_1'].isin([0, 1])).all()
         assert (df['LabelBinarizer_y_2'].isin([0, 1])).all()
@@ -153,19 +153,19 @@ class TestSklearnStep:
         example_df['y'] = pd.Series(['a', 'b', 'c', 'a', 'c', 'b', 'c', 'a', 'b', 'c'], dtype='category')
         example_df['y1'] = pd.Series(['a', 'b', 'c', 'a', 'c', 'b', 'c', 'a', 'b', 'c'], dtype='category')
         rec = Recipe(example_df, ['y', 'y1'], ['x1', 'x2', 'x3'], ['id']) # FIXME: add squence when merged
-        rec.add_step(StepSklearn(LabelEncoder(), sel=has_roles(['outcome']), columnwise=False))
+        rec.add_step(StepSklearn(LabelEncoder(), sel=has_role(['outcome']), columnwise=False))
         with pytest.raises(ValueError) as exc_info:
             rec.prep()
         assert 'columnwise=True' in str(exc_info.value)
 
     def test_wrong_in_place(self, example_recipe):
-        example_recipe.add_step(StepSklearn(OneHotEncoder(sparse=False), sel=has_types(['category']), in_place=True))
+        example_recipe.add_step(StepSklearn(OneHotEncoder(sparse=False), sel=has_type(['category']), in_place=True))
         with pytest.raises(ValueError) as exc_info:
             example_recipe.prep()
         assert 'in_place=False' in str(exc_info.value)
 
     def test_sparse_error(self, example_recipe):
-        example_recipe.add_step(StepSklearn(OneHotEncoder(sparse=True), sel=has_types(['category']), in_place=False))
+        example_recipe.add_step(StepSklearn(OneHotEncoder(sparse=True), sel=has_type(['category']), in_place=False))
         with pytest.raises(TypeError) as exc_info:
             example_recipe.prep()
         assert 'sparse=False' in str(exc_info.value)
