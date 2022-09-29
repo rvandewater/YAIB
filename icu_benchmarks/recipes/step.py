@@ -3,7 +3,7 @@ from copy import deepcopy
 from scipy.sparse import isspmatrix
 from sklearn.preprocessing import StandardScaler
 
-from icu_benchmarks.recipes.selector import Selector, all_predictors
+from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
 from icu_benchmarks.recipes.ingredients import Ingredients
 
 
@@ -92,7 +92,7 @@ class StepImputeFill(Step):
 
 
 class StepScale(Step):
-    def __init__(self, sel=all_predictors(), with_mean=True, with_std=True):
+    def __init__(self, sel=all_numeric_predictors(), with_mean=True, with_std=True):
         super().__init__(sel)
         self.desc = f'Scale with mean ({with_mean}) and std ({with_std})'
         self.with_mean = with_mean
@@ -113,7 +113,7 @@ class StepScale(Step):
 
 
 class StepHistorical(Step):
-    def __init__(self, sel=all_predictors(), fun='max', suffix=None, role='predictor'):
+    def __init__(self, sel=all_numeric_predictors(), fun='max', suffix=None, role='predictor'):
         super().__init__(sel)
         self.desc = f'Create historical {fun}'
         self.fun = fun
