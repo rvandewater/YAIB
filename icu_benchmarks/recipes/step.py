@@ -179,7 +179,7 @@ class StepSklearn(Step):
     Attributes:
         _transformers (dict): If the transformer is applied columnwise, this dict holds references to the separately fitted instances.
     """
-    def __init__(self, sklearn_transformer: object, sel: Selector=all_predictors(), columnwise: bool=False, in_place: bool=True, role: str='predictor'):
+    def __init__(self, sklearn_transformer: object, sel: Selector = all_predictors(), columnwise: bool = False, in_place: bool = True, role: str = 'predictor'):
         super().__init__(sel)
         self.desc = f'Use sklearn transformer {sklearn_transformer.__class__.__name__}'
         self.sklearn_transformer = sklearn_transformer
