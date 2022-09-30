@@ -60,8 +60,9 @@ class Ingredients(pd.DataFrame):
         """Adds a new role for a column without roles or changes an existing role to a different one.
         
         Args:
-            column (str): The column to receive additional roles.
-            new_role (str): The role to add to the column.
+            column (str): The column to update the roles of.
+            new_role (str): The role to add or change to.
+            old_role (str): Defaults to None. The role to be changed.
 
         Raises:
             ValueError: If old_role is given but column has no roles.
