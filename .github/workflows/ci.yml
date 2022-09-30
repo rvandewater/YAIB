@@ -2,9 +2,15 @@ name: Lint and test recipes
 
 on:
   push:
-    branches: [ lint-and-test-automatically, main, development ]
+    branches: 
+      - main
+      - development
+      - lint-and-test-automatically
   pull_request:
-    branches: [ main, development ]
+    branches:
+      - main
+      - development
+      - lint-and-test-automatically
 
 jobs:
   build:
