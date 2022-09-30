@@ -2,9 +2,9 @@ name: Lint and test recipes
 
 on:
   push:
-    branches: [ dev, master ]
+    branches: [ main, development ]
   pull_request:
-    branches: [ dev, master ]
+    branches: [ main, development ]
 
 jobs:
   build:
