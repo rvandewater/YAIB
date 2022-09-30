@@ -41,13 +41,15 @@ We currently use the following libraries:
 - [Pathos](https://pathos.readthedocs.io/en/latest/)
   - Parallel computing framework, used for preprocessing
 
-# Preprocess
+# CLI Commands
+
+## Preprocess
 
 ```
 python -m icu_benchmarks.run preprocess --data-dir ../data/ricu/mimic
 ```
 
-# Train
+## Train
 
 ```
 python -m icu_benchmarks.run train \                                                                     
@@ -71,3 +73,8 @@ python -m icu_benchmarks.run train \
                             --subsample-data 0.33 0.66 1.00
 ```
 
+## Run Tests
+
+```
+python -m pytest ./tests/recipes
+```
