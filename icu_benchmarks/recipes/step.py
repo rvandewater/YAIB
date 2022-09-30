@@ -210,7 +210,7 @@ class StepSklearn(Step):
             TypeError: If the transformer returns a sparse matrix.
             ValueError: If the transformer returns an unexpected amount of columns.
         """
-        new_data = data
+        new_data = self._check_ingredients(data)
 
         if self.columnwise:
             for col in self.columns:
