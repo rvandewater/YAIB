@@ -3,8 +3,10 @@ from copy import deepcopy
 from scipy.sparse import isspmatrix
 from sklearn.preprocessing import StandardScaler
 
+from enum import Enum
 from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
 from icu_benchmarks.recipes.ingredients import Ingredients
+
 
 
 class Step():
@@ -70,7 +72,8 @@ class Step():
         if not self.trained:
             repr += str(self.sel)
         else:
-            repr += str(self.columns) if len(self.columns) < 3 else str(self.columns[:2] + ['...']) # FIXME: remove brackets
+            repr += str(self.columns) if len(self.columns) < 3 else str(
+                self.columns[:2] + ['...'])  # FIXME: remove brackets
             repr += ' [trained]'
 
         return repr
@@ -85,7 +88,7 @@ class StepImputeFill(Step):
         self.limit = limit
 
     def transform(self, data):
-        new_data = data.obj # FIXME: also deal with ungrouped DataFrames
+        new_data = data.obj  # FIXME: also deal with ungrouped DataFrames
         new_data[self.columns] = \
             data[self.columns].fillna(self.value, method=self.method, axis=0, limit=self.limit)
         return new_data
@@ -112,36 +115,48 @@ class StepScale(Step):
         return new_data
 
 
+class Accumulator(Enum):
+    MAX = "max"
+    MIN = "min"
+    MEAN = "mean"
+    MEDIAN = "median"
+    COUNT = "count"
+    VAR = "var"
+
+
 class StepHistorical(Step):
     def __init__(self, sel=all_numeric_predictors(), fun='max', suffix=None, role='predictor'):
         super().__init__(sel)
+
         self.desc = f'Create historical {fun}'
         self.fun = fun
         if suffix is None:
-            suffix = fun
+            try:
+                suffix = fun.value
+            except:
+                raise TypeError(f'Expected Accumulator enum for function, got {self.fun.__class__}')
         self.suffix = suffix
         self.role = role
 
     def transform(self, data):
-        new_data = data.obj # FIXME: also deal with ungrouped DataFrames
+        new_data = data.obj  # FIXME: also deal with ungrouped DataFrames
         new_columns = [c + '_' + self.suffix for c in self.columns]
 
-        if self.fun == 'max':
+        if self.fun == Accumulator.MAX:
             res = data[self.columns].cummax(skipna=True)
-        elif self.fun == 'min':
+        elif self.fun == Accumulator.MIN:
             res = data[self.columns].cummin(skipna=True)
-        elif self.fun == 'mean':
+        elif self.fun == Accumulator.MEAN:
             # Reset index, as we get back a multi-index, and we want a simple rolling index
             res = data[self.columns].expanding().mean().reset_index(drop=True)
-        elif self.fun == 'median':
-            # Reset index, as we get back a multi-index, and we want a simple rolling index
+        elif self.fun == Accumulator.MEDIAN:
             res = data[self.columns].expanding().median().reset_index(drop=True)
-        elif self.fun == 'count':
-            # Reset index, as we get back a multi-index, and we want a simple rolling index
+        elif self.fun == Accumulator.COUNT:
             res = data[self.columns].expanding().count().reset_index(drop=True)
-        elif self.fun == 'var':
-            # Reset index, as we get back a multi-index, and we want a simple rolling index
+        elif self.fun == Accumulator.VAR:
             res = data[self.columns].expanding().var().reset_index(drop=True)
+        else:
+            raise TypeError(f'Expected Accumulator enum for function, got {self.fun.__class__}')
 
         new_data[new_columns] = res
 
