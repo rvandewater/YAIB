@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from copy import deepcopy
 from scipy.sparse import isspmatrix
 from sklearn.preprocessing import StandardScaler
@@ -6,7 +6,6 @@ from sklearn.preprocessing import StandardScaler
 from enum import Enum
 from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
 from icu_benchmarks.recipes.ingredients import Ingredients
-
 
 
 class Step():
@@ -23,6 +22,7 @@ class Step():
         _trained (bool): If the step was fitted already.
         _group (bool): If the step runs on grouped data.
     """
+
     def __init__(self, sel: Selector = all_predictors()):
         self.sel = sel
         self.columns = []
@@ -125,7 +125,17 @@ class Accumulator(Enum):
 
 
 class StepHistorical(Step):
-    def __init__(self, sel=all_numeric_predictors(), fun=Accumulator.MAX, suffix=None, role='predictor'):
+    """This step generates columns with a historical accumulator provided by the user.
+
+    Args:
+        sel (Selector): Which column to apply StepHistorical to.
+        fun (Accumulator): Instance of the Accumulator enumerable that signifies which type of historical accumulation to use (default is MAX).
+        suffix (String, optional): Defaults to True. Set to False to have the step generate new columns instead of overwriting the existing ones.
+        role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
+    """
+
+    def __init__(self, sel: Selector = all_numeric_predictors(), fun: Accumulator = Accumulator.MAX, suffix: str = None,
+                 role: str = 'predictor'):
         super().__init__(sel)
 
         self.desc = f'Create historical {fun}'
@@ -138,7 +148,7 @@ class StepHistorical(Step):
         self.suffix = suffix
         self.role = role
 
-    def transform(self, data):
+    def transform(self, data: Ingredients) -> Ingredients:
         new_data = data.obj  # FIXME: also deal with ungrouped DataFrames
         new_columns = [c + '_' + self.suffix for c in self.columns]
 
@@ -179,7 +189,9 @@ class StepSklearn(Step):
     Attributes:
         _transformers (dict): If the transformer is applied columnwise, this dict holds references to the separately fitted instances.
     """
-    def __init__(self, sklearn_transformer: object, sel: Selector = all_predictors(), columnwise: bool = False, in_place: bool = True, role: str = 'predictor'):
+
+    def __init__(self, sklearn_transformer: object, sel: Selector = all_predictors(), columnwise: bool = False,
+                 in_place: bool = True, role: str = 'predictor'):
         super().__init__(sel)
         self.desc = f'Use sklearn transformer {sklearn_transformer.__class__.__name__}'
         self.sklearn_transformer = sklearn_transformer
@@ -203,7 +215,8 @@ class StepSklearn(Step):
                 self.sklearn_transformer.fit(data[self.columns])
             except ValueError as e:
                 if 'should be a 1d array' in str(e) or 'Multioutput target data is not supported' in str(e):
-                    raise ValueError('The sklearn transformer expects a 1d array as input. Try running the step with columnwise=True.')
+                    raise ValueError(
+                        'The sklearn transformer expects a 1d array as input. Try running the step with columnwise=True.')
                 raise
 
     def transform(self, data: Ingredients) -> Ingredients:
@@ -218,17 +231,22 @@ class StepSklearn(Step):
             for col in self.columns:
                 new_cols = self._transformers[col].transform(new_data[col])
                 if self.in_place and new_cols.ndim == 2 and new_cols.shape[1] > 1:
-                    raise ValueError('The sklearn transformer returned more than one column. Try running the step with in_place=False.')
-                col_names = col if self.in_place else [f'{self.sklearn_transformer.__class__.__name__}_{col}_{i+1}' for i in range(new_cols.shape[1])]
+                    raise ValueError(
+                        'The sklearn transformer returned more than one column. Try running the step with in_place=False.')
+                col_names = col if self.in_place else [f'{self.sklearn_transformer.__class__.__name__}_{col}_{i + 1}'
+                                                       for i in range(new_cols.shape[1])]
                 new_data[col_names] = new_cols
         else:
             new_cols = self.sklearn_transformer.transform(new_data[self.columns])
             if isspmatrix(new_cols):
-                raise TypeError('The sklearn transformer returns a sparse matrix, but recipes expects a dense numpy representation. Try setting sparse=False or similar in the transformer initilisation.')
+                raise TypeError(
+                    'The sklearn transformer returns a sparse matrix, but recipes expects a dense numpy representation. Try setting sparse=False or similar in the transformer initilisation.')
 
-            col_names = self.columns if self.in_place else [f'{self.sklearn_transformer.__class__.__name__}_{i+1}' for i in range(new_cols.shape[1])]
+            col_names = self.columns if self.in_place else [f'{self.sklearn_transformer.__class__.__name__}_{i + 1}' for
+                                                            i in range(new_cols.shape[1])]
             if new_cols.shape[1] != len(col_names):
-                raise ValueError('The sklearn transformer returned a different amount of columns. Try running the step with in_place=False.')
+                raise ValueError(
+                    'The sklearn transformer returned a different amount of columns. Try running the step with in_place=False.')
 
             new_data[col_names] = new_cols
 
@@ -236,5 +254,5 @@ class StepSklearn(Step):
         if not self.in_place:
             for col in col_names:
                 new_data.update_role(col, self.role)
-        
+
         return new_data
