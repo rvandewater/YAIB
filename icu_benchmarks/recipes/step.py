@@ -1,9 +1,12 @@
 from abc import abstractmethod
 from copy import deepcopy
+
+import pandas as pd
 from scipy.sparse import isspmatrix
 from sklearn.preprocessing import StandardScaler
-
+import datetime
 from enum import Enum
+
 from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
 from icu_benchmarks.recipes.ingredients import Ingredients
 
@@ -64,6 +67,7 @@ class Step():
 
     def fit_transform(self, data: Ingredients) -> Ingredients:
         self.fit(data)
+        print(data.obj)
         return self.transform(data)
 
     def __repr__(self) -> str:
@@ -238,3 +242,35 @@ class StepSklearn(Step):
                 new_data.update_role(col, self.role)
         
         return new_data
+
+class StepResampling(Step):
+
+    def __init__(self, old_resolution, new_resolution):
+        super().__init__(all_predictors())
+        self.resolution = old_resolution
+        self.new_resolution = new_resolution
+        # self._group = False
+
+
+    def fit(self, data):
+        #self.columns = self.sel(data.obj)
+        self._trained = True
+
+    def transform(self, data):
+        # print(data['time'])
+        new_data = data
+        # new_data = data
+        # new_data.time = pd.to_datetime(new_data.time)
+        # new_data = new_data.set_index(new_data.time)
+        # new_data = new_data.groupby("stay_id")
+        new_data = new_data.resample("2h", on="time").mean()
+        new_data = new_data.droplevel("stay_id")
+        new_data = new_data.reset_index(drop=False)
+        # new_data = new_data.obj
+        print(new_data)
+        # new_data = new_data.obj
+        # data = new_data
+        return new_data
+        # return NotImplementedError()
+
+
