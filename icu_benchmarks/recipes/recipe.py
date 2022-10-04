@@ -1,3 +1,4 @@
+from __future__ import annotations
 from collections import Counter
 from copy import copy
 from itertools import chain
@@ -39,7 +40,7 @@ class Recipe():
         if sequences:
             self.update_roles(sequences, 'sequence')
 
-    def add_roles(self, vars: Union[str, list[str]], new_role: str = 'predictor'):
+    def add_roles(self, vars: Union[str, list[str]], new_role: str = 'predictor') -> Recipe:
         """Adds an additional role for one or more columns of the Recipe's Ingredients.
 
         Args:
@@ -48,13 +49,17 @@ class Recipe():
 
         See also:
             Ingredients.add_role()
+
+        Returns:
+            Recipe: self
         """
         if isinstance(vars, str):
             vars = [vars]
         for v in vars:
             self.data.add_role(v, new_role)
+        return self
 
-    def update_roles(self, vars: Union[str, list[str]], new_role: str = 'predictor', old_role=None):
+    def update_roles(self, vars: Union[str, list[str]], new_role: str = 'predictor', old_role=None) -> Recipe:
         """Adds a new role for one or more columns of the Recipe's Ingredients without roles or changes an existing role to a different one.
 
         Args:
@@ -64,13 +69,17 @@ class Recipe():
 
         See also:
             Ingredients.update_role()
+
+        Returns:
+            Recipe: self
         """
         if isinstance(vars, str):
             vars = [vars]
         for v in vars:
             self.data.update_role(v, new_role, old_role)
+        return self
 
-    def add_step(self, step: Step):
+    def add_step(self, step: Step) -> Recipe:
         """Adds a new step to the Recipe
 
         Args:
