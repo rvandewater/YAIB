@@ -1,10 +1,10 @@
 from abc import abstractmethod
 from copy import deepcopy
+from typing import Union
 from scipy.sparse import isspmatrix
-import pandas as pd
+from pandas.core.groupby import DataFrameGroupBy
 from sklearn.preprocessing import StandardScaler
 from icu_benchmarks.recipes.ingredients import Ingredients
-
 from enum import Enum
 from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
 from icu_benchmarks.recipes.ingredients import Ingredients
@@ -54,8 +54,25 @@ class Step():
     def do_fit(self, data: Ingredients):
         pass
 
-    def _check_ingredients(self, data, remove_group=False):
-        if isinstance(data, pd.core.groupby.DataFrameGroupBy):
+    def _check_ingredients(
+        self, 
+        data: Union[Ingredients, DataFrameGroupBy], 
+        remove_group: bool = False
+    ) -> Union[Ingredients, DataFrameGroupBy]:
+        """Check input for allowed types
+
+        Args:
+            data (Union[Ingredients, DataFrameGroupBy]): _description_
+            remove_group (bool, optional): Flag to dictate whether the group should be removed if input data is grouped. Defaults to False.
+
+        Raises:
+            ValueError: If a grouped pd.DataFrame is provided to a step that can't use groups.
+            ValueError: If input are not (potentially grouped) Ingredients.
+
+        Returns:
+            Union[Ingredients, DataFrameGroupBy]: validated input
+        """
+        if isinstance(data, DataFrameGroupBy):
             if not self._group:
                 raise ValueError(f'Step does not accept grouped data.')
             if remove_group:

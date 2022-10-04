@@ -30,7 +30,12 @@ class Ingredients(pd.DataFrame):
     def _constructor(self):
         return Ingredients
 
-    def to_df(self):
+    def to_df(self) -> pd.DataFrame:
+        """Return the underlying pandas.DataFrame.
+
+        Returns:
+            pandas.DataFrame
+        """
         return pd.DataFrame(self)
 
     def _check_column(self, column):
