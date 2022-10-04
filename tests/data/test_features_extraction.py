@@ -46,7 +46,7 @@ def test_extract_feature_df(df_var_ref):
             elif c_words[1] == 'slope':
                 assert np.all(features_df[col].values == np.array(list(range(length)) * n_patient))
             else:
-                assert False # Checks age, PID, datetime are not used
+                assert False  # Checks age, PID, datetime are not used
 
         if c_words[0] == 'min':
             if c_words[1] == 'constant':
