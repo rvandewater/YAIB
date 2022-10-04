@@ -18,15 +18,19 @@ class Recipe():
     sklearn-inspired transformation Steps to turn into a model-ready input. 
 
     Args:
-        data (Union[pd.DataFrame, Ingredients]): 
+        data (Union[pd.DataFrame, Ingredients]): data to be preprocessed.
+        outcomes (Union[str, list[str]]): names of columns in data that are assigned the 'outcome' role
+        predictors (Union[str, list[str]]): names of columns in data that should be assigned the 'predictor' role
+        groups (Union[str, list[str]]): names of columns in data that should be assigned the 'group' role
+        sequence (Union[str, list[str]]): names of columns in data that should be assigned the 'sequence' role
     """
     def __init__(
         self, 
         data: Union[pd.DataFrame, Ingredients], 
-        outcomes=None, 
-        predictors=None, 
-        groups=None, 
-        sequences=None
+        outcomes: Union[str, list[str]] = None, 
+        predictors: Union[str, list[str]] = None, 
+        groups: Union[str, list[str]] = None, 
+        sequences: Union[str, list[str]] = None
     ):
         self.data = Ingredients(data)
         self.steps = []
