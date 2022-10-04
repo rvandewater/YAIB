@@ -14,6 +14,5 @@ dependencies:
   - python=3.9.13
   - pytorch=1.12.1
   - scikit-learn=1.1.1
-  - sklearn-pandas=2.2.0
   - tensorboard=2.10.0
   - tqdm=4.64.1

@@ -1,25 +1,39 @@
+from .ingredients import Ingredients
+
 class Selector():
     """Class responsible for selecting the variables affected by a step"""
     def __init__(self, description, names=None, roles=None, types=None):
         self.description = description
-        self.names = names
-        self.roles = roles
-        self.types = types
+        self.set_names(names)
+        self.set_roles(roles)
+        self.set_types(types)
 
-    def set_type(self, types):
+    def set_names(self, names):
+        self.names = names
+
+    def set_roles(self, roles):
+        self.roles = roles
+
+    def set_types(self, types):
         self.types = types
 
     def __call__(self, data):
-        # FIXME: think about how to combine names, roles, and types
-        if self.names is None:
-            vars = data.columns.tolist()
-        else:
-            vars = self.names
+        if not isinstance(data, Ingredients):
+            raise TypeError(f'Expected Ingredients, got {data.__class__}')
+        
+        vars = data.columns.tolist()
 
-        with_role = [v for v, r in data.roles.items() if len(intersection(r, self.roles)) > 0]
-        vars = [v for v in vars if v in with_role]
+        if self.roles is not None:
+            sel_roles = [v for v, r in data.roles.items() if len(intersection(r, self.roles)) > 0]
+            vars = intersection(vars, sel_roles)
 
-        # FIXME: filter types
+        if self.types is not None:
+            # currently matches types by name. is this problematic?
+            sel_types = [v for v, t in data.dtypes.items() if t.name in self.types]
+            vars = intersection(vars, sel_types)
+
+        if self.names is not None:
+            vars = intersection(vars, self.names)
 
         return vars
 
@@ -28,11 +42,15 @@ class Selector():
 
 
 def intersection(x, y):
-    return set(x).intersection(set(y))
+    if isinstance(x, str):
+        x = [x]
+    if isinstance(y, str):
+        y = [y]
+    return [i for i in x if i in y]
 
 
 def all_of(names):
-    return Selector(descripton=str(names), names=names)
+    return Selector(description=str(names), names=names)
 
 
 def starts_with(pattern):
@@ -67,12 +85,12 @@ def all_predictors():
 
 def all_numeric_predictors():
     sel = all_predictors()
-    sel.add_type(['int16', 'int32', 'int64', 'float16', 'float32', 'float64'])
+    sel.set_types(['int16', 'int32', 'int64', 'float16', 'float32', 'float64'])
     sel.description = 'all numeric predictors'
     return sel
 
 
-def all_outcomess():
+def all_outcomes():
     sel = has_role(['outcome'])
     sel.description = 'all outcomes'
     return sel
