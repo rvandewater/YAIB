@@ -13,6 +13,7 @@ from icu_benchmarks.common import constants
 VARS = constants.VARS
 FILE_NAMES = constants.FILE_NAMES
 
+
 @gin.configurable('RICUDataset')
 class RICUDataset(Dataset):
 
@@ -61,7 +62,7 @@ class RICUDataset(Dataset):
 
         """
         self.scaler = scaler
-    
+
     def get_data_and_labels(self):
         """Function to return all the data and labels aligned at once.
         We use this function for the ML methods which don't require an iterator.
@@ -86,7 +87,7 @@ class RICULoader(object):
     def __init__(self, data_path, split='train', use_features=True, use_static=False):
         """
         Args:
-            data_path (string): Path to the folder containing the preprocessed files with static and dynamic data, 
+            data_path (string): Path to the folder containing the preprocessed files with static and dynamic data,
             labels and splits.
             split (string): Name of split to load.
         """
@@ -99,17 +100,18 @@ class RICULoader(object):
         self.labels_df = parquet.read_table(pth.join(data_path, FILE_NAMES['LABELS_SPLITS'])).to_pandas().loc[self.split]
         self.dyn_df = parquet.read_table(pth.join(data_path, FILE_NAMES['DYNAMIC_IMPUTED'])).to_pandas().loc[self.split]
         if use_features:
-            self.features_df = parquet.read_table(pth.join(data_path, FILE_NAMES['FEATURES_IMPUTED'])).to_pandas().loc[self.split]
+            self.features_df = parquet.read_table(pth.join(data_path, FILE_NAMES['FEATURES_IMPUTED'])) \
+                .to_pandas().loc[self.split]
             self.dyn_df = pd.concat([self.dyn_df, self.features_df], axis=1)
         if use_static:
-            self.dyn_df = pd.concat([self.dyn_df, self.static_df.set_index(VARS['STAY_ID'])], axis=1).drop(labels='sex', axis=1)
+            self.dyn_df = pd.concat([self.dyn_df, self.static_df.set_index(VARS['STAY_ID'])], axis=1) \
+                .drop(labels='sex', axis=1)
         self.dyn_data_df = self.dyn_df.drop(labels='time', axis=1)
 
         # calculate basic info for the data
         self.num_stays = self.static_df.shape[0]
         self.num_measurements = self.dyn_df.shape[0]
         self.maxlen = self.dyn_df.groupby([VARS['STAY_ID']]).size().max()
-
 
     def get_window(self, stay_id, pad_value=0.0):
         """Windowing function
@@ -161,7 +163,7 @@ class RICULoader(object):
         """
         if idx is None:
             idx = np.random.randint(self.num_stays)
-        
+
         stay_id = self.static_df.iloc[idx][VARS['STAY_ID']]
 
         return self.get_window(stay_id)

@@ -29,7 +29,7 @@ class Ingredients(pd.DataFrame):
         roles: dict=None
     ):
         super().__init__(data, index, columns, dtype, copy, )
-        
+
         if isinstance(data, Ingredients) and roles is None:
             if copy is None or copy is True:
                 self.roles = deepcopy(data.roles)
@@ -40,13 +40,13 @@ class Ingredients(pd.DataFrame):
         elif not isinstance(roles, dict):
             raise TypeError(f'expected dict object for roles, got {roles.__class__}')
         elif not np.all([k in self.columns for k in roles]):
-            raise ValueError(f'roles contains variable name that is not in the data.')
+            raise ValueError('roles contains variable name that is not in the data.')
         else:
             if copy is None or copy is True:
                 self.roles = deepcopy(roles)
             else:
                 self.roles = roles
-                
+
     @property
     def _constructor(self):
         return Ingredients
@@ -54,7 +54,7 @@ class Ingredients(pd.DataFrame):
     def _check_column(self, column):
         if not isinstance(column, str):
             raise ValueError(f'Expected string, got {column}')
-        if not column in self.columns:
+        if column not in self.columns:
             raise ValueError(f'{column} does not exist in this Data object')
 
     def _check_role(self, new_role):

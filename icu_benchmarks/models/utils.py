@@ -28,7 +28,7 @@ def save_config_file(log_dir):
         f.write(gin.operative_config_str())
 
 
-def get_bindings_and_params(args):
+def get_bindings_and_params(args):  # noqa: C901
     gin_bindings = []
     log_dir = args.logdir
     if args.num_class:

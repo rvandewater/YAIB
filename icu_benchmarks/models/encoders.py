@@ -2,7 +2,7 @@ import gin
 import numpy as np
 import torch
 import torch.nn as nn
-from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, parrallel_recomb,\
+from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, \
     TemporalBlock, SparseBlock, PositionalEncoding
 
 
@@ -44,7 +44,7 @@ class GRUNet(nn.Module):
         self.layer_dim = layer_dim
         self.rnn = nn.GRU(input_dim, hidden_dim, layer_dim, batch_first=True)
         self.logit = nn.Linear(hidden_dim, num_classes)
-        
+
         if torch.cuda.is_available():
             self.device = torch.device("cuda:0")
         elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():

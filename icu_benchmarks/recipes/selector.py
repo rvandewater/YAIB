@@ -2,6 +2,7 @@ from .ingredients import Ingredients
 from typing import Union
 
 
+
 class Selector():
     """Class responsible for selecting the variables affected by a recipe step
     

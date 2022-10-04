@@ -26,7 +26,7 @@ setup(
     entry_points={
         "console_scripts": ['icu-benchmarks = icu_benchmarks.run:main']
     },
-    install_requires=[], # dependencies managed via conda for the moment
+    install_requires=[],  # dependencies managed via conda for the moment
     license="MIT license",
     long_description=readme,
     include_package_data=True,
