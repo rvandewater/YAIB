@@ -27,7 +27,7 @@ class Recipe():
         predictors=None, 
         groups=None, 
         sequences=None
-    ) -> None:
+    ):
         self.data = Ingredients(data)
         self.steps = []
 
