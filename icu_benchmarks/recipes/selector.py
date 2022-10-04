@@ -27,7 +27,7 @@ class Selector():
     def _wrap_str(x):
         if isinstance(x, str):
             return [x]
-        elif isinstance(x, list):
+        elif isinstance(x, list) or x is None:
             return x
         else:
             raise ValueError(f'Expected str or list of strings, got {x.__class__}')
