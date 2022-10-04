@@ -125,7 +125,7 @@ class Accumulator(Enum):
 
 
 class StepHistorical(Step):
-    def __init__(self, sel=all_numeric_predictors(), fun='max', suffix=None, role='predictor'):
+    def __init__(self, sel=all_numeric_predictors(), fun=Accumulator.MAX, suffix=None, role='predictor'):
         super().__init__(sel)
 
         self.desc = f'Create historical {fun}'
