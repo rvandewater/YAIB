@@ -64,7 +64,7 @@ class Recipe():
         data = copy(data)
         self._apply_fit_transform(data, refit)
         return pd.DataFrame(data)
-        
+
     def bake(self, data=None):
         """
         Transforms, or bakes, the data if it has been prepped.
