@@ -149,21 +149,25 @@ class StepHistorical(Step):
         self.role = role
 
     def transform(self, data: Ingredients) -> Ingredients:
+        """
+        Raises:
+            TypeError: If the function is not of type Accumulator
+        """
         new_data = data.obj  # FIXME: also deal with ungrouped DataFrames
         new_columns = [c + '_' + self.suffix for c in self.columns]
 
-        if self.fun == Accumulator.MAX:
+        if self.fun is Accumulator.MAX:
             res = data[self.columns].cummax(skipna=True)
-        elif self.fun == Accumulator.MIN:
+        elif self.fun is Accumulator.MIN:
             res = data[self.columns].cummin(skipna=True)
-        elif self.fun == Accumulator.MEAN:
+        elif self.fun is Accumulator.MEAN:
             # Reset index, as we get back a multi-index, and we want a simple rolling index
             res = data[self.columns].expanding().mean().reset_index(drop=True)
-        elif self.fun == Accumulator.MEDIAN:
+        elif self.fun is Accumulator.MEDIAN:
             res = data[self.columns].expanding().median().reset_index(drop=True)
-        elif self.fun == Accumulator.COUNT:
+        elif self.fun is Accumulator.COUNT:
             res = data[self.columns].expanding().count().reset_index(drop=True)
-        elif self.fun == Accumulator.VAR:
+        elif self.fun is Accumulator.VAR:
             res = data[self.columns].expanding().var().reset_index(drop=True)
         else:
             raise TypeError(f'Expected Accumulator enum for function, got {self.fun.__class__}')
