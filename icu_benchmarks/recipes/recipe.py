@@ -50,7 +50,7 @@ class Recipe:
 
         Args:
             vars (Union[str, list[str]]): The column to receive additional roles.
-            new_role (str, optional): Defaults to predictor'. The role to add to the column.
+            new_role (str, optional): Defaults to predictor. The role to add to the column.
 
         See also:
             Ingredients.add_role()
