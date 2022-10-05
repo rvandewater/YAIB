@@ -157,9 +157,9 @@ class StepHistorical(Step):
     Args:
         fun (Accumulator): Instance of the Accumulator enumerable that signifies which type of historical accumulation
             to use (default is MAX).
-        suffix (String, optional): Defaults to none. Set to False to have the step generate new columns instead of
-            overwriting the existing ones.
-        role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
+        suffix (String, optional): Defaults to none. Set the name to have the step generate new columns with this suffix
+            instead of the default suffix.
+        role (str, optional): Defaults to 'predictor'. In case new columns are added, set their role to role.
     """
 
     def __init__(self, sel: Selector = all_numeric_predictors(), fun: Accumulator = Accumulator.MAX, suffix: str = None,
