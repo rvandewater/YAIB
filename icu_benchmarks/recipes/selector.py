@@ -2,22 +2,22 @@ from .ingredients import Ingredients
 from typing import Union
 
 
-
-class Selector():
+class Selector:
     """Class responsible for selecting the variables affected by a recipe step
-    
+
     Args:
         description (str): text used to represent Selector when printed in summaries
         names (Union[str, list[str]]): column names to select
         roles (Union[str, list[str]]): column roles to select, see also Ingredients
         types (Union[str, list[str]]): column data types to select
     """
+
     def __init__(
-        self, 
-        description: str, 
-        names: Union[str, list[str]]=None, 
-        roles: Union[str, list[str]]=None, 
-        types: Union[str, list[str]]=None
+        self,
+        description: str,
+        names: Union[str, list[str]] = None,
+        roles: Union[str, list[str]] = None,
+        types: Union[str, list[str]] = None,
     ):
         self.description = description
         self.set_names(names)
@@ -60,10 +60,10 @@ class Selector():
         Returns:
             list[str]: selected variables
         """
-        
+
         if not isinstance(ingr, Ingredients):
-            raise TypeError(f'Expected Ingredients, got {ingr.__class__}')
-        
+            raise TypeError(f"Expected Ingredients, got {ingr.__class__}")
+
         vars = ingr.columns.tolist()
 
         if self.roles is not None:
@@ -83,6 +83,7 @@ class Selector():
     def __repr__(self):
         return self.description
 
+
 def enlist_str(x: Union[str, list[str], None]) -> Union[list[str], None]:
     """Wrap a str in a list if it isn't a list yet
 
@@ -99,17 +100,18 @@ def enlist_str(x: Union[str, list[str], None]) -> Union[list[str], None]:
         return [x]
     elif isinstance(x, list):
         if not all(isinstance(i, str) for i in x):
-            raise TypeError('Only lists of str are allowed.')
+            raise TypeError("Only lists of str are allowed.")
         return x
     elif x is None:
         return x
     else:
-        raise TypeError(f'Expected str or list of str, got {x.__class__}')
+        raise TypeError(f"Expected str or list of str, got {x.__class__}")
+
 
 def intersection(x: list, y: list) -> list:
     """Intersection of two lists
 
-    Note: 
+    Note:
         maintains the order of the first list
         does not deduplicate items (i.e., does not return a set)
 
@@ -160,7 +162,7 @@ def has_role(roles: Union[str, list[str]]) -> Selector:
     Returns:
        Selector: object representing the selection rule
     """
-    return Selector(description=f'roles: {roles}', roles=roles)
+    return Selector(description=f"roles: {roles}", roles=roles)
 
 
 def has_type(types: Union[str, list[str]]) -> Selector:
@@ -168,15 +170,15 @@ def has_type(types: Union[str, list[str]]) -> Selector:
 
     Args:
         types (Union[str, list[str]]): data types to select
-    
-    Note: 
-        Data types are selected based on string representation as returned 
+
+    Note:
+        Data types are selected based on string representation as returned
         by `df[[varname]].dtype.name`
 
     Returns:
         Selector: object representing the selection rule
     """
-    return Selector(description=f'types: {types}', types=types)
+    return Selector(description=f"types: {types}", types=types)
 
 
 def groups() -> Selector:
@@ -185,7 +187,7 @@ def groups() -> Selector:
     Returns:
         Selector: object representing the selection rule
     """
-    return Selector(description=f'grouping variables', roles=['group'])
+    return Selector(description=f"grouping variables", roles=["group"])
 
 
 def all_predictors() -> Selector:
@@ -194,8 +196,8 @@ def all_predictors() -> Selector:
     Returns:
         Selector: object representing the selection rule
     """
-    sel = has_role(['predictor'])
-    sel.description = 'all predictors'
+    sel = has_role(["predictor"])
+    sel.description = "all predictors"
     return sel
 
 
@@ -206,8 +208,8 @@ def all_numeric_predictors() -> Selector:
         Selector: object representing the selection rule
     """
     sel = all_predictors()
-    sel.set_types(['int16', 'int32', 'int64', 'float16', 'float32', 'float64'])
-    sel.description = 'all numeric predictors'
+    sel.set_types(["int16", "int32", "int64", "float16", "float32", "float64"])
+    sel.description = "all numeric predictors"
     return sel
 
 
@@ -217,6 +219,6 @@ def all_outcomes() -> Selector:
     Returns:
         Selector: object representing the selection rule
     """
-    sel = has_role(['outcome'])
-    sel.description = 'all outcomes'
+    sel = has_role(["outcome"])
+    sel.description = "all outcomes"
     return sel
