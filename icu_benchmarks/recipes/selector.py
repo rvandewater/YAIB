@@ -1,5 +1,6 @@
 from .ingredients import Ingredients
 
+
 class Selector():
     """Class responsible for selecting the variables affected by a step"""
     def __init__(self, description, names=None, roles=None, types=None):
@@ -20,7 +21,7 @@ class Selector():
     def __call__(self, data):
         if not isinstance(data, Ingredients):
             raise TypeError(f'Expected Ingredients, got {data.__class__}')
-        
+
         vars = data.columns.tolist()
 
         if self.roles is not None:
@@ -74,7 +75,7 @@ def has_type(types):
 
 
 def groups():
-    return Selector(description=f'grouping variables', roles=['group'])
+    return Selector(description='grouping variables', roles=['group'])
 
 
 def all_predictors():

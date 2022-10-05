@@ -137,10 +137,10 @@ class SelfAttention(nn.Module):
                     mask_tensor = 0
                     for att_type in self.att_type:
                         mask_tensor += \
-                        parrallel_recomb(torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
-                                         torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
-                                         att_type,
-                                         self.local_context)[0]
+                            parrallel_recomb(torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
+                                             torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
+                                             att_type,
+                                             self.local_context)[0]
                     mask_tensor = torch.clamp(mask_tensor, 0, 1)
                     dot = torch.where(mask_tensor.bool(),
                                       dot,
@@ -151,20 +151,20 @@ class SelfAttention(nn.Module):
                     dot_list = list(torch.split(dot, dot.shape[0] // len(self.att_type), dim=0))
                     for i, att_type in enumerate(self.att_type):
                         mask_tensor = \
-                        parrallel_recomb(torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
-                                         torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
-                                         att_type,
-                                         self.local_context)[0]
+                            parrallel_recomb(torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
+                                             torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
+                                             att_type,
+                                             self.local_context)[0]
 
                         dot_list[i] = torch.where(mask_tensor.bool(), dot_list[i],
                                                   torch.tensor(float('-inf')).to(self.device)).view(*dot_list[i].shape)
                     dot = torch.cat(dot_list, dim=0)
             else:  # Full causal masking
                 mask_tensor = \
-                parrallel_recomb(torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
-                                 torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
-                                 self.att_type,
-                                 self.local_context)[0]
+                    parrallel_recomb(torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
+                                     torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
+                                     self.att_type,
+                                     self.local_context)[0]
                 dot = torch.where(mask_tensor.bool(),
                                   dot,
                                   torch.tensor(float('-inf')).to(self.device)).view(bs * h, n, n)

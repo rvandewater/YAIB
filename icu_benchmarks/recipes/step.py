@@ -143,7 +143,7 @@ class StepHistorical(Step):
         if suffix is None:
             try:
                 suffix = fun.value
-            except:
+            except Exception:
                 raise TypeError(f'Expected Accumulator enum for function, got {self.fun.__class__}')
         self.suffix = suffix
         self.role = role
@@ -187,15 +187,21 @@ class StepSklearn(Step):
     Args:
         sklearn_transformer (object): Instance of scikit-learn transformer that implements fit() and transform().
         columnwise (bool, optional): Defaults to False. Set to True to fit and transform the DF column by column.
-        in_place (bool, optional): Defaults to True. Set to False to have the step generate new columns instead of overwriting the existing ones.
+        in_place (bool, optional): Defaults to True.
+            Set to False to have the step generate new columns instead of overwriting the existing ones.
         role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
 
     Attributes:
-        _transformers (dict): If the transformer is applied columnwise, this dict holds references to the separately fitted instances.
+        _transformers (dict): If the transformer is applied columnwise,
+            this dict holds references to the separately fitted instances.
     """
-
-    def __init__(self, sklearn_transformer: object, sel: Selector = all_predictors(), columnwise: bool = False,
-                 in_place: bool = True, role: str = 'predictor'):
+    
+    def __init__(self,
+                 sklearn_transformer: object,
+                 sel: Selector = all_predictors(),
+                 columnwise: bool = False,
+                 in_place: bool = True,
+                 role: str = 'predictor'):
         super().__init__(sel)
         self.desc = f'Use sklearn transformer {sklearn_transformer.__class__.__name__}'
         self.sklearn_transformer = sklearn_transformer
@@ -219,9 +225,8 @@ class StepSklearn(Step):
                 self.sklearn_transformer.fit(data[self.columns])
             except ValueError as e:
                 if 'should be a 1d array' in str(e) or 'Multioutput target data is not supported' in str(e):
-                    raise ValueError(
-                        'The sklearn transformer expects a 1d array as input. Try running the step with columnwise=True.')
-                raise
+                    raise ValueError('The sklearn transformer expects a 1d array as input. '
+                                     'Try running the step with columnwise=True.')
 
     def transform(self, data: Ingredients) -> Ingredients:
         """
@@ -235,22 +240,23 @@ class StepSklearn(Step):
             for col in self.columns:
                 new_cols = self._transformers[col].transform(new_data[col])
                 if self.in_place and new_cols.ndim == 2 and new_cols.shape[1] > 1:
-                    raise ValueError(
-                        'The sklearn transformer returned more than one column. Try running the step with in_place=False.')
-                col_names = col if self.in_place else [f'{self.sklearn_transformer.__class__.__name__}_{col}_{i + 1}'
-                                                       for i in range(new_cols.shape[1])]
+                    raise ValueError('The sklearn transformer returned more than one column. '
+                                     'Try running the step with in_place=False.')
+                col_names = col if self.in_place \
+                    else [f'{self.sklearn_transformer.__class__.__name__}_{col}_{i+1}' for i in range(new_cols.shape[1])]
                 new_data[col_names] = new_cols
         else:
             new_cols = self.sklearn_transformer.transform(new_data[self.columns])
             if isspmatrix(new_cols):
-                raise TypeError(
-                    'The sklearn transformer returns a sparse matrix, but recipes expects a dense numpy representation. Try setting sparse=False or similar in the transformer initilisation.')
+                raise TypeError('The sklearn transformer returns a sparse matrix, '
+                                'but recipes expects a dense numpy representation. '
+                                'Try setting sparse=False or similar in the transformer initilisation.')
 
-            col_names = self.columns if self.in_place else [f'{self.sklearn_transformer.__class__.__name__}_{i + 1}' for
-                                                            i in range(new_cols.shape[1])]
+            col_names = self.columns if self.in_place \
+                else [f'{self.sklearn_transformer.__class__.__name__}_{i+1}' for i in range(new_cols.shape[1])]
             if new_cols.shape[1] != len(col_names):
-                raise ValueError(
-                    'The sklearn transformer returned a different amount of columns. Try running the step with in_place=False.')
+                raise ValueError('The sklearn transformer returned a different amount of columns. '
+                                 'Try running the step with in_place=False.')
 
             new_data[col_names] = new_cols
 

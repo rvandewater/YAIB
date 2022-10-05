@@ -3,8 +3,10 @@ import random
 import shutil
 import sys
 import gin
+import torch
+import logging
+import numpy as np
 
-from icu_benchmarks.data.loader import *
 from icu_benchmarks.models.utils import save_config_file
 
 
@@ -47,7 +49,6 @@ def train_with_gin(model_dir=None,
     gin.clear_config()
 
 
-
 @gin.configurable('train_common')
 def train_common(log_dir, overwrite=False, load_weights=False, model=gin.REQUIRED, dataset_fn=gin.REQUIRED,
                  data_path=gin.REQUIRED, weight=None, do_test=False):
@@ -59,7 +60,7 @@ def train_common(log_dir, overwrite=False, load_weights=False, model=gin.REQUIRE
             shutil.rmtree(log_dir)
         else:
             raise ValueError("Directory already exists and overwrite is False.")
-    
+
     if not load_weights:
         os.makedirs(log_dir)
     dataset = dataset_fn(data_path, split='train')
@@ -71,7 +72,7 @@ def train_common(log_dir, overwrite=False, load_weights=False, model=gin.REQUIRE
 
     model.set_logdir(log_dir)
     save_config_file(log_dir)  # We save the operative config before and also after training
-    
+
     if load_weights:
         if os.path.isfile(os.path.join(log_dir, 'model.torch')):
             model.load_weights(os.path.join(log_dir, 'model.torch'))

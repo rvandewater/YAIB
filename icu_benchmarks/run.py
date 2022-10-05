@@ -1,19 +1,17 @@
 # -*- coding: utf-8 -*-
 import argparse
-import numpy as np
 import logging
 import os
 from sklearn_pandas import DataFrameMapper, gen_features
 import sys
-import pandas as pd
 from sklearn.impute import SimpleImputer
 from pathlib import Path
-from pyarrow import Table, parquet
+from pyarrow import parquet
 from icu_benchmarks.common import constants
 
 from icu_benchmarks.common.constants import VARS
-from icu_benchmarks.data.preprocess import AllColumns, ExcludeColumns, HistoricalMin, HistoricalMax, NumMeasurements, HistoricalMean, FFill
-from icu_benchmarks.data.preprocess import generate_splits, extract_features, impute, forward_fill
+from icu_benchmarks.data.preprocess import HistoricalMin, HistoricalMax, NumMeasurements, HistoricalMean, FFill
+from icu_benchmarks.data.preprocess import generate_splits
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
 
@@ -121,7 +119,8 @@ def build_parser():
     model_arguments.add_argument('--subsample-feat', default=None,
                                  dest="subsample_feat", required=False, nargs='+',
                                  type=float,
-                                 help="Colsample_bytree parameter in Gradient Boosting, subsample ratio of columns when constructing each tree")
+                                 help="Colsample_bytree parameter in Gradient Boosting, "
+                                      "subsample ratio of columns when constructing each tree")
     model_arguments.add_argument('--regularization', default=None,
                                  dest="regularization", required=False, nargs='+',
                                  type=float,
@@ -145,11 +144,11 @@ def build_parser():
                                  nargs='+', type=str,
                                  help="Path to the gin train config file.")
 
-    parser_evaluate = subparsers.add_parser('evaluate', help='evaluate',
-                                            parents=[parent_parser])
+    # parser_evaluate = subparsers.add_parser('evaluate', help='evaluate',
+    #                                         parents=[parent_parser])
 
-    parser_train = subparsers.add_parser('train', help='train',
-                                         parents=[parent_parser])
+    # parser_train = subparsers.add_parser('train', help='train',
+    #                                      parents=[parent_parser])
     return parser
 
 
@@ -157,7 +156,7 @@ def run_preprocessing(work_dir):
     sta_path = work_dir / constants.FILE_NAMES['STATIC']
     dyn_path = work_dir / constants.FILE_NAMES['DYNAMIC']
     outc_path = work_dir / constants.FILE_NAMES['OUTCOME']
-    
+
     static_splits_path = work_dir / constants.FILE_NAMES['STATIC_SPLITS']
     labels_splits_path = work_dir / constants.FILE_NAMES['LABELS_SPLITS']
     dyn_splits_path = work_dir / constants.FILE_NAMES['DYNAMIC_SPLITS']
@@ -187,40 +186,6 @@ def run_preprocessing(work_dir):
         )
     dyn_df_w_features_imputed = feature_extractor_w_imputation.fit_transform(dyn_df.copy())
     print(dyn_df_w_features_imputed)
-    
-    # extracted_features_path = work_dir / constants.FILE_NAMES['FEATURES']
-    # if not extracted_features_path.exists():
-    #     logging.info("Extracting features")
-    #     features_df = extract_features(dyn_df)
-    #     parquet.write_table(Table.from_pandas(features_df), extracted_features_path)
-    # else:
-    #     logging.info(f"Features in {extracted_features_path} exist, skipping")
-
-    # dyn_imputed_path = work_dir / constants.FILE_NAMES['DYNAMIC_IMPUTED']
-    # if not dyn_imputed_path.exists():
-    #     logging.info("Imputing dynamic data")
-    #     dyn_imputed_df = impute(dyn_df, impute_function=forward_fill, exclude_cols=[VARS['TIME']], sort_col=[VARS['STAY_ID'], VARS['TIME']], fill_method='mean')
-    #     parquet.write_table(Table.from_pandas(dyn_imputed_df), dyn_imputed_path)
-    # else:
-    #     logging.info(f"Imputed dynamic data in {dyn_imputed_path} exists, skipping")
-
-    # static_imputed_path = work_dir / constants.FILE_NAMES['STATIC_IMPUTED']
-    # if not static_imputed_path.exists():
-    #     logging.info("Imputing static data")
-    #     static_df = parquet.read_table(static_splits_path).to_pandas()
-    #     static_imputed_df = impute(static_df, exclude_cols=[VARS['STAY_ID'], VARS['SEX']], fill_method='mean')
-    #     parquet.write_table(Table.from_pandas(static_imputed_df), static_imputed_path)
-    # else:
-    #     logging.info(f"Imputed static data in {static_imputed_path} exists, skipping")
-
-    # features_imputed_path = work_dir / constants.FILE_NAMES['FEATURES_IMPUTED']
-    # if not features_imputed_path.exists():
-    #     logging.info("Imputing features")
-    #     features_df = parquet.read_table(extracted_features_path).to_pandas()
-    #     features_imputed_df = impute(features_df, impute_function=forward_fill, fill_method='zero')
-    #     parquet.write_table(Table.from_pandas(features_imputed_df), features_imputed_path)
-    # else:
-    #     logging.info(f"Imputed features in {features_imputed_path} exist, skipping")
 
 
 def main(my_args=tuple(sys.argv[1:])):
