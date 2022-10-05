@@ -53,7 +53,7 @@ class Selector():
         self.types = enlist_str(roles)
 
     def set_pattern(self, pattern: re.Pattern):
-        """Set the column data types to select with this Selector
+        """Set the pattern to search with this Selector
 
         Args:
             pattern (re.Pattern): Regex pattern to search column names with.
