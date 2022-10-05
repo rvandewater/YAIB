@@ -127,10 +127,12 @@ class Accumulator(Enum):
 class StepHistorical(Step):
     """This step generates columns with a historical accumulator provided by the user.
 
-    Args: fun (Accumulator): Instance of the Accumulator enumerable that signifies which type of historical
-    accumulation to use (default is MAX). suffix (String, optional): Defaults to none. Set to False to have the step
-    generate new columns instead of overwriting the existing ones. role (str, optional): Defaults to 'predictor'.
-    Incase new columns are added, set their role to role.
+    Args:
+        fun (Accumulator): Instance of the Accumulator enumerable that signifies which type of historical accumulation
+            to use (default is MAX).
+        suffix (String, optional): Defaults to none. Set to False to have the step generate new columns instead of
+            overwriting the existing ones.
+        role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
     """
 
     def __init__(self, sel: Selector = all_numeric_predictors(), fun: Accumulator = Accumulator.MAX, suffix: str = None,
@@ -186,8 +188,8 @@ class StepSklearn(Step):
     Args:
         sklearn_transformer (object): Instance of scikit-learn transformer that implements fit() and transform().
         columnwise (bool, optional): Defaults to False. Set to True to fit and transform the DF column by column.
-        in_place (bool, optional): Defaults to True. Set to False to have the step generate new columns instead of
-            overwriting the existing ones.
+        in_place (bool, optional): Defaults to True.
+            Set to False to have the step generate new columns instead of overwriting the existing ones.
         role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
 
     Attributes:
