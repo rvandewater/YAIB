@@ -1,13 +1,16 @@
+import re
+
 from .ingredients import Ingredients
 
 
 class Selector():
     """Class responsible for selecting the variables affected by a step"""
-    def __init__(self, description, names=None, roles=None, types=None):
+    def __init__(self, description, names=None, roles=None, types=None, pattern=None):
         self.description = description
         self.set_names(names)
         self.set_roles(roles)
         self.set_types(types)
+        self.set_pattern(pattern)
 
     def set_names(self, names):
         self.names = names
@@ -17,6 +20,9 @@ class Selector():
 
     def set_types(self, types):
         self.types = types
+
+    def set_pattern(self, pattern):
+        self.pattern = pattern
 
     def __call__(self, data):
         if not isinstance(data, Ingredients):
@@ -36,6 +42,9 @@ class Selector():
         if self.names is not None:
             vars = intersection(vars, self.names)
 
+        if self.pattern is not None:
+            vars = list(filter(self.pattern.search, vars))
+
         return vars
 
     def __repr__(self):
@@ -54,16 +63,21 @@ def all_of(names):
     return Selector(description=str(names), names=names)
 
 
-def starts_with(pattern):
-    raise NotImplementedError()
+def regex_names(regex):
+    pattern = re.compile(regex)
+    return Selector(description=f'regex: {regex}', pattern=pattern)
 
 
-def ends_with(pattern):
-    raise NotImplementedError()
+def starts_with(prefix):
+    return regex_names(f'^{prefix}')
 
 
-def contains(pattern):
-    raise NotImplementedError()
+def ends_with(suffix):
+    return regex_names(f'{suffix}$')
+
+
+def contains(substring):
+    return regex_names(f'{substring}')
 
 
 def has_role(roles):
