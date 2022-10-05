@@ -117,7 +117,7 @@ class StepImputeFill(Step):
     def transform(self, data):
         new_data = self._check_ingredients(data)
         new_data[self.columns] = \
-            data[self.columns].fillna(self.value, method=self.method, axis=0, limit=self.limit)
+            data[self.columns].fillna(value=self.value, method=self.method, axis=0, limit=self.limit)
         return new_data
 
 

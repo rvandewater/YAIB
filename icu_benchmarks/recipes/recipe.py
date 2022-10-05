@@ -119,9 +119,7 @@ class Recipe():
         """
         data = self._check_data(data)
         data = copy(data)
-        print(data)
         self._apply_fit_transform(data, refit)
-        print(data)
         return pd.DataFrame(data)
 
     def bake(self, data=None):
