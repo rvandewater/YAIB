@@ -35,8 +35,7 @@ class Selector():
             vars = intersection(vars, sel_roles)
 
         if self.types is not None:
-            # currently matches types by name. is this problematic?
-            sel_types = [v for v, t in data.dtypes.items() if t.name in self.types]
+            sel_types = data.select_dtypes(include=self.types).columns.tolist()
             vars = intersection(vars, sel_types)
 
         if self.names is not None:
