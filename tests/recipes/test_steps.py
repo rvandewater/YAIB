@@ -6,8 +6,8 @@ from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer, MissingIndicator
 
 from icu_benchmarks.recipes.recipe import Recipe
-from icu_benchmarks.recipes.selector import all_numeric_predictors, has_type, has_role
-from icu_benchmarks.recipes.step import StepSklearn
+from icu_benchmarks.recipes.selector import all_numeric_predictors, has_type, has_role, all_of
+from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator
 
 from tests.recipes.test_recipe import example_df
 
@@ -22,6 +22,23 @@ def example_recipe_w_nan(example_df):
     example_df.loc[[1,2,4,7], 'x1'] = np.nan
     return Recipe(example_df, ['y'], ['x1', 'x2', 'x3', 'x4'], ['id']) # FIXME: add squence when merged
 
+class TestStepHistorical:
+
+    def test_step(self, example_df):
+        rec = Recipe(example_df, ['y'], ['x1', 'x2'], ['id'])
+        rec.add_step(StepHistorical(sel=all_of(['x1', 'x2']), fun=Accumulator.MIN, suffix='min'))
+        rec.add_step(StepHistorical(sel=all_of(['x1', 'x2']), fun=Accumulator.MAX, suffix='max'))
+        rec.add_step(StepHistorical(sel=all_of(['x1', 'x2']), fun=Accumulator.MEAN, suffix='mean'))
+        rec.add_step(StepHistorical(sel=all_of(['x1', 'x2']), fun=Accumulator.MEDIAN, suffix='median'))
+        rec.add_step(StepHistorical(sel=all_of(['x1', 'x2']), fun=Accumulator.COUNT, suffix='count'))
+        rec.add_step(StepHistorical(sel=all_of(['x1', 'x2']), fun=Accumulator.VAR, suffix='var'))
+        df = rec.bake()
+        assert df['x1_min'].iloc[-1] == df['x1'].loc[df['id'] == 2].min()
+        assert df['x2_max'].iloc[-1] == df['x2'].loc[df['id'] == 2].max()
+        assert df['x2_mean'].iloc[-1] == df['x2'].loc[df['id'] == 2].mean()
+        assert df['x1_median'].iloc[-1] == df['x1'].loc[df['id'] == 2].median()
+        assert df['x1_count'].iloc[-1] == df['x1'].loc[df['id'] == 2].count()
+        assert df['x2_var'].iloc[-1] == df['x2'].loc[df['id'] == 2].var()
 
 class TestSklearnStep:
     @pytest.fixture()
