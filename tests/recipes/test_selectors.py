@@ -42,7 +42,7 @@ def test_enlist_str_list():
 
 
 def test_enlist_str_None():
-    assert enlist_str(None) == None
+    assert enlist_str(None) is None
 
 
 def test_enlist_str_other():

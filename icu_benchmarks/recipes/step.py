@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABC
+from abc import abstractmethod
 from copy import deepcopy
 from typing import Union
 from scipy.sparse import isspmatrix
@@ -7,7 +7,6 @@ from sklearn.preprocessing import StandardScaler
 from icu_benchmarks.recipes.ingredients import Ingredients
 from enum import Enum
 from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
-from icu_benchmarks.recipes.ingredients import Ingredients
 
 
 class Step:
@@ -69,7 +68,7 @@ class Step:
         """
         if isinstance(data, DataFrameGroupBy):
             if not self._group:
-                raise ValueError(f"Step does not accept grouped data.")
+                raise ValueError("Step does not accept grouped data.")
             data = data.obj
         if not isinstance(data, Ingredients):
             raise ValueError(f"Expected Ingredients object, got {data.__class__}")

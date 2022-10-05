@@ -65,7 +65,8 @@ class Recipe:
         return self
 
     def update_roles(self, vars: Union[str, list[str]], new_role: str = "predictor", old_role=None) -> Recipe:
-        """Adds a new role for one or more columns of the Recipe's Ingredients without roles or changes an existing role to a different one.
+        """Adds a new role for one or more columns of the Recipe's Ingredients without roles
+        or changes an existing role to a different one.
 
         Args:
             vars (Union[str, list[str]]): The column to receive additional roles.

@@ -187,7 +187,7 @@ def groups() -> Selector:
     Returns:
         Selector: object representing the selection rule
     """
-    return Selector(description=f"grouping variables", roles=["group"])
+    return Selector(description="grouping variables", roles=["group"])
 
 
 def all_predictors() -> Selector:
