@@ -4,9 +4,10 @@ from icu_benchmarks.recipes.selector import (
     Selector,
     all_outcomes,
     all_of,
-    # starts_with,
-    # ends_with,
-    # contains,
+    regex_names,
+    starts_with,
+    ends_with,
+    contains,
     has_role,
     has_type,
     groups,
@@ -62,19 +63,24 @@ def test_all_of(example_ingredients):
     assert sel(example_ingredients) == ["y", "x1"]
 
 
-# def test_starts_with(example_ingredients):
-#     sel = starts_with('x')
-#     assert sel(example_ingredients) == ['x1', 'x2']
+def test_regex_names(example_ingredients):
+    sel = regex_names(r'^x\d')
+    assert sel(example_ingredients) == ['x1', 'x2', 'x3', 'x4']
 
 
-# def test_ends_with(example_ingredients):
-#     sel = ends_with('1')
-#     assert sel(example_ingredients) == ['x1']
+def test_starts_with(example_ingredients):
+    sel = starts_with('x')
+    assert sel(example_ingredients) == ['x1', 'x2', 'x3', 'x4']
 
 
-# def test_contains(example_ingredients):
-#     sel = contains('i')
-#     assert sel(example_ingredients) == ['id', 'time']
+def test_ends_with(example_ingredients):
+    sel = ends_with('1')
+    assert sel(example_ingredients) == ['x1']
+
+
+def test_contains(example_ingredients):
+    sel = contains('i')
+    assert sel(example_ingredients) == ['id', 'time']
 
 
 def test_has_role(example_ingredients):
