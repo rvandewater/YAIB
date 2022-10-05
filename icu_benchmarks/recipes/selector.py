@@ -31,7 +31,7 @@ class Selector():
         vars = data.columns.tolist()
 
         if self.roles is not None:
-            sel_roles = [v for v, r in data.roles.items() if len(intersection(r, self.roles)) > 0]
+            sel_roles = [v for v, r in data.roles.items() if intersection(r, self.roles)]
             vars = intersection(vars, sel_roles)
 
         if self.types is not None:
