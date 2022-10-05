@@ -24,9 +24,7 @@ from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer, MissingI
 
 from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_numeric_predictors, has_type, has_role, all_of
-from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator
-from tests.recipes.test_recipe import example_df
-
+from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator, StepImputeFill
 
 @pytest.fixture()
 def example_recipe(example_df):
