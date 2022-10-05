@@ -45,7 +45,7 @@ class Step():
         Args:
             data (Ingredients): The DataFrame to fit to.
         """
-        data = self._check_ingredients(data, remove_group=True)
+        data = self._check_ingredients(data)
         self.columns = self.sel(data)
         self.do_fit(data)
         self._trained = True
@@ -56,27 +56,24 @@ class Step():
 
     def _check_ingredients(
         self, 
-        data: Union[Ingredients, DataFrameGroupBy], 
-        remove_group: bool = False
-    ) -> Union[Ingredients, DataFrameGroupBy]:
+        data: Union[Ingredients, DataFrameGroupBy]
+    ) -> Ingredients:
         """Check input for allowed types
 
         Args:
-            data (Union[Ingredients, DataFrameGroupBy]): _description_
-            remove_group (bool, optional): Flag to dictate whether the group should be removed if input data is grouped. Defaults to False.
-
+            data (Union[Ingredients, DataFrameGroupBy]): input to the step
+            
         Raises:
             ValueError: If a grouped pd.DataFrame is provided to a step that can't use groups.
             ValueError: If input are not (potentially grouped) Ingredients.
 
         Returns:
-            Union[Ingredients, DataFrameGroupBy]: validated input
+            Ingredients: validated input
         """
         if isinstance(data, DataFrameGroupBy):
             if not self._group:
                 raise ValueError(f'Step does not accept grouped data.')
-            if remove_group:
-                data = data.obj
+            data = data.obj
         if not isinstance(data, Ingredients):
             raise ValueError(f'Expected Ingredients object, got {data.__class__}')
         return data
@@ -118,7 +115,7 @@ class StepImputeFill(Step):
         self.limit = limit
 
     def transform(self, data):
-        new_data = self._check_ingredients(data, remove_group=True)
+        new_data = self._check_ingredients(data)
         new_data[self.columns] = \
             data[self.columns].fillna(self.value, method=self.method, axis=0, limit=self.limit)
         return new_data
@@ -169,7 +166,7 @@ class StepHistorical(Step):
         self.role = role
 
     def transform(self, data):
-        new_data = self._check_ingredients(data, remove_group=True)
+        new_data = self._check_ingredients(data)
         new_columns = [c + '_' + self.suffix for c in self.columns]
 
         if self.fun == Accumulator.MAX:
