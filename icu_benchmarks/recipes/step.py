@@ -121,27 +121,6 @@ class StepImputeFill(Step):
         return new_data
 
 
-class StepScale(Step):
-    def __init__(self, sel=all_numeric_predictors(), with_mean=True, with_std=True):
-        super().__init__(sel)
-        self.desc = f'Scale with mean ({with_mean}) and std ({with_std})'
-        self.with_mean = with_mean
-        self.with_std = with_std
-        self._group = False
-
-    def do_fit(self, data):
-        self.scalers = {
-            c: StandardScaler(copy=True, with_mean=self.with_mean, with_std=self.with_std).fit(data[c].values[:, None])
-            for c in self.columns
-        }
-
-    def transform(self, data):
-        new_data = self._check_ingredients(data)
-        for c, sclr in self.scalers.items():
-            new_data[c] = sclr.transform(data[c].values[:, None])
-        return new_data
-
-
 class Accumulator(Enum):
     MAX = "max"
     MIN = "min"
@@ -245,10 +224,10 @@ class StepSklearn(Step):
             ValueError: If the transformer expects a single column but gets multiple.
         """
         if self.columnwise:
-            self._transformers = {}
-            for col in self.columns:
+            self._transformers = {
                 # copy the transformer so we keep the distinct fit for each column and don't just refit
-                self._transformers[col] = deepcopy(self.sklearn_transformer.fit(data[col]))
+                col: deepcopy(self.sklearn_transformer.fit(data[col])) for col in self.columns
+            }      
         else:
             try:
                 self.sklearn_transformer.fit(data[self.columns])

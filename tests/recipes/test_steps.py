@@ -55,6 +55,7 @@ class TestStepHistorical:
         assert df['x1_count'].iloc[-1] == df['x1'].loc[df['id'] == 2].count()
         assert df['x2_var'].iloc[-1] == df['x2'].loc[df['id'] == 2].var()
 
+
 class TestImputeSteps:
     def test_impute_fill(self, example_recipe_w_nan):
         example_recipe_w_nan.add_step(StepImputeFill(method='ffill'))
@@ -65,6 +66,19 @@ class TestImputeSteps:
         res = example_recipe_w_nan.prep()
         exp = pd.Series([0, 1, 1, 0, 0, 0, 0, 0, 0, 1], dtype='float64')
         assert res['x2'].equals(exp)
+
+
+class TestStepScale:
+    def test_impute_fill(self, example_recipe_w_nan):
+        example_recipe_w_nan.add_step(StepImputeFill(method='ffill'))
+        res = example_recipe_w_nan.prep()
+        exp = pd.Series([0, 1, 1, 0, 0, 0, np.NaN, 0, 0, 1], dtype='float64')
+        assert res['x2'].equals(exp)
+        example_recipe_w_nan.add_step(StepImputeFill(sel=all_numeric_predictors(), value=0))
+        res = example_recipe_w_nan.prep()
+        exp = pd.Series([0, 1, 1, 0, 0, 0, 0, 0, 0, 1], dtype='float64')
+        assert res['x2'].equals(exp)
+
 
 class TestSklearnStep:
     @pytest.fixture()
