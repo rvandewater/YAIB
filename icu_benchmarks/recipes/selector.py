@@ -24,35 +24,35 @@ class Selector():
         self.set_roles(roles)
         self.set_types(types)
 
-    def set_names(self, x: Union[str, list[str]]):
+    def set_names(self, names: Union[str, list[str]]):
         """Set the column names to select with this Selector
 
         Args:
-            x (Union[str, list[str]]): column names to select
+            names (Union[str, list[str]]): column names to select
         """
-        self.names = enlist_str(x)
+        self.names = enlist_str(names)
 
-    def set_roles(self, x: Union[str, list[str]]):
+    def set_roles(self, roles: Union[str, list[str]]):
         """Set the column roles to select with this Selector
 
         Args:
-            x (Union[str, list[str]]): column roles to select, see also Ingredients
+            roles (Union[str, list[str]]): column roles to select, see also Ingredients
         """
-        self.roles = enlist_str(x)
+        self.roles = enlist_str(roles)
 
-    def set_types(self, x: Union[str, list[str]]):
+    def set_types(self, roles: Union[str, list[str]]):
         """Set the column data types to select with this Selector
 
         Args:
-            x (Union[str, list[str]]): column data types to select
+            roles (Union[str, list[str]]): column data types to select
         """
-        self.types = enlist_str(x)
+        self.types = enlist_str(roles)
 
-    def __call__(self, x: Ingredients) -> list[str]:
+    def __call__(self, ingr: Ingredients) -> list[str]:
         """Select variables from Ingredients
 
         Args:
-            x (Ingredients): object from which to select the variables
+            ingr (Ingredients): object from which to select the variables
 
         Raises:
             TypeError: when something other than an Ingredient object is passed
@@ -61,18 +61,18 @@ class Selector():
             list[str]: selected variables
         """
         
-        if not isinstance(x, Ingredients):
-            raise TypeError(f'Expected Ingredients, got {x.__class__}')
+        if not isinstance(ingr, Ingredients):
+            raise TypeError(f'Expected Ingredients, got {ingr.__class__}')
         
-        vars = x.columns.tolist()
+        vars = ingr.columns.tolist()
 
         if self.roles is not None:
-            sel_roles = [v for v, r in x.roles.items() if len(intersection(r, self.roles)) > 0]
+            sel_roles = [v for v, r in ingr.roles.items() if len(intersection(r, self.roles)) > 0]
             vars = intersection(vars, sel_roles)
 
         if self.types is not None:
             # currently matches types by name. is this problematic?
-            sel_types = [v for v, t in x.dtypes.items() if t.name in self.types]
+            sel_types = [v for v, t in ingr.dtypes.items() if t.name in self.types]
             vars = intersection(vars, sel_types)
 
         if self.names is not None:
