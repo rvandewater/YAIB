@@ -4,7 +4,6 @@ from .ingredients import Ingredients
 from typing import Union
 
 
-
 class Selector():
     """Class responsible for selecting the variables affected by a recipe step
     
@@ -154,20 +153,52 @@ def all_of(names: Union[str, list[str]]) -> Selector:
     return Selector(description=str(names), names=names)
 
 
-def regex_names(regex):
+def regex_names(regex: str) -> Selector:
+    """Select any columns where the name matches the regex pattern
+
+    Args:
+        pattern (str): string to be transformed to regex pattern to search for
+
+    Returns:
+        Selector: object representing the selection rule
+    """
     pattern = re.compile(regex)
     return Selector(description=f'regex: {regex}', pattern=pattern)
 
 
-def starts_with(prefix):
+def starts_with(prefix: str) -> Selector:
+    """Select any columns where the name starts with the prefix
+
+    Args:
+        prefix (str): prefix to search for
+
+    Returns:
+        Selector: object representing the selection rule
+    """
     return regex_names(f'^{prefix}')
 
 
-def ends_with(suffix):
+def ends_with(suffix: str) -> Selector:
+    """Select any columns where the name ends with the suffix
+
+    Args:
+        prsuffixefix (str): suffix to search for
+
+    Returns:
+        Selector: object representing the selection rule
+    """
     return regex_names(f'{suffix}$')
 
 
-def contains(substring):
+def contains(substring: str) -> Selector:
+    """Select any columns where the name contains the substring
+
+    Args:
+        substring (str): substring to search for
+
+    Returns:
+        Selector: object representing the selection rule
+    """
     return regex_names(f'{substring}')
 
 
