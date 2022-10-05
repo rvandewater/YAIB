@@ -24,21 +24,13 @@ class Selector():
         self.set_roles(roles)
         self.set_types(types)
 
-    def _wrap_str(x):
-        if isinstance(x, str):
-            return [x]
-        elif isinstance(x, list) or x is None:
-            return x
-        else:
-            raise ValueError(f'Expected str or list of strings, got {x.__class__}')
-
     def set_names(self, x: Union[str, list[str]]):
         """Set the column names to select with this Selector
 
         Args:
             x (Union[str, list[str]]): column names to select
         """
-        self.names = Selector._wrap_str(x)
+        self.names = enlist_str(x)
 
     def set_roles(self, x: Union[str, list[str]]):
         """Set the column roles to select with this Selector
@@ -46,7 +38,7 @@ class Selector():
         Args:
             x (Union[str, list[str]]): column roles to select, see also Ingredients
         """
-        self.roles = Selector._wrap_str(x)
+        self.roles = enlist_str(x)
 
     def set_types(self, x: Union[str, list[str]]):
         """Set the column data types to select with this Selector
@@ -54,7 +46,7 @@ class Selector():
         Args:
             x (Union[str, list[str]]): column data types to select
         """
-        self.types = Selector._wrap_str(x)
+        self.types = enlist_str(x)
 
     def __call__(self, x: Ingredients) -> list[str]:
         """Select variables from Ingredients
@@ -91,6 +83,28 @@ class Selector():
     def __repr__(self):
         return self.description
 
+def enlist_str(x: Union[str, list[str], None]) -> Union[list[str], None]:
+    """Wrap a str in a list if it isn't a list yet
+
+    Args:
+        x (Union[str, list[str], None]): object to wrap.
+
+    Raises:
+        TypeError: If neither a str nor a list of strings is passed
+
+    Returns:
+        Union[list[str], None]: _description_
+    """
+    if isinstance(x, str):
+        return [x]
+    elif isinstance(x, list):
+        if not all(isinstance(i, str) for i in x):
+            raise TypeError('Only lists of str are allowed.')
+        return x
+    elif x is None:
+        return x
+    else:
+        raise TypeError(f'Expected str or list of str, got {x.__class__}')
 
 def intersection(x: list, y: list) -> list:
     """Intersection of two lists
