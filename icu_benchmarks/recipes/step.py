@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from copy import deepcopy
 from typing import Union
 from scipy.sparse import isspmatrix
@@ -24,6 +24,7 @@ class Step():
         _trained (bool): If the step was fitted already.
         _group (bool): If the step runs on grouped data.
     """
+
     def __init__(self, sel: Selector = all_predictors()):
         self.sel = sel
         self.columns = []
@@ -151,7 +152,18 @@ class Accumulator(Enum):
 
 
 class StepHistorical(Step):
-    def __init__(self, sel=all_numeric_predictors(), fun='max', suffix=None, role='predictor'):
+    """This step generates columns with a historical accumulator provided by the user.
+
+    Args:
+        fun (Accumulator): Instance of the Accumulator enumerable that signifies which type of historical accumulation
+            to use (default is MAX).
+        suffix (String, optional): Defaults to none. Set the name to have the step generate new columns with this suffix
+            instead of the default suffix.
+        role (str, optional): Defaults to 'predictor'. In case new columns are added, set their role to role.
+    """
+
+    def __init__(self, sel: Selector = all_numeric_predictors(), fun: Accumulator = Accumulator.MAX, suffix: str = None,
+                 role: str = 'predictor'):
         super().__init__(sel)
 
         self.desc = f'Create historical {fun}'
@@ -164,22 +176,27 @@ class StepHistorical(Step):
         self.suffix = suffix
         self.role = role
 
-    def transform(self, data):
+    def transform(self, data: Ingredients) -> Ingredients:
+        """
+        Raises:
+            TypeError: If the function is not of type Accumulator
+        """
         new_data = self._check_ingredients(data)
+
         new_columns = [c + '_' + self.suffix for c in self.columns]
 
-        if self.fun == Accumulator.MAX:
+        if self.fun is Accumulator.MAX:
             res = data[self.columns].cummax(skipna=True)
-        elif self.fun == Accumulator.MIN:
+        elif self.fun is Accumulator.MIN:
             res = data[self.columns].cummin(skipna=True)
-        elif self.fun == Accumulator.MEAN:
+        elif self.fun is Accumulator.MEAN:
             # Reset index, as we get back a multi-index, and we want a simple rolling index
             res = data[self.columns].expanding().mean().reset_index(drop=True)
-        elif self.fun == Accumulator.MEDIAN:
+        elif self.fun is Accumulator.MEDIAN:
             res = data[self.columns].expanding().median().reset_index(drop=True)
-        elif self.fun == Accumulator.COUNT:
+        elif self.fun is Accumulator.COUNT:
             res = data[self.columns].expanding().count().reset_index(drop=True)
-        elif self.fun == Accumulator.VAR:
+        elif self.fun is Accumulator.VAR:
             res = data[self.columns].expanding().var().reset_index(drop=True)
         else:
             raise TypeError(f'Expected Accumulator enum for function, got {self.fun.__class__}')
@@ -207,6 +224,7 @@ class StepSklearn(Step):
         _transformers (dict): If the transformer is applied columnwise,
             this dict holds references to the separately fitted instances.
     """
+    
     def __init__(self,
                  sklearn_transformer: object,
                  sel: Selector = all_predictors(),
