@@ -25,7 +25,6 @@ from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer, MissingI
 from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_numeric_predictors, has_type, has_role, all_of
 from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator
-
 from tests.recipes.test_recipe import example_df
 
 
@@ -56,6 +55,21 @@ class TestStepHistorical:
         assert df['x1_median'].iloc[-1] == df['x1'].loc[df['id'] == 2].median()
         assert df['x1_count'].iloc[-1] == df['x1'].loc[df['id'] == 2].count()
         assert df['x2_var'].iloc[-1] == df['x2'].loc[df['id'] == 2].var()
+
+class TestImputeSteps:
+    @pytest.fixture()
+    def example_recipe_w_missing(self, example_df):
+        # Introduce missingness in the DataFrame
+        # change dtype to handly miss in ints, see https://pandas.pydata.org/pandas-docs/stable/user_guide/integer_na.html
+        example_df['x2'] = example_df['x2'].astype(pd.Int32Dtype()) 
+        example_df.loc[2:7, ['x2']] = pd.NA
+        return Recipe(example_df, ['y'], ['x1', 'x2'], ['id']) # FIXME: add squence when merged
+
+    def test_impute_fill(self, example_recipe_w_missing):
+        example_recipe_w_missing.add_step(StepImputeFill(method='ffill'))
+        res = example_recipe_w_missing.prep()
+        exp = pd.array([0, 1, 1, 1, 1, 1, pd.NA, pd.NA, 0, 1], pd.Int32Dtype())
+        assert res['x2'].values.equals(exp)
 
 class TestSklearnStep:
     @pytest.fixture()

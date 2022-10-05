@@ -1,8 +1,10 @@
 from abc import abstractmethod, ABC
 from copy import deepcopy
+from typing import Union
 from scipy.sparse import isspmatrix
+from pandas.core.groupby import DataFrameGroupBy
 from sklearn.preprocessing import StandardScaler
-
+from icu_benchmarks.recipes.ingredients import Ingredients
 from enum import Enum
 from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
 from icu_benchmarks.recipes.ingredients import Ingredients
@@ -43,13 +45,38 @@ class Step():
         Args:
             data (Ingredients): The DataFrame to fit to.
         """
-        self.columns = self.sel(data.obj) if self._group else self.sel(data)
+        data = self._check_ingredients(data)
+        self.columns = self.sel(data)
         self.do_fit(data)
         self._trained = True
 
     @abstractmethod
     def do_fit(self, data: Ingredients):
         pass
+
+    def _check_ingredients(
+        self, 
+        data: Union[Ingredients, DataFrameGroupBy]
+    ) -> Ingredients:
+        """Check input for allowed types
+
+        Args:
+            data (Union[Ingredients, DataFrameGroupBy]): input to the step
+            
+        Raises:
+            ValueError: If a grouped pd.DataFrame is provided to a step that can't use groups.
+            ValueError: If input are not (potentially grouped) Ingredients.
+
+        Returns:
+            Ingredients: validated input
+        """
+        if isinstance(data, DataFrameGroupBy):
+            if not self._group:
+                raise ValueError(f'Step does not accept grouped data.')
+            data = data.obj
+        if not isinstance(data, Ingredients):
+            raise ValueError(f'Expected Ingredients object, got {data.__class__}')
+        return data
 
     def transform(self, data: Ingredients) -> Ingredients:
         """This function transforms the data with the fitted transformer.
@@ -88,7 +115,7 @@ class StepImputeFill(Step):
         self.limit = limit
 
     def transform(self, data):
-        new_data = data.obj  # FIXME: also deal with ungrouped DataFrames
+        new_data = self._check_ingredients(data)
         new_data[self.columns] = \
             data[self.columns].fillna(self.value, method=self.method, axis=0, limit=self.limit)
         return new_data
@@ -109,7 +136,7 @@ class StepScale(Step):
         }
 
     def transform(self, data):
-        new_data = data
+        new_data = self._check_ingredients(data)
         for c, sclr in self.scalers.items():
             new_data[c] = sclr.transform(data[c].values[:, None])
         return new_data
@@ -154,7 +181,8 @@ class StepHistorical(Step):
         Raises:
             TypeError: If the function is not of type Accumulator
         """
-        new_data = data.obj  # FIXME: also deal with ungrouped DataFrames
+        new_data = self._check_ingredients(data)
+
         new_columns = [c + '_' + self.suffix for c in self.columns]
 
         if self.fun is Accumulator.MAX:
@@ -236,7 +264,7 @@ class StepSklearn(Step):
             TypeError: If the transformer returns a sparse matrix.
             ValueError: If the transformer returns an unexpected amount of columns.
         """
-        new_data = data
+        new_data = self._check_ingredients(data)
 
         if self.columnwise:
             for col in self.columns:
