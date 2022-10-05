@@ -2,11 +2,32 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 
+from pandas._typing import Axes, Dtype
+
 
 class Ingredients(pd.DataFrame):
+    """Wrapper around pandas.DataFrames to store columns roles (e.g., predictor)
+
+    Args:
+        roles (dict, optional): roles of DataFrame columns as (list of) strings. 
+            Defaults to None.
+
+    See also: pandas.DataFrame
+
+    Attributes:
+        roles (dict): dictionary of column roles
+    """
+
     _metadata = ["roles"]
 
-    def __init__(self, data=None, index=None, columns=None, dtype=None, copy=None, roles=None):
+    def __init__(
+        self, data=None, 
+        index: Axes=None, 
+        columns: Axes=None, 
+        dtype: Dtype=None, 
+        copy: bool=None, 
+        roles: dict=None
+    ):
         super().__init__(data, index, columns, dtype, copy, )
 
         if isinstance(data, Ingredients) and roles is None:

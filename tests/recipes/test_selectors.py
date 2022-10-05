@@ -13,7 +13,8 @@ from icu_benchmarks.recipes.selector import (
     groups,
     all_numeric_predictors,
     all_predictors,
-    intersection
+    intersection, 
+    enlist_str
 )
 
 
@@ -31,6 +32,30 @@ def test_not_ingredients(example_df):
 
 def test_intersection():
     assert intersection(['a', 'b'], ['b', 'c']) == ['b']
+
+
+def test_enlist_str():
+    assert enlist_str('string') == ['string']
+
+
+def test_enlist_str_list():
+    assert enlist_str(['string1', 'string2']) == ['string1', 'string2']
+
+
+def test_enlist_str_None():
+    assert enlist_str(None) == None
+
+
+def test_enlist_str_other():
+    with pytest.raises(TypeError) as e_info:
+        enlist_str({'k': 'string'})
+    assert e_info.match('Expected str or list of str')
+
+
+def test_enlist_str_other_list():
+    with pytest.raises(TypeError) as e_info:
+        enlist_str(['outer', {'k': 'inner'}])
+    assert e_info.match('Only lists of str are allowed.')
 
 
 def test_all_of(example_ingredients):
