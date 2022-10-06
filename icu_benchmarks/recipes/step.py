@@ -143,6 +143,8 @@ class Accumulator(Enum):
     MEDIAN = "median"
     COUNT = "count"
     VAR = "var"
+    FIRST = "first"
+    LAST = "last"
 
 
 class StepHistorical(Step):
@@ -311,10 +313,31 @@ class StepSklearn(Step):
 
 
 class StepResampling(Step):
-    def __init__(self, old_resolution, new_resolution):
-        super().__init__(all_predictors())
-        self.resolution = old_resolution
+    def __init__(
+        self,
+        new_resolution: str = "1h",
+        sel: Selector = all_numeric_predictors(),
+        sel_acc: Accumulator = Accumulator.MEAN,
+        not_sel_acc: Accumulator = Accumulator.LAST,
+        time_col: str = "time",
+    ):
+        """This class represents a step in a recipe.
+
+        Steps are transformations to be executed on selected columns of a DataFrame.
+        They fit a transformer to the selected columns and afterwards transform the data with the fitted transformer.
+
+        Args:
+            new_resolution(str): Resolution to resample to.
+            sel (Selector): Object that holds information about the selected columns.
+            sel_acc: (Accumulator) Accumulation method for selected columns
+            not_sel_acc: (Accumulator) Accumulation method for all non-selected columns
+            time_col (str) : Temporal column in supplied Ingredients.
+        """
+        super().__init__(sel=sel)
         self.new_resolution = new_resolution
+        self.sel_acc = sel_acc
+        self.not_sel_acc = not_sel_acc
+        self.time_col = time_col
         # self._group = False
 
     def fit(self, data):
@@ -322,18 +345,28 @@ class StepResampling(Step):
         self._trained = True
 
     def transform(self, data):
-        # print(data['time'])
-        new_data = data
-        # new_data = data
-        # new_data.time = pd.to_datetime(new_data.time)
-        # new_data = new_data.set_index(new_data.time)
-        # new_data = new_data.groupby("stay_id")
-        new_data = new_data.resample("2h", on="time").mean()
+        new_data = self._check_ingredients(data)
+
+        # Get selected columns
+        sel_columns = self.sel(new_data)
+        # Get other columns
+        not_sel_columns = new_data.columns.difference(sel_columns).values.tolist()
+
+        # Remove time column
+        not_sel_columns.remove(self.time_col)
+
+        sel_acc_dict = {el: self.sel_acc.value for el in sel_columns}
+        not_sel_acc_dict = {el: self.not_sel_acc.value for el in not_sel_columns}
+        sel_acc_dict.update(not_sel_acc_dict)
+
+        # Group by stay id
+        new_data = new_data.groupby("stay_id")
+
+        # Resampling with the functions defined in dictionary
+        new_data = new_data.resample(self.new_resolution, on=self.time_col).agg(sel_acc_dict)
+
+        # Remove multi-index
         new_data = new_data.droplevel("stay_id")
         new_data = new_data.reset_index(drop=False)
-        # new_data = new_data.obj
-        print(new_data)
-        # new_data = new_data.obj
-        # data = new_data
+        new_data = new_data.set_index("stay_id")
         return new_data
-        # return NotImplementedError()
