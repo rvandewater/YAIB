@@ -37,7 +37,7 @@ jobs:
       - name: Test with pytest
         run: python -m pytest ./tests/recipes
       # If we want to test running the tool later on
-      # - name: setup package
+      # - name: Setup package
       #   run: pip install -e .
-      # - name: test command line tool
+      # - name: Test command line tool
       #   run: python -m icu_benchmarks.run --help
