@@ -24,7 +24,7 @@ from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer, MissingI
 
 from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_numeric_predictors, has_type, has_role, all_of
-from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator, StepImputeFill
+from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator, StepImputeFill, StepScale
 
 
 @pytest.fixture()
@@ -66,6 +66,20 @@ class TestImputeSteps:
         res = example_recipe_w_nan.prep()
         exp = pd.Series([0, 1, 1, 0, 0, 0, 0, 0, 0, 1], dtype='float64')
         assert res['x2'].equals(exp)
+
+
+class TestScaleStep:
+    def test_scale_step_default(self, example_recipe):
+        example_recipe.add_step(StepScale())
+        res = example_recipe.prep()
+        assert abs(res['x1'].mean()) < 0.00001
+        assert abs(res['x2'].mean()) < 0.00001
+
+    def test_scale_step_w_sel(self, example_recipe):
+        example_recipe.add_step(StepScale(sel=all_of(['x2'])))
+        res = example_recipe.prep()
+        assert abs(res['x2'].mean()) < 0.00001
+        assert abs(res['x1'].mean()) > 1
 
 
 class TestSklearnStep:

@@ -275,3 +275,9 @@ class StepSklearn(Step):
                 new_data.update_role(col, self.role)
 
         return new_data
+
+
+class StepScale():
+    def __new__(cls, **kwargs):
+        # unpack kwargs and sel from dict so that sel can be overwritten by user
+        return StepSklearn(StandardScaler(), **{"sel": all_numeric_predictors(), **kwargs})
