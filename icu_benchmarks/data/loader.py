@@ -49,7 +49,7 @@ class RICUDataset(Dataset):
         Returns: (list) Weights for each label.
 
         """
-        counts = self.loader.outc_df.groupby("label").count()["stay_id"]
+        counts = self.loader.outc_df.groupby("label").count()[VARS["STAY_ID"]]
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
     # TODO check whether this works for seq2seq task
@@ -73,7 +73,7 @@ class RICUDataset(Dataset):
         labels = self.loader.labels_df["label"].to_numpy().astype(float)
         rep = self.loader.dyn_data_df
         if len(labels) == self.loader.num_stays:
-            rep = rep.groupby(level="stay_id").last()
+            rep = rep.groupby(level=VARS["STAY_ID"]).last()
         rep = rep.to_numpy()
 
         if self.scaler is not None:
@@ -97,12 +97,7 @@ class RICULoader(object):
         self.static_df = parquet.read_table(pth.join(data_path, FILE_NAMES["STATIC_IMPUTED"])).to_pandas().loc[self.split]
         self.outc_df = parquet.read_table(pth.join(data_path, FILE_NAMES["OUTCOME"])).to_pandas()
         self.labels_df = parquet.read_table(pth.join(data_path, FILE_NAMES["LABELS_SPLITS"])).to_pandas().loc[self.split]
-        self.dyn_df = parquet.read_table(pth.join(data_path, FILE_NAMES["DYNAMIC_IMPUTED"])).to_pandas().loc[self.split]
-        if use_features:
-            self.features_df = (
-                parquet.read_table(pth.join(data_path, FILE_NAMES["FEATURES_IMPUTED"])).to_pandas().loc[self.split]
-            )
-            self.dyn_df = pd.concat([self.dyn_df, self.features_df], axis=1)
+        self.dyn_df = parquet.read_table(pth.join(data_path, FILE_NAMES["FEATURES_IMPUTED"] if use_features else FILE_NAMES["DYNAMIC_IMPUTED"])).to_pandas().loc[self.split].set_index(VARS["STAY_ID"])
         if use_static:
             self.dyn_df = pd.concat([self.dyn_df, self.static_df.set_index(VARS["STAY_ID"])], axis=1).drop(
                 labels="sex", axis=1
