@@ -68,6 +68,20 @@ class TestImputeSteps:
         assert res["x2"].equals(exp)
 
 
+class TestScaleStep:
+    def test_scale_step_default(self, example_recipe):
+        example_recipe.add_step(StepScale())
+        res = example_recipe.prep()
+        assert abs(res["x1"].mean()) < 0.00001
+        assert abs(res["x2"].mean()) < 0.00001
+
+    def test_scale_step_w_sel(self, example_recipe):
+        example_recipe.add_step(StepScale(sel=all_of(["x2"])))
+        res = example_recipe.prep()
+        assert abs(res["x2"].mean()) < 0.00001
+        assert abs(res["x1"].mean()) > 1
+
+
 class TestSklearnStep:
     @pytest.fixture()
     def example_recipe_w_categorical_label(self, example_df):
@@ -77,7 +91,7 @@ class TestSklearnStep:
     def test_simple_imputer(self, example_recipe_w_nan):
         example_recipe_w_nan.add_step(StepSklearn(SimpleImputer(strategy="constant", fill_value=0)))
         df = example_recipe_w_nan.prep()
-        assert (df.loc[[2, 4, 6], "x1"] == 0).all()
+        assert (df.loc[[2, 4, 6], "x2"] == 0).all()
 
     def test_knn_imputer(self, example_recipe_w_nan):
         example_recipe_w_nan.add_step(StepSklearn(KNNImputer(), sel=all_numeric_predictors()))
