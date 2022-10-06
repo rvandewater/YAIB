@@ -11,11 +11,11 @@ from icu_benchmarks.recipes.selector import groups
 from icu_benchmarks.recipes.step import Step
 
 
-class Recipe():
+class Recipe:
     """Recipe for preprocessing data
 
-    A Recipe object combines a pandas-like Ingredients object with one or more 
-    sklearn-inspired transformation Steps to turn into a model-ready input. 
+    A Recipe object combines a pandas-like Ingredients object with one or more
+    sklearn-inspired transformation Steps to turn into a model-ready input.
 
     Args:
         data (Union[pd.DataFrame, Ingredients]): data to be preprocessed.
@@ -24,32 +24,33 @@ class Recipe():
         groups (Union[str, list[str]]): names of columns in data that should be assigned the 'group' role
         sequence (Union[str, list[str]]): names of columns in data that should be assigned the 'sequence' role
     """
+
     def __init__(
-        self, 
-        data: Union[pd.DataFrame, Ingredients], 
-        outcomes: Union[str, list[str]] = None, 
-        predictors: Union[str, list[str]] = None, 
-        groups: Union[str, list[str]] = None, 
-        sequences: Union[str, list[str]] = None
+        self,
+        data: Union[pd.DataFrame, Ingredients],
+        outcomes: Union[str, list[str]] = None,
+        predictors: Union[str, list[str]] = None,
+        groups: Union[str, list[str]] = None,
+        sequences: Union[str, list[str]] = None,
     ):
         self.data = Ingredients(data)
         self.steps = []
 
         if outcomes:
-            self.update_roles(outcomes, 'outcome')
+            self.update_roles(outcomes, "outcome")
         if predictors:
-            self.update_roles(predictors, 'predictor')
+            self.update_roles(predictors, "predictor")
         if groups:
-            self.update_roles(groups, 'group')
+            self.update_roles(groups, "group")
         if sequences:
-            self.update_roles(sequences, 'sequence')
+            self.update_roles(sequences, "sequence")
 
-    def add_roles(self, vars: Union[str, list[str]], new_role: str = 'predictor') -> Recipe:
+    def add_roles(self, vars: Union[str, list[str]], new_role: str = "predictor") -> Recipe:
         """Adds an additional role for one or more columns of the Recipe's Ingredients.
 
         Args:
             vars (Union[str, list[str]]): The column to receive additional roles.
-            new_role (str, optional): Defaults to predictor'. The role to add to the column.
+            new_role (str, optional): Defaults to predictor. The role to add to the column.
 
         See also:
             Ingredients.add_role()
@@ -63,8 +64,9 @@ class Recipe():
             self.data.add_role(v, new_role)
         return self
 
-    def update_roles(self, vars: Union[str, list[str]], new_role: str = 'predictor', old_role=None) -> Recipe:
-        """Adds a new role for one or more columns of the Recipe's Ingredients without roles or changes an existing role to a different one.
+    def update_roles(self, vars: Union[str, list[str]], new_role: str = "predictor", old_role=None) -> Recipe:
+        """Adds a new role for one or more columns of the Recipe's Ingredients without roles
+        or changes an existing role to a different one.
 
         Args:
             vars (Union[str, list[str]]): The column to receive additional roles.
@@ -101,7 +103,7 @@ class Recipe():
         elif data.__class__ == pd.DataFrame:
             data = Ingredients(data, roles=self.data.roles)
         if not data.columns.equals(self.data.columns):
-            raise ValueError('Columns of data argument differs from recipe data.')
+            raise ValueError("Columns of data argument differs from recipe data.")
         return data
 
     def _apply_group(self, data, step):
@@ -119,9 +121,7 @@ class Recipe():
         """
         data = self._check_data(data)
         data = copy(data)
-        print(data)
         self._apply_fit_transform(data, refit)
-        print(data)
         return pd.DataFrame(data)
 
     def bake(self, data=None):
@@ -146,19 +146,16 @@ class Recipe():
         return self
 
     def __repr__(self):
-        repr = 'Recipe\n\n'
+        repr = "Recipe\n\n"
 
         # Print all existing roles and how many variables are assigned to each
         num_roles = Counter(chain.from_iterable(self.data.roles.values()))
-        num_roles = pd.DataFrame({
-            'role': [r for r in num_roles.keys()],
-            '#variables': [n for n in num_roles.values()]
-        })
-        repr += 'Inputs:\n\n' + num_roles.__repr__() + '\n\n'
+        num_roles = pd.DataFrame({"role": [r for r in num_roles.keys()], "#variables": [n for n in num_roles.values()]})
+        repr += "Inputs:\n\n" + num_roles.__repr__() + "\n\n"
 
         # Print all steps
-        repr += 'Operations:\n\n'
+        repr += "Operations:\n\n"
         for step in self.steps:
-            repr += str(step) + '\n'
+            repr += str(step) + "\n"
 
         return repr
