@@ -14,9 +14,8 @@ VARS = constants.VARS
 FILE_NAMES = constants.FILE_NAMES
 
 
-@gin.configurable('RICUDataset')
+@gin.configurable("RICUDataset")
 class RICUDataset(Dataset):
-
     def __init__(self, source_path, split="train", scale_label=False):
         """
         Args:
@@ -50,7 +49,7 @@ class RICUDataset(Dataset):
         Returns: (list) Weights for each label.
 
         """
-        counts = self.loader.outc_df.groupby('label').count()['stay_id']
+        counts = self.loader.outc_df.groupby("label").count()["stay_id"]
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
     # TODO check whether this works for seq2seq task
@@ -70,11 +69,11 @@ class RICUDataset(Dataset):
         Returns: (np.array, np.array) a tuple containing  data points and label for the split.
 
         """
-        logging.info('Gathering the samples for split ' + self.split)
-        labels = self.loader.labels_df['label'].to_numpy().astype(float)
+        logging.info("Gathering the samples for split " + self.split)
+        labels = self.loader.labels_df["label"].to_numpy().astype(float)
         rep = self.loader.dyn_data_df
         if len(labels) == self.loader.num_stays:
-            rep = rep.groupby(level='stay_id').last()
+            rep = rep.groupby(level="stay_id").last()
         rep = rep.to_numpy()
 
         if self.scaler is not None:
@@ -82,9 +81,9 @@ class RICUDataset(Dataset):
         return rep, labels
 
 
-@gin.configurable('RICULoader')
+@gin.configurable("RICULoader")
 class RICULoader(object):
-    def __init__(self, data_path, split='train', use_features=True, use_static=False):
+    def __init__(self, data_path, split="train", use_features=True, use_static=False):
         """
         Args:
             data_path (string): Path to the folder containing the preprocessed files with static and dynamic data,
@@ -95,23 +94,25 @@ class RICULoader(object):
         self.split = split
 
         # Load parquet into dataframes, selecting the split from the data
-        self.static_df = parquet.read_table(pth.join(data_path, FILE_NAMES['STATIC_IMPUTED'])).to_pandas().loc[self.split]
-        self.outc_df = parquet.read_table(pth.join(data_path, FILE_NAMES['OUTCOME'])).to_pandas()
-        self.labels_df = parquet.read_table(pth.join(data_path, FILE_NAMES['LABELS_SPLITS'])).to_pandas().loc[self.split]
-        self.dyn_df = parquet.read_table(pth.join(data_path, FILE_NAMES['DYNAMIC_IMPUTED'])).to_pandas().loc[self.split]
+        self.static_df = parquet.read_table(pth.join(data_path, FILE_NAMES["STATIC_IMPUTED"])).to_pandas().loc[self.split]
+        self.outc_df = parquet.read_table(pth.join(data_path, FILE_NAMES["OUTCOME"])).to_pandas()
+        self.labels_df = parquet.read_table(pth.join(data_path, FILE_NAMES["LABELS_SPLITS"])).to_pandas().loc[self.split]
+        self.dyn_df = parquet.read_table(pth.join(data_path, FILE_NAMES["DYNAMIC_IMPUTED"])).to_pandas().loc[self.split]
         if use_features:
-            self.features_df = parquet.read_table(pth.join(data_path, FILE_NAMES['FEATURES_IMPUTED'])) \
-                .to_pandas().loc[self.split]
+            self.features_df = (
+                parquet.read_table(pth.join(data_path, FILE_NAMES["FEATURES_IMPUTED"])).to_pandas().loc[self.split]
+            )
             self.dyn_df = pd.concat([self.dyn_df, self.features_df], axis=1)
         if use_static:
-            self.dyn_df = pd.concat([self.dyn_df, self.static_df.set_index(VARS['STAY_ID'])], axis=1) \
-                .drop(labels='sex', axis=1)
-        self.dyn_data_df = self.dyn_df.drop(labels='time', axis=1)
+            self.dyn_df = pd.concat([self.dyn_df, self.static_df.set_index(VARS["STAY_ID"])], axis=1).drop(
+                labels="sex", axis=1
+            )
+        self.dyn_data_df = self.dyn_df.drop(labels="time", axis=1)
 
         # calculate basic info for the data
         self.num_stays = self.static_df.shape[0]
         self.num_measurements = self.dyn_df.shape[0]
-        self.maxlen = self.dyn_df.groupby([VARS['STAY_ID']]).size().max()
+        self.maxlen = self.dyn_df.groupby([VARS["STAY_ID"]]).size().max()
 
     def get_window(self, stay_id, pad_value=0.0):
         """Windowing function
@@ -127,7 +128,7 @@ class RICULoader(object):
         """
         # slice to make sure to always return a DF
         window = self.dyn_data_df.loc[stay_id:stay_id].to_numpy()
-        labels = self.labels_df.loc[stay_id][['label']].to_numpy().astype(float)
+        labels = self.labels_df.loc[stay_id][["label"]].to_numpy().astype(float)
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -164,6 +165,6 @@ class RICULoader(object):
         if idx is None:
             idx = np.random.randint(self.num_stays)
 
-        stay_id = self.static_df.iloc[idx][VARS['STAY_ID']]
+        stay_id = self.static_df.iloc[idx][VARS["STAY_ID"]]
 
         return self.get_window(stay_id)

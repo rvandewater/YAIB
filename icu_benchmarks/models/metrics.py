@@ -69,9 +69,14 @@ class CalibrationCurve(EpochMetric):
 
 
 class MAE(EpochMetric):
-    def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False,
-                 invert_transform: Callable = lambda x: x) -> None:
+    def __init__(
+        self,
+        output_transform: Callable = lambda x: x,
+        check_compute_fn: bool = False,
+        invert_transform: Callable = lambda x: x,
+    ) -> None:
         super(MAE, self).__init__(
-            lambda x, y: mae_with_invert_compute_fn(x, y, invert_transform), output_transform=output_transform,
-            check_compute_fn=check_compute_fn
+            lambda x, y: mae_with_invert_compute_fn(x, y, invert_transform),
+            output_transform=output_transform,
+            check_compute_fn=check_compute_fn,
         )

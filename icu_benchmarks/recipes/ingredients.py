@@ -9,7 +9,7 @@ class Ingredients(pd.DataFrame):
     """Wrapper around pandas.DataFrames to store columns roles (e.g., predictor)
 
     Args:
-        roles (dict, optional): roles of DataFrame columns as (list of) strings. 
+        roles (dict, optional): roles of DataFrame columns as (list of) strings.
             Defaults to None.
 
     See also: pandas.DataFrame
@@ -21,14 +21,15 @@ class Ingredients(pd.DataFrame):
     _metadata = ["roles"]
 
     def __init__(
-        self, data=None, 
-        index: Axes=None, 
-        columns: Axes=None, 
-        dtype: Dtype=None, 
-        copy: bool=None, 
-        roles: dict=None
+        self, data=None, index: Axes = None, columns: Axes = None, dtype: Dtype = None, copy: bool = None, roles: dict = None
     ):
-        super().__init__(data, index, columns, dtype, copy, )
+        super().__init__(
+            data,
+            index,
+            columns,
+            dtype,
+            copy,
+        )
 
         if isinstance(data, Ingredients) and roles is None:
             if copy is None or copy is True:
@@ -38,9 +39,9 @@ class Ingredients(pd.DataFrame):
         elif roles is None:
             self.roles = {}
         elif not isinstance(roles, dict):
-            raise TypeError(f'expected dict object for roles, got {roles.__class__}')
+            raise TypeError(f"expected dict object for roles, got {roles.__class__}")
         elif not np.all([k in self.columns for k in roles]):
-            raise ValueError('roles contains variable name that is not in the data.')
+            raise ValueError("roles contains variable name that is not in the data.")
         else:
             if copy is None or copy is True:
                 self.roles = deepcopy(roles)
@@ -61,17 +62,17 @@ class Ingredients(pd.DataFrame):
 
     def _check_column(self, column):
         if not isinstance(column, str):
-            raise ValueError(f'Expected string, got {column}')
+            raise ValueError(f"Expected string, got {column}")
         if column not in self.columns:
-            raise ValueError(f'{column} does not exist in this Data object')
+            raise ValueError(f"{column} does not exist in this Data object")
 
     def _check_role(self, new_role):
         if not isinstance(new_role, str):
-            raise TypeError(f'new_role must be string, was {new_role.__class__}')
+            raise TypeError(f"new_role must be string, was {new_role.__class__}")
 
     def add_role(self, column: str, new_role: str):
         """Adds an additional role for a column that already has roles.
-        
+
         Args:
             column (str): The column to receive additional roles.
             new_role (str): The role to add to the column.
@@ -82,12 +83,12 @@ class Ingredients(pd.DataFrame):
         self._check_column(column)
         self._check_role(new_role)
         if column not in self.roles.keys():
-            raise RuntimeError(f'{column} has no roles yet, use update_role instead.')
+            raise RuntimeError(f"{column} has no roles yet, use update_role instead.")
         self.roles[column] += [new_role]
 
     def update_role(self, column: str, new_role: str, old_role: str = None):
         """Adds a new role for a column without roles or changes an existing role to a different one.
-        
+
         Args:
             column (str): The column to update the roles of.
             new_role (str): The role to add or change to.
@@ -103,13 +104,13 @@ class Ingredients(pd.DataFrame):
         if old_role is not None:
             if column not in self.roles.keys():
                 raise ValueError(
-                    f'Attempted to update role of {column} from {old_role} to {new_role} '
-                    f'but {column} does not have a role yet.'
+                    f"Attempted to update role of {column} from {old_role} to {new_role} "
+                    f"but {column} does not have a role yet."
                 )
             elif old_role not in self.roles[column]:
                 raise ValueError(
-                    f'Attempted to set role of {column} from {old_role} to {new_role} '
-                    f'but {old_role} not among current roles: {self.roles[column]}.'
+                    f"Attempted to set role of {column} from {old_role} to {new_role} "
+                    f"but {old_role} not among current roles: {self.roles[column]}."
                 )
             self.roles[column].remove(old_role)
             self.roles[column].append(new_role)
@@ -118,6 +119,6 @@ class Ingredients(pd.DataFrame):
                 self.roles[column] = [new_role]
             else:
                 raise ValueError(
-                    f'Attempted to update role of {column} to {new_role} but '
-                    f'{column} has more than one current roles: {self.roles[column]}'
+                    f"Attempted to update role of {column} to {new_role} but "
+                    f"{column} has more than one current roles: {self.roles[column]}"
                 )
