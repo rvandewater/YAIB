@@ -5,7 +5,6 @@ from scipy.sparse import isspmatrix
 from pandas.core.groupby import DataFrameGroupBy
 from sklearn.preprocessing import StandardScaler
 from icu_benchmarks.recipes.ingredients import Ingredients
-import datetime
 from enum import Enum
 from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
 
@@ -279,7 +278,7 @@ class StepSklearn(Step):
                 col_names = (
                     col
                     if self.in_place
-                    else [f"{self.sklearn_transformer.__class__.__name__}_{col}_{i+1}" for i in range(new_cols.shape[1])]
+                    else [f"{self.sklearn_transformer.__class__.__name__}_{col}_{i + 1}" for i in range(new_cols.shape[1])]
                 )
                 new_data[col_names] = new_cols
         else:
@@ -294,7 +293,7 @@ class StepSklearn(Step):
             col_names = (
                 self.columns
                 if self.in_place
-                else [f"{self.sklearn_transformer.__class__.__name__}_{i+1}" for i in range(new_cols.shape[1])]
+                else [f"{self.sklearn_transformer.__class__.__name__}_{i + 1}" for i in range(new_cols.shape[1])]
             )
             if new_cols.shape[1] != len(col_names):
                 raise ValueError(
@@ -310,17 +309,16 @@ class StepSklearn(Step):
 
         return new_data
 
-class StepResampling(Step):
 
+class StepResampling(Step):
     def __init__(self, old_resolution, new_resolution):
         super().__init__(all_predictors())
         self.resolution = old_resolution
         self.new_resolution = new_resolution
         # self._group = False
 
-
     def fit(self, data):
-        #self.columns = self.sel(data.obj)
+        # self.columns = self.sel(data.obj)
         self._trained = True
 
     def transform(self, data):
@@ -339,5 +337,3 @@ class StepResampling(Step):
         # data = new_data
         return new_data
         # return NotImplementedError()
-
-
