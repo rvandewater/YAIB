@@ -227,8 +227,9 @@ class StepSklearn(Step):
         if self.columnwise:
             self._transformers = {
                 # copy the transformer so we keep the distinct fit for each column and don't just refit
-                col: deepcopy(self.sklearn_transformer.fit(data[col])) for col in self.columns
-            }      
+                col: deepcopy(self.sklearn_transformer.fit(data[col]))
+                for col in self.columns
+            }
         else:
             try:
                 self.sklearn_transformer.fit(data[self.columns])
@@ -289,7 +290,7 @@ class StepSklearn(Step):
         return new_data
 
 
-class StepScale():
+class StepScale:
     def __new__(cls, **kwargs):
         # unpack kwargs and sel from dict so that sel can be overwritten by user
         return StepSklearn(StandardScaler(), **{"sel": all_numeric_predictors(), **kwargs})
