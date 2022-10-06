@@ -4,6 +4,9 @@ channels:
   - conda-forge
   - anaconda
 dependencies:
+  - black=22.8.0
+  - coverage=6.3.2
+  - flake8=5.0.4
   - gin-config=0.5.0
   - ignite=0.4.10
   - lightgbm=3.3.2

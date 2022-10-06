@@ -77,4 +77,13 @@ python -m icu_benchmarks.run train \
 
 ```
 python -m pytest ./tests/recipes
+coverage run -m pytest ./tests/recipes
+# then use either of the following
+coverage report
+coverage html
+```
+
+## Autoformat
+```
+black . -l 127
 ```
