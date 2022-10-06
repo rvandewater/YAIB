@@ -62,7 +62,7 @@ class Recipe():
         """
         data = self._check_data(data)
         data = copy(data)
-        self._apply_fit_transform(data, refit)
+        data = self._apply_fit_transform(data, refit)
         return pd.DataFrame(data)
         
     def bake(self, data=None):
@@ -73,7 +73,7 @@ class Recipe():
         """
         data = self._check_data(data)
         data = copy(data)
-        self._apply_fit_transform(data)
+        data = self._apply_fit_transform(data)
         return pd.DataFrame(data)
 
     def _apply_fit_transform(self, data=None, refit=False):
@@ -84,7 +84,7 @@ class Recipe():
                 data = step.fit_transform(data)
             else:
                 data = step.transform(data)
-        return self
+        return data
 
     def __repr__(self):
         repr = 'Recipe\n\n'
