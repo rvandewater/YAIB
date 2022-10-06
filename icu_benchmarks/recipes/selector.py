@@ -1,3 +1,5 @@
+import re
+
 from .ingredients import Ingredients
 from typing import Union
 
@@ -6,22 +8,25 @@ class Selector():
     """Class responsible for selecting the variables affected by a recipe step
     
     Args:
-        description (str): text used to represent Selector when printed in summaries
-        names (Union[str, list[str]]): column names to select
-        roles (Union[str, list[str]]): column roles to select, see also Ingredients
-        types (Union[str, list[str]]): column data types to select
+        description (str): Text used to represent Selector when printed in summaries
+        names (Union[str, list[str]], optional): Column names to select. Defaults to None.
+        roles (Union[str, list[str]], optional): Column roles to select, see also Ingredients. Defaults to None.
+        types (Union[str, list[str]], optional): Column data types to select. Defaults to None.
+        pattern (re.Pattern, optional): Regex pattern to search column names with. Defaults to None.
     """
     def __init__(
         self, 
         description: str, 
         names: Union[str, list[str]]=None, 
         roles: Union[str, list[str]]=None, 
-        types: Union[str, list[str]]=None
+        types: Union[str, list[str]]=None,
+        pattern: re.Pattern=None
     ):
         self.description = description
         self.set_names(names)
         self.set_roles(roles)
         self.set_types(types)
+        self.set_pattern(pattern)
 
     def set_names(self, names: Union[str, list[str]]):
         """Set the column names to select with this Selector
@@ -47,6 +52,14 @@ class Selector():
         """
         self.types = enlist_str(roles)
 
+    def set_pattern(self, pattern: re.Pattern):
+        """Set the pattern to search with this Selector
+
+        Args:
+            pattern (re.Pattern): Regex pattern to search column names with.
+        """
+        self.pattern = pattern
+
     def __call__(self, ingr: Ingredients) -> list[str]:
         """Select variables from Ingredients
 
@@ -66,16 +79,18 @@ class Selector():
         vars = ingr.columns.tolist()
 
         if self.roles is not None:
-            sel_roles = [v for v, r in ingr.roles.items() if len(intersection(r, self.roles)) > 0]
+            sel_roles = [v for v, r in ingr.roles.items() if intersection(r, self.roles)]
             vars = intersection(vars, sel_roles)
 
         if self.types is not None:
-            # currently matches types by name. is this problematic?
-            sel_types = [v for v, t in ingr.dtypes.items() if t.name in self.types]
+            sel_types = ingr.select_dtypes(include=self.types).columns.tolist()
             vars = intersection(vars, sel_types)
 
         if self.names is not None:
             vars = intersection(vars, self.names)
+
+        if self.pattern is not None:
+            vars = list(filter(self.pattern.search, vars))
 
         return vars
 
@@ -138,16 +153,53 @@ def all_of(names: Union[str, list[str]]) -> Selector:
     return Selector(description=str(names), names=names)
 
 
-def starts_with(pattern):
-    raise NotImplementedError()
+def regex_names(regex: str) -> Selector:
+    """Select any columns where the name matches the regex pattern
+
+    Args:
+        pattern (str): string to be transformed to regex pattern to search for
+
+    Returns:
+        Selector: object representing the selection rule
+    """
+    pattern = re.compile(regex)
+    return Selector(description=f'regex: {regex}', pattern=pattern)
 
 
-def ends_with(pattern):
-    raise NotImplementedError()
+def starts_with(prefix: str) -> Selector:
+    """Select any columns where the name starts with the prefix
+
+    Args:
+        prefix (str): prefix to search for
+
+    Returns:
+        Selector: object representing the selection rule
+    """
+    return regex_names(f'^{prefix}')
 
 
-def contains(pattern):
-    raise NotImplementedError()
+def ends_with(suffix: str) -> Selector:
+    """Select any columns where the name ends with the suffix
+
+    Args:
+        prsuffixefix (str): suffix to search for
+
+    Returns:
+        Selector: object representing the selection rule
+    """
+    return regex_names(f'{suffix}$')
+
+
+def contains(substring: str) -> Selector:
+    """Select any columns where the name contains the substring
+
+    Args:
+        substring (str): substring to search for
+
+    Returns:
+        Selector: object representing the selection rule
+    """
+    return regex_names(f'{substring}')
 
 
 def has_role(roles: Union[str, list[str]]) -> Selector:
