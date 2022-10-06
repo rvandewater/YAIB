@@ -24,4 +24,5 @@ VARS = {
     "TIME": "time",
     "SEX": "sex",
     "DYNAMIC_VARS": ["dbp", "hr", "map", "o2sat", "resp", "sbp", "temp"],
+    "STATIC_VARS": ["age", "sex", "height", "weight"],
 }

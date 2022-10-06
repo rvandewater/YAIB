@@ -7,14 +7,14 @@ import pandas as pd
 from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
-from sklearn.impute import MissingIndicator
+# from sklearn.impute import MissingIndicator
 from icu_benchmarks.common import constants
 
 from icu_benchmarks.common.constants import VARS
 from icu_benchmarks.data.preprocess import generate_splits
 from icu_benchmarks.recipes.recipe import Recipe
-from icu_benchmarks.recipes.selector import all_predictors, ends_with, all_of
-from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepSklearn
+from icu_benchmarks.recipes.selector import all_numeric_predictors, ends_with, all_of
+from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
 
@@ -265,8 +265,8 @@ def build_parser():
     # parser_evaluate = subparsers.add_parser('evaluate', help='evaluate',
     #                                         parents=[parent_parser])
 
-    # parser_train = subparsers.add_parser('train', help='train',
-    #                                      parents=[parent_parser])
+    parser_train = subparsers.add_parser('train', help='train',
+                                         parents=[parent_parser])
     return parser
 
 
@@ -279,6 +279,7 @@ def run_preprocessing(work_dir):
     labels_splits_path = work_dir / constants.FILE_NAMES["LABELS_SPLITS"]
     dyn_splits_path = work_dir / constants.FILE_NAMES["DYNAMIC_SPLITS"]
 
+    sta_imputed_path = work_dir / constants.FILE_NAMES["STATIC_IMPUTED"]
     dyn_imputed_path = work_dir / constants.FILE_NAMES["DYNAMIC_IMPUTED"]
     dyn_w_features_imputed_path = work_dir / constants.FILE_NAMES["FEATURES_IMPUTED"]
 
@@ -288,18 +289,25 @@ def run_preprocessing(work_dir):
     else:
         logging.info(f"Splits in {work_dir} exist, skipping")
 
-    dyn_df = pq.read_table(dyn_splits_path).to_pandas()
-    # TODO add static if needed
+    if not sta_imputed_path.exists():
+        logging.info("Imputing dynamic data")
+        sta_df = pq.read_table(static_splits_path).to_pandas()
+        print(sta_df)
+        sta_rec = Recipe(sta_df, [], VARS["STATIC_VARS"], VARS["STAY_ID"])
+        # # sta_rec.add_step(StepSklearn(MissingIndicator(), sel=all_predictors(), in_place=False))
+        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), value=sta_df.loc['train'].mean()))
+        sta_df_imputed = sta_rec.prep()
+        pq.write_table(pa.Table.from_pandas(sta_df_imputed), sta_imputed_path)
+    else:
+        logging.info(f"Imputated static data in {sta_imputed_path} exists, skipping")
 
+    dyn_df = pq.read_table(dyn_splits_path).to_pandas()
     if not dyn_imputed_path.exists():
-        logging.info("Imputing data")
-        # train_df = dyn_df.loc['train']
+        logging.info("Imputing dynamic data")
         dyn_rec = Recipe(dyn_df, [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
-        
         # # dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_predictors(), in_place=False))
         dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), method='ffill'))
         dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), value=dyn_df.loc['train'].mean()))
-
         dyn_df_imputed = dyn_rec.prep()
         pq.write_table(pa.Table.from_pandas(dyn_df_imputed), dyn_imputed_path)
     else:
