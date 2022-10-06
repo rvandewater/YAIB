@@ -2,16 +2,19 @@
 import argparse
 import logging
 import os
-from sklearn_pandas import DataFrameMapper, gen_features
 import sys
-from sklearn.impute import SimpleImputer
+import pandas as pd
 from pathlib import Path
-from pyarrow import parquet
+import pyarrow as pa
+import pyarrow.parquet as pq
+from sklearn.impute import MissingIndicator
 from icu_benchmarks.common import constants
 
 from icu_benchmarks.common.constants import VARS
-from icu_benchmarks.data.preprocess import HistoricalMin, HistoricalMax, NumMeasurements, HistoricalMean, FFill
 from icu_benchmarks.data.preprocess import generate_splits
+from icu_benchmarks.recipes.recipe import Recipe
+from icu_benchmarks.recipes.selector import all_predictors, ends_with, all_of
+from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepSklearn
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
 
@@ -276,31 +279,50 @@ def run_preprocessing(work_dir):
     labels_splits_path = work_dir / constants.FILE_NAMES["LABELS_SPLITS"]
     dyn_splits_path = work_dir / constants.FILE_NAMES["DYNAMIC_SPLITS"]
 
+    dyn_imputed_path = work_dir / constants.FILE_NAMES["DYNAMIC_IMPUTED"]
+    dyn_w_features_imputed_path = work_dir / constants.FILE_NAMES["FEATURES_IMPUTED"]
+
     if not static_splits_path.exists() or not labels_splits_path.exists() or not dyn_splits_path.exists():
         logging.info("Generating splits")
         generate_splits(sta_path, outc_path, dyn_path, static_splits_path, labels_splits_path, dyn_splits_path)
     else:
         logging.info(f"Splits in {work_dir} exist, skipping")
 
-    dyn_df = parquet.read_table(dyn_splits_path).to_pandas()
+    dyn_df = pq.read_table(dyn_splits_path).to_pandas()
     # TODO add static if needed
 
-    columns = [[col] for col in VARS["DYNAMIC_VARS"]]
-    ZeroImputator = {"class": SimpleImputer, "strategy": "constant", "fill_value": 0}
+    if not dyn_imputed_path.exists():
+        logging.info("Imputing data")
+        # train_df = dyn_df.loc['train']
+        dyn_rec = Recipe(dyn_df, [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
+        
+        # # dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_predictors(), in_place=False))
+        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), method='ffill'))
+        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), value=dyn_df.loc['train'].mean()))
 
-    # TODO only use mean of train?
-    feature_extractor_w_imputation = DataFrameMapper(
-        gen_features(columns=columns, classes=[FFill, {"class": SimpleImputer, "strategy": "mean"}])
-        + gen_features(columns=columns, classes=[HistoricalMin, FFill, ZeroImputator], prefix="min_")
-        + gen_features(columns=columns, classes=[HistoricalMax, FFill, ZeroImputator], prefix="max_")
-        + gen_features(columns=columns, classes=[NumMeasurements, FFill, ZeroImputator], prefix="n_meas_")
-        + gen_features(columns=columns, classes=[HistoricalMean, FFill, ZeroImputator], prefix="mean_"),
-        input_df=True,
-        df_out=True,
-        drop_cols=[VARS["TIME"]],
-    )
-    dyn_df_w_features_imputed = feature_extractor_w_imputation.fit_transform(dyn_df.copy())
-    print(dyn_df_w_features_imputed)
+        dyn_df_imputed = dyn_rec.prep()
+        pq.write_table(pa.Table.from_pandas(dyn_df_imputed), dyn_imputed_path)
+    else:
+        logging.info(f"Imputated dynamic data in {dyn_imputed_path} exists, skipping")
+
+    if not dyn_w_features_imputed_path.exists():
+        logging.info("Generating features and imputing data")
+        # train_df = dyn_df.loc['train']
+        dyn_rec = Recipe(dyn_df, [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
+        
+        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
+        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
+        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.COUNT, suffix="count_hist"))
+        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MEAN, suffix="mean_hist"))
+        # # dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_predictors(), in_place=False))
+        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), method='ffill'))
+        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), value=dyn_df.loc['train'].mean()))
+        dyn_rec.add_step(StepImputeFill(sel=ends_with('_hist'), value=0))
+
+        dyn_df_w_features_imputed = dyn_rec.prep()
+        pq.write_table(pa.Table.from_pandas(dyn_df_w_features_imputed), dyn_w_features_imputed_path)
+    else:
+        logging.info(f"Imputated dynamic data with features in {dyn_w_features_imputed_path} exists, skipping")
 
 
 def main(my_args=tuple(sys.argv[1:])):

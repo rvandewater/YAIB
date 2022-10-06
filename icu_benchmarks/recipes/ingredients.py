@@ -40,8 +40,8 @@ class Ingredients(pd.DataFrame):
             self.roles = {}
         elif not isinstance(roles, dict):
             raise TypeError(f"expected dict object for roles, got {roles.__class__}")
-        elif not np.all([k in self.columns for k in roles]):
-            raise ValueError("roles contains variable name that is not in the data.")
+        # elif not np.all([k in self.columns for k in roles]):
+        #     raise ValueError("roles contains variable name that is not in the data.")
         else:
             if copy is None or copy is True:
                 self.roles = deepcopy(roles)
