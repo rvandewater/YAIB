@@ -12,7 +12,6 @@ def example_df():
     df = pd.DataFrame(
         {
             "id": [1] * 6 + [2] * 4,
-            #"time": np.concatenate((np.arange(6), np.arange(4))),
             "time": pd.to_timedelta(np.concatenate((np.arange(6), np.arange(4))), unit="h"),
             "y": rand_state.normal(size=(10,)),
             "x1": rand_state.normal(loc=10, scale=5, size=(10,)),
