@@ -1,11 +1,11 @@
 import pandas as pd
 import pyarrow as pa
-from sklearn.base import TransformerMixin
 
 from icu_benchmarks.common import constants
 
 VARS = constants.VARS
 FILE_NAMES = constants.FILE_NAMES
+
 
 # TODO make function take df
 # TODO make proportions of splits as parameter

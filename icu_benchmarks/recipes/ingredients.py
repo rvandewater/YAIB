@@ -1,5 +1,4 @@
 from copy import deepcopy
-import numpy as np
 import pandas as pd
 
 from pandas._typing import Axes, Dtype
@@ -24,11 +23,7 @@ class Ingredients(pd.DataFrame):
         self, data=None, index: Axes = None, columns: Axes = None, dtype: Dtype = None, copy: bool = None, roles: dict = None
     ):
         super().__init__(
-            data,
-            index,
-            columns,
-            dtype,
-            copy,
+            data, index, columns, dtype, copy,
         )
 
         if isinstance(data, Ingredients) and roles is None:

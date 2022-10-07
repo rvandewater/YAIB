@@ -3,7 +3,6 @@ import argparse
 import logging
 import os
 import sys
-import pandas as pd
 from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -266,7 +265,7 @@ def build_parser():
     # parser_evaluate = subparsers.add_parser('evaluate', help='evaluate',
     #                                         parents=[parent_parser])
 
-    parser_train = subparsers.add_parser("train", help="train", parents=[parent_parser])
+    subparsers.add_parser("train", help="train", parents=[parent_parser])
     return parser
 
 
