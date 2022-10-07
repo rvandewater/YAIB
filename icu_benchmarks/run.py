@@ -269,27 +269,29 @@ def build_parser():
     parser_train = subparsers.add_parser("train", help="train", parents=[parent_parser])
     return parser
 
+
 def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str):
-    data['train'][type] = recipe.prep()
-    data['val'][type] = recipe.bake(data['val'][type])
-    data['test'][type] = recipe.prep(data['test'][type])
+    data["train"][type] = recipe.prep()
+    data["val"][type] = recipe.bake(data["val"][type])
+    data["test"][type] = recipe.prep(data["test"][type])
     return data
+
 
 def run_preprocessing(work_dir: Path) -> dict[dict[pd.DataFrame]]:
     data = load_data(work_dir)
-    
+
     logging.info("Generating splits")
     data = make_single_split(data)
 
     logging.info("Preprocess static data")
-    sta_rec = Recipe(data['train']['STATIC'], [], VARS["STATIC_VARS"], VARS["STAY_ID"])
+    sta_rec = Recipe(data["train"]["STATIC"], [], VARS["STATIC_VARS"], VARS["STAY_ID"])
     sta_rec.add_step(StepScale())
     sta_rec.add_step(StepImputeFill(value=0))
 
     data = apply_recipe_to_splits(sta_rec, data, "STATIC")
 
     logging.info("Preprocess dynamic data")
-    dyn_rec = Recipe(data['train']['DYNAMIC'], [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
+    dyn_rec = Recipe(data["train"]["DYNAMIC"], [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
     dyn_rec.add_step(StepScale())
     dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
     dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
@@ -297,7 +299,7 @@ def run_preprocessing(work_dir: Path) -> dict[dict[pd.DataFrame]]:
     dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MEAN, suffix="mean_hist"))
     dyn_rec.add_step(StepImputeFill(method="ffill"))
     dyn_rec.add_step(StepImputeFill(value=0))
-    
+
     data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")
 
     logging.info("Finished preprocessing")
