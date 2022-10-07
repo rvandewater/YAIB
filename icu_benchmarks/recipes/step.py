@@ -298,9 +298,6 @@ class StepScale:
             Set to False to have the step generate new columns instead of overwriting the existing ones.
         role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
     """
-    def __new__(cls,
-        sel: Selector = all_numeric_predictors(),
-        in_place: bool = True,
-        role: str = "predictor"
-    ):
+
+    def __new__(cls, sel: Selector = all_numeric_predictors(), in_place: bool = True, role: str = "predictor"):
         return StepSklearn(StandardScaler(), sel=sel, in_place=in_place, role=role)
