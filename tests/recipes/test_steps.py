@@ -23,8 +23,8 @@ from sklearn.experimental import enable_iterative_imputer  # noqa: F401
 from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer, MissingIndicator
 
 from icu_benchmarks.recipes.recipe import Recipe
-from icu_benchmarks.recipes.selector import all_numeric_predictors, has_type, has_role, all_of
-from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator, StepImputeFill
+from icu_benchmarks.recipes.selector import all_numeric_predictors, sequence, has_type, has_role, all_of
+from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator, StepImputeFill, StepResampling
 
 
 @pytest.fixture()
@@ -36,6 +36,27 @@ def example_recipe(example_df):
 def example_recipe_w_nan(example_df):
     example_df.loc[[1, 2, 4, 7], "x1"] = np.nan
     return Recipe(example_df, ["y"], ["x1", "x2", "x3", "x4"], ["id"])  # FIXME: add squence when merged
+
+
+class TestStepResampling:
+    def test_step_sel(self, example_df):
+        # Using selected columns
+        pre_sampling_len = example_df.shape[0]
+        rec = Recipe(example_df, ["y"], ["x1", "x2"], ["id"])
+        rec.update_roles("time", "sequence")
+        rec.add_step(StepResampling("2h", all_numeric_predictors(), Accumulator.MEAN, Accumulator.LAST, sequence()))
+        df = rec.bake()
+        assert df.shape[0] == pre_sampling_len / 2
+
+    def test_step_dictionary(self, example_df):
+        # Using dictionary with selectors and accumulators
+        pre_sampling_len = example_df.shape[0]
+        rec = Recipe(example_df, ["y"], ["x1", "x2"], ["id"])
+        rec.update_roles("time", "sequence")
+        resampling_dict = {all_numeric_predictors(): Accumulator.MEAN}
+        rec.add_step(StepResampling("2h", sequence(), acc_meth_dict=resampling_dict))
+        df = rec.bake()
+        assert df.shape[0] == pre_sampling_len / 2
 
 
 class TestStepHistorical:

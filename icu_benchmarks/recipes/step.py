@@ -6,7 +6,7 @@ from pandas.core.groupby import DataFrameGroupBy
 from sklearn.preprocessing import StandardScaler
 from icu_benchmarks.recipes.ingredients import Ingredients
 from enum import Enum
-from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors, sequence
+from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors, sequence, groups
 
 
 class Step:
@@ -320,7 +320,7 @@ class StepResampling(Step):
         sel_acc: Accumulator = Accumulator.MEAN,
         not_sel_acc: Accumulator = Accumulator.LAST,
         seq_role: Selector = sequence(),
-        acc_meth_dict: {Selector, Accumulator} = None
+        acc_meth_dict: {Selector, Accumulator} = None,
     ):
         """This class represents a step in a recipe.
 
@@ -350,8 +350,8 @@ class StepResampling(Step):
         new_data = self._check_ingredients(data)
 
         # Prepare accumulation method dictionary
-        if(self.acc_dict is None):
-            # Get selected columns
+        if self.acc_dict is None:
+            # Dictionary with individual accumulators is not provided
             sel_columns = self.sel(new_data)
             # Get other columns
             not_sel_columns = new_data.columns.difference(sel_columns).values.tolist()
@@ -367,26 +367,33 @@ class StepResampling(Step):
 
             acc_dict = sel_acc_dict
         else:
+            # Dictionary with accumulators is provided
             new_dict = {}
-
-            # Go through supplied dictionary
+            # Go through supplied Selector, Accumulator pairs
             for key in self.acc_dict:
                 variables = key(new_data)
                 # Add variables associated with selector with supplied accumulator
                 new_dict.update({el: self.sel_acc.value for el in variables})
 
-            # Add non-specified variables with not selected accumulator
-            new_dict.update({el: self.not_sel_acc.value for el in new_data.columns.difference(new_dict.keys()) if el not in self.sequence_role(new_data)})
+            # Add non-specified variables with not_sel_acc, if not a sequence role
+            new_dict.update(
+                {
+                    el: self.not_sel_acc.value
+                    for el in new_data.columns.difference(new_dict.keys())
+                    if el not in self.sequence_role(new_data)
+                }
+            )
             acc_dict = new_dict
 
         # Resample per stay id
-        new_data = new_data.groupby("stay_id")
+        new_data = new_data.groupby(groups()(data))
 
         # Resampling with the functions defined in sel_dictionary
         new_data = new_data.resample(self.new_resolution, on=self.sequence_role(data)[0]).agg(acc_dict)
 
         # Remove multi-index
-        new_data = new_data.droplevel("stay_id")
+        new_data = new_data.droplevel(groups()(data))
         new_data = new_data.reset_index(drop=False)
-        new_data = new_data.set_index("stay_id")
+        new_data = new_data.set_index(groups()(data))
+
         return new_data
