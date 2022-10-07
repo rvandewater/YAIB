@@ -291,6 +291,16 @@ class StepSklearn(Step):
 
 
 class StepScale:
-    def __new__(cls, **kwargs):
-        # unpack kwargs and sel from dict so that sel can be overwritten by user
-        return StepSklearn(StandardScaler(), **{"sel": all_numeric_predictors(), **kwargs})
+    """Provides a wrapper for a scaling with StepSklearn.
+
+     Args:
+        in_place (bool, optional): Defaults to True.
+            Set to False to have the step generate new columns instead of overwriting the existing ones.
+        role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
+    """
+    def __new__(cls,
+        sel: Selector = all_numeric_predictors(),
+        in_place: bool = True,
+        role: str = "predictor"
+    ):
+        return StepSklearn(StandardScaler(), sel=sel, in_place=in_place, role=role)
