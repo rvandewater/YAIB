@@ -274,3 +274,13 @@ def all_outcomes() -> Selector:
     sel = has_role(["outcome"])
     sel.description = "all outcomes"
     return sel
+
+def sequence() -> Selector:
+    """Select sequence column
+
+    Returns:
+        Selector: object representing the sequence role
+    """
+    sel = has_role(["sequence"])
+    sel.description = "sequence"
+    return sel
