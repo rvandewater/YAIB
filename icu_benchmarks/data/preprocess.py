@@ -1,42 +1,56 @@
 import pandas as pd
-import pyarrow as pa
-from sklearn.base import TransformerMixin
+import numpy as np
+import pyarrow.parquet as pq
+from pathlib import Path
 
 from icu_benchmarks.common import constants
 
 VARS = constants.VARS
 FILE_NAMES = constants.FILE_NAMES
 
-# TODO make function take df
-# TODO make proportions of splits as parameter
-def generate_splits(sta_path, outc_path, dyn_path, static_splits_path, labels_splits_path, dyn_splits_path):
+
+def load_data(data_dir: Path) -> dict[pd.DataFrame]:
+    """Load data from disk
+
+    Args:
+        data_dir (Path): path to folder with data stored as parquet files
+
+    Returns:
+        dict[pd.DataFrame]: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC. 
     """
-    1. Generates training, validation and test splits in the data.
-    2. Merges dynamic data with splits for easy accessing.
+    data = {}
+    for f in ['STATIC', 'DYNAMIC', 'OUTCOME']:
+        data[f] = pq.read_table(data_dir / constants.FILE_NAMES[f]).to_pandas()
+    return data
+
+
+def make_single_split(data: dict[pd.DataFrame], train_pct: float = 0.7, val_pct: float = 0.1, seed: int = 42) -> dict[dict[pd.DataFrame]]:
+    """Randomly split the data into training, validation, and test set
+
+    Args:
+        data (dict[pd.DataFrame]): dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC. 
+        train_pct (float, optional): Proportion of stays assigned to training fold. Defaults to 0.7.
+        val_pct (float, optional): Proportion of stays assigned to validation fold. Defaults to 0.1.
+        seed (int, optional): Random seed. Defaults to 42.
+
+    Returns:
+        dict[dict[pd.DataFrame]]: input data divided into 'train', 'val', and 'test'
     """
-    static_df = pa.parquet.read_table(sta_path).to_pandas()
+    id = VARS['STAY_ID']
+    stays = data['OUTCOME'][[id]]
+    stays = stays.sample(frac=1, random_state=seed)
 
-    train_df = static_df.sample(frac=0.7, random_state=3333)
-    train_df["split"] = "train"
+    num_stays = len(stays)
+    delims = (num_stays * np.array([0, train_pct, train_pct + val_pct, 1])).astype(int)
+    
+    splits = {'train': {}, 'val': {}, 'test': {}} 
+    for i, fold in enumerate(splits.keys()):
+        # Loop through train / val / test
+        stays_in_fold = stays.iloc[delims[i]:delims[i+1], :]
+        for type in data.keys():
+            # Loop through DYNAMIC / STATIC / OUTCOME
+            splits[fold][type] = data[type].merge(stays_in_fold, on=id, how="right")
 
-    validation_df = static_df.drop(train_df.index).sample(frac=0.5, random_state=25)
-    validation_df["split"] = "val"
-
-    test_df = static_df.drop(train_df.index).drop(validation_df.index)
-    test_df["split"] = "test"
-
-    static_splits_df = pd.concat([train_df, validation_df, test_df]).sort_index()
-    splits_reindexed_df = static_splits_df.set_index("split")
-    pa.parquet.write_table(pa.Table.from_pandas(splits_reindexed_df), static_splits_path)
-
-    splits_df = static_splits_df[["split", VARS["STAY_ID"]]]
-
-    dyn_df = pa.parquet.read_table(dyn_path).to_pandas()
-    dyn_with_splits_df = dyn_df.merge(splits_df, on=VARS["STAY_ID"]).set_index(["split"])
-
-    # TODO check whether this works for different label format too
-    outc_df = pa.parquet.read_table(outc_path).to_pandas()
-    labels_splits_df = outc_df.merge(splits_df, on=VARS["STAY_ID"]).set_index(["split"])
-    pa.parquet.write_table(pa.Table.from_pandas(labels_splits_df), labels_splits_path)
-
-    return pa.parquet.write_table(pa.Table.from_pandas(dyn_with_splits_df), dyn_splits_path)
+    return splits
+    
+    
