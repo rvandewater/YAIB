@@ -12,10 +12,10 @@ import pyarrow.parquet as pq
 from icu_benchmarks.common import constants
 
 from icu_benchmarks.common.constants import VARS
-from icu_benchmarks.data.preprocess import generate_splits
+from icu_benchmarks.data.preprocess import load_data, make_single_split
 from icu_benchmarks.recipes.recipe import Recipe
-from icu_benchmarks.recipes.selector import all_numeric_predictors, ends_with, all_of
-from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill
+from icu_benchmarks.recipes.selector import all_of
+from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
 
@@ -24,7 +24,7 @@ default_seed = 42
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        description="Benchmark lib for processing and evaluation of deep learning models on HiRID ICU data"
+        description="Benchmark lib for processing and evaluation of deep learning models on ICU data"
     )
 
     parent_parser = argparse.ArgumentParser(add_help=False)
@@ -269,68 +269,40 @@ def build_parser():
     parser_train = subparsers.add_parser("train", help="train", parents=[parent_parser])
     return parser
 
+def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str):
+    data['train'][type] = recipe.prep()
+    data['val'][type] = recipe.bake(data['val'][type])
+    data['test'][type] = recipe.prep(data['test'][type])
+    return data
 
-def run_preprocessing(work_dir):
-    sta_path = work_dir / constants.FILE_NAMES["STATIC"]
-    dyn_path = work_dir / constants.FILE_NAMES["DYNAMIC"]
-    outc_path = work_dir / constants.FILE_NAMES["OUTCOME"]
+def run_preprocessing(work_dir: Path) -> dict[dict[pd.DataFrame]]:
+    data = load_data(work_dir)
+    
+    logging.info("Generating splits")
+    data = make_single_split(data)
 
-    static_splits_path = work_dir / constants.FILE_NAMES["STATIC_SPLITS"]
-    labels_splits_path = work_dir / constants.FILE_NAMES["LABELS_SPLITS"]
-    dyn_splits_path = work_dir / constants.FILE_NAMES["DYNAMIC_SPLITS"]
+    logging.info("Preprocess static data")
+    sta_rec = Recipe(data['train']['STATIC'], [], VARS["STATIC_VARS"], VARS["STAY_ID"])
+    sta_rec.add_step(StepScale())
+    sta_rec.add_step(StepImputeFill(value=0))
 
-    sta_imputed_path = work_dir / constants.FILE_NAMES["STATIC_IMPUTED"]
-    dyn_imputed_path = work_dir / constants.FILE_NAMES["DYNAMIC_IMPUTED"]
-    dyn_w_features_imputed_path = work_dir / constants.FILE_NAMES["FEATURES_IMPUTED"]
+    data = apply_recipe_to_splits(sta_rec, data, "STATIC")
 
-    if not static_splits_path.exists() or not labels_splits_path.exists() or not dyn_splits_path.exists():
-        logging.info("Generating splits")
-        generate_splits(sta_path, outc_path, dyn_path, static_splits_path, labels_splits_path, dyn_splits_path)
-    else:
-        logging.info(f"Splits in {work_dir} exist, skipping")
+    logging.info("Preprocess dynamic data")
+    dyn_rec = Recipe(data['train']['DYNAMIC'], [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
+    dyn_rec.add_step(StepScale())
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.COUNT, suffix="count_hist"))
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MEAN, suffix="mean_hist"))
+    dyn_rec.add_step(StepImputeFill(method="ffill"))
+    dyn_rec.add_step(StepImputeFill(value=0))
+    
+    data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")
 
-    if not sta_imputed_path.exists():
-        logging.info("Imputing dynamic data")
-        sta_df = pq.read_table(static_splits_path).to_pandas()
-        print(sta_df)
-        sta_rec = Recipe(sta_df, [], VARS["STATIC_VARS"], VARS["STAY_ID"])
-        # # sta_rec.add_step(StepSklearn(MissingIndicator(), sel=all_predictors(), in_place=False))
-        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), value=sta_df.loc["train"].mean()))
-        sta_df_imputed = sta_rec.prep()
-        pq.write_table(pa.Table.from_pandas(sta_df_imputed), sta_imputed_path)
-    else:
-        logging.info(f"Imputated static data in {sta_imputed_path} exists, skipping")
+    logging.info("Finished preprocessing")
 
-    dyn_df = pq.read_table(dyn_splits_path).to_pandas()
-    if not dyn_imputed_path.exists():
-        logging.info("Imputing dynamic data")
-        dyn_rec = Recipe(dyn_df, [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
-        # # dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_predictors(), in_place=False))
-        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), method="ffill"))
-        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), value=dyn_df.loc["train"].mean()))
-        dyn_df_imputed = dyn_rec.prep()
-        pq.write_table(pa.Table.from_pandas(dyn_df_imputed), dyn_imputed_path)
-    else:
-        logging.info(f"Imputated dynamic data in {dyn_imputed_path} exists, skipping")
-
-    if not dyn_w_features_imputed_path.exists():
-        logging.info("Generating features and imputing data")
-        # train_df = dyn_df.loc['train']
-        dyn_rec = Recipe(dyn_df, [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
-
-        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.COUNT, suffix="count_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MEAN, suffix="mean_hist"))
-        # # dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_predictors(), in_place=False))
-        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), method="ffill"))
-        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), value=dyn_df.loc["train"].mean()))
-        dyn_rec.add_step(StepImputeFill(sel=ends_with("_hist"), value=0))
-
-        dyn_df_w_features_imputed = dyn_rec.prep()
-        pq.write_table(pa.Table.from_pandas(dyn_df_w_features_imputed), dyn_w_features_imputed_path)
-    else:
-        logging.info(f"Imputated dynamic data with features in {dyn_w_features_imputed_path} exists, skipping")
+    return data
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -340,64 +312,61 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
 
-    # Dispatch
-    if args.command == "preprocess":
-        run_preprocessing(args.data_dir)
+    data = run_preprocessing(args.data_dir)
 
-    if args.command in ["train", "evaluate"]:
-        load_weights = args.command == "evaluate"
-        reproducible = str(args.reproducible) == "True"
-        if not isinstance(args.seed, list):
-            seeds = [args.seed]
-        else:
-            seeds = args.seed
-        if not load_weights:
+    load_weights = args.command == "evaluate"
+    reproducible = str(args.reproducible) == "True"
+    if not isinstance(args.seed, list):
+        seeds = [args.seed]
+    else:
+        seeds = args.seed
+    if not load_weights:
+        gin_bindings, log_dir = get_bindings_and_params(args)
+    else:
+        gin_bindings, _ = get_bindings_and_params(args)
+        log_dir = args.logdir
+    if args.rs:
+        reproducible = False
+        max_attempt = 0
+        is_already_ran = os.path.isdir(log_dir)
+        while is_already_ran and max_attempt < 500:
             gin_bindings, log_dir = get_bindings_and_params(args)
-        else:
-            gin_bindings, _ = get_bindings_and_params(args)
-            log_dir = args.logdir
-        if args.rs:
-            reproducible = False
-            max_attempt = 0
             is_already_ran = os.path.isdir(log_dir)
-            while is_already_ran and max_attempt < 500:
-                gin_bindings, log_dir = get_bindings_and_params(args)
-                is_already_ran = os.path.isdir(log_dir)
-                max_attempt += 1
-            if max_attempt >= 300:
-                raise Exception("Reached max attempt to find unexplored set of parameters parameters")
+            max_attempt += 1
+        if max_attempt >= 300:
+            raise Exception("Reached max attempt to find unexplored set of parameters parameters")
 
-        if args.task is not None:
-            for task in args.task:
-                gin_bindings_task = gin_bindings + ["TASK = " + "'" + str(task) + "'"]
-                log_dir_task = os.path.join(log_dir, str(task))
-                for seed in seeds:
-                    if not load_weights:
-                        log_dir_seed = os.path.join(log_dir_task, str(seed))
-                    else:
-                        log_dir_seed = log_dir_task
-                    train_with_gin(
-                        model_dir=log_dir_seed,
-                        overwrite=args.overwrite,
-                        load_weights=load_weights,
-                        gin_config_files=args.config,
-                        gin_bindings=gin_bindings_task,
-                        seed=seed,
-                        reproducible=reproducible,
-                    )
-        else:
+    if args.task is not None:
+        for task in args.task:
+            gin_bindings_task = gin_bindings + ["TASK = " + "'" + str(task) + "'"]
+            log_dir_task = os.path.join(log_dir, str(task))
             for seed in seeds:
                 if not load_weights:
-                    log_dir_seed = os.path.join(log_dir, str(seed))
+                    log_dir_seed = os.path.join(log_dir_task, str(seed))
+                else:
+                    log_dir_seed = log_dir_task
                 train_with_gin(
                     model_dir=log_dir_seed,
                     overwrite=args.overwrite,
                     load_weights=load_weights,
                     gin_config_files=args.config,
-                    gin_bindings=gin_bindings,
+                    gin_bindings=gin_bindings_task,
                     seed=seed,
                     reproducible=reproducible,
                 )
+    else:
+        for seed in seeds:
+            if not load_weights:
+                log_dir_seed = os.path.join(log_dir, str(seed))
+            train_with_gin(
+                model_dir=log_dir_seed,
+                overwrite=args.overwrite,
+                load_weights=load_weights,
+                gin_config_files=args.config,
+                gin_bindings=gin_bindings,
+                seed=seed,
+                reproducible=reproducible,
+            )
 
 
 """Main module."""
