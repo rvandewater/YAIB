@@ -190,13 +190,13 @@ class StepHistorical(Step):
             res = data[self.columns].cummin(skipna=True)
         elif self.fun is Accumulator.MEAN:
             # Reset index, as we get back a multi-index, and we want a simple rolling index
-            res = data[self.columns].expanding().mean().reset_index(level='stay_id', drop=True)
+            res = data[self.columns].expanding().mean().reset_index(level="stay_id", drop=True)
         elif self.fun is Accumulator.MEDIAN:
-            res = data[self.columns].expanding().median().reset_index(level='stay_id', drop=True)
+            res = data[self.columns].expanding().median().reset_index(level="stay_id", drop=True)
         elif self.fun is Accumulator.COUNT:
-            res = data[self.columns].expanding().count().reset_index(level='stay_id', drop=True)
+            res = data[self.columns].expanding().count().reset_index(level="stay_id", drop=True)
         elif self.fun is Accumulator.VAR:
-            res = data[self.columns].expanding().var().reset_index(level='stay_id', drop=True)
+            res = data[self.columns].expanding().var().reset_index(level="stay_id", drop=True)
         else:
             raise TypeError(f"Expected Accumulator enum for function, got {self.fun.__class__}")
 

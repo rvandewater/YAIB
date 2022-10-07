@@ -7,6 +7,7 @@ import pandas as pd
 from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
+
 # from sklearn.impute import MissingIndicator
 from icu_benchmarks.common import constants
 
@@ -265,8 +266,7 @@ def build_parser():
     # parser_evaluate = subparsers.add_parser('evaluate', help='evaluate',
     #                                         parents=[parent_parser])
 
-    parser_train = subparsers.add_parser('train', help='train',
-                                         parents=[parent_parser])
+    parser_train = subparsers.add_parser("train", help="train", parents=[parent_parser])
     return parser
 
 
@@ -295,7 +295,7 @@ def run_preprocessing(work_dir):
         print(sta_df)
         sta_rec = Recipe(sta_df, [], VARS["STATIC_VARS"], VARS["STAY_ID"])
         # # sta_rec.add_step(StepSklearn(MissingIndicator(), sel=all_predictors(), in_place=False))
-        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), value=sta_df.loc['train'].mean()))
+        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), value=sta_df.loc["train"].mean()))
         sta_df_imputed = sta_rec.prep()
         pq.write_table(pa.Table.from_pandas(sta_df_imputed), sta_imputed_path)
     else:
@@ -306,8 +306,8 @@ def run_preprocessing(work_dir):
         logging.info("Imputing dynamic data")
         dyn_rec = Recipe(dyn_df, [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
         # # dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_predictors(), in_place=False))
-        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), method='ffill'))
-        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), value=dyn_df.loc['train'].mean()))
+        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), method="ffill"))
+        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), value=dyn_df.loc["train"].mean()))
         dyn_df_imputed = dyn_rec.prep()
         pq.write_table(pa.Table.from_pandas(dyn_df_imputed), dyn_imputed_path)
     else:
@@ -317,15 +317,15 @@ def run_preprocessing(work_dir):
         logging.info("Generating features and imputing data")
         # train_df = dyn_df.loc['train']
         dyn_rec = Recipe(dyn_df, [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
-        
+
         dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
         dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
         dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.COUNT, suffix="count_hist"))
         dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MEAN, suffix="mean_hist"))
         # # dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_predictors(), in_place=False))
-        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), method='ffill'))
-        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), value=dyn_df.loc['train'].mean()))
-        dyn_rec.add_step(StepImputeFill(sel=ends_with('_hist'), value=0))
+        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), method="ffill"))
+        dyn_rec.add_step(StepImputeFill(sel=all_of(VARS["DYNAMIC_VARS"]), value=dyn_df.loc["train"].mean()))
+        dyn_rec.add_step(StepImputeFill(sel=ends_with("_hist"), value=0))
 
         dyn_df_w_features_imputed = dyn_rec.prep()
         pq.write_table(pa.Table.from_pandas(dyn_df_w_features_imputed), dyn_w_features_imputed_path)

@@ -97,7 +97,14 @@ class RICULoader(object):
         self.static_df = parquet.read_table(pth.join(data_path, FILE_NAMES["STATIC_IMPUTED"])).to_pandas().loc[self.split]
         self.outc_df = parquet.read_table(pth.join(data_path, FILE_NAMES["OUTCOME"])).to_pandas()
         self.labels_df = parquet.read_table(pth.join(data_path, FILE_NAMES["LABELS_SPLITS"])).to_pandas().loc[self.split]
-        self.dyn_df = parquet.read_table(pth.join(data_path, FILE_NAMES["FEATURES_IMPUTED"] if use_features else FILE_NAMES["DYNAMIC_IMPUTED"])).to_pandas().loc[self.split].set_index(VARS["STAY_ID"])
+        self.dyn_df = (
+            parquet.read_table(
+                pth.join(data_path, FILE_NAMES["FEATURES_IMPUTED"] if use_features else FILE_NAMES["DYNAMIC_IMPUTED"])
+            )
+            .to_pandas()
+            .loc[self.split]
+            .set_index(VARS["STAY_ID"])
+        )
         if use_static:
             self.dyn_df = pd.concat([self.dyn_df, self.static_df.set_index(VARS["STAY_ID"])], axis=1).drop(
                 labels="sex", axis=1
