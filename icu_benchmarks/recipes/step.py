@@ -1,6 +1,8 @@
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Union
+
+import pandas as pd
 from scipy.sparse import isspmatrix
 from pandas.core.groupby import DataFrameGroupBy
 from sklearn.preprocessing import StandardScaler
@@ -333,7 +335,7 @@ class StepResampling(Step):
             sel_acc: (Accumulator) Accumulation method for selected columns
             not_sel_acc: (Accumulator) Accumulation method for all non-selected columns
             seq_role (Selector) : Temporal role in supplied Ingredients.
-
+            acc_meth_dict ({Selector, Accumulator}, Optional) : Alternatively supply dictionary with individual accumulator methods
         """
         super().__init__(sel=sel)
         self.new_resolution = new_resolution
@@ -348,6 +350,13 @@ class StepResampling(Step):
 
     def transform(self, data):
         new_data = self._check_ingredients(data)
+
+        # Check for sequence role
+        sequence_role= self.sequence_role(new_data)
+        sequence_datatype = new_data.dtypes[sequence_role[0]]
+
+        if not (pd.api.types.is_timedelta64_dtype(sequence_datatype) or pd.api.types.is_datetime64_any_dtype(sequence_datatype)):
+            raise ValueError(f"Expected Timedelta or Timestamp object, got {self.sequence_role(data).__class__}")
 
         # Prepare accumulation method dictionary
         if self.acc_dict is None:
