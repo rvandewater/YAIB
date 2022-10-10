@@ -21,7 +21,7 @@ class Selector:
         names: Union[str, list[str]] = None,
         roles: Union[str, list[str]] = None,
         types: Union[str, list[str]] = None,
-        pattern: re.Pattern = None
+        pattern: re.Pattern = None,
     ):
         self.description = description
         self.set_names(names)
@@ -145,7 +145,7 @@ def intersection(x: list, y: list) -> list:
 
 
 def all_of(names: Union[str, list[str]]) -> Selector:
-    """Select any columns with one of the given names
+    """Define selector for any columns with one of the given names
 
     Args:
         names (Union[str, list[str]]): names to select
@@ -157,7 +157,7 @@ def all_of(names: Union[str, list[str]]) -> Selector:
 
 
 def regex_names(regex: str) -> Selector:
-    """Select any columns where the name matches the regex pattern
+    """Define selector for any columns where the name matches the regex pattern
 
     Args:
         pattern (str): string to be transformed to regex pattern to search for
@@ -166,11 +166,11 @@ def regex_names(regex: str) -> Selector:
         Selector: object representing the selection rule
     """
     pattern = re.compile(regex)
-    return Selector(description=f'regex: {regex}', pattern=pattern)
+    return Selector(description=f"regex: {regex}", pattern=pattern)
 
 
 def starts_with(prefix: str) -> Selector:
-    """Select any columns where the name starts with the prefix
+    """Define selector for any columns where the name starts with the prefix
 
     Args:
         prefix (str): prefix to search for
@@ -178,11 +178,11 @@ def starts_with(prefix: str) -> Selector:
     Returns:
         Selector: object representing the selection rule
     """
-    return regex_names(f'^{prefix}')
+    return regex_names(f"^{prefix}")
 
 
 def ends_with(suffix: str) -> Selector:
-    """Select any columns where the name ends with the suffix
+    """Define selector for any columns where the name ends with the suffix
 
     Args:
         prsuffixefix (str): suffix to search for
@@ -190,11 +190,11 @@ def ends_with(suffix: str) -> Selector:
     Returns:
         Selector: object representing the selection rule
     """
-    return regex_names(f'{suffix}$')
+    return regex_names(f"{suffix}$")
 
 
 def contains(substring: str) -> Selector:
-    """Select any columns where the name contains the substring
+    """Define selector for any columns where the name contains the substring
 
     Args:
         substring (str): substring to search for
@@ -202,11 +202,11 @@ def contains(substring: str) -> Selector:
     Returns:
         Selector: object representing the selection rule
     """
-    return regex_names(f'{substring}')
+    return regex_names(f"{substring}")
 
 
 def has_role(roles: Union[str, list[str]]) -> Selector:
-    """Select any columns with one of the given roles
+    """Define selector for any columns with one of the given roles
 
     Args:
         roles (Union[str, list[str]]): roles to select
@@ -218,7 +218,7 @@ def has_role(roles: Union[str, list[str]]) -> Selector:
 
 
 def has_type(types: Union[str, list[str]]) -> Selector:
-    """Select any columns with one of the given types
+    """Define selector for any columns with one of the given types
 
     Args:
         types (Union[str, list[str]]): data types to select
@@ -233,17 +233,8 @@ def has_type(types: Union[str, list[str]]) -> Selector:
     return Selector(description=f"types: {types}", types=types)
 
 
-def groups() -> Selector:
-    """Select any grouping variables
-
-    Returns:
-        Selector: object representing the selection rule
-    """
-    return Selector(description="grouping variables", roles=["group"])
-
-
 def all_predictors() -> Selector:
-    """Select all predictor columns
+    """Define selector for all predictor columns
 
     Returns:
         Selector: object representing the selection rule
@@ -254,7 +245,7 @@ def all_predictors() -> Selector:
 
 
 def all_numeric_predictors() -> Selector:
-    """Select all numerical predictor columns
+    """Define selector for all numerical predictor columns
 
     Returns:
         Selector: object representing the selection rule
@@ -266,7 +257,7 @@ def all_numeric_predictors() -> Selector:
 
 
 def all_outcomes() -> Selector:
-    """Select outcome columns
+    """Define selector for all outcome columns
 
     Returns:
         Selector: object representing the selection rule
@@ -274,3 +265,25 @@ def all_outcomes() -> Selector:
     sel = has_role(["outcome"])
     sel.description = "all outcomes"
     return sel
+
+
+def select_groups(ingr: Ingredients) -> list[str]:
+    """Select any grouping columns
+
+    Defines and directly applies Selector(roles=["group"])
+
+    Returns:
+        list[str]: grouping columns
+    """
+    return Selector(description="grouping variables", roles=["group"])(ingr)
+
+
+def select_sequence(ingr: Ingredients) -> list[str]:
+    """Select any sequence columns
+
+    Defines and directly applies Selector(roles=["sequence"])
+
+    Returns:
+        list[str]: grouping columns
+    """
+    return Selector(description="sequence variables", roles=["sequence"])(ingr)
