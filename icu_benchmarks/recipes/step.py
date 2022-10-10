@@ -345,7 +345,7 @@ class StepResampling(Step):
         self.acc_dict = acc_meth_dict
         self._group = False
 
-    def fit(self, data):
+    def do_fit(self, data: Ingredients):
         self._trained = True
 
     def transform(self, data):
