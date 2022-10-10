@@ -352,10 +352,12 @@ class StepResampling(Step):
         new_data = self._check_ingredients(data)
 
         # Check for sequence role
-        sequence_role= self.sequence_role(new_data)
+        sequence_role = self.sequence_role(new_data)
         sequence_datatype = new_data.dtypes[sequence_role[0]]
 
-        if not (pd.api.types.is_timedelta64_dtype(sequence_datatype) or pd.api.types.is_datetime64_any_dtype(sequence_datatype)):
+        if not (
+            pd.api.types.is_timedelta64_dtype(sequence_datatype) or pd.api.types.is_datetime64_any_dtype(sequence_datatype)
+        ):
             raise ValueError(f"Expected Timedelta or Timestamp object, got {self.sequence_role(data).__class__}")
 
         # Prepare accumulation method dictionary

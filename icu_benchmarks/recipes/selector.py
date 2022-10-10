@@ -21,7 +21,7 @@ class Selector:
         names: Union[str, list[str]] = None,
         roles: Union[str, list[str]] = None,
         types: Union[str, list[str]] = None,
-        pattern: re.Pattern = None
+        pattern: re.Pattern = None,
     ):
         self.description = description
         self.set_names(names)
@@ -166,7 +166,7 @@ def regex_names(regex: str) -> Selector:
         Selector: object representing the selection rule
     """
     pattern = re.compile(regex)
-    return Selector(description=f'regex: {regex}', pattern=pattern)
+    return Selector(description=f"regex: {regex}", pattern=pattern)
 
 
 def starts_with(prefix: str) -> Selector:
@@ -178,7 +178,7 @@ def starts_with(prefix: str) -> Selector:
     Returns:
         Selector: object representing the selection rule
     """
-    return regex_names(f'^{prefix}')
+    return regex_names(f"^{prefix}")
 
 
 def ends_with(suffix: str) -> Selector:
@@ -190,7 +190,7 @@ def ends_with(suffix: str) -> Selector:
     Returns:
         Selector: object representing the selection rule
     """
-    return regex_names(f'{suffix}$')
+    return regex_names(f"{suffix}$")
 
 
 def contains(substring: str) -> Selector:
@@ -202,7 +202,7 @@ def contains(substring: str) -> Selector:
     Returns:
         Selector: object representing the selection rule
     """
-    return regex_names(f'{substring}')
+    return regex_names(f"{substring}")
 
 
 def has_role(roles: Union[str, list[str]]) -> Selector:
@@ -274,6 +274,7 @@ def all_outcomes() -> Selector:
     sel = has_role(["outcome"])
     sel.description = "all outcomes"
     return sel
+
 
 def sequence() -> Selector:
     """Select sequence column
