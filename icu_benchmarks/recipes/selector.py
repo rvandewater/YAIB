@@ -267,6 +267,15 @@ def all_outcomes() -> Selector:
     return sel
 
 
+def all_groups() -> Selector:
+    """Define selector for all grouping variables
+
+    Returns:
+        Selector: object representing the selection rule
+    """
+    return Selector(description="all grouping variables", roles=["group"])
+
+
 def select_groups(ingr: Ingredients) -> list[str]:
     """Select any grouping columns
 
@@ -275,7 +284,16 @@ def select_groups(ingr: Ingredients) -> list[str]:
     Returns:
         list[str]: grouping columns
     """
-    return Selector(description="grouping variables", roles=["group"])(ingr)
+    return all_groups()(ingr)
+
+
+def all_sequences() -> Selector:
+    """Define selector for all grouping variables
+
+    Returns:
+        Selector: object representing the selection rule
+    """
+    return Selector(description="all sequence variables", roles=["sequence"])
 
 
 def select_sequence(ingr: Ingredients) -> list[str]:
@@ -286,4 +304,4 @@ def select_sequence(ingr: Ingredients) -> list[str]:
     Returns:
         list[str]: grouping columns
     """
-    return Selector(description="sequence variables", roles=["sequence"])(ingr)
+    return all_sequences()(ingr)
