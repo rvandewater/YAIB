@@ -75,6 +75,12 @@ class TestScaleStep:
         assert abs(res["x1"].mean()) < 0.00001
         assert abs(res["x2"].mean()) < 0.00001
 
+    def test_scale_step_w_args(self, example_recipe):
+        example_recipe.add_step(StepScale(with_mean=False, with_std=False))
+        res = example_recipe.prep()
+        assert abs(res["x1"].mean()) > 1
+        assert abs(res["x1"].var()) > 1.5
+
     def test_scale_step_w_sel(self, example_recipe):
         example_recipe.add_step(StepScale(sel=all_of(["x2"])))
         res = example_recipe.prep()
