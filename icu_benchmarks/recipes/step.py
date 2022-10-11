@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from copy import deepcopy
-from typing import Union
+from typing import Union, Dict
 
 import pandas as pd
 from scipy.sparse import isspmatrix
@@ -322,7 +322,7 @@ class StepResampling(Step):
         sel_acc: Accumulator = Accumulator.MEAN,
         not_sel_acc: Accumulator = Accumulator.LAST,
         seq_role: Selector = sequence(),
-        acc_meth_dict: {Selector, Accumulator} = None,
+        acc_meth_dict: Dict[Selector, Accumulator] = None,
     ):
         """This class represents a step in a recipe.
 
