@@ -5,12 +5,13 @@ from icu_benchmarks.recipes.selector import (
     all_outcomes,
     all_of,
     regex_names,
+    select_groups,
+    select_sequence,
     starts_with,
     ends_with,
     contains,
     has_role,
     has_type,
-    groups,
     all_numeric_predictors,
     all_predictors,
     intersection,
@@ -64,23 +65,23 @@ def test_all_of(example_ingredients):
 
 
 def test_regex_names(example_ingredients):
-    sel = regex_names(r'^x\d')
-    assert sel(example_ingredients) == ['x1', 'x2', 'x3', 'x4']
+    sel = regex_names(r"^x\d")
+    assert sel(example_ingredients) == ["x1", "x2", "x3", "x4"]
 
 
 def test_starts_with(example_ingredients):
-    sel = starts_with('x')
-    assert sel(example_ingredients) == ['x1', 'x2', 'x3', 'x4']
+    sel = starts_with("x")
+    assert sel(example_ingredients) == ["x1", "x2", "x3", "x4"]
 
 
 def test_ends_with(example_ingredients):
-    sel = ends_with('1')
-    assert sel(example_ingredients) == ['x1']
+    sel = ends_with("1")
+    assert sel(example_ingredients) == ["x1"]
 
 
 def test_contains(example_ingredients):
-    sel = contains('i')
-    assert sel(example_ingredients) == ['id', 'time']
+    sel = contains("i")
+    assert sel(example_ingredients) == ["id", "time"]
 
 
 def test_has_role(example_ingredients):
@@ -93,12 +94,6 @@ def test_has_role(example_ingredients):
 def test_has_type(example_ingredients):
     sel = has_type("float64")
     assert sel(example_ingredients) == ["y", "x1"]
-
-
-def test_groups(example_ingredients):
-    example_ingredients.update_role("id", "group")
-    sel = groups()
-    assert sel(example_ingredients) == ["id"]
 
 
 def test_all_predictors(example_ingredients):
@@ -119,3 +114,13 @@ def test_all_outcomes(example_ingredients):
     example_ingredients.update_role("y", "outcome")
     sel = all_outcomes()
     assert sel(example_ingredients) == ["y"]
+
+
+def test_select_groups(example_ingredients):
+    example_ingredients.update_role("id", "group")
+    assert select_groups(example_ingredients) == ["id"]
+
+
+def test_select_sequence(example_ingredients):
+    example_ingredients.update_role("time", "sequence")
+    assert select_sequence(example_ingredients) == ["time"]

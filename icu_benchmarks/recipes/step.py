@@ -1,14 +1,13 @@
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Union, Dict
-
 import pandas as pd
 from scipy.sparse import isspmatrix
 from pandas.core.groupby import DataFrameGroupBy
 from sklearn.preprocessing import StandardScaler
 from icu_benchmarks.recipes.ingredients import Ingredients
 from enum import Enum
-from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors, sequence, groups
+from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
 
 
 class Step:
@@ -250,10 +249,11 @@ class StepSklearn(Step):
             ValueError: If the transformer expects a single column but gets multiple.
         """
         if self.columnwise:
-            self._transformers = {}
-            for col in self.columns:
+            self._transformers = {
                 # copy the transformer so we keep the distinct fit for each column and don't just refit
-                self._transformers[col] = deepcopy(self.sklearn_transformer.fit(data[col]))
+                col: deepcopy(self.sklearn_transformer.fit(data[col]))
+                for col in self.columns
+            }
         else:
             try:
                 self.sklearn_transformer.fit(data[self.columns])
@@ -282,7 +282,7 @@ class StepSklearn(Step):
                 col_names = (
                     col
                     if self.in_place
-                    else [f"{self.sklearn_transformer.__class__.__name__}_{col}_{i + 1}" for i in range(new_cols.shape[1])]
+                    else [f"{self.sklearn_transformer.__class__.__name__}_{col}_{i+1}" for i in range(new_cols.shape[1])]
                 )
                 new_data[col_names] = new_cols
         else:
@@ -297,7 +297,7 @@ class StepSklearn(Step):
             col_names = (
                 self.columns
                 if self.in_place
-                else [f"{self.sklearn_transformer.__class__.__name__}_{i + 1}" for i in range(new_cols.shape[1])]
+                else [f"{self.sklearn_transformer.__class__.__name__}_{i+1}" for i in range(new_cols.shape[1])]
             )
             if new_cols.shape[1] != len(col_names):
                 raise ValueError(
@@ -408,3 +408,26 @@ class StepResampling(Step):
         new_data = new_data.set_index(groups()(data))
 
         return new_data
+
+
+class StepScale:
+    """Provides a wrapper for a scaling with StepSklearn.
+
+     Args:
+        with_mean (bool, optional): Defaults to True. If True, center the data before scaling.
+        with_std (bool, optional): Defaults to True.
+            If True, scale the data to unit variance (or equivalently, unit standard deviation).
+        in_place (bool, optional): Defaults to True.
+            Set to False to have the step generate new columns instead of overwriting the existing ones.
+        role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
+    """
+
+    def __new__(
+        cls,
+        sel: Selector = all_numeric_predictors(),
+        with_mean: bool = True,
+        with_std: bool = True,
+        in_place: bool = True,
+        role: str = "predictor",
+    ):
+        return StepSklearn(StandardScaler(with_mean=with_mean, with_std=with_std), sel=sel, in_place=in_place, role=role)

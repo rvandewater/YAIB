@@ -23,9 +23,8 @@ from sklearn.experimental import enable_iterative_imputer  # noqa: F401
 from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer, MissingIndicator
 
 from icu_benchmarks.recipes.recipe import Recipe
-from icu_benchmarks.recipes.selector import all_numeric_predictors, sequence, has_type, has_role, all_of
-from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator, StepImputeFill, StepResampling
-
+from icu_benchmarks.recipes.selector import all_numeric_predictors, has_type, has_role, all_of
+from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator, StepImputeFill, StepScale
 
 @pytest.fixture()
 def example_recipe(example_df):
@@ -34,7 +33,7 @@ def example_recipe(example_df):
 
 @pytest.fixture()
 def example_recipe_w_nan(example_df):
-    example_df.loc[[1, 2, 4, 7], "x1"] = np.nan
+    example_df.loc[[2, 4, 6], "x2"] = np.nan
     return Recipe(example_df, ["y"], ["x1", "x2", "x3", "x4"], ["id"])  # FIXME: add squence when merged
 
 
@@ -78,19 +77,35 @@ class TestStepHistorical:
 
 
 class TestImputeSteps:
-    @pytest.fixture()
-    def example_recipe_w_missing(self, example_df):
-        # Introduce missingness in the DataFrame
-        # change dtype to handly miss in ints, see https://pandas.pydata.org/pandas-docs/stable/user_guide/integer_na.html
-        example_df["x2"] = example_df["x2"].astype(pd.Int32Dtype())
-        example_df.loc[2:7, ["x2"]] = pd.NA
-        return Recipe(example_df, ["y"], ["x1", "x2"], ["id"])  # FIXME: add squence when merged
+    def test_impute_fill(self, example_recipe_w_nan):
+        example_recipe_w_nan.add_step(StepImputeFill(method="ffill"))
+        res = example_recipe_w_nan.prep()
+        exp = pd.Series([0, 1, 1, 0, 0, 0, np.NaN, 0, 0, 1], dtype="float64")
+        assert res["x2"].equals(exp)
+        example_recipe_w_nan.add_step(StepImputeFill(sel=all_numeric_predictors(), value=0))
+        res = example_recipe_w_nan.prep()
+        exp = pd.Series([0, 1, 1, 0, 0, 0, 0, 0, 0, 1], dtype="float64")
+        assert res["x2"].equals(exp)
 
-    def test_impute_fill(self, example_recipe_w_missing):
-        example_recipe_w_missing.add_step(StepImputeFill(method="ffill"))
-        res = example_recipe_w_missing.prep()
-        exp = pd.array([0, 1, 1, 1, 1, 1, pd.NA, pd.NA, 0, 1], pd.Int32Dtype())
-        assert res["x2"].values.equals(exp)
+
+class TestScaleStep:
+    def test_scale_step_default(self, example_recipe):
+        example_recipe.add_step(StepScale())
+        res = example_recipe.prep()
+        assert abs(res["x1"].mean()) < 0.00001
+        assert abs(res["x2"].mean()) < 0.00001
+
+    def test_scale_step_w_args(self, example_recipe):
+        example_recipe.add_step(StepScale(with_mean=False, with_std=False))
+        res = example_recipe.prep()
+        assert abs(res["x1"].mean()) > 1
+        assert abs(res["x1"].var()) > 1.5
+
+    def test_scale_step_w_sel(self, example_recipe):
+        example_recipe.add_step(StepScale(sel=all_of(["x2"])))
+        res = example_recipe.prep()
+        assert abs(res["x2"].mean()) < 0.00001
+        assert abs(res["x1"].mean()) > 1
 
 
 class TestSklearnStep:
@@ -102,22 +117,22 @@ class TestSklearnStep:
     def test_simple_imputer(self, example_recipe_w_nan):
         example_recipe_w_nan.add_step(StepSklearn(SimpleImputer(strategy="constant", fill_value=0)))
         df = example_recipe_w_nan.prep()
-        assert (df.loc[[1, 2, 4, 7], "x1"] == 0).all()
+        assert (df.loc[[2, 4, 6], "x2"] == 0).all()
 
     def test_knn_imputer(self, example_recipe_w_nan):
         example_recipe_w_nan.add_step(StepSklearn(KNNImputer(), sel=all_numeric_predictors()))
         df = example_recipe_w_nan.prep()
-        assert (~np.isnan(df.loc[[1, 2, 4, 7], "x1"])).all()
+        assert (~np.isnan(df.loc[[2, 4, 6], "x2"])).all()
 
     def test_iterative_imputer(self, example_recipe_w_nan):
         example_recipe_w_nan.add_step(StepSklearn(IterativeImputer(), sel=all_numeric_predictors()))
         df = example_recipe_w_nan.prep()
-        assert (~np.isnan(df.loc[[1, 2, 4, 7], "x1"])).all()
+        assert (~np.isnan(df.loc[[2, 4, 6], "x2"])).all()
 
     def test_missing_indicator(self, example_recipe_w_nan):
         example_recipe_w_nan.add_step(StepSklearn(MissingIndicator(), sel=all_numeric_predictors(), in_place=False))
         df = example_recipe_w_nan.prep()
-        assert (df.loc[[1, 2, 4, 7], "MissingIndicator_1"]).all()
+        assert (df.loc[[2, 4, 6], "MissingIndicator_1"]).all()
 
     def test_standard_scaler(self, example_recipe):
         example_recipe.add_step(StepSklearn(StandardScaler(), sel=all_numeric_predictors()))
