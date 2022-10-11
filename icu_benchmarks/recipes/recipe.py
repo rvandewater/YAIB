@@ -7,7 +7,7 @@ from typing import Union
 import pandas as pd
 
 from icu_benchmarks.recipes.ingredients import Ingredients
-from icu_benchmarks.recipes.selector import groups
+from icu_benchmarks.recipes.selector import select_groups
 from icu_benchmarks.recipes.step import Step
 
 
@@ -108,7 +108,7 @@ class Recipe:
 
     def _apply_group(self, data, step):
         if step.group:
-            group_vars = groups()(data)
+            group_vars = select_groups(data)
             data = data.groupby(group_vars)
         return data
 
