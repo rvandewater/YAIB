@@ -5,12 +5,13 @@ from icu_benchmarks.recipes.selector import (
     all_outcomes,
     all_of,
     regex_names,
+    select_groups,
+    select_sequence,
     starts_with,
     ends_with,
     contains,
     has_role,
     has_type,
-    groups,
     all_numeric_predictors,
     all_predictors,
     intersection,
@@ -95,12 +96,6 @@ def test_has_type(example_ingredients):
     assert sel(example_ingredients) == ["y", "x1"]
 
 
-def test_groups(example_ingredients):
-    example_ingredients.update_role("id", "group")
-    sel = groups()
-    assert sel(example_ingredients) == ["id"]
-
-
 def test_all_predictors(example_ingredients):
     example_ingredients.update_role("x1", "predictor")
     example_ingredients.update_role("x2", "predictor")
@@ -119,3 +114,13 @@ def test_all_outcomes(example_ingredients):
     example_ingredients.update_role("y", "outcome")
     sel = all_outcomes()
     assert sel(example_ingredients) == ["y"]
+
+
+def test_select_groups(example_ingredients):
+    example_ingredients.update_role("id", "group")
+    assert select_groups(example_ingredients) == ["id"]
+
+
+def test_select_sequence(example_ingredients):
+    example_ingredients.update_role("time", "sequence")
+    assert select_sequence(example_ingredients) == ["time"]
