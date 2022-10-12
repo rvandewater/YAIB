@@ -7,8 +7,14 @@ from pandas.core.groupby import DataFrameGroupBy
 from sklearn.preprocessing import StandardScaler
 from icu_benchmarks.recipes.ingredients import Ingredients
 from enum import Enum
-from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors, select_groups, all_sequences, \
-    select_sequence
+from icu_benchmarks.recipes.selector import (
+    Selector,
+    all_predictors,
+    all_numeric_predictors,
+    select_groups,
+    all_sequences,
+    select_sequence,
+)
 
 
 class Step:
@@ -283,7 +289,7 @@ class StepSklearn(Step):
                 col_names = (
                     col
                     if self.in_place
-                    else [f"{self.sklearn_transformer.__class__.__name__}_{col}_{i+1}" for i in range(new_cols.shape[1])]
+                    else [f"{self.sklearn_transformer.__class__.__name__}_{col}_{i + 1}" for i in range(new_cols.shape[1])]
                 )
                 new_data[col_names] = new_cols
         else:
@@ -298,7 +304,7 @@ class StepSklearn(Step):
             col_names = (
                 self.columns
                 if self.in_place
-                else [f"{self.sklearn_transformer.__class__.__name__}_{i+1}" for i in range(new_cols.shape[1])]
+                else [f"{self.sklearn_transformer.__class__.__name__}_{i + 1}" for i in range(new_cols.shape[1])]
             )
             if new_cols.shape[1] != len(col_names):
                 raise ValueError(
@@ -319,10 +325,8 @@ class StepResampling(Step):
     def __init__(
         self,
         new_resolution: str = "1h",
-        sel: Selector = all_numeric_predictors(),
-        sel_acc: Accumulator = Accumulator.MEAN,
-        not_sel_acc: Accumulator = Accumulator.LAST,
-        acc_meth_dict: Dict[Selector, Accumulator] = None,
+        accumulator_dict: Dict[Selector, Accumulator] = {(all_predictors(), Accumulator.LAST)},
+        default_accumulator: Accumulator = Accumulator.LAST,
     ):
         """This class represents a step in a recipe.
 
@@ -331,17 +335,13 @@ class StepResampling(Step):
 
         Args:
             new_resolution(str): Resolution to resample to.
-            sel (Selector): Object that holds information about the selected columns.
-            sel_acc: (Accumulator) Accumulation method for selected columns
-            not_sel_acc: (Accumulator) Accumulation method for all non-selected columns
-            seq_role (Selector) : Temporal role in supplied Ingredients.
-            acc_meth_dict ({Selector, Accumulator}, Optional) : Alternatively supply dictionary with individual accumulator methods
+            accumulator_dict ({Selector, Accumulator}) : Supply dictionary with individual accumulator methods for each Selector
+            default_accumulator(Accumulator, Optional): Accumulator to use for variables not supplied in dictionary.
         """
-        super().__init__(sel=sel)
+        super().__init__()
         self.new_resolution = new_resolution
-        self.sel_acc = sel_acc
-        self.not_sel_acc = not_sel_acc
-        self.acc_dict = acc_meth_dict
+        self.acc_dict = accumulator_dict
+        self.default_accumulator = default_accumulator
         self._group = False
 
     def do_fit(self, data: Ingredients):
@@ -350,7 +350,7 @@ class StepResampling(Step):
     def transform(self, data):
         new_data = self._check_ingredients(data)
 
-        # Check for and save sequence role
+        # Check for and save first sequence role
         self.sequence_role = select_sequence(new_data)[0]
         sequence_datatype = new_data.dtypes[self.sequence_role]
 
@@ -359,41 +359,23 @@ class StepResampling(Step):
         ):
             raise ValueError(f"Expected Timedelta or Timestamp object, got {self.sequence_role(data).__class__}")
 
-        # Prepare accumulation method dictionary
-        if self.acc_dict is None:
-            # Dictionary with individual accumulators is not provided
-            sel_columns = self.sel(new_data)
-            # Get other columns
-            not_sel_columns = new_data.columns.difference(sel_columns).values.tolist()
+        # Dictionary with accumulators is provided
+        new_dict = {}
+        # Go through supplied Selector, Accumulator pairs
+        for key in self.acc_dict:
+            variables = key(new_data)
+            # Add variables associated with selector with supplied accumulator
+            new_dict.update({el: self.acc_dict[key].value for el in variables})
 
-            print(self.sequence_role(new_data))
-
-            # Remove sequence column(s)
-            not_sel_columns = [item for item in not_sel_columns if item not in self.sequence_role(new_data)]
-
-            sel_acc_dict = {el: self.sel_acc.value for el in sel_columns}
-            not_sel_acc_dict = {el: self.not_sel_acc.value for el in not_sel_columns}
-            sel_acc_dict.update(not_sel_acc_dict)
-
-            acc_dict = sel_acc_dict
-        else:
-            # Dictionary with accumulators is provided
-            new_dict = {}
-            # Go through supplied Selector, Accumulator pairs
-            for key in self.acc_dict:
-                variables = key(new_data)
-                # Add variables associated with selector with supplied accumulator
-                new_dict.update({el: self.sel_acc.value for el in variables})
-
-            # Add non-specified variables with not_sel_acc, if not a sequence role
-            new_dict.update(
-                {
-                    el: self.not_sel_acc.value
-                    for el in new_data.columns.difference(new_dict.keys())
-                    if el not in select_sequence(new_data)
-                }
-            )
-            acc_dict = new_dict
+        # Add non-specified variables, if not a sequence role
+        new_dict.update(
+            {
+                el: self.default_accumulator.value
+                for el in new_data.columns.difference(new_dict.keys())
+                if el not in select_sequence(new_data)
+            }
+        )
+        acc_dict = new_dict
 
         # Resample per stay id
         new_data = new_data.groupby(select_groups(data))
@@ -412,13 +394,13 @@ class StepResampling(Step):
 class StepScale:
     """Provides a wrapper for a scaling with StepSklearn.
 
-     Args:
-        with_mean (bool, optional): Defaults to True. If True, center the data before scaling.
-        with_std (bool, optional): Defaults to True.
-            If True, scale the data to unit variance (or equivalently, unit standard deviation).
-        in_place (bool, optional): Defaults to True.
-            Set to False to have the step generate new columns instead of overwriting the existing ones.
-        role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
+    Args:
+       with_mean (bool, optional): Defaults to True. If True, center the data before scaling.
+       with_std (bool, optional): Defaults to True.
+           If True, scale the data to unit variance (or equivalently, unit standard deviation).
+       in_place (bool, optional): Defaults to True.
+           Set to False to have the step generate new columns instead of overwriting the existing ones.
+       role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
     """
 
     def __new__(
