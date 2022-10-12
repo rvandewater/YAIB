@@ -24,11 +24,8 @@ train_common.model = @MLWrapper()
 train_common.weight = %LOSS_WEIGHT
 train_common.do_test = True
 
-
 MLWrapper.model = @LGBMRegressor()
 MLWrapper.train.patience = 10
-
-
 
 ICUVariableLengthLoaderTables.splits = ['train','test','val']
 ICUVariableLengthLoaderTables.task = %TASK

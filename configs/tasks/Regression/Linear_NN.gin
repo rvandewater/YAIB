@@ -4,7 +4,6 @@ import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.loader
 
-
 EMB = 231
 LR = 3e-4
 NUM_CLASSES = 1
@@ -20,7 +19,6 @@ LOSS_WEIGHT = None
 train_common.model = @DLWrapper()
 train_common.do_test = True
 
-
 DLWrapper.encoder = @LinearClassifier()
 DLWrapper.loss = @mse_loss
 DLWrapper.optimizer_fn = @Adam
@@ -28,7 +26,6 @@ DLWrapper.train.epochs = %EPOCHS
 DLWrapper.train.batch_size = %BS
 DLWrapper.train.patience = 10
 DLWrapper.train.min_delta = 1e-4
-
 
 ICUVariableLengthLoaderTables.splits = ['train','test','val']
 ICUVariableLengthLoaderTables.task = %TASK
@@ -44,5 +41,3 @@ Adam.weight_decay = 1e-6
 # Encoder params
 LinearClassifier.emb = %EMB
 LinearClassifier.num_classes = %NUM_CLASSES
-
-
