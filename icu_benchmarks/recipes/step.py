@@ -12,7 +12,6 @@ from icu_benchmarks.recipes.selector import (
     all_predictors,
     all_numeric_predictors,
     select_groups,
-    all_sequences,
     select_sequence,
 )
 
@@ -335,7 +334,8 @@ class StepResampling(Step):
 
         Args:
             new_resolution(str): Resolution to resample to.
-            accumulator_dict ({Selector, Accumulator}) : Supply dictionary with individual accumulator methods for each Selector
+            accumulator_dict ({Selector, Accumulator}) : Supply dictionary with individual accumulator methods for each
+                Selector.
             default_accumulator(Accumulator, Optional): Accumulator to use for variables not supplied in dictionary.
         """
         super().__init__()
