@@ -4,32 +4,30 @@ import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.loader
 
-
-EMB = 231
-LR = 3e-4
-NUM_CLASSES = 1
-BS = 64
-EPOCHS = 1000
 TASK = 'Dynamic_UrineOutput_2Hours_Reg'
 RES = 1
 RES_LAB = 1
 MAXLEN = 2016
 LOSS_WEIGHT = None
 
+BAGGING_FREQ  = 1
+MIN_CHILD_LEAF = 1000
+
+EPOCHS = 100000
+DEPTH = 4
+NUM_LEAVES = 16
+SUBSAMPLE_DATA = 0.66
+SUBSAMPLE_FEAT = 0.66
+
 # Train params
-train_common.model = @DLWrapper()
-train_common.dataset_fn = @ICUVariableLengthDataset
-train_common.data_path = PATH_TO_DL # TODO(User) update this
+train_common.model = @MLWrapper()
+train_common.weight = %LOSS_WEIGHT
 train_common.do_test = True
 
 
-DLWrapper.encoder = @LinearClassifier()
-DLWrapper.loss = @mse_loss
-DLWrapper.optimizer_fn = @Adam
-DLWrapper.train.epochs = %EPOCHS
-DLWrapper.train.batch_size = %BS
-DLWrapper.train.patience = 10
-DLWrapper.train.min_delta = 1e-4
+MLWrapper.model = @LGBMRegressor()
+MLWrapper.train.patience = 10
+
 
 
 ICUVariableLengthLoaderTables.splits = ['train','test','val']
@@ -39,12 +37,10 @@ ICUVariableLengthLoaderTables.label_resampling = %RES_LAB
 ICUVariableLengthDataset.maxlen = %MAXLEN
 ICUVariableLengthDataset.scale_label = True
 
-# Optimizer params
-Adam.lr = %LR
-Adam.weight_decay = 1e-6
-
-# Encoder params
-LinearClassifier.emb = %EMB
-LinearClassifier.num_classes = %NUM_CLASSES
-
-
+LGBMRegressor.max_depth = %DEPTH
+LGBMRegressor.num_leaves = %NUM_LEAVES
+LGBMRegressor.n_estimators = %EPOCHS
+LGBMRegressor.min_child_samples = %MIN_CHILD_LEAF
+LGBMRegressor.subsample = %SUBSAMPLE_DATA
+LGBMRegressor.subsample_freq = %BAGGING_FREQ
+LGBMRegressor.colsample_bytree = %SUBSAMPLE_FEAT

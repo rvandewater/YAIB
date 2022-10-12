@@ -7,9 +7,7 @@ import icu_benchmarks.data.loader
 
 EMB = 231
 LR = 3e-4
-HIDDEN = 64
 NUM_CLASSES = 1
-DEPTH = 1
 BS = 64
 EPOCHS = 1000
 TASK = 'Dynamic_UrineOutput_2Hours_Reg'
@@ -20,12 +18,10 @@ LOSS_WEIGHT = None
 
 # Train params
 train_common.model = @DLWrapper()
-train_common.dataset_fn = @ICUVariableLengthDataset
-train_common.data_path = PATH_TO_DL # TODO(User) update this
 train_common.do_test = True
 
 
-DLWrapper.encoder = @GRU()
+DLWrapper.encoder = @LinearClassifier()
 DLWrapper.loss = @mse_loss
 DLWrapper.optimizer_fn = @Adam
 DLWrapper.train.epochs = %EPOCHS
@@ -46,9 +42,7 @@ Adam.lr = %LR
 Adam.weight_decay = 1e-6
 
 # Encoder params
-GRU.input_dim = %EMB
-GRU.hidden_dim = %HIDDEN
-GRU.layer_dim = %DEPTH
-GRU.num_classes = %NUM_CLASSES
+LinearClassifier.emb = %EMB
+LinearClassifier.num_classes = %NUM_CLASSES
 
 
