@@ -4,7 +4,6 @@ import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.loader
 
-
 EMB = 35
 LR = 3e-4
 HIDDEN = 64
@@ -39,5 +38,3 @@ GRU.input_dim = %EMB
 GRU.hidden_dim = %HIDDEN
 GRU.layer_dim = %DEPTH
 GRU.num_classes = %NUM_CLASSES
-
-
