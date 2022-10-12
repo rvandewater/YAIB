@@ -1,9 +1,14 @@
+import logging
 import pandas as pd
 import numpy as np
 import pyarrow.parquet as pq
 from pathlib import Path
 
 from icu_benchmarks.common import constants
+from icu_benchmarks.recipes.recipe import Recipe
+from icu_benchmarks.recipes.selector import all_of
+from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale
+
 
 VARS = constants.VARS
 FILE_NAMES = constants.FILE_NAMES
@@ -54,3 +59,40 @@ def make_single_split(
             splits[fold][type] = data[type].merge(stays_in_fold, on=id, how="right")
 
     return splits
+
+
+def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str):
+    data["train"][type] = recipe.prep()
+    data["val"][type] = recipe.bake(data["val"][type])
+    data["test"][type] = recipe.prep(data["test"][type])
+    return data
+
+
+def preprocess_data(work_dir: Path, seed: int = 42) -> dict[dict[pd.DataFrame]]:
+    data = load_data(work_dir)
+
+    logging.info("Generating splits")
+    data = make_single_split(data, seed=seed)
+
+    logging.info("Preprocess static data")
+    sta_rec = Recipe(data["train"]["STATIC"], [], VARS["STATIC_VARS"], VARS["STAY_ID"])
+    sta_rec.add_step(StepScale())
+    sta_rec.add_step(StepImputeFill(value=0))
+
+    data = apply_recipe_to_splits(sta_rec, data, "STATIC")
+
+    logging.info("Preprocess dynamic data")
+    dyn_rec = Recipe(data["train"]["DYNAMIC"], [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
+    dyn_rec.add_step(StepScale())
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.COUNT, suffix="count_hist"))
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MEAN, suffix="mean_hist"))
+    dyn_rec.add_step(StepImputeFill(method="ffill"))
+    dyn_rec.add_step(StepImputeFill(value=0))
+
+    data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")
+
+    logging.info("Finished preprocessing")
+
+    return data

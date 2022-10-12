@@ -3,16 +3,10 @@ import argparse
 import logging
 import os
 import sys
-import pandas as pd
 from pathlib import Path
 
-# from sklearn.impute import MissingIndicator
-
 from icu_benchmarks.common.constants import VARS
-from icu_benchmarks.data.preprocess import load_data, make_single_split
-from icu_benchmarks.recipes.recipe import Recipe
-from icu_benchmarks.recipes.selector import all_of
-from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale
+from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
 
@@ -38,23 +32,8 @@ def build_parser():
         "--data-dir", required=True, type=Path, help="Path to the parquet data directory as preprocessed by RICU."
     )
     preprocess_arguments.add_argument(
-        "-nw",
-        "--nr-workers",
-        default=1,
-        required=False,
-        type=int,
-        dest="nr_workers",
-        help="Number of process to use at preprocessing, Default to 1 ",
-    )
-    preprocess_arguments.add_argument(
         "--seed", dest="seed", default=default_seed, required=False, type=int, help="Seed for the train/val/test split"
     )
-    # preprocess_arguments.add_argument('--imputation', dest="imputation",
-    #                                   default='ffill', required=False, type=str,
-    #                                   help="Type of imputation. Default: 'ffill' ")
-    # preprocess_arguments.add_argument('--horizon', dest="horizon",
-    #                                   default=12, required=False, type=int,
-    #                                   help="Horizon of prediction in hours for failure tasks")
 
     model_arguments = parent_parser.add_argument_group("Model arguments")
     model_arguments.add_argument("-l", "--logdir", dest="logdir", required=False, type=str, help="Path to the log directory ")
@@ -260,48 +239,11 @@ def build_parser():
         "-c", "--config", default=None, dest="config", nargs="+", type=str, help="Path to the gin train config file."
     )
 
-    # parser_evaluate = subparsers.add_parser('evaluate', help='evaluate',
-    #                                         parents=[parent_parser])
+    subparsers.add_parser('evaluate', help='evaluate', parents=[parent_parser])
 
-    parser_train = subparsers.add_parser("train", help="train", parents=[parent_parser])
+    subparsers.add_parser("train", help="train", parents=[parent_parser])
+
     return parser
-
-
-def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str):
-    data["train"][type] = recipe.prep()
-    data["val"][type] = recipe.bake(data["val"][type])
-    data["test"][type] = recipe.prep(data["test"][type])
-    return data
-
-
-def run_preprocessing(work_dir: Path) -> dict[dict[pd.DataFrame]]:
-    data = load_data(work_dir)
-
-    logging.info("Generating splits")
-    data = make_single_split(data)
-
-    logging.info("Preprocess static data")
-    sta_rec = Recipe(data["train"]["STATIC"], [], VARS["STATIC_VARS"], VARS["STAY_ID"])
-    sta_rec.add_step(StepScale())
-    sta_rec.add_step(StepImputeFill(value=0))
-
-    data = apply_recipe_to_splits(sta_rec, data, "STATIC")
-
-    logging.info("Preprocess dynamic data")
-    dyn_rec = Recipe(data["train"]["DYNAMIC"], [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
-    dyn_rec.add_step(StepScale())
-    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
-    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
-    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.COUNT, suffix="count_hist"))
-    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MEAN, suffix="mean_hist"))
-    dyn_rec.add_step(StepImputeFill(method="ffill"))
-    dyn_rec.add_step(StepImputeFill(value=0))
-
-    data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")
-
-    logging.info("Finished preprocessing")
-
-    return data
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -311,7 +253,7 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
 
-    data = run_preprocessing(args.data_dir)
+    data = preprocess_data(args.data_dir, seed=args.seed)
 
     load_weights = args.command == "evaluate"
     reproducible = str(args.reproducible) == "True"
