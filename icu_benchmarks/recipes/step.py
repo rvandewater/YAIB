@@ -7,7 +7,8 @@ from pandas.core.groupby import DataFrameGroupBy
 from sklearn.preprocessing import StandardScaler
 from icu_benchmarks.recipes.ingredients import Ingredients
 from enum import Enum
-from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
+from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors, select_groups, all_sequences, \
+    select_sequence
 
 
 class Step:
@@ -321,7 +322,6 @@ class StepResampling(Step):
         sel: Selector = all_numeric_predictors(),
         sel_acc: Accumulator = Accumulator.MEAN,
         not_sel_acc: Accumulator = Accumulator.LAST,
-        seq_role: Selector = sequence(),
         acc_meth_dict: Dict[Selector, Accumulator] = None,
     ):
         """This class represents a step in a recipe.
@@ -341,7 +341,6 @@ class StepResampling(Step):
         self.new_resolution = new_resolution
         self.sel_acc = sel_acc
         self.not_sel_acc = not_sel_acc
-        self.sequence_role = seq_role
         self.acc_dict = acc_meth_dict
         self._group = False
 
@@ -351,9 +350,9 @@ class StepResampling(Step):
     def transform(self, data):
         new_data = self._check_ingredients(data)
 
-        # Check for sequence role
-        sequence_role = self.sequence_role(new_data)
-        sequence_datatype = new_data.dtypes[sequence_role[0]]
+        # Check for and save sequence role
+        self.sequence_role = select_sequence(new_data)[0]
+        sequence_datatype = new_data.dtypes[self.sequence_role]
 
         if not (
             pd.api.types.is_timedelta64_dtype(sequence_datatype) or pd.api.types.is_datetime64_any_dtype(sequence_datatype)
@@ -391,21 +390,21 @@ class StepResampling(Step):
                 {
                     el: self.not_sel_acc.value
                     for el in new_data.columns.difference(new_dict.keys())
-                    if el not in self.sequence_role(new_data)
+                    if el not in select_sequence(new_data)
                 }
             )
             acc_dict = new_dict
 
         # Resample per stay id
-        new_data = new_data.groupby(groups()(data))
+        new_data = new_data.groupby(select_groups(data))
 
         # Resampling with the functions defined in sel_dictionary
-        new_data = new_data.resample(self.new_resolution, on=self.sequence_role(data)[0]).agg(acc_dict)
+        new_data = new_data.resample(self.new_resolution, on=self.sequence_role).agg(acc_dict)
 
         # Remove multi-index
-        new_data = new_data.droplevel(groups()(data))
+        new_data = new_data.droplevel(select_groups(data))
         new_data = new_data.reset_index(drop=False)
-        new_data = new_data.set_index(groups()(data))
+        new_data = new_data.set_index(select_groups(data))
 
         return new_data
 
