@@ -293,13 +293,13 @@ class StepSklearn(Step):
 class StepScale:
     """Provides a wrapper for a scaling with StepSklearn.
 
-     Args:
-        with_mean (bool, optional): Defaults to True. If True, center the data before scaling.
-        with_std (bool, optional): Defaults to True.
-            If True, scale the data to unit variance (or equivalently, unit standard deviation).
-        in_place (bool, optional): Defaults to True.
-            Set to False to have the step generate new columns instead of overwriting the existing ones.
-        role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
+    Args:
+       with_mean (bool, optional): Defaults to True. If True, center the data before scaling.
+       with_std (bool, optional): Defaults to True.
+           If True, scale the data to unit variance (or equivalently, unit standard deviation).
+       in_place (bool, optional): Defaults to True.
+           Set to False to have the step generate new columns instead of overwriting the existing ones.
+       role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
     """
 
     def __new__(

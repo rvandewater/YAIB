@@ -24,7 +24,11 @@ class Ingredients(pd.DataFrame):
         self, data=None, index: Axes = None, columns: Axes = None, dtype: Dtype = None, copy: bool = None, roles: dict = None
     ):
         super().__init__(
-            data, index, columns, dtype, copy,
+            data,
+            index,
+            columns,
+            dtype,
+            copy,
         )
 
         if isinstance(data, Ingredients) and roles is None:
