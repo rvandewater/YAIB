@@ -19,9 +19,6 @@ LOSS_WEIGHT = None
 
 # Train params
 train_common.model = @DLWrapper()
-
-train_common.dataset_fn = @RICUDataset
-train_common.data_path = "/Users/hendrikschmidt/projects/thesis/data/ricu/mimic" # TODO(User) update this
 train_common.weight = %LOSS_WEIGHT
 train_common.do_test = True
 

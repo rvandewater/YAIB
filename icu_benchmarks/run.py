@@ -22,20 +22,24 @@ def build_parser():
 
     subparsers = parser.add_subparsers(title="Commands", dest="command", required=True)
 
-    parser_prep_ml = subparsers.add_parser(
-        "preprocess", help="Calls sequentially merge and resample.", parents=[parent_parser]
+    parser_prep_and_train = subparsers.add_parser(
+        "train", help="Calls sequentially merge and resample.", parents=[parent_parser]
     )
 
-    preprocess_arguments = parser_prep_ml.add_argument_group("Preprocess arguments")
-
+    preprocess_arguments = parser_prep_and_train.add_argument_group("Preprocess arguments")
     preprocess_arguments.add_argument(
         "--data-dir", required=True, type=Path, help="Path to the parquet data directory as preprocessed by RICU."
     )
     preprocess_arguments.add_argument(
-        "--seed", dest="seed", default=default_seed, required=False, type=int, help="Seed for the train/val/test split"
+        "--split-seed",
+        dest="split_seed",
+        default=default_seed,
+        required=False,
+        type=int,
+        help="Seed for the train/val/test split",
     )
 
-    model_arguments = parent_parser.add_argument_group("Model arguments")
+    model_arguments = parser_prep_and_train.add_argument_group("Model arguments")
     model_arguments.add_argument("-l", "--logdir", dest="logdir", required=False, type=str, help="Path to the log directory ")
     model_arguments.add_argument(
         "--reproducible",
@@ -239,9 +243,7 @@ def build_parser():
         "-c", "--config", default=None, dest="config", nargs="+", type=str, help="Path to the gin train config file."
     )
 
-    subparsers.add_parser('evaluate', help='evaluate', parents=[parent_parser])
-
-    subparsers.add_parser("train", help="train", parents=[parent_parser])
+    subparsers.add_parser("evaluate", help="evaluate", parents=[parent_parser])
 
     return parser
 
@@ -253,18 +255,13 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
 
-    data = preprocess_data(args.data_dir, seed=args.seed)
+    data = preprocess_data(args.data_dir, seed=args.split_seed)
 
     load_weights = args.command == "evaluate"
     reproducible = str(args.reproducible) == "True"
-    if not isinstance(args.seed, list):
-        seeds = [args.seed]
-    else:
-        seeds = args.seed
-    if not load_weights:
-        gin_bindings, log_dir = get_bindings_and_params(args)
-    else:
-        gin_bindings, _ = get_bindings_and_params(args)
+    seeds = args.seed if isinstance(args.seed, list) else [args.seed]
+    gin_bindings, log_dir = get_bindings_and_params(args)
+    if load_weights:
         log_dir = args.logdir
     if args.rs:
         reproducible = False
@@ -282,12 +279,10 @@ def main(my_args=tuple(sys.argv[1:])):
             gin_bindings_task = gin_bindings + ["TASK = " + "'" + str(task) + "'"]
             log_dir_task = os.path.join(log_dir, str(task))
             for seed in seeds:
-                if not load_weights:
-                    log_dir_seed = os.path.join(log_dir_task, str(seed))
-                else:
-                    log_dir_seed = log_dir_task
+                log_dir_seed = log_dir_task if load_weights else os.path.join(log_dir_task, str(seed))
                 train_with_gin(
                     model_dir=log_dir_seed,
+                    data=data,
                     overwrite=args.overwrite,
                     load_weights=load_weights,
                     gin_config_files=args.config,
@@ -301,6 +296,7 @@ def main(my_args=tuple(sys.argv[1:])):
                 log_dir_seed = os.path.join(log_dir, str(seed))
             train_with_gin(
                 model_dir=log_dir_seed,
+                data=data,
                 overwrite=args.overwrite,
                 load_weights=load_weights,
                 gin_config_files=args.config,
