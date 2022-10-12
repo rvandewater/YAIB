@@ -56,7 +56,8 @@ def make_single_split(
         stays_in_fold = stays.iloc[delims[i] : delims[i + 1], :]
         for type in data.keys():
             # Loop through DYNAMIC / STATIC / OUTCOME
-            splits[fold][type] = data[type].merge(stays_in_fold, on=id, how="right")
+            # set sort to true to make sure that IDs are reordered after scrambling earlier
+            splits[fold][type] = data[type].merge(stays_in_fold, on=id, how="right", sort=True)
 
     return splits
 
