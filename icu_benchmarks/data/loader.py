@@ -6,7 +6,9 @@ import pandas as pd
 from pyarrow import parquet
 from sklearn.preprocessing import MinMaxScaler
 import torch
+from torch import Tensor
 from torch.utils.data import Dataset
+from typing import Tuple
 
 from icu_benchmarks.common import constants
 
@@ -16,13 +18,15 @@ FILE_NAMES = constants.FILE_NAMES
 
 @gin.configurable("RICUDataset")
 class RICUDataset(Dataset):
-    def __init__(self, data, split="train", scale_label=False):
-        """
-        Args:
-            data (dict): Dict of the different splits of the data.
-            split (string): Either 'train','val' or 'test'.
-            scale_label (bool): Whether to train a min_max scaler on labels (For regression stability).
-        """
+    """Subclass of torch Dataset that represents the data to learn on.
+
+    Args:
+        data (dict): Dict of the different splits of the data.
+        split (string): Either 'train','val' or 'test'.
+        scale_label (bool): Whether to train a min_max scaler on labels (For regression stability).
+    """
+    def __init__(self, data: dict, split: str = "train", scale_label: bool = False):
+
         self.loader = RICULoader(data, split=split)
         self.split = split
         self.scale_label = scale_label
@@ -32,21 +36,33 @@ class RICUDataset(Dataset):
         else:
             self.scaler = None
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """Returns number of stays in the data.
+
+        Returns:
+            int: number of stays in the data
+        """
         return self.loader.num_stays
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
+        """Returns sample from the data.
+
+        Used for deep learning implementations.
+
+        Returns:
+            (Tensor, Tensor, Tensor): Thruple of pytorch tensors containing data, labels and padding mask.
+        """
         data, label, pad_mask = self.loader.sample(idx)
 
         if self.scale_label:
             label = self.scaler.transform(label.reshape(-1, 1))[:, 0]
         return torch.from_numpy(data), torch.from_numpy(label), torch.from_numpy(pad_mask)
 
-    def get_balance(self):
+    def get_balance(self) -> list:
         """Return the weight balance for the split of interest.
 
-        Returns: (list) Weights for each label.
-
+        Returns:
+            list: Weights for each label.
         """
         counts = self.loader.outc_df.value_counts()
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
@@ -57,16 +73,16 @@ class RICUDataset(Dataset):
 
         Args:
             scaler: sklearn scaler instance
-
         """
         self.scaler = scaler
 
-    def get_data_and_labels(self):
+    def get_data_and_labels(self) -> Tuple[np.array, np.array]:
         """Function to return all the data and labels aligned at once.
+
         We use this function for the ML methods which don't require an iterator.
 
-        Returns: (np.array, np.array) a tuple containing data points and label for the split.
-
+        Returns:
+            (np.array, np.array): a tuple containing data points and label for the split.
         """
         logging.info("Gathering the samples for split " + self.split)
         labels = self.loader.outc_df["label"].to_numpy().astype(float)
