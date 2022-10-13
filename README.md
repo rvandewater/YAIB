@@ -48,7 +48,7 @@ We currently use the following libraries:
 ```
 python -m icu_benchmarks.run train \
                             --data-dir ../data/ricu/mimic \
-                            -c configs/ricu/Classification/LogisticRegression.gin \
+                            -c configs/tasks/Classification/LogisticRegression.gin \
                             -l logs/benchmark_exp/LogisticRegression/ \
                             -t Dynamic_CircFailure_12Hours\
                             -o True \
@@ -58,7 +58,7 @@ python -m icu_benchmarks.run train \
 
 python -m icu_benchmarks.run train \
                             --data-dir ../data/ricu/mimic \
-                            -c configs/ricu/Classification/LGBM.gin \
+                            -c configs/tasks/Classification/LGBM.gin \
                             -l logs/ricu/random_search/24_binary/LGBM/run \
                             -t Mortality_At24Hours \
                             -rs True\
