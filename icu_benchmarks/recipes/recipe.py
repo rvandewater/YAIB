@@ -102,7 +102,7 @@ class Recipe:
             data = self.data
         elif data.__class__ == pd.DataFrame:
             # this is only executed when prep or bake recieve a DF that is different to the original data
-            # don't check the roles here, because self.data can have more columns/roles than data (e.g. pre and post feature generation)
+            # don't check the roles here, because self.data can have more roles than data (post feature generation)
             data = Ingredients(data, roles=self.data.roles, check_roles=False)
         if not data.columns.equals(self.data.columns):
             raise ValueError("Columns of data argument differs from recipe data.")
@@ -120,7 +120,7 @@ class Recipe:
         Args:
             data (Union[pd.DataFrame, Ingredients], optional): Data to fit and transform. Defaults to None.
             refit (bool, optional): Defaults to False. Whether to refit data.
-        
+
         Returns:
             pd.DataFrame: Transformed data.
         """
@@ -134,7 +134,7 @@ class Recipe:
 
         Args:
             data (Union[pd.DataFrame, Ingredients], optional): Data to transform. Defaults to None.
-        
+
         Returns:
             pd.DataFrame: Transformed data.
         """
