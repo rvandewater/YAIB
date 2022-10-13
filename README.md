@@ -43,16 +43,11 @@ We currently use the following libraries:
 
 # CLI Commands
 
-## Preprocess
+## Preprocess and Train
 
 ```
-python -m icu_benchmarks.run preprocess --data-dir ../data/ricu/mimic
-```
-
-## Train
-
-```
-python -m icu_benchmarks.run train \                                                                     
+python -m icu_benchmarks.run train \
+                            --data-dir ../data/ricu/mimic \
                             -c configs/ricu/Classification/LogisticRegression.gin \
                             -l logs/benchmark_exp/LogisticRegression/ \
                             -t Dynamic_CircFailure_12Hours\
@@ -61,7 +56,8 @@ python -m icu_benchmarks.run train \
                             --c_parameter 0.01 \
                             -sd 1111 2222 3333 4444 5555 6666 7777 8888 9999 0000
 
-python -m icu_benchmarks.run train \                                                                     
+python -m icu_benchmarks.run train \
+                            --data-dir ../data/ricu/mimic \
                             -c configs/ricu/Classification/LGBM.gin \
                             -l logs/ricu/random_search/24_binary/LGBM/run \
                             -t Mortality_At24Hours \
