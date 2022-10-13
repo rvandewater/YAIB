@@ -100,7 +100,7 @@ class Recipe:
     def _check_data(self, data: Union[pd.DataFrame, Ingredients]) -> Ingredients:
         if data is None:
             data = self.data
-        elif data.__class__ == pd.DataFrame:
+        elif type(data) == pd.DataFrame:
             # this is only executed when prep or bake recieve a DF that is different to the original data
             # don't check the roles here, because self.data can have more roles than data (post feature generation)
             data = Ingredients(data, roles=self.data.roles, check_roles=False)
