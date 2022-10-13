@@ -62,7 +62,17 @@ def make_single_split(
     return splits
 
 
-def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str):
+def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
+    """Fits and transforms the training data, then transforms the validation and test data with the recipe.
+
+    Args:
+        recipe (Recipe): Object containing info about the data and steps.
+        data (dict[dict[pd.DataFrame]]): Dict containing 'train', 'val', and 'test' and types of data per split.
+        type (str): Whether to apply recipe to dynamic data, static data or outcomes.
+
+    Returns:
+        dict[dict[pd.DataFrame]]: Transformed data divided into 'train', 'val', and 'test'
+    """
     data["train"][type] = recipe.prep()
     data["val"][type] = recipe.bake(data["val"][type])
     data["test"][type] = recipe.prep(data["test"][type])
