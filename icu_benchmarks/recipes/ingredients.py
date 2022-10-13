@@ -1,5 +1,4 @@
 from copy import deepcopy
-import numpy as np
 import pandas as pd
 
 from pandas._typing import Axes, Dtype

@@ -5,7 +5,6 @@ import os
 import sys
 from pathlib import Path
 
-from icu_benchmarks.common.constants import VARS
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
