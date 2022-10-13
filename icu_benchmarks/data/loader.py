@@ -123,19 +123,20 @@ class RICULoader(object):
         self.num_stays = self.static_df.shape[0]
         self.num_measurements = self.dyn_df.shape[0]
         self.maxlen = self.dyn_df.groupby([VARS["STAY_ID"]]).size().max()
+        
 
-    def get_window(self, stay_id, pad_value=0.0):
-        """Windowing function
+    def sample(self, idx: int, pad_value: float = 0.0):
+        """Function to sample from the data split of choice.
 
         Args:
-            stay_id (int): Id of the stay we want to sample.
+            idx (int): A specific row index to sample.
             pad_value (float): Value to pad with if stop - start < self.maxlen.
 
         Returns:
-            window (np.array) : Array with data.
-            pad_mask (np.array): 1D array with 0 if no labels are provided for the timestep.
-            labels (np.array): 1D array with corresponding labels for each timestep.
+            (np.array, np.array, np.array): A sample from the desired distribution as tuple of numpy arrays (sample, label, mask).
         """
+        stay_id = self.static_df.iloc[idx][VARS["STAY_ID"]]
+
         # slice to make sure to always return a DF
         window = self.dyn_data_df.loc[stay_id:stay_id].to_numpy()
         labels = self.outc_df.loc[stay_id][["label"]].to_numpy().astype(float)
@@ -164,19 +165,5 @@ class RICULoader(object):
         labels = labels.astype(np.float32)
         window = window.astype(np.float32)
         return window, labels, pad_mask
-
-    def sample(self, idx=None):
-        """Function to sample from the data split of choice.
-
-        Args:
-            idx (int): A specific idx to sample. If None is provided, sample randomly.
-
-        Returns:
-            A sample from the desired distribution as tuple of numpy arrays (sample, label, mask).
-        """
-        if idx is None:
-            idx = np.random.randint(self.num_stays)
-
-        stay_id = self.static_df.iloc[idx][VARS["STAY_ID"]]
 
         return self.get_window(stay_id)
