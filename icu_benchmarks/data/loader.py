@@ -1,10 +1,6 @@
 import gin
 import logging
 import numpy as np
-import os.path as pth
-import pandas as pd
-from pyarrow import parquet
-from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -23,18 +19,18 @@ class RICUDataset(Dataset):
     Args:
         data (dict): Dict of the different splits of the data.
         split (string): Either 'train','val' or 'test'.
-        scale_label (bool): Whether to train a min_max scaler on labels (For regression stability).
     """
-    def __init__(self, data: dict, split: str = "train", scale_label: bool = False):
 
-        self.loader = RICULoader(data, split=split)
+    def __init__(self, data: dict, split: str = "train"):
         self.split = split
-        self.scale_label = scale_label
-        if self.scale_label:
-            self.scaler = MinMaxScaler()
-            self.scaler.fit(self.loader.labels_splits_df.to_numpy().astype(float))
-        else:
-            self.scaler = None
+        self.static_df = data[split]["STATIC"]
+        self.outc_df = data[split]["OUTCOME"].set_index(VARS["STAY_ID"])
+        self.dyn_df = data[split]["DYNAMIC"].set_index(VARS["STAY_ID"]).drop(labels=VARS["TIME"], axis=1)
+
+        # calculate basic info for the data
+        self.num_stays = self.static_df.shape[0]
+        self.num_measurements = self.dyn_df.shape[0]
+        self.maxlen = self.dyn_df.groupby([VARS["STAY_ID"]]).size().max()
 
     def __len__(self) -> int:
         """Returns number of stays in the data.
@@ -42,103 +38,24 @@ class RICUDataset(Dataset):
         Returns:
             int: number of stays in the data
         """
-        return self.loader.num_stays
+        return self.num_stays
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
-        """Returns sample from the data.
+        """Function to sample from the data split of choice.
 
         Used for deep learning implementations.
 
-        Returns:
-            (Tensor, Tensor, Tensor): Thruple of pytorch tensors containing data, labels and padding mask.
-        """
-        data, label, pad_mask = self.loader.sample(idx)
-
-        if self.scale_label:
-            label = self.scaler.transform(label.reshape(-1, 1))[:, 0]
-        return torch.from_numpy(data), torch.from_numpy(label), torch.from_numpy(pad_mask)
-
-    def get_balance(self) -> list:
-        """Return the weight balance for the split of interest.
-
-        Returns:
-            list: Weights for each label.
-        """
-        counts = self.loader.outc_df.value_counts()
-        return list((1 / counts) * np.sum(counts) / counts.shape[0])
-
-    # TODO check whether this works for seq2seq task
-    def set_scaler(self, scaler):
-        """Sets the scaler for labels in case of regression.
-
-        Args:
-            scaler: sklearn scaler instance
-        """
-        self.scaler = scaler
-
-    def get_data_and_labels(self) -> Tuple[np.array, np.array]:
-        """Function to return all the data and labels aligned at once.
-
-        We use this function for the ML methods which don't require an iterator.
-
-        Returns:
-            (np.array, np.array): a tuple containing data points and label for the split.
-        """
-        logging.info("Gathering the samples for split " + self.split)
-        labels = self.loader.outc_df["label"].to_numpy().astype(float)
-        rep = self.loader.dyn_data_df
-        if len(labels) == self.loader.num_stays:
-            # order of groups could be random, we make sure not to change it
-            rep = rep.groupby(level=VARS["STAY_ID"], sort=False).last()
-        rep = rep.to_numpy()
-
-        if self.scaler is not None:
-            labels = self.scaler.transform(labels.reshape(-1, 1))[:, 0]
-        return rep, labels
-
-
-@gin.configurable("RICULoader")
-class RICULoader(object):
-    def __init__(self, data, split="train", use_features=True, use_static=False):
-        """
-        Args:
-            data (dict): Dict of the different splits of the data.
-            split (string): Name of split to load.
-        """
-        # We set sampling config
-        self.split = split
-
-        # Load parquet into dataframes, selecting the split from the data
-        self.static_df = data[split]["STATIC"]
-        self.outc_df = data[split]["OUTCOME"].set_index(VARS["STAY_ID"])
-        self.dyn_df = data[split]["DYNAMIC"].set_index(VARS["STAY_ID"])  # FIXME use features too
-        # if use_static:
-        #     # FIXME use sex too
-        #     self.dyn_df = pd.concat([self.dyn_df, self.static_df.set_index(VARS["STAY_ID"])], axis=1).drop(
-        #         labels="sex", axis=1
-        #     )
-        self.dyn_data_df = self.dyn_df.drop(labels=VARS["TIME"], axis=1)
-
-        # calculate basic info for the data
-        self.num_stays = self.static_df.shape[0]
-        self.num_measurements = self.dyn_df.shape[0]
-        self.maxlen = self.dyn_df.groupby([VARS["STAY_ID"]]).size().max()
-        
-
-    def sample(self, idx: int, pad_value: float = 0.0):
-        """Function to sample from the data split of choice.
-
         Args:
             idx (int): A specific row index to sample.
-            pad_value (float): Value to pad with if stop - start < self.maxlen.
 
         Returns:
-            (np.array, np.array, np.array): A sample from the desired distribution as tuple of numpy arrays (sample, label, mask).
+            (Tensor, Tensor, Tensor): A sample from the data, consisting of data, labels and padding mask.
         """
+        pad_value = 0.0
         stay_id = self.static_df.iloc[idx][VARS["STAY_ID"]]
 
         # slice to make sure to always return a DF
-        window = self.dyn_data_df.loc[stay_id:stay_id].to_numpy()
+        window = self.dyn_df.loc[stay_id:stay_id].to_numpy()
         labels = self.outc_df.loc[stay_id][["label"]].to_numpy().astype(float)
 
         if len(labels) == 1:
@@ -147,9 +64,9 @@ class RICULoader(object):
 
         length_diff = self.maxlen - window.shape[0]
 
-        # Padding the array to fulfill size requirement
         pad_mask = np.ones(window.shape[0])
 
+        # Padding the array to fulfill size requirement
         if length_diff > 0:
             # window shorter than longest window in dataset, pad to same length
             window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
@@ -163,7 +80,33 @@ class RICULoader(object):
 
         pad_mask = pad_mask.astype(bool)
         labels = labels.astype(np.float32)
-        window = window.astype(np.float32)
-        return window, labels, pad_mask
+        data = window.astype(np.float32)
 
-        return self.get_window(stay_id)
+        return torch.from_numpy(data), torch.from_numpy(labels), torch.from_numpy(pad_mask)
+
+    def get_balance(self) -> list:
+        """Return the weight balance for the split of interest.
+
+        Returns:
+            list: Weights for each label.
+        """
+        counts = self.outc_df.value_counts()
+        return list((1 / counts) * np.sum(counts) / counts.shape[0])
+
+    def get_data_and_labels(self) -> Tuple[np.array, np.array]:
+        """Function to return all the data and labels aligned at once.
+
+        We use this function for the ML methods which don't require an iterator.
+
+        Returns:
+            (np.array, np.array): a tuple containing data points and label for the split.
+        """
+        logging.info("Gathering the samples for split " + self.split)
+        labels = self.outc_df["label"].to_numpy().astype(float)
+        rep = self.dyn_df
+        if len(labels) == self.num_stays:
+            # order of groups could be random, we make sure not to change it
+            rep = rep.groupby(level=VARS["STAY_ID"], sort=False).last()
+        rep = rep.to_numpy()
+
+        return rep, labels

@@ -77,10 +77,6 @@ def train_common(
     dataset = RICUDataset(data, split="train")
     val_dataset = RICUDataset(data, split="val")
 
-    # We set the label scaler
-    val_dataset.set_scaler(dataset.scaler)
-    model.set_scaler(dataset.scaler)
-
     model.set_logdir(log_dir)
     save_config_file(log_dir)  # We save the operative config before and also after training
 
@@ -109,7 +105,6 @@ def train_common(
 
     if do_test:
         test_dataset = RICUDataset(data, split="test")
-        test_dataset.set_scaler(dataset.scaler)
         weight = dataset.get_balance()
         model.test(test_dataset, weight)
     save_config_file(log_dir)
