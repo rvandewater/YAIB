@@ -97,11 +97,13 @@ class Recipe:
         self.steps.append(step)
         return self
 
-    def _check_data(self, data):
+    def _check_data(self, data: Union[pd.DataFrame, Ingredients]) -> Ingredients:
         if data is None:
             data = self.data
         elif data.__class__ == pd.DataFrame:
-            data = Ingredients(data, roles=self.data.roles)
+            # this is only executed when prep or bake recieve a DF that is different to the original data
+            # don't check the roles here, because self.data can have more columns/roles than data (e.g. pre and post feature generation)
+            data = Ingredients(data, roles=self.data.roles, check_roles=False)
         if not data.columns.equals(self.data.columns):
             raise ValueError("Columns of data argument differs from recipe data.")
         return data
@@ -112,23 +114,29 @@ class Recipe:
             data = data.groupby(group_vars)
         return data
 
-    def prep(self, data=None, refit=False):
-        """
-        Fits and transforms, in other words preps, the data.
-        @param data:
-        @param refit: Refit all columns
-        @return:
+    def prep(self, data: Union[pd.DataFrame, Ingredients] = None, refit: bool = False) -> pd.DataFrame:
+        """Fits and transforms, in other words preps, the data.
+
+        Args:
+            data (Union[pd.DataFrame, Ingredients], optional): Data to fit and transform. Defaults to None.
+            refit (bool, optional): Defaults to False. Whether to refit data.
+        
+        Returns:
+            pd.DataFrame: Transformed data.
         """
         data = self._check_data(data)
         data = copy(data)
         self._apply_fit_transform(data, refit)
         return pd.DataFrame(data)
 
-    def bake(self, data=None):
-        """
-        Transforms, or bakes, the data if it has been prepped.
-        @param data:
-        @return:
+    def bake(self, data: Union[pd.DataFrame, Ingredients] = None) -> pd.DataFrame:
+        """Transforms, or bakes, the data if it has been prepped.
+
+        Args:
+            data (Union[pd.DataFrame, Ingredients], optional): Data to transform. Defaults to None.
+        
+        Returns:
+            pd.DataFrame: Transformed data.
         """
         data = self._check_data(data)
         data = copy(data)

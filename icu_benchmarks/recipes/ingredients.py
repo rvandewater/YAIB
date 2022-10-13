@@ -1,4 +1,5 @@
 from copy import deepcopy
+import numpy as np
 import pandas as pd
 
 from pandas._typing import Axes, Dtype
@@ -10,6 +11,8 @@ class Ingredients(pd.DataFrame):
     Args:
         roles (dict, optional): roles of DataFrame columns as (list of) strings.
             Defaults to None.
+        check_roles (bool, optional): If set to false, doesn't check whether the roles match existing columns.
+            Defaults to True.
 
     See also: pandas.DataFrame
 
@@ -20,7 +23,14 @@ class Ingredients(pd.DataFrame):
     _metadata = ["roles"]
 
     def __init__(
-        self, data=None, index: Axes = None, columns: Axes = None, dtype: Dtype = None, copy: bool = None, roles: dict = None
+        self,
+        data=None,
+        index: Axes = None,
+        columns: Axes = None,
+        dtype: Dtype = None,
+        copy: bool = None,
+        roles: dict = None,
+        check_roles: bool = True,
     ):
         super().__init__(
             data,
@@ -39,8 +49,8 @@ class Ingredients(pd.DataFrame):
             self.roles = {}
         elif not isinstance(roles, dict):
             raise TypeError(f"expected dict object for roles, got {roles.__class__}")
-        # elif not np.all([k in self.columns for k in roles]):
-        #     raise ValueError("roles contains variable name that is not in the data.")
+        elif check_roles and not np.all([k in self.columns for k in roles]):
+            raise ValueError("roles contains variable name that is not in the data.")
         else:
             if copy is None or copy is True:
                 self.roles = deepcopy(roles)
