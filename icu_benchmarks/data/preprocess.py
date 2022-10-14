@@ -80,6 +80,16 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
 
 
 def preprocess_data(work_dir: Path, seed: int = 42) -> dict[dict[pd.DataFrame]]:
+    """Perform loading, splitting, imputing and normalising of task data.
+
+    Args:
+        work_dir (Path): path to the directory holding the data
+        seed (int, optional): Random seed. Defaults to 42.
+
+    Returns:
+        dict[dict[pd.DataFrame]]: preprocessed data as DataFrame in a hierarchical dict with data type 
+            (STATIC/DYNAMIC/OUTCOME) nested within fold (train/val/test).
+    """
     data = load_data(work_dir)
 
     logging.info("Generating splits")
