@@ -87,7 +87,7 @@ def preprocess_data(work_dir: Path, seed: int = 42) -> dict[dict[pd.DataFrame]]:
         seed (int, optional): Random seed. Defaults to 42.
 
     Returns:
-        dict[dict[pd.DataFrame]]: preprocessed data as DataFrame in a hierarchical dict with data type 
+        dict[dict[pd.DataFrame]]: preprocessed data as DataFrame in a hierarchical dict with data type
             (STATIC/DYNAMIC/OUTCOME) nested within split (train/val/test).
     """
     data = load_data(work_dir)
