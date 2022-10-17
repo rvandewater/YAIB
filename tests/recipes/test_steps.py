@@ -54,6 +54,14 @@ class TestStepResampling:
         df = rec.bake()
         assert df.shape[0] == pre_sampling_len / 2
 
+    def test_step_wo_selectors(self, example_df):
+        # Using group role and without supplying any selectors
+        pre_sampling_len = example_df.shape[0]
+        rec = Recipe(example_df, ["y"], ["x1", "x2"], ["id"], ["time"])
+        rec.add_step(StepResampling("2h"))
+        df = rec.bake()
+        assert df.shape[0] == pre_sampling_len / 2
+
     def test_step_ungrouped(self, example_df):
         # Without using group role
         pre_sampling_len = pd.Series(example_df.time).drop_duplicates(inplace=False, keep="first").size

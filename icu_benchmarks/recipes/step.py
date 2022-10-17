@@ -303,7 +303,7 @@ class StepResampling(Step):
     def __init__(
         self,
         new_resolution: str = "1h",
-        accumulator_dict: Dict[Selector, Accumulator] = {(all_predictors(), Accumulator.LAST)},
+        accumulator_dict: Dict[Selector, Accumulator] = {all_predictors(): Accumulator.LAST},
         default_accumulator: Accumulator = Accumulator.LAST,
     ):
         """This class represents a step in a recipe.
@@ -313,7 +313,7 @@ class StepResampling(Step):
 
         Args:
             new_resolution(str): Resolution to resample to.
-            accumulator_dict ({Selector, Accumulator}) : Supply dictionary with individual accumulator methods for each
+            accumulator_dict Dict[Selector, Accumulator] : Supply dictionary with individual accumulation methods for each
                 Selector.
             default_accumulator(Accumulator, Optional): Accumulator to use for variables not supplied in dictionary.
         """
