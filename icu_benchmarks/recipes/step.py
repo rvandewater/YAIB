@@ -1,12 +1,19 @@
 from abc import abstractmethod
 from copy import deepcopy
-from typing import Union
+from typing import Union, Dict
 from scipy.sparse import isspmatrix
 from pandas.core.groupby import DataFrameGroupBy
 from sklearn.preprocessing import StandardScaler
 from icu_benchmarks.recipes.ingredients import Ingredients
 from enum import Enum
-from icu_benchmarks.recipes.selector import Selector, all_predictors, all_numeric_predictors
+from icu_benchmarks.recipes.selector import (
+    Selector,
+    all_predictors,
+    all_numeric_predictors,
+    select_groups,
+    select_sequence,
+)
+from pandas.api.types import is_timedelta64_dtype, is_datetime64_any_dtype
 
 
 class Step:
@@ -122,6 +129,8 @@ class Accumulator(Enum):
     MEDIAN = "median"
     COUNT = "count"
     VAR = "var"
+    FIRST = "first"
+    LAST = "last"
 
 
 class StepHistorical(Step):
@@ -258,7 +267,7 @@ class StepSklearn(Step):
                 col_names = (
                     col
                     if self.in_place
-                    else [f"{self.sklearn_transformer.__class__.__name__}_{col}_{i+1}" for i in range(new_cols.shape[1])]
+                    else [f"{self.sklearn_transformer.__class__.__name__}_{col}_{i + 1}" for i in range(new_cols.shape[1])]
                 )
                 new_data[col_names] = new_cols
         else:
@@ -273,7 +282,7 @@ class StepSklearn(Step):
             col_names = (
                 self.columns
                 if self.in_place
-                else [f"{self.sklearn_transformer.__class__.__name__}_{i+1}" for i in range(new_cols.shape[1])]
+                else [f"{self.sklearn_transformer.__class__.__name__}_{i + 1}" for i in range(new_cols.shape[1])]
             )
             if new_cols.shape[1] != len(col_names):
                 raise ValueError(
@@ -290,16 +299,86 @@ class StepSklearn(Step):
         return new_data
 
 
+class StepResampling(Step):
+    def __init__(
+        self,
+        new_resolution: str = "1h",
+        accumulator_dict: Dict[Selector, Accumulator] = {all_predictors(): Accumulator.LAST},
+        default_accumulator: Accumulator = Accumulator.LAST,
+    ):
+        """This class represents a step in a recipe.
+
+        Steps are transformations to be executed on selected columns of a DataFrame.
+        They fit a transformer to the selected columns and afterwards transform the data with the fitted transformer.
+
+        Args:
+            new_resolution(str): Resolution to resample to.
+            accumulator_dict Dict[Selector, Accumulator] : Supply dictionary with individual accumulation methods for each
+                Selector.
+            default_accumulator(Accumulator, Optional): Accumulator to use for variables not supplied in dictionary.
+        """
+        super().__init__()
+        self.new_resolution = new_resolution
+        self.acc_dict = accumulator_dict
+        self.default_accumulator = default_accumulator
+        self._group = True
+
+    def do_fit(self, data: Ingredients):
+        self._trained = True
+
+    def transform(self, data):
+        new_data = self._check_ingredients(data)
+
+        # Check for and save first sequence role
+        if select_sequence(new_data) is not None:
+            sequence_role = select_sequence(new_data)[0]
+        else:
+            raise AssertionError("Sequence role has not been assigned, resampling step not possible")
+        sequence_datatype = new_data.dtypes[sequence_role]
+
+        if not (is_timedelta64_dtype(sequence_datatype) or is_datetime64_any_dtype(sequence_datatype)):
+            raise ValueError(f"Expected Timedelta or Timestamp object, got {sequence_role(data).__class__}")
+
+        # Dictionary with the format column: str , accumulator:str is created
+        col_acc_map = {}
+        # Go through supplied Selector, Accumulator pairs
+        for (selector, accumulator) in self.acc_dict.items():
+            selected_columns = selector(new_data)
+            # Add variables associated with selector with supplied accumulator
+            col_acc_map.update({col: accumulator.value for col in selected_columns})
+
+        # Add non-specified variables, if not a sequence role
+        col_acc_map.update(
+            {
+                col: self.default_accumulator.value
+                for col in new_data.columns.difference(col_acc_map.keys())
+                if col not in select_sequence(new_data)
+            }
+        )
+
+        # Resampling with the functions defined in col_acc_map
+        new_data = data.resample(self.new_resolution, on=sequence_role).agg(col_acc_map)
+
+        # Remove multi-index in case of grouped data
+        if isinstance(data, DataFrameGroupBy):
+            new_data = new_data.droplevel(select_groups(data.obj))
+
+        # Remove sequence index, while keeping column
+        new_data = new_data.reset_index(drop=False)
+
+        return new_data
+
+
 class StepScale:
     """Provides a wrapper for a scaling with StepSklearn.
 
-     Args:
-        with_mean (bool, optional): Defaults to True. If True, center the data before scaling.
-        with_std (bool, optional): Defaults to True.
-            If True, scale the data to unit variance (or equivalently, unit standard deviation).
-        in_place (bool, optional): Defaults to True.
-            Set to False to have the step generate new columns instead of overwriting the existing ones.
-        role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
+    Args:
+       with_mean (bool, optional): Defaults to True. If True, center the data before scaling.
+       with_std (bool, optional): Defaults to True.
+           If True, scale the data to unit variance (or equivalently, unit standard deviation).
+       in_place (bool, optional): Defaults to True.
+           Set to False to have the step generate new columns instead of overwriting the existing ones.
+       role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
     """
 
     def __new__(

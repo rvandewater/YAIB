@@ -24,7 +24,7 @@ from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer, MissingI
 
 from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_numeric_predictors, has_type, has_role, all_of
-from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator, StepImputeFill, StepScale
+from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator, StepImputeFill, StepScale, StepResampling
 
 
 @pytest.fixture()
@@ -42,6 +42,35 @@ def test_no_group_for_group_step(example_df):
     rec = Recipe(example_df, ["y"], ["x1", "x2"])
     rec.add_step(StepImputeFill(value=0))
     rec.prep()
+
+
+class TestStepResampling:
+    def test_step_grouped(self, example_df):
+        # Using group role
+        pre_sampling_len = example_df.shape[0]
+        rec = Recipe(example_df, ["y"], ["x1", "x2"], ["id"], ["time"])
+        resampling_dict = {all_numeric_predictors(): Accumulator.MEAN}
+        rec.add_step(StepResampling("2h", accumulator_dict=resampling_dict))
+        df = rec.bake()
+        assert df.shape[0] == pre_sampling_len / 2
+
+    def test_step_wo_selectors(self, example_df):
+        # Using group role and without supplying any selectors
+        pre_sampling_len = example_df.shape[0]
+        rec = Recipe(example_df, ["y"], ["x1", "x2"], ["id"], ["time"])
+        rec.add_step(StepResampling("2h"))
+        df = rec.bake()
+        assert df.shape[0] == pre_sampling_len / 2
+
+    def test_step_ungrouped(self, example_df):
+        # Without using group role
+        pre_sampling_len = pd.Series(example_df.time).drop_duplicates(inplace=False, keep="first").size
+        rec = Recipe(example_df, ["y"], ["x1", "x2"])
+        rec.update_roles("time", "sequence")
+        resampling_dict = {all_numeric_predictors(): Accumulator.MEAN}
+        rec.add_step(StepResampling("2h", accumulator_dict=resampling_dict))
+        df = rec.bake()
+        assert df.shape[0] == pre_sampling_len / 2
 
 
 class TestStepHistorical:
