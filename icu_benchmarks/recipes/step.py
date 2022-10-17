@@ -321,14 +321,15 @@ class StepResampling(Step):
         self.new_resolution = new_resolution
         self.acc_dict = accumulator_dict
         self.default_accumulator = default_accumulator
-        self._group = False
+        self._group = True
 
     def do_fit(self, data: Ingredients):
         self._trained = True
 
     def transform(self, data):
         new_data = self._check_ingredients(data)
-
+        # new_data = data
+        # new_data = data.obj
         # Check for and save first sequence role
         self.sequence_role = select_sequence(new_data)[0]
         sequence_datatype = new_data.dtypes[self.sequence_role]
@@ -354,15 +355,19 @@ class StepResampling(Step):
         )
 
         # Resample for grouping variable
-        new_data = new_data.groupby(select_groups(data))
+        # new_data = new_data._apply_group(data)
 
         # Resampling with the functions defined in sel_dictionary
-        new_data = new_data.resample(self.new_resolution, on=self.sequence_role).agg(col_acc_map)
+        new_data = data.resample(self.new_resolution, on=self.sequence_role).agg(col_acc_map)
 
-        # Remove multi-index
-        new_data = new_data.droplevel(select_groups(data))
+        # Remove multi-index in case of grouped data
+        if isinstance(data, DataFrameGroupBy):
+            new_data = new_data.droplevel(select_groups(data.obj))
+
+        # Remove sequence index, while keeping column
         new_data = new_data.reset_index(drop=False)
-        new_data = new_data.set_index(select_groups(data))
+        # new_data = new_data.set_index(select_groups(data))
+        #new_data = new_data.set_index(select_groups(data))
 
         return new_data
 

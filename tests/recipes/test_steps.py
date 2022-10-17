@@ -40,10 +40,20 @@ def example_recipe_w_nan(example_df):
 
 class TestStepResampling:
 
-    def test_step_dictionary(self, example_df):
+    def test_step_grouped(self, example_df):
         # Using dictionary with selectors and accumulators
         pre_sampling_len = example_df.shape[0]
-        rec = Recipe(example_df, ["y"], ["x1", "x2"], ["id"])
+        rec = Recipe(example_df, ["y"], ["x1", "x2"], ["id"], ["time"])
+        # rec.update_roles("time", "sequence")
+        resampling_dict = {all_numeric_predictors(): Accumulator.MEAN}
+        rec.add_step(StepResampling("2h", accumulator_dict=resampling_dict))
+        df = rec.bake()
+        assert df.shape[0] == pre_sampling_len / 2
+
+    def test_step_ungrouped(self, example_df):
+        # Using dictionary with selectors and accumulators
+        pre_sampling_len = example_df.shape[0]
+        rec = Recipe(example_df, ["y"], ["x1", "x2"])
         rec.update_roles("time", "sequence")
         resampling_dict = {all_numeric_predictors(): Accumulator.MEAN}
         rec.add_step(StepResampling("2h", accumulator_dict=resampling_dict))
