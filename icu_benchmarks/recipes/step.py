@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Union, Dict
-import pandas as pd
 from scipy.sparse import isspmatrix
 from pandas.core.groupby import DataFrameGroupBy
 from sklearn.preprocessing import StandardScaler
