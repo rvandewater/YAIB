@@ -14,6 +14,7 @@ from icu_benchmarks.recipes.selector import (
     select_groups,
     select_sequence,
 )
+from pandas.api.types import is_timedelta64_dtype, is_datetime64_any_dtype
 
 
 class Step:
@@ -333,34 +334,31 @@ class StepResampling(Step):
         self.sequence_role = select_sequence(new_data)[0]
         sequence_datatype = new_data.dtypes[self.sequence_role]
 
-        if not (
-            pd.api.types.is_timedelta64_dtype(sequence_datatype) or pd.api.types.is_datetime64_any_dtype(sequence_datatype)
-        ):
+        if not (is_timedelta64_dtype(sequence_datatype) or is_datetime64_any_dtype(sequence_datatype)):
             raise ValueError(f"Expected Timedelta or Timestamp object, got {self.sequence_role(data).__class__}")
 
-        # Dictionary with accumulators is provided
-        new_dict = {}
+        # Dictionary with the format column: str , accumulator:str is created
+        col_acc_map = {}
         # Go through supplied Selector, Accumulator pairs
-        for key in self.acc_dict:
-            variables = key(new_data)
+        for (selector, accumulator) in self.acc_dict.items():
+            selected_columns = selector(new_data)
             # Add variables associated with selector with supplied accumulator
-            new_dict.update({el: self.acc_dict[key].value for el in variables})
+            col_acc_map.update({col: accumulator.value for col in selected_columns})
 
         # Add non-specified variables, if not a sequence role
-        new_dict.update(
+        col_acc_map.update(
             {
-                el: self.default_accumulator.value
-                for el in new_data.columns.difference(new_dict.keys())
-                if el not in select_sequence(new_data)
+                col: self.default_accumulator.value
+                for col in new_data.columns.difference(col_acc_map.keys())
+                if col not in select_sequence(new_data)
             }
         )
-        acc_dict = new_dict
 
-        # Resample per stay id
+        # Resample for grouping variable
         new_data = new_data.groupby(select_groups(data))
 
         # Resampling with the functions defined in sel_dictionary
-        new_data = new_data.resample(self.new_resolution, on=self.sequence_role).agg(acc_dict)
+        new_data = new_data.resample(self.new_resolution, on=self.sequence_role).agg(col_acc_map)
 
         # Remove multi-index
         new_data = new_data.droplevel(select_groups(data))
