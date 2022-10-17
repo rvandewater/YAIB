@@ -328,14 +328,16 @@ class StepResampling(Step):
 
     def transform(self, data):
         new_data = self._check_ingredients(data)
-        # new_data = data
-        # new_data = data.obj
+
         # Check for and save first sequence role
-        self.sequence_role = select_sequence(new_data)[0]
-        sequence_datatype = new_data.dtypes[self.sequence_role]
+        if select_sequence(new_data) is not None:
+            sequence_role = select_sequence(new_data)[0]
+        else:
+            raise AssertionError("Sequence role has not been assigned, resampling step not possible")
+        sequence_datatype = new_data.dtypes[sequence_role]
 
         if not (is_timedelta64_dtype(sequence_datatype) or is_datetime64_any_dtype(sequence_datatype)):
-            raise ValueError(f"Expected Timedelta or Timestamp object, got {self.sequence_role(data).__class__}")
+            raise ValueError(f"Expected Timedelta or Timestamp object, got {sequence_role(data).__class__}")
 
         # Dictionary with the format column: str , accumulator:str is created
         col_acc_map = {}
@@ -354,11 +356,8 @@ class StepResampling(Step):
             }
         )
 
-        # Resample for grouping variable
-        # new_data = new_data._apply_group(data)
-
-        # Resampling with the functions defined in sel_dictionary
-        new_data = data.resample(self.new_resolution, on=self.sequence_role).agg(col_acc_map)
+        # Resampling with the functions defined in col_acc_map
+        new_data = data.resample(self.new_resolution, on=sequence_role).agg(col_acc_map)
 
         # Remove multi-index in case of grouped data
         if isinstance(data, DataFrameGroupBy):
@@ -366,8 +365,6 @@ class StepResampling(Step):
 
         # Remove sequence index, while keeping column
         new_data = new_data.reset_index(drop=False)
-        # new_data = new_data.set_index(select_groups(data))
-        #new_data = new_data.set_index(select_groups(data))
 
         return new_data
 
