@@ -37,6 +37,10 @@ def example_recipe_w_nan(example_df):
     example_df.loc[[2, 4, 6], "x2"] = np.nan
     return Recipe(example_df, ["y"], ["x1", "x2", "x3", "x4"], ["id"])  # FIXME: add squence when merged
 
+def test_no_group_for_group_step(example_df):
+    rec = Recipe(example_df, ["y"], ["x1", "x2"])
+    rec.add_step(StepImputeFill(value=0))
+    rec.prep()
 
 class TestStepResampling:
 
