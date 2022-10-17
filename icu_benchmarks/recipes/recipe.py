@@ -111,7 +111,8 @@ class Recipe:
     def _apply_group(self, data, step):
         if step.group:
             group_vars = select_groups(data)
-            data = data.groupby(group_vars)
+            if len(group_vars) > 0:
+                data = data.groupby(group_vars)
         return data
 
     def prep(self, data: Union[pd.DataFrame, Ingredients] = None, refit: bool = False) -> pd.DataFrame:
