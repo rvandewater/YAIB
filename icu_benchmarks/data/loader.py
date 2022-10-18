@@ -1,4 +1,3 @@
-import gin
 import logging
 import numpy as np
 import torch
@@ -12,7 +11,6 @@ VARS = constants.VARS
 FILE_NAMES = constants.FILE_NAMES
 
 
-@gin.configurable("RICUDataset")
 class RICUDataset(Dataset):
     """Subclass of torch Dataset that represents the data to learn on.
 

@@ -2,7 +2,7 @@ import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
-import icu_benchmarks.data.loader
+
 
 EMB = 231
 LR = 3e-4
