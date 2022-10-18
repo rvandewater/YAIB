@@ -79,7 +79,7 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
     return data
 
 
-def preprocess_data(work_dir: Path, seed: int = 42) -> dict[dict[pd.DataFrame]]:
+def preprocess_data(data_dir: Path, seed: int = 42) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
@@ -90,7 +90,7 @@ def preprocess_data(work_dir: Path, seed: int = 42) -> dict[dict[pd.DataFrame]]:
         dict[dict[pd.DataFrame]]: preprocessed data as DataFrame in a hierarchical dict with data type
             (STATIC/DYNAMIC/OUTCOME) nested within split (train/val/test).
     """
-    data = load_data(work_dir)
+    data = load_data(data_dir)
 
     logging.info("Generating splits")
     data = make_single_split(data, seed=seed)
