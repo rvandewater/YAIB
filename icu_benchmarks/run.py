@@ -2,16 +2,10 @@
 import argparse
 import logging
 import os
-from sklearn_pandas import DataFrameMapper, gen_features
 import sys
-from sklearn.impute import SimpleImputer
 from pathlib import Path
-from pyarrow import parquet
-from icu_benchmarks.common import constants
 
-from icu_benchmarks.common.constants import VARS
-from icu_benchmarks.data.preprocess import HistoricalMin, HistoricalMax, NumMeasurements, HistoricalMean, FFill
-from icu_benchmarks.data.preprocess import generate_splits
+from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_and_params
 
@@ -20,42 +14,31 @@ default_seed = 42
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        description="Benchmark lib for processing and evaluation of deep learning models on HiRID ICU data"
+        description="Benchmark lib for processing and evaluation of deep learning models on ICU data"
     )
 
     parent_parser = argparse.ArgumentParser(add_help=False)
 
     subparsers = parser.add_subparsers(title="Commands", dest="command", required=True)
 
-    parser_prep_ml = subparsers.add_parser(
-        "preprocess", help="Calls sequentially merge and resample.", parents=[parent_parser]
+    parser_prep_and_train = subparsers.add_parser(
+        "train", help="Calls sequentially merge and resample.", parents=[parent_parser]
     )
 
-    preprocess_arguments = parser_prep_ml.add_argument_group("Preprocess arguments")
-
+    preprocess_arguments = parser_prep_and_train.add_argument_group("Preprocess arguments")
     preprocess_arguments.add_argument(
         "--data-dir", required=True, type=Path, help="Path to the parquet data directory as preprocessed by RICU."
     )
     preprocess_arguments.add_argument(
-        "-nw",
-        "--nr-workers",
-        default=1,
+        "--split-seed",
+        dest="split_seed",
+        default=default_seed,
         required=False,
         type=int,
-        dest="nr_workers",
-        help="Number of process to use at preprocessing, Default to 1 ",
+        help="Seed for the train/val/test split",
     )
-    preprocess_arguments.add_argument(
-        "--seed", dest="seed", default=default_seed, required=False, type=int, help="Seed for the train/val/test split"
-    )
-    # preprocess_arguments.add_argument('--imputation', dest="imputation",
-    #                                   default='ffill', required=False, type=str,
-    #                                   help="Type of imputation. Default: 'ffill' ")
-    # preprocess_arguments.add_argument('--horizon', dest="horizon",
-    #                                   default=12, required=False, type=int,
-    #                                   help="Horizon of prediction in hours for failure tasks")
 
-    model_arguments = parent_parser.add_argument_group("Model arguments")
+    model_arguments = parser_prep_and_train.add_argument_group("Model arguments")
     model_arguments.add_argument("-l", "--logdir", dest="logdir", required=False, type=str, help="Path to the log directory ")
     model_arguments.add_argument(
         "--reproducible",
@@ -259,48 +242,9 @@ def build_parser():
         "-c", "--config", default=None, dest="config", nargs="+", type=str, help="Path to the gin train config file."
     )
 
-    # parser_evaluate = subparsers.add_parser('evaluate', help='evaluate',
-    #                                         parents=[parent_parser])
+    subparsers.add_parser("evaluate", help="evaluate", parents=[parent_parser])
 
-    # parser_train = subparsers.add_parser('train', help='train',
-    #                                      parents=[parent_parser])
     return parser
-
-
-def run_preprocessing(work_dir):
-    sta_path = work_dir / constants.FILE_NAMES["STATIC"]
-    dyn_path = work_dir / constants.FILE_NAMES["DYNAMIC"]
-    outc_path = work_dir / constants.FILE_NAMES["OUTCOME"]
-
-    static_splits_path = work_dir / constants.FILE_NAMES["STATIC_SPLITS"]
-    labels_splits_path = work_dir / constants.FILE_NAMES["LABELS_SPLITS"]
-    dyn_splits_path = work_dir / constants.FILE_NAMES["DYNAMIC_SPLITS"]
-
-    if not static_splits_path.exists() or not labels_splits_path.exists() or not dyn_splits_path.exists():
-        logging.info("Generating splits")
-        generate_splits(sta_path, outc_path, dyn_path, static_splits_path, labels_splits_path, dyn_splits_path)
-    else:
-        logging.info(f"Splits in {work_dir} exist, skipping")
-
-    dyn_df = parquet.read_table(dyn_splits_path).to_pandas()
-    # TODO add static if needed
-
-    columns = [[col] for col in VARS["DYNAMIC_VARS"]]
-    ZeroImputator = {"class": SimpleImputer, "strategy": "constant", "fill_value": 0}
-
-    # TODO only use mean of train?
-    feature_extractor_w_imputation = DataFrameMapper(
-        gen_features(columns=columns, classes=[FFill, {"class": SimpleImputer, "strategy": "mean"}])
-        + gen_features(columns=columns, classes=[HistoricalMin, FFill, ZeroImputator], prefix="min_")
-        + gen_features(columns=columns, classes=[HistoricalMax, FFill, ZeroImputator], prefix="max_")
-        + gen_features(columns=columns, classes=[NumMeasurements, FFill, ZeroImputator], prefix="n_meas_")
-        + gen_features(columns=columns, classes=[HistoricalMean, FFill, ZeroImputator], prefix="mean_"),
-        input_df=True,
-        df_out=True,
-        drop_cols=[VARS["TIME"]],
-    )
-    dyn_df_w_features_imputed = feature_extractor_w_imputation.fit_transform(dyn_df.copy())
-    print(dyn_df_w_features_imputed)
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -310,64 +254,55 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
 
-    # Dispatch
-    if args.command == "preprocess":
-        run_preprocessing(args.data_dir)
+    data = preprocess_data(args.data_dir, seed=args.split_seed)
 
-    if args.command in ["train", "evaluate"]:
-        load_weights = args.command == "evaluate"
-        reproducible = str(args.reproducible) == "True"
-        if not isinstance(args.seed, list):
-            seeds = [args.seed]
-        else:
-            seeds = args.seed
-        if not load_weights:
+    load_weights = args.command == "evaluate"
+    reproducible = str(args.reproducible) == "True"
+    seeds = args.seed if isinstance(args.seed, list) else [args.seed]
+    gin_bindings, log_dir = get_bindings_and_params(args)
+    if load_weights:
+        log_dir = args.logdir
+    if args.rs:
+        reproducible = False
+        max_attempt = 0
+        is_already_ran = os.path.isdir(log_dir)
+        while is_already_ran and max_attempt < 500:
             gin_bindings, log_dir = get_bindings_and_params(args)
-        else:
-            gin_bindings, _ = get_bindings_and_params(args)
-            log_dir = args.logdir
-        if args.rs:
-            reproducible = False
-            max_attempt = 0
             is_already_ran = os.path.isdir(log_dir)
-            while is_already_ran and max_attempt < 500:
-                gin_bindings, log_dir = get_bindings_and_params(args)
-                is_already_ran = os.path.isdir(log_dir)
-                max_attempt += 1
-            if max_attempt >= 300:
-                raise Exception("Reached max attempt to find unexplored set of parameters parameters")
+            max_attempt += 1
+        if max_attempt >= 300:
+            raise Exception("Reached max attempt to find unexplored set of parameters parameters")
 
-        if args.task is not None:
-            for task in args.task:
-                gin_bindings_task = gin_bindings + ["TASK = " + "'" + str(task) + "'"]
-                log_dir_task = os.path.join(log_dir, str(task))
-                for seed in seeds:
-                    if not load_weights:
-                        log_dir_seed = os.path.join(log_dir_task, str(seed))
-                    else:
-                        log_dir_seed = log_dir_task
-                    train_with_gin(
-                        model_dir=log_dir_seed,
-                        overwrite=args.overwrite,
-                        load_weights=load_weights,
-                        gin_config_files=args.config,
-                        gin_bindings=gin_bindings_task,
-                        seed=seed,
-                        reproducible=reproducible,
-                    )
-        else:
+    if args.task is not None:
+        for task in args.task:
+            gin_bindings_task = gin_bindings + ["TASK = " + "'" + str(task) + "'"]
+            log_dir_task = os.path.join(log_dir, str(task))
             for seed in seeds:
-                if not load_weights:
-                    log_dir_seed = os.path.join(log_dir, str(seed))
+                log_dir_seed = log_dir_task if load_weights else os.path.join(log_dir_task, str(seed))
                 train_with_gin(
                     model_dir=log_dir_seed,
+                    data=data,
                     overwrite=args.overwrite,
                     load_weights=load_weights,
                     gin_config_files=args.config,
-                    gin_bindings=gin_bindings,
+                    gin_bindings=gin_bindings_task,
                     seed=seed,
                     reproducible=reproducible,
                 )
+    else:
+        for seed in seeds:
+            if not load_weights:
+                log_dir_seed = os.path.join(log_dir, str(seed))
+            train_with_gin(
+                model_dir=log_dir_seed,
+                data=data,
+                overwrite=args.overwrite,
+                load_weights=load_weights,
+                gin_config_files=args.config,
+                gin_bindings=gin_bindings,
+                seed=seed,
+                reproducible=reproducible,
+            )
 
 
 """Main module."""

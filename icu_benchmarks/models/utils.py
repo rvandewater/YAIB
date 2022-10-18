@@ -115,7 +115,7 @@ def get_bindings_and_params(args):  # noqa: C901
         else:
             depth = args.depth[0]
 
-        num_leaves = 2 ** depth
+        num_leaves = 2**depth
         gin_bindings += ["DEPTH  = " + str(depth)]
         gin_bindings += ["NUM_LEAVES  = " + str(num_leaves)]
         log_dir = log_dir + "_depth_" + str(depth)

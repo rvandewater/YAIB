@@ -7,11 +7,19 @@ import torch
 import logging
 import numpy as np
 
+from icu_benchmarks.data.loader import RICUDataset
 from icu_benchmarks.models.utils import save_config_file
 
 
 def train_with_gin(
-    model_dir=None, overwrite=False, load_weights=False, gin_config_files=None, gin_bindings=None, seed=1234, reproducible=True
+    model_dir=None,
+    data=None,
+    overwrite=False,
+    load_weights=False,
+    gin_config_files=None,
+    gin_bindings=None,
+    seed=1234,
+    reproducible=True,
 ):
     """Trains a model based on the provided gin configuration.
     This function will set the provided gin bindings, call the train() function
@@ -41,18 +49,17 @@ def train_with_gin(
     if gin_bindings is None:
         gin_bindings = []
     gin.parse_config_files_and_bindings(gin_config_files, gin_bindings)
-    train_common(model_dir, overwrite, load_weights)
+    train_common(model_dir, data, overwrite, load_weights)
     gin.clear_config()
 
 
 @gin.configurable("train_common")
 def train_common(
     log_dir,
+    data,
     overwrite=False,
     load_weights=False,
     model=gin.REQUIRED,
-    dataset_fn=gin.REQUIRED,
-    data_path=gin.REQUIRED,
     weight=None,
     do_test=False,
 ):
@@ -67,12 +74,8 @@ def train_common(
 
     if not load_weights:
         os.makedirs(log_dir)
-    dataset = dataset_fn(data_path, split="train")
-    val_dataset = dataset_fn(data_path, split="val")
-
-    # We set the label scaler
-    val_dataset.set_scaler(dataset.scaler)
-    model.set_scaler(dataset.scaler)
+    dataset = RICUDataset(data, split="train")
+    val_dataset = RICUDataset(data, split="val")
 
     model.set_logdir(log_dir)
     save_config_file(log_dir)  # We save the operative config before and also after training
@@ -101,8 +104,7 @@ def train_common(
             sys.exit(1)
 
     if do_test:
-        test_dataset = dataset_fn(data_path, split="test")
-        test_dataset.set_scaler(dataset.scaler)
+        test_dataset = RICUDataset(data, split="test")
         weight = dataset.get_balance()
         model.test(test_dataset, weight)
     save_config_file(log_dir)

@@ -4,12 +4,12 @@ from icu_benchmarks.recipes.recipe import Recipe
 
 def test_empty_prep_return_df(example_df):
     rec = Recipe(example_df)
-    assert rec.prep().__class__ == pd.DataFrame
+    assert type(rec.prep()) == pd.DataFrame
 
 
 def test_empty_bake_return_df(example_df):
     rec = Recipe(example_df)
-    assert rec.bake().__class__ == pd.DataFrame
+    assert type(rec.bake()) == pd.DataFrame
 
 
 def test_init_roles(example_df):

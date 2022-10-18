@@ -1,150 +1,119 @@
+import logging
 import pandas as pd
-import pyarrow as pa
-from sklearn.base import TransformerMixin
+import numpy as np
+import pyarrow.parquet as pq
+from pathlib import Path
 
 from icu_benchmarks.common import constants
+from icu_benchmarks.recipes.recipe import Recipe
+from icu_benchmarks.recipes.selector import all_of
+from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale
+
 
 VARS = constants.VARS
 FILE_NAMES = constants.FILE_NAMES
 
-# TODO finish doc strings
-# TODO use type hints
 
+def load_data(data_dir: Path) -> dict[pd.DataFrame]:
+    """Load data from disk
 
-class AllColumns:
-    def __init__(self):
-        return
+    Args:
+        data_dir (Path): path to folder with data stored as parquet files
 
-    def __call__(self, X: pd.DataFrame = None):
-        return X.columns.tolist()
-
-
-class ExcludeColumns:
-    def __init__(self, exclude_cols):
-        self.exclude_cols = exclude_cols
-
-    def __call__(self, X: pd.DataFrame = None):
-        return X.columns.difference(self.exclude_cols).tolist()
-
-
-class HistoricalMin(TransformerMixin):
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        return X.groupby(VARS["STAY_ID"]).cummin()
-
-
-class HistoricalMax(TransformerMixin):
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        return X.groupby(VARS["STAY_ID"]).cummax()
-
-
-class NumMeasurements(TransformerMixin):
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        return X.notna().groupby(VARS["STAY_ID"]).cumsum()
-
-
-class HistoricalMean(TransformerMixin):
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        return X.groupby(VARS["STAY_ID"]).cumsum() / X.notna().groupby(VARS["STAY_ID"]).cumsum()
-
-
-class FFill(TransformerMixin):
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        return X.groupby(VARS["STAY_ID"]).ffill()
-
-
-# TODO make function take df like the rest
-# TODO make proportions of splits as parameter
-def generate_splits(sta_path, outc_path, dyn_path, static_splits_path, labels_splits_path, dyn_splits_path):
+    Returns:
+        dict[pd.DataFrame]: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
     """
-    1. Generates training, validation and test splits in the data.
-    2. Merges dynamic data with splits for easy accessing.
+    data = {}
+    for f in ["STATIC", "DYNAMIC", "OUTCOME"]:
+        data[f] = pq.read_table(data_dir / constants.FILE_NAMES[f]).to_pandas()
+    return data
+
+
+def make_single_split(
+    data: dict[pd.DataFrame], train_pct: float = 0.7, val_pct: float = 0.1, seed: int = 42
+) -> dict[dict[pd.DataFrame]]:
+    """Randomly split the data into training, validation, and test set
+
+    Args:
+        data (dict[pd.DataFrame]): dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
+        train_pct (float, optional): Proportion of stays assigned to training fold. Defaults to 0.7.
+        val_pct (float, optional): Proportion of stays assigned to validation fold. Defaults to 0.1.
+        seed (int, optional): Random seed. Defaults to 42.
+
+    Returns:
+        dict[dict[pd.DataFrame]]: input data divided into 'train', 'val', and 'test'
     """
-    static_df = pa.parquet.read_table(sta_path).to_pandas()
+    id = VARS["STAY_ID"]
+    stays = data["OUTCOME"][[id]]
+    stays = stays.sample(frac=1, random_state=seed)
 
-    train_df = static_df.sample(frac=0.7, random_state=3333)
-    train_df["split"] = "train"
+    num_stays = len(stays)
+    delims = (num_stays * np.array([0, train_pct, train_pct + val_pct, 1])).astype(int)
 
-    validation_df = static_df.drop(train_df.index).sample(frac=0.5, random_state=25)
-    validation_df["split"] = "val"
+    splits = {"train": {}, "val": {}, "test": {}}
+    for i, fold in enumerate(splits.keys()):
+        # Loop through train / val / test
+        stays_in_fold = stays.iloc[delims[i]:delims[i + 1], :]
+        for type in data.keys():
+            # Loop through DYNAMIC / STATIC / OUTCOME
+            # set sort to true to make sure that IDs are reordered after scrambling earlier
+            splits[fold][type] = data[type].merge(stays_in_fold, on=id, how="right", sort=True)
 
-    test_df = static_df.drop(train_df.index).drop(validation_df.index)
-    test_df["split"] = "test"
-
-    static_splits_df = pd.concat([train_df, validation_df, test_df]).sort_index()
-    splits_reindexed_df = static_splits_df.set_index("split")
-    pa.parquet.write_table(pa.Table.from_pandas(splits_reindexed_df), static_splits_path)
-
-    splits_df = static_splits_df[["split", VARS["STAY_ID"]]]
-
-    dyn_df = pa.parquet.read_table(dyn_path).to_pandas()
-    dyn_with_splits_df = dyn_df.merge(splits_df, on=VARS["STAY_ID"]).set_index(["split", VARS["STAY_ID"]])
-
-    # TODO check whether this works for different label format too
-    outc_df = pa.parquet.read_table(outc_path).to_pandas()
-    labels_splits_df = outc_df.merge(splits_df, on=VARS["STAY_ID"]).set_index(["split", VARS["STAY_ID"]])
-    pa.parquet.write_table(pa.Table.from_pandas(labels_splits_df), labels_splits_path)
-
-    return pa.parquet.write_table(pa.Table.from_pandas(dyn_with_splits_df), dyn_splits_path)
+    return splits
 
 
-def extract_features(dyn_df):
-    """Calculates historical min, max, number of measurements and mean per stay and write to table."""
-    dyn_data_grouped_df = dyn_df.groupby(VARS["STAY_ID"])[VARS["DYNAMIC_VARS"]]
-    features_df = dyn_df.drop(labels=VARS["DYNAMIC_VARS"] + [VARS["TIME"]], axis=1)
-    features_df[["min_" + c for c in VARS["DYNAMIC_VARS"]]] = dyn_data_grouped_df.cummin()
-    features_df[["max_" + c for c in VARS["DYNAMIC_VARS"]]] = dyn_data_grouped_df.cummax()
-    features_df[["n_meas_" + c for c in VARS["DYNAMIC_VARS"]]] = (
-        dyn_df[VARS["DYNAMIC_VARS"]].notna().groupby(VARS["STAY_ID"]).cumsum().values
-    )
-    features_df[["mean_" + c for c in VARS["DYNAMIC_VARS"]]] = (
-        dyn_data_grouped_df.cumsum().values / features_df[["n_meas_" + c for c in VARS["DYNAMIC_VARS"]]].values
-    )
+def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
+    """Fits and transforms the training data, then transforms the validation and test data with the recipe.
 
-    return features_df
+    Args:
+        recipe (Recipe): Object containing info about the data and steps.
+        data (dict[dict[pd.DataFrame]]): Dict containing 'train', 'val', and 'test' and types of data per split.
+        type (str): Whether to apply recipe to dynamic data, static data or outcomes.
 
-
-def forward_fill(raw_df, impute_cols):
-    return raw_df[impute_cols].groupby(VARS["STAY_ID"]).ffill()
-
-
-def impute(raw_df, impute_function=None, exclude_cols=[], sort_col=None, fill_method="zero"):
-    """Imputes a df by forward filling and replacing remaining NaNs by a default.
-
-    1. Get all rows of a specific stay as separate Object, making sure it is sorted if needed.
-    2. Forward fill missing values for all columns but exclude_cols.
-    3. Fill leftover missing values at the start of a stay with a default (0 or the global mean) of the variable.
+    Returns:
+        dict[dict[pd.DataFrame]]: Transformed data divided into 'train', 'val', and 'test'
     """
-    imputed_df = raw_df.copy()
+    data["train"][type] = recipe.prep()
+    data["val"][type] = recipe.bake(data["val"][type])
+    data["test"][type] = recipe.prep(data["test"][type])
+    return data
 
-    if sort_col:
-        imputed_df = imputed_df.sort_values(sort_col)
 
-    impute_cols = imputed_df.columns.difference(exclude_cols)
-    if impute_function:
-        imputed_df[impute_cols] = impute_function(imputed_df, impute_cols)
+def preprocess_data(data_dir: Path, seed: int = 42) -> dict[dict[pd.DataFrame]]:
+    """Perform loading, splitting, imputing and normalising of task data.
 
-    if fill_method == "zero":
-        fill_value = 0
-    elif fill_method == "mean":
-        fill_value = raw_df[impute_cols].loc["train"].mean()
-    else:
-        raise ValueError('Wrong fill_method, choose between "zero" and "mean".')
+    Args:
+        work_dir (Path): path to the directory holding the data
+        seed (int, optional): Random seed. Defaults to 42.
 
-    imputed_df[impute_cols] = imputed_df[impute_cols].fillna(value=fill_value)
+    Returns:
+        dict[dict[pd.DataFrame]]: preprocessed data as DataFrame in a hierarchical dict with data type
+            (STATIC/DYNAMIC/OUTCOME) nested within split (train/val/test).
+    """
+    data = load_data(data_dir)
 
-    return imputed_df
+    logging.info("Generating splits")
+    data = make_single_split(data, seed=seed)
+
+    logging.info("Preprocess static data")
+    sta_rec = Recipe(data["train"]["STATIC"], [], VARS["STATIC_VARS"])
+    sta_rec.add_step(StepScale())
+    sta_rec.add_step(StepImputeFill(value=0))
+
+    data = apply_recipe_to_splits(sta_rec, data, "STATIC")
+
+    logging.info("Preprocess dynamic data")
+    dyn_rec = Recipe(data["train"]["DYNAMIC"], [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"], VARS["TIME"])
+    dyn_rec.add_step(StepScale())
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.COUNT, suffix="count_hist"))
+    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MEAN, suffix="mean_hist"))
+    dyn_rec.add_step(StepImputeFill(method="ffill"))
+    dyn_rec.add_step(StepImputeFill(value=0))
+
+    data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")
+
+    logging.info("Finished preprocessing")
+
+    return data

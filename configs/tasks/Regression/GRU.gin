@@ -4,7 +4,6 @@ import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.loader
 
-
 EMB = 231
 LR = 3e-4
 HIDDEN = 64
@@ -20,19 +19,15 @@ LOSS_WEIGHT = None
 
 # Train params
 train_common.model = @DLWrapper()
-train_common.dataset_fn = @ICUVariableLengthDataset
-train_common.data_path = PATH_TO_DL # TODO(User) update this
 train_common.do_test = True
 
-
-DLWrapper.encoder = @LSTM()
+DLWrapper.encoder = @GRU()
 DLWrapper.loss = @mse_loss
 DLWrapper.optimizer_fn = @Adam
 DLWrapper.train.epochs = %EPOCHS
 DLWrapper.train.batch_size = %BS
 DLWrapper.train.patience = 10
 DLWrapper.train.min_delta = 1e-4
-
 
 ICUVariableLengthLoaderTables.splits = ['train','test','val']
 ICUVariableLengthLoaderTables.task = %TASK
@@ -46,9 +41,7 @@ Adam.lr = %LR
 Adam.weight_decay = 1e-6
 
 # Encoder params
-LSTM.input_dim = %EMB
-LSTM.hidden_dim = %HIDDEN
-LSTM.layer_dim = %DEPTH
-LSTM.num_classes = %NUM_CLASSES
-
-
+GRU.input_dim = %EMB
+GRU.hidden_dim = %HIDDEN
+GRU.layer_dim = %DEPTH
+GRU.num_classes = %NUM_CLASSES

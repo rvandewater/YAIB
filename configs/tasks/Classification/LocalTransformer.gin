@@ -4,7 +4,6 @@ import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.loader
 
-
 EMB = 231
 LR = 3e-4
 HIDDEN = 128
@@ -19,19 +18,16 @@ EPOCHS = 1000
 TASK = 'Dynamic_CircFailure_12Hours'
 RES = 1
 RES_LAB = 1
-MAXLEN = 2016
+HORIZON = 2016
 LOSS_WEIGHT = None
 L1 = 0.0
 
 # Train params
 train_common.model = @DLWrapper()
-train_common.dataset_fn = @ICUVariableLengthDataset
-train_common.data_path = PATH_TO_DL # TODO(User) update this
 train_common.weight = %LOSS_WEIGHT
 train_common.do_test = True
 
-
-DLWrapper.encoder = @Transformer()
+DLWrapper.encoder = @LocalTransformer()
 DLWrapper.loss = @cross_entropy
 DLWrapper.optimizer_fn = @Adam
 DLWrapper.train.epochs = %EPOCHS
@@ -39,25 +35,18 @@ DLWrapper.train.batch_size = %BS
 DLWrapper.train.patience = 10
 DLWrapper.train.min_delta = 1e-4
 
-
-ICUVariableLengthLoaderTables.splits = ['train','test','val']
-ICUVariableLengthLoaderTables.task = %TASK
-ICUVariableLengthLoaderTables.data_resampling = %RES
-ICUVariableLengthLoaderTables.label_resampling = %RES_LAB
-ICUVariableLengthDataset.maxlen = %MAXLEN
-
 # Optimizer params
 Adam.lr = %LR
 Adam.weight_decay = 1e-6
 
 # Encoder params
-Transformer.emb = %EMB
-Transformer.hidden = %HIDDEN
-Transformer.heads = %HEADS
-Transformer.ff_hidden_mult = %LATENT
-Transformer.depth = %DEPTH
-Transformer.num_classes = %NUM_CLASSES
-Transformer.dropout = %DO
-Transformer.l1_reg = %L1
-Transformer.dropout_att = %DO_ATT
-
+LocalTransformer.emb = %EMB
+LocalTransformer.hidden = %HIDDEN
+LocalTransformer.heads = %HEADS
+LocalTransformer.ff_hidden_mult = %LATENT
+LocalTransformer.depth = %DEPTH
+LocalTransformer.num_classes = %NUM_CLASSES
+LocalTransformer.dropout = %DO
+LocalTransformer.l1_reg = %L1
+LocalTransformer.dropout_att = %DO_ATT
+LocalTransformer.local_context = %HORIZON
