@@ -300,23 +300,24 @@ class StepSklearn(Step):
 
 
 class StepResampling(Step):
+    """This class represents a step in a recipe.
+
+    Steps are transformations to be executed on selected columns of a DataFrame.
+    They fit a transformer to the selected columns and afterwards transform the data with the fitted transformer.
+
+    Args:
+        new_resolution(str): Resolution to resample to.
+        accumulator_dict Dict[Selector, Accumulator] : Supply dictionary with individual accumulation methods for each
+            Selector.
+        default_accumulator(Accumulator, Optional): Accumulator to use for variables not supplied in dictionary.
+    """
+
     def __init__(
         self,
         new_resolution: str = "1h",
         accumulator_dict: Dict[Selector, Accumulator] = {all_predictors(): Accumulator.LAST},
         default_accumulator: Accumulator = Accumulator.LAST,
     ):
-        """This class represents a step in a recipe.
-
-        Steps are transformations to be executed on selected columns of a DataFrame.
-        They fit a transformer to the selected columns and afterwards transform the data with the fitted transformer.
-
-        Args:
-            new_resolution(str): Resolution to resample to.
-            accumulator_dict Dict[Selector, Accumulator] : Supply dictionary with individual accumulation methods for each
-                Selector.
-            default_accumulator(Accumulator, Optional): Accumulator to use for variables not supplied in dictionary.
-        """
         super().__init__()
         self.new_resolution = new_resolution
         self.acc_dict = accumulator_dict
@@ -366,6 +367,66 @@ class StepResampling(Step):
         # Remove sequence index, while keeping column
         new_data = new_data.reset_index(drop=False)
 
+        return new_data
+
+
+class StepInterval(Step):
+    """Allows for selecting sequence intervals
+
+    Args:
+        cutoff_length(str): Resolution to resample to.
+        accumulator_dict Dict[Selector, Accumulator] : Supply dictionary with individual accumulation methods for each
+            Selector.
+        default_accumulator(Accumulator, Optional): Accumulator to use for variables not supplied in dictionary.
+    """
+
+    def __init__(
+        self,
+        cutoff_length: str = "2h",
+        accumulator_dict: Dict[Selector, Accumulator] = {all_predictors(): Accumulator.LAST},
+        default_accumulator: Accumulator = Accumulator.LAST,
+    ):
+        super().__init__()
+        self.cutoff_length = cutoff_length
+        self.acc_dict = accumulator_dict
+        self.default_accumulator = default_accumulator
+        self._group = True
+
+    def do_fit(self, data: Ingredients):
+        self._trained = True
+
+    def transform(self, data):
+        new_data = self._check_ingredients(data)
+
+        # Check for and save first sequence role
+        if select_sequence(new_data) is not None:
+            sequence_role = select_sequence(new_data)[0]
+        else:
+            raise AssertionError("Sequence role has not been assigned, resampling step not possible")
+        sequence_datatype = new_data.dtypes[sequence_role]
+
+        if not (is_timedelta64_dtype(sequence_datatype) or is_datetime64_any_dtype(sequence_datatype)):
+            raise ValueError(f"Expected Timedelta or Timestamp object, got {sequence_role(data).__class__}")
+
+        # Dictionary with the format column: str , accumulator:str is created
+        col_acc_map = {}
+        # Go through supplied Selector, Accumulator pairs
+        for (selector, accumulator) in self.acc_dict.items():
+            selected_columns = selector(new_data)
+            # Add variables associated with selector with supplied accumulator
+            col_acc_map.update({col: accumulator.value for col in selected_columns})
+
+        # Add non-specified variables, if not a sequence role
+        col_acc_map.update(
+            {
+                col: self.default_accumulator.value
+                for col in new_data.columns.difference(col_acc_map.keys())
+                if col not in select_sequence(new_data)
+            }
+        )
+        new_data = data.last(self.cutoff_length)
+
+        print(new_data)
         return new_data
 
 

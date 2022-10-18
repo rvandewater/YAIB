@@ -24,7 +24,15 @@ from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer, MissingI
 
 from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_numeric_predictors, has_type, has_role, all_of
-from icu_benchmarks.recipes.step import StepSklearn, StepHistorical, Accumulator, StepImputeFill, StepScale, StepResampling
+from icu_benchmarks.recipes.step import (
+    StepSklearn,
+    StepHistorical,
+    Accumulator,
+    StepImputeFill,
+    StepScale,
+    StepResampling,
+    StepInterval,
+)
 
 
 @pytest.fixture()
@@ -70,6 +78,18 @@ class TestStepResampling:
         resampling_dict = {all_numeric_predictors(): Accumulator.MEAN}
         rec.add_step(StepResampling("2h", accumulator_dict=resampling_dict))
         df = rec.bake()
+        assert df.shape[0] == pre_sampling_len / 2
+
+
+class TestStepInterval:
+    def test_step_grouped(self, example_df):
+        # Using group role
+        pre_sampling_len = example_df.shape[0]
+        rec = Recipe(example_df, ["y"], ["x1", "x2"], ["id"], ["time"])
+        resampling_dict = {all_numeric_predictors(): Accumulator.MEAN}
+        rec.add_step(StepInterval("10h", accumulator_dict=resampling_dict))
+        df = rec.bake()
+        print(df)
         assert df.shape[0] == pre_sampling_len / 2
 
 
