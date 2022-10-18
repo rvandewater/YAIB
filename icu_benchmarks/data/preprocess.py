@@ -81,12 +81,13 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
 
 
 @gin.configurable("preprocess")
-def preprocess_data(data_dir: str = gin.REQUIRED, seed: int = 42) -> dict[dict[pd.DataFrame]]:
+def preprocess_data(data_dir: str = gin.REQUIRED, use_features: bool = gin.REQUIRED, seed: int = 42) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
         data_dir (str): path to the directory holding the data
         seed (int, optional): Random seed. Defaults to 42.
+        use_features (bool): whether to generate features on the dynamic data
 
     Returns:
         dict[dict[pd.DataFrame]]: preprocessed data as DataFrame in a hierarchical dict with data type
@@ -108,10 +109,11 @@ def preprocess_data(data_dir: str = gin.REQUIRED, seed: int = 42) -> dict[dict[p
     logging.info("Preprocess dynamic data")
     dyn_rec = Recipe(data["train"]["DYNAMIC"], [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"], VARS["TIME"])
     dyn_rec.add_step(StepScale())
-    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
-    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
-    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.COUNT, suffix="count_hist"))
-    dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MEAN, suffix="mean_hist"))
+    if use_features:
+        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
+        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
+        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.COUNT, suffix="count_hist"))
+        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MEAN, suffix="mean_hist"))
     dyn_rec.add_step(StepImputeFill(method="ffill"))
     dyn_rec.add_step(StepImputeFill(value=0))
 

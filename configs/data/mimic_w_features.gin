@@ -1,2 +1,2 @@
 preprocess.data_dir = "../data/ricu/mimic"
-preprocess.use_features = False
+preprocess.use_features = True
