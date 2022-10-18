@@ -96,7 +96,7 @@ def preprocess_data(data_dir: Path, seed: int = 42) -> dict[dict[pd.DataFrame]]:
     data = make_single_split(data, seed=seed)
 
     logging.info("Preprocess static data")
-    sta_rec = Recipe(data["train"]["STATIC"], [], VARS["STATIC_VARS"], VARS["STAY_ID"])
+    sta_rec = Recipe(data["train"]["STATIC"], [], VARS["STATIC_VARS"])
     sta_rec.add_step(StepScale())
     sta_rec.add_step(StepImputeFill(value=0))
 
