@@ -1,4 +1,5 @@
 import logging
+import gin
 import pandas as pd
 import numpy as np
 import pyarrow.parquet as pq
@@ -79,17 +80,19 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
     return data
 
 
-def preprocess_data(data_dir: Path, seed: int = 42) -> dict[dict[pd.DataFrame]]:
+@gin.configurable("preprocess")
+def preprocess_data(data_dir: str = gin.REQUIRED, seed: int = 42) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
-        work_dir (Path): path to the directory holding the data
+        data_dir (str): path to the directory holding the data
         seed (int, optional): Random seed. Defaults to 42.
 
     Returns:
         dict[dict[pd.DataFrame]]: preprocessed data as DataFrame in a hierarchical dict with data type
             (STATIC/DYNAMIC/OUTCOME) nested within split (train/val/test).
     """
+    data_dir = Path(data_dir)
     data = load_data(data_dir)
 
     logging.info("Generating splits")

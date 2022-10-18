@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import argparse
+import gin
 import logging
 import os
 import sys
@@ -27,7 +28,7 @@ def build_parser():
 
     preprocess_arguments = parser_prep_and_train.add_argument_group("Preprocess arguments")
     preprocess_arguments.add_argument(
-        "--data-dir", required=True, type=Path, help="Path to the parquet data directory as preprocessed by RICU."
+        "-dc", "--data-config", required=True, dest="data_config", type=str, help="Path to the gin data config file."
     )
     preprocess_arguments.add_argument(
         "--split-seed",
@@ -254,7 +255,8 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
 
-    data = preprocess_data(args.data_dir, seed=args.split_seed)
+    gin.parse_config_file(args.data_config)
+    data = preprocess_data(seed=args.split_seed)
 
     load_weights = args.command == "evaluate"
     reproducible = str(args.reproducible) == "True"
