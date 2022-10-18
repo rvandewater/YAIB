@@ -103,7 +103,7 @@ def preprocess_data(data_dir: Path, seed: int = 42) -> dict[dict[pd.DataFrame]]:
     data = apply_recipe_to_splits(sta_rec, data, "STATIC")
 
     logging.info("Preprocess dynamic data")
-    dyn_rec = Recipe(data["train"]["DYNAMIC"], [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"])
+    dyn_rec = Recipe(data["train"]["DYNAMIC"], [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"], VARS["TIME"])
     dyn_rec.add_step(StepScale())
     dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
     dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
