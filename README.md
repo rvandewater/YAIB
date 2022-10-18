@@ -46,27 +46,13 @@ We currently use the following libraries:
 ## Preprocess and Train
 
 ```
-python -m icu_benchmarks.run train \
-                            --data-dir ../data/ricu/mimic \
-                            -c configs/tasks/Classification/LogisticRegression.gin \
-                            -l logs/benchmark_exp/LogisticRegression/ \
-                            -t Dynamic_CircFailure_12Hours\
-                            -o True \
-                            --penalty 'l2' \
-                            --c_parameter 0.01 \
-                            -sd 1111 2222 3333 4444 5555 6666 7777 8888 9999 0000
-
-python -m icu_benchmarks.run train \
-                            --data-dir ../data/ricu/mimic \
-                            -c configs/tasks/Classification/LGBM.gin \
-                            -l logs/ricu/random_search/24_binary/LGBM/run \
+PYTORCH_ENABLE_MPS_FALLBACK=1 python -m icu_benchmarks.run train \
+                            -d mimic \
+                            -m LogisticRegression \
                             -t Mortality_At24Hours \
-                            -rs True\
-                            -sd 1111 2222 3333 \
-                            --depth 3 4 5 6 7 \
-                            --loss-weight balanced None \
-                            --subsample-feat 0.33 0.66 1.00 \
-                            --subsample-data 0.33 0.66 1.00
+                            -l logs/benchmark_exp/LogisticRegression/ \
+                            -o True \
+                            -sd 1111 2222 3333
 ```
 
 ## Run Tests

@@ -1,6 +1,0 @@
-preprocess.data_dir = "../data/ricu/mimic"
-preprocess.use_features = True
-
-splits.seed = 42
-splits.train_pct = 0.7
-splits.val_pct = 0.1

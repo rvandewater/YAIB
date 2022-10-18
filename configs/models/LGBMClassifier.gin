@@ -1,0 +1,27 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+
+RES = 1
+RES_LAB = 1
+
+preprocess.use_features = True
+
+splits.seed = 42
+splits.train_pct = 0.7
+splits.val_pct = 0.1
+
+# Train params
+train_common.model = @MLWrapper()
+train_common.do_test = True
+
+MLWrapper.model = @LGBMClassifier()
+MLWrapper.train.patience = 10
+
+LGBMClassifier.max_depth = 4
+LGBMClassifier.num_leaves = 16
+LGBMClassifier.n_estimators = 100000
+LGBMClassifier.min_child_samples = 1000
+LGBMClassifier.subsample = 0.66
+LGBMClassifier.subsample_freq = 1
+LGBMClassifier.colsample_bytree = 0.66

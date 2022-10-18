@@ -4,7 +4,6 @@ import gin
 import logging
 import os
 import sys
-from pathlib import Path
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
@@ -28,11 +27,17 @@ def build_parser():
 
     preprocess_arguments = parser_prep_and_train.add_argument_group("Preprocess arguments")
     preprocess_arguments.add_argument(
-        "-dc", "--data-config", required=True, dest="data_config", type=str, help="Path to the gin data config file."
+        "-d", "--data", required=True, dest="data_config", type=str, help="Path to the gin data config file."
     )
 
     model_arguments = parser_prep_and_train.add_argument_group("Model arguments")
-    model_arguments.add_argument("-l", "--logdir", dest="logdir", required=False, type=str, help="Path to the log directory ")
+    model_arguments.add_argument(
+        "-m", "--model", required=True, dest="model_configs", nargs="+", type=str, help="Path to the gin model config file."
+    )
+    model_arguments.add_argument(
+        "-t", "--task", required=True, dest="task_configs", nargs="+", type=str, help="Paths to the gin task config file."
+    )
+    model_arguments.add_argument("-l", "--logdir", dest="logdir", required=False, type=str, help="Path to the log directory.")
     model_arguments.add_argument(
         "--reproducible",
         default=True,
@@ -50,9 +55,6 @@ def build_parser():
         nargs="+",
         type=int,
         help="Random seed at training and evaluation, default : 1111",
-    )
-    model_arguments.add_argument(
-        "-t", "--task", default=None, dest="task", required=False, nargs="+", type=str, help="Name of the task : Default None"
     )
     # model_arguments.add_argument('-r', '--resampling', default=None, dest="res",
     #                              required=False, type=int,
@@ -231,13 +233,14 @@ def build_parser():
         type=bool,
         help="Boolean to overwrite previous model in logdir",
     )
-    model_arguments.add_argument(
-        "-c", "--config", default=None, dest="config", nargs="+", type=str, help="Path to the gin train config file."
-    )
 
     subparsers.add_parser("evaluate", help="evaluate", parents=[parent_parser])
 
     return parser
+
+
+def make_config_path(prefix, name):
+    return f"configs/{prefix}/{name}.gin"
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -247,29 +250,33 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
 
-    gin.parse_config_file(args.data_config)
-    data = preprocess_data()
+    data_config = make_config_path("data", args.data_config)
+    for model in args.model_configs:
+        model_config = make_config_path("models", model)
+        gin.parse_config_file(data_config)
+        gin.parse_config_file(model_config)
+        data = preprocess_data()
 
-    load_weights = args.command == "evaluate"
-    reproducible = str(args.reproducible) == "True"
-    seeds = args.seed if isinstance(args.seed, list) else [args.seed]
-    gin_bindings, log_dir = get_bindings_and_params(args)
-    if load_weights:
-        log_dir = args.logdir
-    if args.rs:
-        reproducible = False
-        max_attempt = 0
-        is_already_ran = os.path.isdir(log_dir)
-        while is_already_ran and max_attempt < 500:
-            gin_bindings, log_dir = get_bindings_and_params(args)
+        load_weights = args.command == "evaluate"
+        reproducible = str(args.reproducible) == "True"
+        seeds = args.seed if isinstance(args.seed, list) else [args.seed]
+        gin_bindings, log_dir = get_bindings_and_params(args)
+        if load_weights:
+            log_dir = args.logdir
+        if args.rs:
+            reproducible = False
+            max_attempt = 0
             is_already_ran = os.path.isdir(log_dir)
-            max_attempt += 1
-        if max_attempt >= 300:
-            raise Exception("Reached max attempt to find unexplored set of parameters parameters")
+            while is_already_ran and max_attempt < 500:
+                gin_bindings, log_dir = get_bindings_and_params(args)
+                is_already_ran = os.path.isdir(log_dir)
+                max_attempt += 1
+            if max_attempt >= 300:
+                raise Exception("Reached max attempt to find unexplored set of parameters parameters")
 
-    if args.task is not None:
-        for task in args.task:
+        for task in args.task_configs:
             gin_bindings_task = gin_bindings + ["TASK = " + "'" + str(task) + "'"]
+            gin_config_files = [data_config, model_config, make_config_path("tasks", task)]
             log_dir_task = os.path.join(log_dir, str(task))
             for seed in seeds:
                 log_dir_seed = log_dir_task if load_weights else os.path.join(log_dir_task, str(seed))
@@ -278,25 +285,11 @@ def main(my_args=tuple(sys.argv[1:])):
                     data=data,
                     overwrite=args.overwrite,
                     load_weights=load_weights,
-                    gin_config_files=args.config,
+                    gin_config_files=gin_config_files,
                     gin_bindings=gin_bindings_task,
                     seed=seed,
                     reproducible=reproducible,
                 )
-    else:
-        for seed in seeds:
-            if not load_weights:
-                log_dir_seed = os.path.join(log_dir, str(seed))
-            train_with_gin(
-                model_dir=log_dir_seed,
-                data=data,
-                overwrite=args.overwrite,
-                load_weights=load_weights,
-                gin_config_files=args.config,
-                gin_bindings=gin_bindings,
-                seed=seed,
-                reproducible=reproducible,
-            )
 
 
 """Main module."""

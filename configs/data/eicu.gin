@@ -8,7 +8,7 @@ vars = {
     "STATIC": ["age", "sex", "height", "weight"],
 }
 
-preprocess.data_dir = "../data/ricu/mimic"
+preprocess.data_dir = "../data/ricu/eicu"
 preprocess.vars = %vars
 
 splits.vars = %vars

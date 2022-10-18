@@ -1,0 +1,20 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+
+TASK = 'Dynamic_UrineOutput_2Hours_Reg'
+
+NUM_CLASSES = 1
+HORIZON = 24
+
+# DL
+DLWrapper.loss = @mse_loss
+
+# Encoder params
+GRU.num_classes = %NUM_CLASSES
+LinearClassifier.num_classes
+LSTM.num_classes = %NUM_CLASSES
+TCN.num_classes = %NUM_CLASSES
+TCN.max_seq_length = %HORIZON
+Transformer.num_classes = %NUM_CLASSES

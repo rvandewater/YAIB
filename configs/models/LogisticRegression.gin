@@ -1,0 +1,23 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+
+RES = 1
+RES_LAB = 1
+
+preprocess.use_features = True
+
+splits.seed = 42
+splits.train_pct = 0.7
+splits.val_pct = 0.1
+
+# Train params
+train_common.model = @MLWrapper()
+train_common.do_test = True
+
+MLWrapper.model = @LogisticRegression()
+MLWrapper.train.patience = 10
+
+LogisticRegression.C = 1.0
+LogisticRegression.penalty = 'l2'
+LogisticRegression.max_iter = 100000

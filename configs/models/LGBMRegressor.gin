@@ -1,0 +1,28 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+
+RES = 1
+RES_LAB = 1
+
+preprocess.use_features = True
+
+splits.seed = 42
+splits.train_pct = 0.7
+splits.val_pct = 0.1
+
+# Train params
+train_common.model = @MLWrapper()
+train_common.do_test = True
+
+MLWrapper.model = @LGBMRegressor()
+MLWrapper.train.patience = 10
+
+LGBMRegressor.max_depth = 4
+LGBMRegressor.num_leaves = 16
+LGBMRegressor.n_estimators = 100000
+LGBMRegressor.min_child_samples = 1000
+LGBMRegressor.subsample = 0.66
+LGBMRegressor.subsample_freq = 1
+LGBMRegressor.colsample_bytree = 0.66

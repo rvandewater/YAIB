@@ -5,14 +5,10 @@ import numpy as np
 import pyarrow.parquet as pq
 from pathlib import Path
 
-from icu_benchmarks.common import constants
+from icu_benchmarks.common.constants import FILE_NAMES
 from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_of
 from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale
-
-
-VARS = constants.VARS
-FILE_NAMES = constants.FILE_NAMES
 
 
 def load_data(data_dir: Path) -> dict[pd.DataFrame]:
@@ -26,13 +22,13 @@ def load_data(data_dir: Path) -> dict[pd.DataFrame]:
     """
     data = {}
     for f in ["STATIC", "DYNAMIC", "OUTCOME"]:
-        data[f] = pq.read_table(data_dir / constants.FILE_NAMES[f]).to_pandas()
+        data[f] = pq.read_table(data_dir / FILE_NAMES[f]).to_pandas()
     return data
 
 
 @gin.configurable("splits")
 def make_single_split(
-    data: dict[pd.DataFrame], train_pct: float = 0.7, val_pct: float = 0.1, seed: int = 42
+    data: dict[pd.DataFrame], train_pct: float = 0.7, val_pct: float = 0.1, seed: int = 42, vars: dict[str] = gin.REQUIRED
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set
 
@@ -41,11 +37,12 @@ def make_single_split(
         train_pct (float, optional): Proportion of stays assigned to training fold. Defaults to 0.7.
         val_pct (float, optional): Proportion of stays assigned to validation fold. Defaults to 0.1.
         seed (int, optional): Random seed. Defaults to 42.
+        vars (dict[str]): Contains the names of columns in the data.
 
     Returns:
         dict[dict[pd.DataFrame]]: input data divided into 'train', 'val', and 'test'
     """
-    id = VARS["STAY_ID"]
+    id = vars["GROUP"]
     stays = data["OUTCOME"][[id]]
     stays = stays.sample(frac=1, random_state=seed)
 
@@ -82,12 +79,13 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
 
 
 @gin.configurable("preprocess")
-def preprocess_data(data_dir: str = gin.REQUIRED, use_features: bool = gin.REQUIRED) -> dict[dict[pd.DataFrame]]:
+def preprocess_data(data_dir: str = gin.REQUIRED, use_features: bool = gin.REQUIRED, vars: dict[str] = gin.REQUIRED) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
         data_dir (str): path to the directory holding the data
         use_features (bool): whether to generate features on the dynamic data
+        vars (dict[str]): contains the names of columns in the data
 
     Returns:
         dict[dict[pd.DataFrame]]: preprocessed data as DataFrame in a hierarchical dict with data type
@@ -100,20 +98,20 @@ def preprocess_data(data_dir: str = gin.REQUIRED, use_features: bool = gin.REQUI
     data = make_single_split(data)
 
     logging.info("Preprocess static data")
-    sta_rec = Recipe(data["train"]["STATIC"], [], VARS["STATIC_VARS"])
+    sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
     sta_rec.add_step(StepScale())
     sta_rec.add_step(StepImputeFill(value=0))
 
     data = apply_recipe_to_splits(sta_rec, data, "STATIC")
 
     logging.info("Preprocess dynamic data")
-    dyn_rec = Recipe(data["train"]["DYNAMIC"], [], VARS["DYNAMIC_VARS"], VARS["STAY_ID"], VARS["TIME"])
+    dyn_rec = Recipe(data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
     dyn_rec.add_step(StepScale())
     if use_features:
-        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MIN, suffix="min_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MAX, suffix="max_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.COUNT, suffix="count_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(VARS["DYNAMIC_VARS"]), fun=Accumulator.MEAN, suffix="mean_hist"))
+        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
+        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
+        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.COUNT, suffix="count_hist"))
+        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MEAN, suffix="mean_hist"))
     dyn_rec.add_step(StepImputeFill(method="ffill"))
     dyn_rec.add_step(StepImputeFill(value=0))
 
