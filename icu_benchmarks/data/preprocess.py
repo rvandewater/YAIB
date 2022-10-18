@@ -30,6 +30,7 @@ def load_data(data_dir: Path) -> dict[pd.DataFrame]:
     return data
 
 
+@gin.configurable("splits")
 def make_single_split(
     data: dict[pd.DataFrame], train_pct: float = 0.7, val_pct: float = 0.1, seed: int = 42
 ) -> dict[dict[pd.DataFrame]]:
@@ -81,12 +82,11 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
 
 
 @gin.configurable("preprocess")
-def preprocess_data(data_dir: str = gin.REQUIRED, use_features: bool = gin.REQUIRED, seed: int = 42) -> dict[dict[pd.DataFrame]]:
+def preprocess_data(data_dir: str = gin.REQUIRED, use_features: bool = gin.REQUIRED) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
         data_dir (str): path to the directory holding the data
-        seed (int, optional): Random seed. Defaults to 42.
         use_features (bool): whether to generate features on the dynamic data
 
     Returns:
@@ -97,7 +97,7 @@ def preprocess_data(data_dir: str = gin.REQUIRED, use_features: bool = gin.REQUI
     data = load_data(data_dir)
 
     logging.info("Generating splits")
-    data = make_single_split(data, seed=seed)
+    data = make_single_split(data)
 
     logging.info("Preprocess static data")
     sta_rec = Recipe(data["train"]["STATIC"], [], VARS["STATIC_VARS"])

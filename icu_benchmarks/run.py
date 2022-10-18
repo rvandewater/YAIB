@@ -30,14 +30,6 @@ def build_parser():
     preprocess_arguments.add_argument(
         "-dc", "--data-config", required=True, dest="data_config", type=str, help="Path to the gin data config file."
     )
-    preprocess_arguments.add_argument(
-        "--split-seed",
-        dest="split_seed",
-        default=default_seed,
-        required=False,
-        type=int,
-        help="Seed for the train/val/test split",
-    )
 
     model_arguments = parser_prep_and_train.add_argument_group("Model arguments")
     model_arguments.add_argument("-l", "--logdir", dest="logdir", required=False, type=str, help="Path to the log directory ")
@@ -256,7 +248,7 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.getLogger().setLevel(logging.INFO)
 
     gin.parse_config_file(args.data_config)
-    data = preprocess_data(seed=args.split_seed)
+    data = preprocess_data()
 
     load_weights = args.command == "evaluate"
     reproducible = str(args.reproducible) == "True"
