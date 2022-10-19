@@ -79,7 +79,9 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
 
 
 @gin.configurable("preprocess")
-def preprocess_data(data_dir: str, use_features: bool = gin.REQUIRED, vars: dict[str] = gin.REQUIRED) -> dict[dict[pd.DataFrame]]:
+def preprocess_data(
+    data_dir: str, use_features: bool = gin.REQUIRED, vars: dict[str] = gin.REQUIRED
+) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
