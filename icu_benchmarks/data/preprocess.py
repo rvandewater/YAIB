@@ -5,24 +5,25 @@ import numpy as np
 import pyarrow.parquet as pq
 from pathlib import Path
 
-from icu_benchmarks.common.constants import FILE_NAMES
 from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_of
 from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale
 
 
-def load_data(data_dir: Path) -> dict[pd.DataFrame]:
+@gin.configurable("loading")
+def load_data(data_dir: Path, file_names: dict[str] = gin.REQUIRED) -> dict[pd.DataFrame]:
     """Load data from disk
 
     Args:
         data_dir (Path): path to folder with data stored as parquet files
+        file_names (dict[str]): contains the parquet file names in data_dir
 
     Returns:
-        dict[pd.DataFrame]: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
+        dict[pd.DataFrame]: dictionary containing data divided into OUTCOME, STATIC, and DYNAMIC.
     """
     data = {}
     for f in ["STATIC", "DYNAMIC", "OUTCOME"]:
-        data[f] = pq.read_table(data_dir / FILE_NAMES[f]).to_pandas()
+        data[f] = pq.read_table(data_dir / file_names[f]).to_pandas()
     return data
 
 

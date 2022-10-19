@@ -1,4 +1,11 @@
+import icu_benchmarks.data.preprocess
 import icu_benchmarks.data.loader
+
+loading.file_names = {
+    "DYNAMIC": "dyn.parquet",
+    "OUTCOME": "outc.parquet",
+    "STATIC": "sta.parquet",
+}
 
 vars = {
     "GROUP": "stay_id",

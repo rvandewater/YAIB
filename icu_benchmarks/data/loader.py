@@ -6,10 +6,6 @@ from torch import Tensor
 from torch.utils.data import Dataset
 from typing import Tuple
 
-from icu_benchmarks.common import constants
-
-FILE_NAMES = constants.FILE_NAMES
-
 
 @gin.configurable("Dataset")
 class RICUDataset(Dataset):
