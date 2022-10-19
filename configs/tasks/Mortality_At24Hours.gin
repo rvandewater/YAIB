@@ -1,14 +1,12 @@
-import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
-import icu_benchmarks.models.utils
 
 TASK = 'Mortality_At24Hours'
 
 NUM_CLASSES = 2
 HORIZON = 24
-LOSS_WEIGHT = None
-train_common.weight = %LOSS_WEIGHT
+
+train_common.weight = None
 
 # DL
 DLWrapper.loss = @cross_entropy
