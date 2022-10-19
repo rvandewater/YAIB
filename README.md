@@ -46,15 +46,9 @@ We currently use the following libraries:
 ## Preprocess and Train
 
 ```
-PYTORCH_ENABLE_MPS_FALLBACK=1 python -m icu_benchmarks.run train \
-                            -d mimic \
-                            -m LogisticRegression \
-                            -t Mortality_At24Hours \
-                            -l logs/benchmark_exp/LogisticRegression/ \
-                            -o True \
-                            -sd 1111 2222 3333
+python -m icu_benchmarks.run train -dir ../data/mortality_seq/mimic/ -d mimic -m LogisticRegression -t Mortality_At24Hours -o True -sd 1111 2222 3333
 ```
-
+> Run with `PYTORCH_ENABLE_MPS_FALLBACK=1`on Mac
 ## Run Tests
 
 ```
