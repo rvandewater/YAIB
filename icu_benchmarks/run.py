@@ -27,15 +27,17 @@ def build_parser():
 
     preprocess_arguments = parser_prep_and_train.add_argument_group("Preprocess arguments")
     preprocess_arguments.add_argument(
-        "-d", "--data", required=True, dest="data_config", type=str, help="Path to the gin data config file."
+        "-dir", "--data-dir", required=True, dest="data_dir", type=str, help="Path to the parquet data directory."
+    )
+    preprocess_arguments.add_argument(
+        "-d", "--data", required=False, default="ricu", dest="data_config", type=str, help="Path to the gin data config file."
     )
 
     model_arguments = parser_prep_and_train.add_argument_group("Model arguments")
     model_arguments.add_argument(
-        "-m", "--model", required=True, dest="model_configs", nargs="+", type=str, help="Path to the gin model config file."
     )
     model_arguments.add_argument(
-        "-t", "--task", required=True, dest="task_configs", nargs="+", type=str, help="Paths to the gin task config file."
+        "-t", "--task", required=False, default=["Mortality_At24Hours"], dest="task_configs", nargs="+", type=str, help="Paths to the gin task config file."
     )
     model_arguments.add_argument("-l", "--logdir", dest="logdir", required=False, type=str, help="Path to the log directory.")
     model_arguments.add_argument(
@@ -255,7 +257,7 @@ def main(my_args=tuple(sys.argv[1:])):
         model_config = make_config_path("models", model)
         gin.parse_config_file(data_config)
         gin.parse_config_file(model_config)
-        data = preprocess_data()
+        data = preprocess_data(args.data_dir)
 
         load_weights = args.command == "evaluate"
         reproducible = str(args.reproducible) == "True"

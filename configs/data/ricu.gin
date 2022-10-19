@@ -8,9 +8,6 @@ vars = {
     "STATIC": ["age", "sex", "height", "weight"],
 }
 
-preprocess.data_dir = "../data/mortality/eicu"
 preprocess.vars = %vars
-
 splits.vars = %vars
-
 Dataset.vars = %vars
