@@ -263,9 +263,11 @@ def main(my_args=tuple(sys.argv[1:])):
         load_weights = args.command == "evaluate"
         reproducible = str(args.reproducible) == "True"
         seeds = args.seed if isinstance(args.seed, list) else [args.seed]
-        gin_bindings, log_dir = get_bindings_and_params(args)
+        log_dir_base = f"{args.data_dir}/logs" if args.logdir is None else args.logdir
+        log_dir_model = f"{log_dir_base}/{model}"
+        gin_bindings, log_dir = get_bindings_and_params(args, log_dir_model)
         if load_weights:
-            log_dir = args.logdir
+            log_dir = log_dir_model
         if args.rs:
             reproducible = False
             max_attempt = 0
