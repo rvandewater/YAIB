@@ -35,6 +35,7 @@ def build_parser():
 
     model_arguments = parser_prep_and_train.add_argument_group("Model arguments")
     model_arguments.add_argument(
+        "-m", "--model", required=False, default="LGBMClassifier", dest="model_configs", nargs="+", type=str, help="Path to the gin model config file."
     )
     model_arguments.add_argument(
         "-t", "--task", required=False, default=["Mortality_At24Hours"], dest="task_configs", nargs="+", type=str, help="Paths to the gin task config file."
