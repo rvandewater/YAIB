@@ -1,0 +1,22 @@
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+
+TASK = 'Mortality_Seq24Hours'
+
+NUM_CLASSES = 2
+HORIZON = 24
+
+train_common.weight = None
+
+# DL
+DLWrapper.loss = @cross_entropy
+
+# Encoder params
+GRU.num_classes = %NUM_CLASSES
+LSTM.num_classes = %NUM_CLASSES
+TCN.num_classes = %NUM_CLASSES
+TCN.max_seq_length = %HORIZON
+Transformer.num_classes = %NUM_CLASSES
+Transformer.l1_reg = 0.0
+LocalTransformer.num_classes = %NUM_CLASSES
+LocalTransformer.local_context = %HORIZON
