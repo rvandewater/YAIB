@@ -87,10 +87,11 @@ class TestStepInterval:
         pre_sampling_len = example_df.shape[0]
         rec = Recipe(example_df, ["y"], ["x1", "x2"], ["id"], ["time"])
         resampling_dict = {all_numeric_predictors(): Accumulator.MEAN}
-        rec.add_step(StepInterval("10h", accumulator_dict=resampling_dict))
+        rec.add_step(StepInterval("2h", accumulator_dict=resampling_dict))
         df = rec.bake()
         print(df)
-        assert df.shape[0] == pre_sampling_len / 2
+        # Depends on the amount of ids
+        assert df.shape[0] == 2
 
 
 class TestStepHistorical:

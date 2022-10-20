@@ -1,6 +1,9 @@
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Union, Dict
+
+import numpy as np
+import pandas as pd
 from scipy.sparse import isspmatrix
 from pandas.core.groupby import DataFrameGroupBy
 from sklearn.preprocessing import StandardScaler
@@ -383,7 +386,7 @@ class StepInterval(Step):
     def __init__(
         self,
         cutoff_length: str = "2h",
-        accumulator_dict: Dict[Selector, Accumulator] = {all_predictors(): Accumulator.LAST},
+        accumulator_dict: Dict[Selector, Accumulator] = None,
         default_accumulator: Accumulator = Accumulator.LAST,
     ):
         super().__init__()
@@ -404,6 +407,7 @@ class StepInterval(Step):
         else:
             raise AssertionError("Sequence role has not been assigned, resampling step not possible")
         sequence_datatype = new_data.dtypes[sequence_role]
+        print(sequence_datatype)
 
         if not (is_timedelta64_dtype(sequence_datatype) or is_datetime64_any_dtype(sequence_datatype)):
             raise ValueError(f"Expected Timedelta or Timestamp object, got {sequence_role(data).__class__}")
@@ -424,7 +428,16 @@ class StepInterval(Step):
                 if col not in select_sequence(new_data)
             }
         )
-        new_data = data.last(self.cutoff_length)
+
+        # Get elements per group that are after the cutoff length
+        new_data = data.apply(lambda x: x[x[sequence_role] > x[sequence_role].max() - pd.Timedelta(self.cutoff_length)])
+
+        # Remove multi-index in case of grouped data
+        if isinstance(data, DataFrameGroupBy):
+            new_data = new_data.droplevel(select_groups(data.obj))
+        new_data = new_data.groupby(select_groups(data.obj))
+        # TODO: handle behaviour for only applying cutoff (and not aggregration)
+        new_data = new_data.agg(col_acc_map)
 
         print(new_data)
         return new_data
