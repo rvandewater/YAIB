@@ -48,7 +48,7 @@ We currently use the following libraries:
 ```
 python -m icu_benchmarks.run train -dir ../data/mortality_seq/mimic/ -d mimic -m LogisticRegression -t Mortality_At24Hours -o True -sd 1111 2222 3333
 ```
-> Run with `PYTORCH_ENABLE_MPS_FALLBACK=1`on Mac
+> Run with `PYTORCH_ENABLE_MPS_FALLBACK=1` on Macs with Metal Performance Shaders
 ## Run Tests
 
 ```
