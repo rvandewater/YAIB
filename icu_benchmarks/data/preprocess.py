@@ -44,7 +44,7 @@ def make_single_split(
         dict[dict[pd.DataFrame]]: input data divided into 'train', 'val', and 'test'
     """
     id = VARS["STAY_ID"]
-    stays = data["OUTCOME"][[id]]
+    stays = data["STATIC"][[id]]
     stays = stays.sample(frac=1, random_state=seed)
 
     num_stays = len(stays)
