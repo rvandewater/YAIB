@@ -341,7 +341,15 @@ class MLWrapper(object):
 
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
             self.model.set_params(random_state=np.random.get_state()[1][0])
-            self.model.fit(train_rep, train_label, eval_set=(val_rep, val_label), callbacks=[lightgbm.early_stopping(patience, verbose=False), lightgbm.log_evaluation(period=-1, show_stdv=False)])
+            self.model.fit(
+                train_rep,
+                train_label,
+                eval_set=(val_rep, val_label),
+                callbacks=[
+                    lightgbm.early_stopping(patience, verbose=False),
+                    lightgbm.log_evaluation(period=-1, show_stdv=False),
+                ],
+            )
             val_loss = list(self.model.best_score_["valid_0"].values())[0]
             model_type = "lgbm"
         else:
