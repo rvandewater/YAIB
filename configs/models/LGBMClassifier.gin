@@ -7,10 +7,6 @@ RES_LAB = 1
 
 preprocess.use_features = True
 
-splits.seed = 42
-splits.train_pct = 0.7
-splits.val_pct = 0.1
-
 # Train params
 train_common.model = @MLWrapper()
 train_common.do_test = True

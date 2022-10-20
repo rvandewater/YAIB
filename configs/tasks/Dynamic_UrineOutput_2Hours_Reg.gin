@@ -8,11 +8,3 @@ HORIZON = 24
 
 # DL
 DLWrapper.loss = @mse_loss
-
-# Encoder params
-GRU.num_classes = %NUM_CLASSES
-LinearClassifier.num_classes
-LSTM.num_classes = %NUM_CLASSES
-TCN.num_classes = %NUM_CLASSES
-TCN.max_seq_length = %HORIZON
-Transformer.num_classes = %NUM_CLASSES

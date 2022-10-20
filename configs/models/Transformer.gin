@@ -4,16 +4,10 @@ import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.loader
 
-EMB = 7
-
 RES = 1
 RES_LAB = 1
 
 preprocess.use_features = False
-
-splits.seed = 42
-splits.train_pct = 0.7
-splits.val_pct = 0.1
 
 # Train params
 train_common.model = @DLWrapper()
@@ -38,3 +32,5 @@ Transformer.ff_hidden_mult = 2
 Transformer.depth = 1
 Transformer.dropout = 0.1
 Transformer.dropout_att = 0.1
+Transformer.l1_reg = 0.0
+Transformer.num_classes = %NUM_CLASSES

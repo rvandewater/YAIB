@@ -2,16 +2,10 @@ import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
-EMB = 7
-
 RES = 1
 RES_LAB = 1
 
 preprocess.use_features = False
-
-splits.seed = 42
-splits.train_pct = 0.7
-splits.val_pct = 0.1
 
 # Train params
 train_common.model = @DLWrapper()
@@ -32,3 +26,4 @@ Adam.weight_decay = 1e-6
 LSTM.input_dim = %EMB
 LSTM.hidden_dim = 64
 LSTM.layer_dim = 1
+LSTM.num_classes = %NUM_CLASSES
