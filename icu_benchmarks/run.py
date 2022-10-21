@@ -25,6 +25,9 @@ def build_parser():
         "train", help="Calls sequentially merge and resample.", parents=[parent_parser]
     )
 
+    #
+    # DATA AND PREPROCESSING ARGUMENTS
+    #
     preprocess_args = parser_prep_and_train.add_argument_group("Preprocess arguments")
     preprocess_args.add_argument(
         "-dir", "--data-dir", required=True, dest="data_dir", type=str, help="Path to the parquet data directory."
@@ -33,6 +36,9 @@ def build_parser():
         "-d", "--data", required=False, default="ricu", dest="data_config", type=str, help="Name of the data gin file."
     )
 
+    #
+    # MODEL ARGUMENTS
+    #
     model_args = parser_prep_and_train.add_argument_group("Model arguments")
     model_args.add_argument(
         "-m",
@@ -126,6 +132,9 @@ def build_parser():
             help=desc,
         )
 
+    #
+    # TRANSFER ARGUMENTS
+    #
     transfer_parser = subparsers.add_parser("transfer", help="transfer", parents=[parent_parser])
     transfer_parser.add_argument(
         "-dir", "--data-dir", required=True, dest="data_dir", type=str, help="Path to the parquet data directory."
