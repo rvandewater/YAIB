@@ -16,21 +16,21 @@ train_common.do_test = True
 DLWrapper.encoder = @Transformer()
 DLWrapper.optimizer_fn = @Adam
 DLWrapper.train.epochs = 1000
-DLWrapper.train.batch_size = 16
+DLWrapper.train.batch_size = 8 16
 DLWrapper.train.patience = 10
 DLWrapper.train.min_delta = 1e-4
 
 # Optimizer params
-Adam.lr = 3e-4
+Adam.lr = 3e-4 1e-4 3e-5 1e-5
 Adam.weight_decay = 1e-6
 
 # Encoder params
 Transformer.emb = %EMB
-Transformer.hidden = 128
-Transformer.heads = 1
+Transformer.hidden = 32 64 128 256
+Transformer.heads = 1 2 4 8
 Transformer.ff_hidden_mult = 2
-Transformer.depth = 1
-Transformer.dropout = 0.1
-Transformer.dropout_att = 0.1
+Transformer.depth = 1 2 3
+Transformer.dropout = 0.0 0.1 0.2 0.3 0.4
+Transformer.dropout_att = 0.0 0.1 0.2 0.3 0.4
 Transformer.l1_reg = 0.0
 Transformer.num_classes = %NUM_CLASSES

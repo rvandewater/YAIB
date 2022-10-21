@@ -14,6 +14,6 @@ train_common.do_test = True
 MLWrapper.model = @LogisticRegression()
 MLWrapper.train.patience = 10
 
-LogisticRegression.C = 1.0
-LogisticRegression.penalty = 'l2'
+LogisticRegression.C = 0.001 0.01 0.1 1.0 10
+LogisticRegression.penalty = 'l1' 'l2' 'none'
 LogisticRegression.max_iter = 100000

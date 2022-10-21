@@ -6,7 +6,7 @@ TASK = 'Mortality_At24Hours'
 NUM_CLASSES = 2
 HORIZON = 24
 
-train_common.weight = None
+train_common.weight = None balanced
 
 # DL
 DLWrapper.loss = @cross_entropy

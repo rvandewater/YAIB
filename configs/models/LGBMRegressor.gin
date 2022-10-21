@@ -15,10 +15,10 @@ train_common.do_test = True
 MLWrapper.model = @LGBMRegressor()
 MLWrapper.train.patience = 10
 
-LGBMRegressor.max_depth = 4
+LGBMRegressor.max_depth = 3 4 5 6 7
 LGBMRegressor.num_leaves = 16
 LGBMRegressor.n_estimators = 100000
 LGBMRegressor.min_child_samples = 1000
-LGBMRegressor.subsample = 0.66
+LGBMRegressor.subsample = 0.33 0.66 1.00
 LGBMRegressor.subsample_freq = 1
-LGBMRegressor.colsample_bytree = 0.66
+LGBMRegressor.colsample_bytree = 0.33 0.66
