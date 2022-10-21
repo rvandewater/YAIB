@@ -47,12 +47,12 @@ def get_bindings_and_params(args, log_dir_base):  # noqa: C901
 
     params = [
         ("horizon", args.horizon),
-        ("l1_reg", args.regularization),
+        ("l1_reg", args.l1_reg),
         ("batch_size", args.batch_size),
-        ("learning_rate", args.lr),
-        ("embeddings", args.emb),
-        ("drop_out", args.do),
-        ("drop_out_att", args.do_att),
+        ("learning_rate", args.learning_rate),
+        ("embeddings", args.embeddings),
+        ("drop_out", args.drop_out),
+        ("drop_out_att", args.drop_out_att),
         ("kernel", args.kernel),
         ("depth", args.depth),
         ("heads", args.heads),
