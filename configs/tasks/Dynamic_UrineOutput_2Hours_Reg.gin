@@ -1,7 +1,7 @@
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
-TASK = 'Dynamic_UrineOutput_2Hours_Reg'
+TASK = "Dynamic_UrineOutput_2Hours_Reg"
 
 NUM_CLASSES = 1
 HORIZON = 24

@@ -1,12 +1,12 @@
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
-TASK = 'Mortality_At24Hours'
+TASK = "Mortality_At24Hours"
 
 NUM_CLASSES = 2
 HORIZON = 24
 
-train_common.weight = None balanced
+train_common.weight = [None, "balanced"]
 
 # DL
 DLWrapper.loss = @cross_entropy
