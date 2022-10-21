@@ -99,7 +99,6 @@ def build_parser():
         ("do_att", "drop_out_att", float, None, "Dropout probability for the Self-Attention layer only"),
         ("he", "heads", int, None, "Number of heads in Sel-Attention layer"),
         ("la", "latent", int, None, "Dimension of fully-conected layer in Transformer block"),
-        ("ho", "horizon", int, None, "History length for Neural Networks"),
         (
             "ssd",
             "subsample_data",
