@@ -56,7 +56,7 @@ class RICUDataset(Dataset):
 
         # slice to make sure to always return a DF
         window = self.dyn_df.loc[stay_id:stay_id].to_numpy()
-        labels = self.outc_df.loc[stay_id][["label"]].to_numpy().astype(float)
+        labels = self.outc_df.loc[stay_id:stay_id]["label"].to_numpy(dtype=float)
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -70,8 +70,8 @@ class RICUDataset(Dataset):
         if length_diff > 0:
             # window shorter than longest window in dataset, pad to same length
             window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
-            labels = np.concatenate([labels, np.ones((length_diff,)) * pad_value], axis=0)
-            pad_mask = np.concatenate([pad_mask, np.zeros((length_diff,))], axis=0)
+            labels = np.concatenate([labels, np.ones(length_diff) * pad_value], axis=0)
+            pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
 
         not_labeled = np.argwhere(np.isnan(labels))
         if len(not_labeled) > 0:
