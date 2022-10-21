@@ -25,233 +25,135 @@ def build_parser():
         "train", help="Calls sequentially merge and resample.", parents=[parent_parser]
     )
 
-    preprocess_arguments = parser_prep_and_train.add_argument_group("Preprocess arguments")
-    preprocess_arguments.add_argument(
+    preprocess_args = parser_prep_and_train.add_argument_group("Preprocess arguments")
+    preprocess_args.add_argument(
         "-dir", "--data-dir", required=True, dest="data_dir", type=str, help="Path to the parquet data directory."
     )
-    preprocess_arguments.add_argument(
-        "-d", "--data", required=False, default="ricu", dest="data_config", type=str, help="Path to the gin data config file."
+    preprocess_args.add_argument(
+        "-d", "--data", required=False, default="ricu", dest="data_config", type=str, help="Name of the data gin file."
     )
 
-    model_arguments = parser_prep_and_train.add_argument_group("Model arguments")
-    model_arguments.add_argument(
+    model_args = parser_prep_and_train.add_argument_group("Model arguments")
+    model_args.add_argument(
         "-m",
         "--model",
         required=False,
         default="LGBMClassifier",
-        dest="model_configs",
-        nargs="+",
+        dest="model_config",
         type=str,
-        help="Path to the gin model config file.",
+        help="Name of the model gin file.",
     )
-    model_arguments.add_argument(
+    model_args.add_argument(
         "-t",
         "--task",
         required=False,
-        default=["Mortality_At24Hours"],
-        dest="task_configs",
-        nargs="+",
+        default="Mortality_At24Hours",
+        dest="task_config",
         type=str,
-        help="Paths to the gin task config file.",
+        help="Name to the task gin file.",
     )
-    model_arguments.add_argument("-l", "--logdir", dest="logdir", required=False, type=str, help="Path to the log directory.")
-    model_arguments.add_argument(
+    model_args.add_argument("-l", "--logdir", dest="logdir", required=False, type=str, help="Path to the log directory.")
+    model_args.add_argument(
         "--reproducible",
         default=True,
         dest="reproducible",
         required=False,
         type=str,
-        help="Whether to configure torch to be reproducible.",
+        help="Set torch to be reproducible.",
     )
-    model_arguments.add_argument(
-        "-sd",
-        "--seed",
-        default=1111,
-        dest="seed",
-        required=False,
-        nargs="+",
-        type=int,
-        help="Random seed at training and evaluation, default : 1111",
+    model_args.add_argument(
+        "-rs", "--random-search", default=True, dest="rs", required=False, type=bool, help="Random Search setting"
     )
-    # model_arguments.add_argument('-r', '--resampling', default=None, dest="res",
-    #                              required=False, type=int,
-    #                              help="resampling for the data")
-    # model_arguments.add_argument('-rl', '--resampling_label', default=None,
-    #                              dest="res_lab", required=False, type=int,
-    #                              help="resampling for the prediction")
-    model_arguments.add_argument(
-        "-bs",
-        "--batch-size",
-        default=None,
-        dest="batch_size",
-        required=False,
-        type=int,
-        nargs="+",
-        help="Batchsize for the model",
-    )
-    model_arguments.add_argument(
-        "-lr",
-        "--learning-rate",
-        default=None,
-        nargs="+",
-        dest="lr",
-        required=False,
-        type=float,
-        help="Learning rate for the model",
-    )
-    model_arguments.add_argument(
-        "--num-class",
-        default=None,
-        dest="num_class",
-        required=False,
-        type=int,
-        help="Number of classes considered for the task",
-    )
-    model_arguments.add_argument(
-        "-emb", "--emb", default=None, dest="emb", required=False, nargs="+", type=int, help="Embedding size of the input data"
-    )
-    model_arguments.add_argument(
-        "-kernel",
-        "--kernel",
-        default=None,
-        dest="kernel",
-        required=False,
-        nargs="+",
-        type=int,
-        help="Kernel size for Temporal CNN",
-    )
-    model_arguments.add_argument(
-        "-do",
-        "--do",
-        default=None,
-        dest="do",
-        required=False,
-        nargs="+",
-        type=float,
-        help="Dropout probability for the Transformer block",
-    )
-    model_arguments.add_argument(
-        "-do_att",
-        "--do_att",
-        default=None,
-        dest="do_att",
-        required=False,
-        nargs="+",
-        type=float,
-        help="Dropout probability for the Self-Attention layer only",
-    )
-    model_arguments.add_argument(
-        "-depth",
-        "--depth",
-        default=None,
-        dest="depth",
-        required=False,
-        nargs="+",
-        type=int,
-        help="Number of layers in Neyral Network",
-    )
-    model_arguments.add_argument(
-        "-heads",
-        "--heads",
-        default=None,
-        dest="heads",
-        required=False,
-        nargs="+",
-        type=int,
-        help="Number of heads in Sel-Attention layer",
-    )
-    model_arguments.add_argument(
-        "-latent",
-        "--latent",
-        default=None,
-        dest="latent",
-        required=False,
-        nargs="+",
-        type=int,
-        help="Dimension of fully-conected layer in Transformer block",
-    )
-    model_arguments.add_argument(
-        "-horizon",
-        "--horizon",
-        default=None,
-        dest="horizon",
-        required=False,
-        nargs="+",
-        type=int,
-        help="History length for Neural Networks",
-    )
-    model_arguments.add_argument(
-        "-hidden",
-        "--hidden",
-        default=None,
-        dest="hidden",
-        required=False,
-        nargs="+",
-        type=int,
-        help="Dimensionality of hidden layer in Neural Networks",
-    )
-    model_arguments.add_argument(
-        "--subsample-data",
-        default=None,
-        dest="subsample_data",
-        required=False,
-        nargs="+",
-        type=float,
-        help="Subsample parameter in Gradient Boosting, subsample ratio of the training instance",
-    )
-    model_arguments.add_argument(
-        "--subsample-feat",
-        default=None,
-        dest="subsample_feat",
-        required=False,
-        nargs="+",
-        type=float,
-        help="Colsample_bytree parameter in Gradient Boosting, " "subsample ratio of columns when constructing each tree",
-    )
-    model_arguments.add_argument(
-        "--regularization",
-        default=None,
-        dest="regularization",
-        required=False,
-        nargs="+",
-        type=float,
-        help="L1 or L2 regularization type",
-    )
-    model_arguments.add_argument(
-        "-rs", "--random-search", default=False, dest="rs", required=False, type=bool, help="Random Search setting"
-    )
-    model_arguments.add_argument(
-        "-c_parameter",
-        "--c_parameter",
-        default=None,
-        dest="c_parameter",
-        required=False,
-        nargs="+",
-        help="C parameter in Logistic Regression",
-    )
-    model_arguments.add_argument(
-        "-penalty",
-        "--penalty",
-        default=None,
-        dest="penalty",
-        required=False,
-        nargs="+",
-        help="Penalty parameter for Logistic Regression",
-    )
-    model_arguments.add_argument(
-        "--loss-weight", default=None, dest="loss_weight", required=False, nargs="+", type=str, help="Loss weigthing parameter"
-    )
-    model_arguments.add_argument(
+    model_args.add_argument(
         "-o",
         "--overwrite",
         default=False,
         dest="overwrite",
         required=False,
         type=bool,
-        help="Boolean to overwrite previous model in logdir",
+        help="Set to overwrite previous model",
     )
+    # model_args.add_argument('-r', '--resampling', default=None, dest="res",
+    #                              required=False, type=int,
+    #                              help="resampling for the data")
+    # model_args.add_argument('-rl', '--resampling_label', default=None,
+    #                              dest="res_lab", required=False, type=int,
+    #                              help="resampling for the prediction")
+    params = [
+        ("sd", "seed", int, 1111, "Random seed at training and evaluation, default : 1111"),
+        ("bs", "batch_size", int, None, "Batchsize for the model"),
+        ("lr", "learning_rate", float, None, "Learning rate for the model"),
+        ("nc", "num_class", int, None, "Number of classes considered for the task"),
+        ("emb", "embeddings", int, None, "Embedding size of the input data"),
+        ("k", "kernel", int, None, "Kernel size for Temporal CNN"),
+        ("hi", "hidden", int, None, "Dimensionality of hidden layer in Neural Networks"),
+        ("de", "depth", int, None, "Number of layers in Neural Network"),
+        ("ho", "horizon", int, None, "History length for Neural Networks"),
+        ("do", "drop_out", float, None, "Dropout probability"),
+        ("do_att", "drop_out_att", float, None, "Dropout probability for the Self-Attention layer only"),
+        ("he", "heads", int, None, "Number of heads in Sel-Attention layer"),
+        ("la", "latent", int, None, "Dimension of fully-conected layer in Transformer block"),
+        ("ho", "horizon", int, None, "History length for Neural Networks"),
+        (
+            "ssd",
+            "subsample_data",
+            float,
+            None,
+            "Parameter in Gradient Boosting, subsample ratio of the training",
+        ),
+        (
+            "ssf",
+            "subsample_feat",
+            float,
+            None,
+            "Colsample_bytree in Gradient Boosting, subsample ratio of columns when constructing each tree",
+        ),
+        ("reg", "l1_reg", float, None, "L1 regularization coefficient for Transformer"),
+        ("cp", "c_parameter", float, None, "C parameter in Logistic Regression"),
+        ("pen", "penalty", float, None, "Penalty parameter for Logistic Regression"),
+        ("lw", "loss_weight", str, None, "Loss weigthing parameter"),
+    ]
 
-    subparsers.add_parser("evaluate", help="evaluate", parents=[parent_parser])
+    for short, dest, tp, default, desc in params:
+        model_args.add_argument(
+            f"-{short}",
+            f"--{dest}".replace("_", "-"),
+            required=False,
+            default=default,
+            dest=dest,
+            type=tp,
+            nargs="+",
+            help=desc,
+        )
+
+    transfer_parser = subparsers.add_parser("transfer", help="transfer", parents=[parent_parser])
+    transfer_parser.add_argument(
+        "-dir", "--data-dir", required=True, dest="data_dir", type=str, help="Path to the parquet data directory."
+    )
+    transfer_parser.add_argument(
+        "-d", "--data", required=False, default="ricu", dest="data_config", type=str, help="Path to the gin data config file."
+    )
+    transfer_parser.add_argument(
+        "-t",
+        "--task",
+        required=True,
+        dest="task_configs",
+        nargs="+",
+        type=str,
+        help="Paths to the gin task config file.",
+    )
+    transfer_parser.add_argument(
+        "-m",
+        "--model",
+        required=True,
+        dest="model_configs",
+        nargs="+",
+        type=str,
+        help="Path to the gin model config file.",
+    )
+    transfer_parser.add_argument(
+        "-w", "--model-weights", required=True, dest="model_weights", type=str, help="Path to the model weights directory."
+    )
 
     return parser
 
