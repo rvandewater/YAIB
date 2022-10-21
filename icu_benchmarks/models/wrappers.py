@@ -26,6 +26,7 @@ import joblib
 
 from icu_benchmarks.models.utils import save_model, load_model_state
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
+from icu_benchmarks.models.encoders import LSTMNet
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
@@ -38,7 +39,7 @@ gin.config.external_configurable(LogisticRegression)
 
 @gin.configurable("DLWrapper")
 class DLWrapper(object):
-    def __init__(self, encoder=gin.REQUIRED, loss=gin.REQUIRED, optimizer_fn=gin.REQUIRED):
+    def __init__(self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam):
         if torch.cuda.is_available():
             logging.info("Model will be trained using GPU Hardware")
             device = torch.device("cuda")
@@ -161,10 +162,10 @@ class DLWrapper(object):
         train_dataset,
         val_dataset,
         weight,
-        epochs=gin.REQUIRED,
-        batch_size=gin.REQUIRED,
-        patience=gin.REQUIRED,
-        min_delta=gin.REQUIRED,
+        epochs=1000,
+        batch_size=64,
+        patience=10,
+        min_delta=1e-4,
         save_weights=True,
     ):
 
@@ -172,9 +173,6 @@ class DLWrapper(object):
         metrics = self.metrics
 
         torch.autograd.set_detect_anomaly(True)  # Check for any nans in gradients
-        # if not train_dataset.loader.on_RAM:
-        #     self.n_worker = 1
-        #     logging.info('Data is not loaded to RAM, thus number of worker has been set to 1')
 
         train_loader = DataLoader(
             train_dataset,
@@ -294,7 +292,7 @@ class DLWrapper(object):
 
 @gin.configurable("MLWrapper")
 class MLWrapper(object):
-    def __init__(self, model=gin.REQUIRED):
+    def __init__(self, model=lightgbm.LGBMClassifier):
         self.model = model
         self.scaler = None
 
@@ -329,7 +327,7 @@ class MLWrapper(object):
         self.scaler = scaler
 
     @gin.configurable(module="MLWrapper")
-    def train(self, train_dataset, val_dataset, weight, patience=gin.REQUIRED, save_weights=True):
+    def train(self, train_dataset, val_dataset, weight, patience=10, save_weights=True):
 
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()

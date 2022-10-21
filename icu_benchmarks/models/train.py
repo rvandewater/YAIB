@@ -8,6 +8,7 @@ import logging
 import numpy as np
 
 from icu_benchmarks.data.loader import RICUDataset
+from icu_benchmarks.models.wrappers import MLWrapper
 from icu_benchmarks.models.utils import save_config_file
 
 
@@ -59,7 +60,7 @@ def train_common(
     data,
     overwrite=False,
     load_weights=False,
-    model=gin.REQUIRED,
+    model=MLWrapper,
     weight=None,
     do_test=False,
 ):
