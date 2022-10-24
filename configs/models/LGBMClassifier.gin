@@ -1,6 +1,7 @@
 import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
 
 RES = 1
 RES_LAB = 1
@@ -14,10 +15,13 @@ train_common.do_test = True
 MLWrapper.model = @LGBMClassifier()
 MLWrapper.train.patience = 10
 
-LGBMClassifier.max_depth = [3, 4, 5, 6, 7]
+random_search.depth = [3, 4, 5, 6, 7]
+LGBMClassifier.max_depth = %DEPTH
 LGBMClassifier.num_leaves = 16
 LGBMClassifier.n_estimators = 100000
 LGBMClassifier.min_child_samples = 1000
-LGBMClassifier.subsample = [0.33, 0.66, 1.00]
+random_search.subsample_data = [0.33, 0.66, 1.00]
+LGBMClassifier.subsample = %SUBSAMPLE_DATA
 LGBMClassifier.subsample_freq = 1
-LGBMClassifier.colsample_bytree = [0.33, 0.66, 1.00]
+random_search.subsample_freq = [0.33, 0.66, 1.00]
+LGBMClassifier.colsample_bytree = %SUBSAMPLE_FREQ

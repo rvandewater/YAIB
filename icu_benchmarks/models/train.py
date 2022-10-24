@@ -79,7 +79,6 @@ def train_common(
     val_dataset = RICUDataset(data, split="val")
 
     model.set_logdir(log_dir)
-    save_config_file(log_dir)  # We save the operative config before and also after training
 
     if load_weights:
         if os.path.isfile(os.path.join(log_dir, "model.torch")):
@@ -89,10 +88,11 @@ def train_common(
         elif os.path.isfile(os.path.join(log_dir, "model.joblib")):
             model.load_weights(os.path.join(log_dir, "model.joblib"))
         else:
-            raise Exception("No weights to load at path : {}".format(os.path.join(log_dir, "model.torch")))
+            raise Exception("No weights to load at path : {}".format(os.path.join(log_dir, "model.*")))
         do_test = True
 
     else:
+        save_config_file(log_dir)  # We save the operative config before and also after training
         try:
             model.train(dataset, val_dataset, weight)
         except ValueError as e:

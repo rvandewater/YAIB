@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 import argparse
-import gin
 import logging
 import os
 import sys
 
+import gin
+
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
-from icu_benchmarks.models.utils import get_bindings_and_params
+from icu_benchmarks.models.utils import get_bindings_w_rs
 
-default_seed = 42
+default_seeds = [1111]
 
 
 def build_parser():
@@ -18,75 +19,37 @@ def build_parser():
     )
 
     parent_parser = argparse.ArgumentParser(add_help=False)
-
     subparsers = parser.add_subparsers(title="Commands", dest="command", required=True)
 
-    parser_prep_and_train = subparsers.add_parser(
-        "train", help="Calls sequentially merge and resample.", parents=[parent_parser]
-    )
+    #
+    # ARGUMENTS FOR ALL COMMANDS
+    #
+    general_args = parent_parser.add_argument_group("General arguments")
+    general_args.add_argument("-dir", "--data-dir", required=True, dest="data_dir", help="Path to the parquet data directory.")
+    general_args.add_argument("-t", "--task", default="Mortality_At24Hours", dest="task_config", help="Name of the task gin.")
+    general_args.add_argument("-m", "--model", default="LGBMClassifier", dest="model_config", help="Name of the model gin.")
+    general_args.add_argument("-l", "--log-dir", dest="log_dir", help="Path to the log directory with model weights.")
 
     #
-    # DATA AND PREPROCESSING ARGUMENTS
+    # MODEL TRAINING ARGUMENTS
     #
-    preprocess_args = parser_prep_and_train.add_argument_group("Preprocess arguments")
-    preprocess_args.add_argument(
-        "-dir", "--data-dir", required=True, dest="data_dir", type=str, help="Path to the parquet data directory."
+    parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
+    train_args = parser_prep_and_train.add_argument_group("Train arguments")
+    train_args.add_argument("--reproducible", default=True, type=bool, dest="reproducible", help="Set torch to be reproducible.")
+    train_args.add_argument(
+        "-rs", "--random-search", default=True, dest="rs", required=False, type=bool, help="Enable random search."
     )
-    preprocess_args.add_argument(
-        "-d", "--data", required=False, default="ricu", dest="data_config", type=str, help="Name of the data gin file."
-    )
+    train_args.add_argument("-o", "--overwrite", default=False, dest="overwrite", type=bool, help="Overwrite previous model.")
 
-    #
-    # MODEL ARGUMENTS
-    #
-    model_args = parser_prep_and_train.add_argument_group("Model arguments")
-    model_args.add_argument(
-        "-m",
-        "--model",
-        required=False,
-        default="LGBMClassifier",
-        dest="model_config",
-        type=str,
-        help="Name of the model gin file.",
-    )
-    model_args.add_argument(
-        "-t",
-        "--task",
-        required=False,
-        default="Mortality_At24Hours",
-        dest="task_config",
-        type=str,
-        help="Name to the task gin file.",
-    )
-    model_args.add_argument("-l", "--logdir", dest="logdir", required=False, type=str, help="Path to the log directory.")
-    model_args.add_argument(
-        "--reproducible",
-        default=True,
-        dest="reproducible",
-        required=False,
-        type=str,
-        help="Set torch to be reproducible.",
-    )
-    model_args.add_argument(
-        "-rs", "--random-search", default=True, dest="rs", required=False, type=bool, help="Random Search setting"
-    )
-    model_args.add_argument(
-        "-o",
-        "--overwrite",
-        default=False,
-        dest="overwrite",
-        required=False,
-        type=bool,
-        help="Set to overwrite previous model",
-    )
-    # model_args.add_argument('-r', '--resampling', default=None, dest="res",
+    hyper_args = parser_prep_and_train.add_argument_group("Hyperparameters")
+    # hyper_args.add_argument('-r', '--resampling', default=None, dest="res",
     #                              required=False, type=int,
     #                              help="resampling for the data")
-    # model_args.add_argument('-rl', '--resampling_label', default=None,
+    # hyper_args.add_argument('-rl', '--resampling_label', default=None,
     #                              dest="res_lab", required=False, type=int,
     #                              help="resampling for the prediction")
     params = [
-        ("sd", "seed", int, 1111, "Random seed at training and evaluation, default : 1111"),
+        ("sd", "seed", int, default_seeds, "Random seed at training and evaluation, default : 1111"),
         ("bs", "batch_size", int, None, "Batchsize for the model"),
         ("lr", "learning_rate", float, None, "Learning rate for the model"),
         ("nc", "num_class", int, None, "Number of classes considered for the task"),
@@ -120,10 +83,9 @@ def build_parser():
     ]
 
     for short, dest, tp, default, desc in params:
-        model_args.add_argument(
+        hyper_args.add_argument(
             f"-{short}",
             f"--{dest}".replace("_", "-"),
-            required=False,
             default=default,
             dest=dest,
             type=tp,
@@ -132,36 +94,10 @@ def build_parser():
         )
 
     #
-    # TRANSFER ARGUMENTS
+    # TRANSFER PARSER
     #
-    transfer_parser = subparsers.add_parser("transfer", help="transfer", parents=[parent_parser])
-    transfer_parser.add_argument(
-        "-dir", "--data-dir", required=True, dest="data_dir", type=str, help="Path to the parquet data directory."
-    )
-    transfer_parser.add_argument(
-        "-d", "--data", required=False, default="ricu", dest="data_config", type=str, help="Path to the gin data config file."
-    )
-    transfer_parser.add_argument(
-        "-t",
-        "--task",
-        required=True,
-        dest="task_configs",
-        nargs="+",
-        type=str,
-        help="Paths to the gin task config file.",
-    )
-    transfer_parser.add_argument(
-        "-m",
-        "--model",
-        required=True,
-        dest="model_configs",
-        nargs="+",
-        type=str,
-        help="Path to the gin model config file.",
-    )
-    transfer_parser.add_argument(
-        "-w", "--model-weights", required=True, dest="model_weights", type=str, help="Path to the model weights directory."
-    )
+    transfer_parser = subparsers.add_parser("transfer", help="Evaluate trained model on data.", parents=[parent_parser])
+    transfer_parser.add_argument("-c", "--train-config", required=True, dest="train_config", help="Original train gin.")
 
     return parser
 
@@ -177,51 +113,57 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
 
-    data_config = make_config_path("data", args.data_config)
-    for model in args.model_configs:
-        model_config = make_config_path("models", model)
-        gin.parse_config_file(data_config)
+    load_weights = args.command == "transfer"
+    task = args.task_config
+    
+    log_dir_base = f"{args.data_dir}/logs" if args.log_dir is None else args.log_dir
+    log_dir_model = os.path.join(log_dir_base, task, args.model_config)
+    if load_weights:
+        reproducible = False
+        overwrite = False
+        gin.parse_config_file(args.train_config)
+        gin_config_files = [args.train_config]
+        gin_bindings, log_dir_bindings = get_bindings_w_rs(args, log_dir_model)
+    else:
+        reproducible = args.reproducible
+        overwrite = args.overwrite
+        model_config = make_config_path("models", args.model_config)
+        task_config = make_config_path("tasks", args.task_config)
         gin.parse_config_file(model_config)
-        data = preprocess_data(args.data_dir)
+        gin.parse_config_file(task_config)
+        gin_config_files = [model_config, task_config]
+        gin_bindings, log_dir_bindings = get_bindings_w_rs(args, log_dir_model)
+        # if args.rs:
+        #     reproducible = False
+        #     attempt = 0
+        #     max_attempt = 300
+        #     is_already_run = os.path.isdir(log_dir_bindings)
+        #     gin.parse_config_file(model_config)
+        #     while is_already_run and attempt < max_attempt:
+        #         gin_bindings, log_dir_bindings = get_bindings_w_rs(args, log_dir_model)
+        #         is_already_run = os.path.isdir(log_dir_bindings)
+        #         attempt += 1
+        #     if is_already_run:
+        #         raise Exception("Reached max attempt to find unexplored set of parameters parameters")
 
-        load_weights = args.command == "evaluate"
-        reproducible = str(args.reproducible) == "True"
-        seeds = args.seed if isinstance(args.seed, list) else [args.seed]
-        log_dir_base = f"{args.data_dir}/logs" if args.logdir is None else args.logdir
-        log_dir_model = f"{log_dir_base}/{model}"
-        gin_bindings, log_dir = get_bindings_and_params(args, log_dir_model)
-        if load_weights:
-            log_dir = log_dir_model
-        if args.rs:
-            reproducible = False
-            max_attempt = 0
-            is_already_ran = os.path.isdir(log_dir)
-            while is_already_ran and max_attempt < 500:
-                gin_bindings, log_dir = get_bindings_and_params(args)
-                is_already_ran = os.path.isdir(log_dir)
-                max_attempt += 1
-            if max_attempt >= 300:
-                raise Exception("Reached max attempt to find unexplored set of parameters parameters")
+    data = preprocess_data(args.data_dir)
 
-        for task in args.task_configs:
-            gin_bindings_task = gin_bindings + ["TASK = " + "'" + str(task) + "'"]
-            gin_config_files = [data_config, model_config, make_config_path("tasks", task)]
-            log_dir_task = os.path.join(log_dir, str(task))
-            for seed in seeds:
-                log_dir_seed = log_dir_task if load_weights else os.path.join(log_dir_task, str(seed))
-                train_with_gin(
-                    model_dir=log_dir_seed,
-                    data=data,
-                    overwrite=args.overwrite,
-                    load_weights=load_weights,
-                    gin_config_files=gin_config_files,
-                    gin_bindings=gin_bindings_task,
-                    seed=seed,
-                    reproducible=reproducible,
-                )
+    gin_bindings_task = gin_bindings + ["TASK = " + "'" + str(task) + "'"]
+    seeds = args.seed if hasattr(args, 'seeds') else default_seeds
+    for seed in seeds:
+        log_dir_seed = os.path.join(log_dir_bindings, str(seed))
+        train_with_gin(
+            model_dir=log_dir_seed,
+            data=data,
+            overwrite=overwrite,
+            load_weights=load_weights,
+            gin_config_files=gin_config_files,
+            gin_bindings=gin_bindings_task,
+            seed=seed,
+            reproducible=reproducible,
+        )
 
 
 """Main module."""
-
 if __name__ == "__main__":
     main()

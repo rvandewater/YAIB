@@ -1,3 +1,4 @@
+from cmath import log
 import logging
 import os
 import gin
@@ -28,12 +29,24 @@ def save_config_file(log_dir):
         f.write(gin.operative_config_str())
 
 
-def get_bindings_and_params(args, log_dir_base):
+def random_from_list(list):
+    return list[np.random.randint(len(list))]
+
+
+def random_search(gin_bindings, log_dir, **kwargs):
+    for name, params in kwargs.items():
+        param = random_from_list(params)
+        gin_bindings += [f"{name.upper()} = {param}"]
+        # log_dir += f"/{name}_{param}"
+    return gin_bindings, log_dir
+
+
+@gin.configurable("random_search")
+def get_bindings_w_rs(args, log_dir, **rs_params_from_config):
     gin_bindings = []
-    log_dir = log_dir_base
-    if args.num_class:
-        num_class = args.num_class
-        gin_bindings += ["NUM_CLASSES = " + str(num_class)]
+    # if args.num_class:
+    #     num_class = args.num_class
+    #     gin_bindings += ["NUM_CLASSES = " + str(num_class)]
 
     # if args.res:
     #     res = args.res
@@ -45,37 +58,33 @@ def get_bindings_and_params(args, log_dir_base):
     #     gin_bindings += ['RES_LAB = ' + str(res_lab)]
     #     log_dir = os.path.join(log_dir, 'pre-res_' + str(res_lab))
 
-    params = [
-        ("horizon", args.horizon),
-        ("l1_reg", args.l1_reg),
-        ("batch_size", args.batch_size),
-        ("learning_rate", args.learning_rate),
-        ("embeddings", args.embeddings),
-        ("drop_out", args.drop_out),
-        ("drop_out_att", args.drop_out_att),
-        ("kernel", args.kernel),
-        ("depth", args.depth),
-        ("heads", args.heads),
-        ("latent", args.latent),
-        ("hidden", args.hidden),
-        ("subsample_data", args.subsample_data),
-        ("subsample_feat", args.subsample_feat),
-        ("c_parameter", args.c_parameter),
-        ("penalty", args.penalty),
-        ("loss_weight", args.loss_weight),
-    ]
+    cli_params = {
+        "horizon": getattr(args, 'horizon', None),
+        "l1_reg": getattr(args, 'l1_reg', None),
+        "batch_size": getattr(args, 'batch_size', None),
+        "learning_rate": getattr(args, 'learning_rate', None),
+        "embeddings": getattr(args, 'embeddings', None),
+        "drop_out": getattr(args, 'drop_out', None),
+        "drop_out_att": getattr(args, 'drop_out_att', None),
+        "kernel": getattr(args, 'kernel', None),
+        "depth": getattr(args, 'depth', None),
+        "heads": getattr(args, 'heads', None),
+        "latent": getattr(args, 'latent', None),
+        "hidden": getattr(args, 'hidden', None),
+        "subsample_data": getattr(args, 'subsample_data', None),
+        "subsample_feat": getattr(args, 'subsample_feat', None),
+        "c_parameter": getattr(args, 'c_parameter', None),
+        "penalty": getattr(args, 'penalty', None),
+        "loss_weight": getattr(args, 'loss_weight', None),
+    }
+    existing_cli_params = {name: value for name, value in cli_params.items() if value is not None}
+    merged_params = rs_params_from_config | existing_cli_params
+    gin_bindings, log_dir = random_search(gin_bindings, log_dir, **merged_params)
 
-    for name, cli_param in params:
-        if cli_param:
-            if args.rs:
-                param = cli_param[np.random.randint(len(cli_param))]
-            else:
-                param = cli_param[0]
-            gin_bindings += [f"{name.upper()} = {str(param)}"]
-            log_dir = f"{log_dir}/{name}_{str(param)}"
+    if hasattr(args, 'depth') and args.depth:
+        num_leaves = 2**args.depth  # FIXME handle list too
+        gin_bindings += ["NUM_LEAVES = " + str(num_leaves)]
 
-            if cli_param is args.depth:
-                num_leaves = 2**param
-                gin_bindings += ["NUM_LEAVES = " + str(num_leaves)]
-
+    print(gin_bindings)
+    print(log_dir)
     return gin_bindings, log_dir
