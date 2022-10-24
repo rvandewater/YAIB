@@ -123,7 +123,7 @@ def main(my_args=tuple(sys.argv[1:])):
         overwrite = False
         gin.parse_config_file(args.train_config)
         gin_config_files = [args.train_config]
-        gin_bindings, log_dir_bindings = get_bindings_w_rs(args, log_dir_model)
+        gin_bindings, log_dir_bindings = get_bindings_w_rs(args, log_dir_model, do_rs_for_conf=False)
     else:
         reproducible = args.reproducible
         overwrite = args.overwrite

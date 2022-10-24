@@ -42,7 +42,7 @@ def random_search(gin_bindings, log_dir, **kwargs):
 
 
 @gin.configurable("random_search")
-def get_bindings_w_rs(args, log_dir, **rs_params_from_config):
+def get_bindings_w_rs(args, log_dir, do_rs_for_conf=True, **rs_params_from_config):
     gin_bindings = []
     # if args.num_class:
     #     num_class = args.num_class
@@ -78,7 +78,7 @@ def get_bindings_w_rs(args, log_dir, **rs_params_from_config):
         "loss_weight": getattr(args, 'loss_weight', None),
     }
     existing_cli_params = {name: value for name, value in cli_params.items() if value is not None}
-    merged_params = rs_params_from_config | existing_cli_params
+    merged_params = rs_params_from_config | existing_cli_params if do_rs_for_conf else existing_cli_params
     gin_bindings, log_dir = random_search(gin_bindings, log_dir, **merged_params)
 
     if hasattr(args, 'depth') and args.depth:
