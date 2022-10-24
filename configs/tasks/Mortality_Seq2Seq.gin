@@ -1,5 +1,17 @@
 import icu_benchmarks.data.preprocess
 import icu_benchmarks.data.loader
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+
+TASK = "Mortality_Seq2Seq"
+
+NUM_CLASSES = 2
+HORIZON = 24
+
+train_common.weight = None  #FIXME figure out when to use "balanced"
+
+# DL
+DLWrapper.loss = @cross_entropy
 
 loading.file_names = {
     "DYNAMIC": "dyn.parquet",
