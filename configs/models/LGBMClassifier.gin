@@ -23,5 +23,5 @@ LGBMClassifier.min_child_samples = 1000
 random_search.subsample_data = [0.33, 0.66, 1.00]
 LGBMClassifier.subsample = %SUBSAMPLE_DATA
 LGBMClassifier.subsample_freq = 1
-random_search.subsample_freq = [0.33, 0.66, 1.00]
-LGBMClassifier.colsample_bytree = %SUBSAMPLE_FREQ
+random_search.subsample_feat = [0.33, 0.66, 1.00]
+LGBMClassifier.colsample_bytree = %SUBSAMPLE_FEAT
