@@ -25,8 +25,8 @@ Adam.weight_decay = 1e-6
 
 # Encoder params
 LSTM.input_dim = %EMB
-random_search.hidden_dim = [32, 64, 128, 256]
-LSTM.hidden_dim = %HIDDEN_DIM
+random_search.hidden = [32, 64, 128, 256]
+LSTM.hidden_dim = %HIDDEN
 random_search.layer_dim = [1, 2, 3]
 LSTM.layer_dim = %LAYER_DIM
 LSTM.num_classes = %NUM_CLASSES
