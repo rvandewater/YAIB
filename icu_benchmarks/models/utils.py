@@ -29,18 +29,6 @@ def save_config_file(log_dir):
         f.write(gin.operative_config_str())
 
 
-def random_from_list(list):
-    return list[np.random.randint(len(list))]
-
-
-def random_search(gin_bindings, log_dir, **kwargs):
-    for name, params in kwargs.items():
-        param = random_from_list(params)
-        gin_bindings += [f"{name.upper()} = {param}"]
-        # log_dir += f"/{name}_{param}"
-    return gin_bindings, log_dir
-
-
 @gin.configurable("random_search")
 def get_bindings_w_rs(args, log_dir, do_rs_for_conf=True, **rs_params_from_config):
     gin_bindings = []
@@ -79,11 +67,14 @@ def get_bindings_w_rs(args, log_dir, do_rs_for_conf=True, **rs_params_from_confi
     }
     existing_cli_params = {name: value for name, value in cli_params.items() if value is not None}
     merged_params = rs_params_from_config | existing_cli_params if do_rs_for_conf else existing_cli_params
-    gin_bindings, log_dir = random_search(gin_bindings, log_dir, **merged_params)
+    for name, params in merged_params.items():
+        param = params[np.random.randint(len(params))]
+        gin_bindings += [f"{name.upper()} = {param}"]
+        # log_dir += f"/{name}_{param}"
 
-    if hasattr(args, 'depth') and args.depth:
-        num_leaves = 2**args.depth  # FIXME handle list too
-        gin_bindings += ["NUM_LEAVES = " + str(num_leaves)]
+        if name == 'depth':
+            num_leaves = 2**param
+            gin_bindings += ["NUM_LEAVES = " + str(num_leaves)]
 
     print(gin_bindings)
     print(log_dir)
