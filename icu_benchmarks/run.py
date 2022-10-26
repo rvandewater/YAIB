@@ -53,6 +53,7 @@ def build_parser():
     )
     general_args.add_argument("-t", "--task", default="Mortality_At24Hours", dest="task_config", help="Name of the task gin.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", dest="model_config", help="Name of the model gin.")
+    general_args.add_argument("-e", "--experiment", dest="experiment_config", help="Name of the experiment gin.")
     general_args.add_argument(
         "-l", "--log-dir", dest="log_dir", type=Path, help="Path to the log directory with model weights."
     )
@@ -108,11 +109,17 @@ def main(my_args=tuple(sys.argv[1:])):
     else:
         reproducible = args.reproducible
         overwrite = args.overwrite
-        model_config = Path(f"configs/models/{args.model_config}.gin")
-        task_config = Path(f"configs/tasks/{args.task_config}.gin")
-        gin.parse_config_file(model_config)
-        gin.parse_config_file(task_config)
-        gin_config_files = [model_config, task_config]
+        if args.experiment_config:
+            experiment_config = Path(f"configs/experiments/{args.experiment_config}.gin")
+            print(experiment_config)
+            gin.parse_config_file(experiment_config)
+            gin_config_files = [experiment_config]
+        else:
+            model_config = Path(f"configs/models/{args.model_config}.gin")
+            task_config = Path(f"configs/tasks/{args.task_config}.gin")
+            gin.parse_config_file(model_config)
+            gin.parse_config_file(task_config)
+            gin_config_files = [model_config, task_config]
         gin_bindings, log_dir_bindings = get_bindings(hyper_params, args, log_dir_model)
         if args.rs:
             reproducible = False
@@ -124,7 +131,7 @@ def main(my_args=tuple(sys.argv[1:])):
                 raise Exception("Reached max attempt to find unexplored set of parameters parameters")
 
     logging.info(f"Selected hyper parameters: {gin_bindings}")
-    logging.info(f"Log diretory: {log_dir_bindings}")
+    logging.info(f"Log directory: {log_dir_bindings}")
 
     data = preprocess_data(args.data_dir)
 
