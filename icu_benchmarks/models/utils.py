@@ -30,43 +30,10 @@ def save_config_file(log_dir):
 
 
 @gin.configurable("random_search")
-def get_bindings_w_rs(args, log_dir, do_rs_for_conf=True, **rs_params_from_config):
-    gin_bindings = []
-    # if args.num_class:
-    #     num_class = args.num_class
-    #     gin_bindings += ["NUM_CLASSES = " + str(num_class)]
-
-    # if args.res:
-    #     res = args.res
-    #     gin_bindings += ['RES = ' + str(res)]
-    #     log_dir = os.path.join(log_dir, 'data-res_' + str(res))
-
-    # if args.res_lab:
-    #     res_lab = args.res_lab
-    #     gin_bindings += ['RES_LAB = ' + str(res_lab)]
-    #     log_dir = os.path.join(log_dir, 'pre-res_' + str(res_lab))
-
-    cli_params = {
-        "horizon": getattr(args, "horizon", None),
-        "l1_reg": getattr(args, "l1_reg", None),
-        "batch_size": getattr(args, "batch_size", None),
-        "learning_rate": getattr(args, "learning_rate", None),
-        "embeddings": getattr(args, "embeddings", None),
-        "drop_out": getattr(args, "drop_out", None),
-        "drop_out_att": getattr(args, "drop_out_att", None),
-        "kernel_size": getattr(args, "kernel_size", None),
-        "depth": getattr(args, "depth", None),
-        "heads": getattr(args, "heads", None),
-        "latent": getattr(args, "latent", None),
-        "hidden": getattr(args, "hidden", None),
-        "subsample_data": getattr(args, "subsample_data", None),
-        "subsample_feat": getattr(args, "subsample_feat", None),
-        "c_parameter": getattr(args, "c_parameter", None),
-        "penalty": getattr(args, "penalty", None),
-        "loss_weight": getattr(args, "loss_weight", None),
-    }
-    existing_cli_params = {name: value for name, value in cli_params.items() if value is not None}
+def get_bindings_w_rs(cli_params, args, log_dir, do_rs_for_conf=True, **rs_params_from_config):
+    existing_cli_params = {param: args[param] for param in cli_params if getattr(args, "horizon", None) is not None}
     merged_params = rs_params_from_config | existing_cli_params if do_rs_for_conf else existing_cli_params
+    gin_bindings = []
     for name, params in merged_params.items():
         param = params[np.random.randint(len(params))]
         gin_bindings += [f"{name.upper()} = {param}"]

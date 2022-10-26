@@ -11,6 +11,29 @@ from icu_benchmarks.models.train import train_with_gin
 from icu_benchmarks.models.utils import get_bindings_w_rs
 
 default_seeds = [1111]
+cli_hyper_params = [
+    ("sd", "seed", int, default_seeds, "Random seed at training and evaluation, default : 1111"),
+    ("bs", "batch_size", int, None, "Batchsize for the model"),
+    ("lr", "learning_rate", float, None, "Learning rate for the model"),
+    ("nc", "num_class", int, None, "Number of classes considered for the task"),
+    ("emb", "embeddings", int, None, "Embedding size of the input data"),
+    ("k", "kernel_size", int, None, "Kernel size for Temporal CNN"),
+    ("hi", "hidden", int, None, "Dimensionality of hidden layer in Neural Networks"),
+    ("de", "depth", int, None, "Number of layers in Neural Network"),
+    ("ho", "horizon", int, None, "History length for Neural Networks"),
+    ("do", "drop_out", float, None, "Dropout probability"),
+    ("do_att", "drop_out_att", float, None, "Dropout probability for the Self-Attention layer only"),
+    ("he", "heads", int, None, "Number of heads in Sel-Attention layer"),
+    ("la", "latent", int, None, "Dimension of fully-conected layer in Transformer block"),
+    ("ssd", "subsample_data", float, None, "Parameter in Gradient Boosting, subsample ratio of the training"),
+    ("ssf", "subsample_feat", float, None, "Subsample ratio of columns when constructing each tree in LGBM"),
+    ("reg", "l1_reg", float, None, "L1 regularization coefficient for Transformer"),
+    ("cp", "c_parameter", float, None, "C parameter in Logistic Regression"),
+    ("pen", "penalty", float, None, "Penalty parameter for Logistic Regression"),
+    ("lw", "loss_weight", str, None, "Loss weigthing parameter"),
+    # ("r", "resampling", int, None, "Resampling for the data"),
+    # ("rl", "resampling_label", int, None, "Resampling for the prediction"),
+]
 
 
 def build_parser():
@@ -35,64 +58,14 @@ def build_parser():
     #
     parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
     train_args = parser_prep_and_train.add_argument_group("Train arguments")
-    train_args.add_argument(
-        "--reproducible", default=True, type=bool, dest="reproducible", help="Set torch to be reproducible."
-    )
-    train_args.add_argument(
-        "-rs", "--random-search", default=True, dest="rs", required=False, type=bool, help="Enable random search."
-    )
+    train_args.add_argument("--reproducible", default=True, type=bool, dest="reproducible", help="Set torch to be reproducible.")
+    train_args.add_argument("-rs", "--random-search", default=True, dest="rs", type=bool, help="Enable random search.")
     train_args.add_argument("-o", "--overwrite", default=False, dest="overwrite", type=bool, help="Overwrite previous model.")
 
     hyper_args = parser_prep_and_train.add_argument_group("Hyperparameters")
-    # hyper_args.add_argument('-r', '--resampling', default=None, dest="res",
-    #                              required=False, type=int,
-    #                              help="resampling for the data")
-    # hyper_args.add_argument('-rl', '--resampling_label', default=None,
-    #                              dest="res_lab", required=False, type=int,
-    #                              help="resampling for the prediction")
-    params = [
-        ("sd", "seed", int, default_seeds, "Random seed at training and evaluation, default : 1111"),
-        ("bs", "batch_size", int, None, "Batchsize for the model"),
-        ("lr", "learning_rate", float, None, "Learning rate for the model"),
-        ("nc", "num_class", int, None, "Number of classes considered for the task"),
-        ("emb", "embeddings", int, None, "Embedding size of the input data"),
-        ("k", "kernel_size", int, None, "Kernel size for Temporal CNN"),
-        ("hi", "hidden", int, None, "Dimensionality of hidden layer in Neural Networks"),
-        ("de", "depth", int, None, "Number of layers in Neural Network"),
-        ("ho", "horizon", int, None, "History length for Neural Networks"),
-        ("do", "drop_out", float, None, "Dropout probability"),
-        ("do_att", "drop_out_att", float, None, "Dropout probability for the Self-Attention layer only"),
-        ("he", "heads", int, None, "Number of heads in Sel-Attention layer"),
-        ("la", "latent", int, None, "Dimension of fully-conected layer in Transformer block"),
-        (
-            "ssd",
-            "subsample_data",
-            float,
-            None,
-            "Parameter in Gradient Boosting, subsample ratio of the training",
-        ),
-        (
-            "ssf",
-            "subsample_feat",
-            float,
-            None,
-            "Colsample_bytree in Gradient Boosting, subsample ratio of columns when constructing each tree",
-        ),
-        ("reg", "l1_reg", float, None, "L1 regularization coefficient for Transformer"),
-        ("cp", "c_parameter", float, None, "C parameter in Logistic Regression"),
-        ("pen", "penalty", float, None, "Penalty parameter for Logistic Regression"),
-        ("lw", "loss_weight", str, None, "Loss weigthing parameter"),
-    ]
-
-    for short, dest, tp, default, desc in params:
+    for short, dest, tp, default, desc in cli_hyper_params:
         hyper_args.add_argument(
-            f"-{short}",
-            f"--{dest}".replace("_", "-"),
-            default=default,
-            dest=dest,
-            type=tp,
-            nargs="+",
-            help=desc,
+            f"-{short}", f"--{dest}".replace("_", "-"), default=default, dest=dest, type=tp, nargs="+", help=desc
         )
 
     #
@@ -110,6 +83,7 @@ def make_config_path(prefix, name):
 
 def main(my_args=tuple(sys.argv[1:])):
     args = build_parser().parse_args(my_args)
+    hyper_params = [param[1] for param in cli_hyper_params]
 
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
@@ -125,7 +99,7 @@ def main(my_args=tuple(sys.argv[1:])):
         overwrite = False
         gin.parse_config_file(args.train_config)
         gin_config_files = [args.train_config]
-        gin_bindings, log_dir_bindings = get_bindings_w_rs(args, log_dir_model, do_rs_for_conf=False)
+        gin_bindings, log_dir_bindings = get_bindings_w_rs(hyper_params, args, log_dir_model, do_rs_for_conf=False)
     else:
         reproducible = args.reproducible
         overwrite = args.overwrite
@@ -134,7 +108,7 @@ def main(my_args=tuple(sys.argv[1:])):
         gin.parse_config_file(model_config)
         gin.parse_config_file(task_config)
         gin_config_files = [model_config, task_config]
-        gin_bindings, log_dir_bindings = get_bindings_w_rs(args, log_dir_model)
+        gin_bindings, log_dir_bindings = get_bindings_w_rs(hyper_params, args, log_dir_model)
         # if args.rs:
         #     reproducible = False
         #     attempt = 0
