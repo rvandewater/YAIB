@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 import argparse
 import logging
-import os
 import sys
+from pathlib import Path
 
 import gin
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
-from icu_benchmarks.models.utils import get_bindings_w_rs
+from icu_benchmarks.models.utils import get_bindings
 
+max_rs_attempt = 300
 default_seeds = [1111]
 cli_hyper_params = [
-    ("sd", "seed", int, default_seeds, "Random seed at training and evaluation, default : 1111"),
     ("bs", "batch_size", int, None, "Batchsize for the model"),
     ("lr", "learning_rate", float, None, "Learning rate for the model"),
     ("nc", "num_class", int, None, "Number of classes considered for the task"),
@@ -48,17 +48,26 @@ def build_parser():
     # ARGUMENTS FOR ALL COMMANDS
     #
     general_args = parent_parser.add_argument_group("General arguments")
-    general_args.add_argument("-dir", "--data-dir", required=True, dest="data_dir", help="Path to the parquet data directory.")
+    general_args.add_argument(
+        "-dir", "--data-dir", required=True, dest="data_dir", type=Path, help="Path to the parquet data directory."
+    )
     general_args.add_argument("-t", "--task", default="Mortality_At24Hours", dest="task_config", help="Name of the task gin.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", dest="model_config", help="Name of the model gin.")
-    general_args.add_argument("-l", "--log-dir", dest="log_dir", help="Path to the log directory with model weights.")
+    general_args.add_argument(
+        "-l", "--log-dir", dest="log_dir", type=Path, help="Path to the log directory with model weights."
+    )
+    general_args.add_argument(
+        "-s", "--seed", default=default_seeds, dest="seed", nargs="+", type=int, help="Random seed at training and evaluation."
+    )
 
     #
     # MODEL TRAINING ARGUMENTS
     #
     parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
     train_args = parser_prep_and_train.add_argument_group("Train arguments")
-    train_args.add_argument("--reproducible", default=True, type=bool, dest="reproducible", help="Set torch to be reproducible.")
+    train_args.add_argument(
+        "--reproducible", default=True, type=bool, dest="reproducible", help="Set torch to be reproducible."
+    )
     train_args.add_argument("-rs", "--random-search", default=True, dest="rs", type=bool, help="Enable random search.")
     train_args.add_argument("-o", "--overwrite", default=False, dest="overwrite", type=bool, help="Overwrite previous model.")
 
@@ -77,10 +86,6 @@ def build_parser():
     return parser
 
 
-def make_config_path(prefix, name):
-    return f"configs/{prefix}/{name}.gin"
-
-
 def main(my_args=tuple(sys.argv[1:])):
     args = build_parser().parse_args(my_args)
     hyper_params = [param[1] for param in cli_hyper_params]
@@ -92,42 +97,40 @@ def main(my_args=tuple(sys.argv[1:])):
     load_weights = args.command == "transfer"
     task = args.task_config
 
-    log_dir_base = f"{args.data_dir}/logs" if args.log_dir is None else args.log_dir
-    log_dir_model = os.path.join(log_dir_base, task, args.model_config)
+    log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
+    log_dir_model = log_dir_base / task / args.model_config
     if load_weights:
         reproducible = False
         overwrite = False
         gin.parse_config_file(args.train_config)
         gin_config_files = [args.train_config]
-        gin_bindings, log_dir_bindings = get_bindings_w_rs(hyper_params, args, log_dir_model, do_rs_for_conf=False)
+        gin_bindings, log_dir_bindings = get_bindings(hyper_params, args, log_dir_model)
     else:
         reproducible = args.reproducible
         overwrite = args.overwrite
-        model_config = make_config_path("models", args.model_config)
-        task_config = make_config_path("tasks", args.task_config)
+        model_config = Path(f"configs/models/{args.model_config}.gin")
+        task_config = Path(f"configs/tasks/{args.task_config}.gin")
         gin.parse_config_file(model_config)
         gin.parse_config_file(task_config)
         gin_config_files = [model_config, task_config]
-        gin_bindings, log_dir_bindings = get_bindings_w_rs(hyper_params, args, log_dir_model)
-        # if args.rs:
-        #     reproducible = False
-        #     attempt = 0
-        #     max_attempt = 300
-        #     is_already_run = os.path.isdir(log_dir_bindings)
-        #     gin.parse_config_file(model_config)
-        #     while is_already_run and attempt < max_attempt:
-        #         gin_bindings, log_dir_bindings = get_bindings_w_rs(args, log_dir_model)
-        #         is_already_run = os.path.isdir(log_dir_bindings)
-        #         attempt += 1
-        #     if is_already_run:
-        #         raise Exception("Reached max attempt to find unexplored set of parameters parameters")
+        gin_bindings, log_dir_bindings = get_bindings(hyper_params, args, log_dir_model)
+        if args.rs:
+            reproducible = False
+            attempt = 0
+            while Path.exists(log_dir_bindings) and attempt < max_rs_attempt:
+                gin_bindings, log_dir_bindings = get_bindings(hyper_params, args, log_dir_model, do_rs=True)
+                attempt += 1
+            if Path.exists(log_dir_bindings):
+                raise Exception("Reached max attempt to find unexplored set of parameters parameters")
+
+    logging.info(f"Selected hyper parameters: {gin_bindings}")
+    logging.info(f"Log diretory: {log_dir_bindings}")
 
     data = preprocess_data(args.data_dir)
 
-    gin_bindings_task = gin_bindings + ["TASK = " + "'" + str(task) + "'"]
-    seeds = args.seed if hasattr(args, "seeds") else default_seeds
-    for seed in seeds:
-        log_dir_seed = os.path.join(log_dir_bindings, str(seed))
+    gin_bindings_task = gin_bindings + [f"TASK = '{task}'"]
+    for seed in args.seed:
+        log_dir_seed = log_dir_bindings / str(seed)
         train_with_gin(
             model_dir=log_dir_seed,
             data=data,
