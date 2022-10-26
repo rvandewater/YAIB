@@ -28,10 +28,14 @@ def save_config_file(log_dir):
         f.write(gin.operative_config_str())
 
 
-@gin.configurable("random_search")
+@gin.configurable("bindings")
 def get_bindings(cli_params, args, log_dir, do_rs=False, **rs_params_from_config):
     # only handle cli params that are set (exist in args and aren't None)
-    cli_params = {param: getattr(args, param) for param in cli_params if getattr(args, param, None) is not None}
+    cli_params = {
+        param: getattr(args, param)
+        for param in cli_params
+        if getattr(args, param, None) is not None
+    }
     # merge params for random search from config with cli params (cli overwrites config)
     merged_params = rs_params_from_config | cli_params
     gin_bindings = []
