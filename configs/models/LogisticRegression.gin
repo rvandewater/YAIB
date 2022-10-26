@@ -1,6 +1,7 @@
 import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
 
 RES = 1
 RES_LAB = 1
@@ -14,6 +15,8 @@ train_common.do_test = True
 MLWrapper.model = @LogisticRegression()
 MLWrapper.train.patience = 10
 
-LogisticRegression.C = [0.001, 0.01, 0.1, 1.0, 10]
-LogisticRegression.penalty = ["l1", "l2", "none"]
+random_search.c_parameter = [0.001, 0.01, 0.1, 1.0, 10]
+LogisticRegression.C = %C_PARAMETER
+random_search.penalty = ["l1", "l2", "none"]
+LogisticRegression.penalty = %PENALTY
 LogisticRegression.max_iter = 100000

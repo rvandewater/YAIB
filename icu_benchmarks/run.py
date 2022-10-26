@@ -35,7 +35,9 @@ def build_parser():
     #
     parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
     train_args = parser_prep_and_train.add_argument_group("Train arguments")
-    train_args.add_argument("--reproducible", default=True, type=bool, dest="reproducible", help="Set torch to be reproducible.")
+    train_args.add_argument(
+        "--reproducible", default=True, type=bool, dest="reproducible", help="Set torch to be reproducible."
+    )
     train_args.add_argument(
         "-rs", "--random-search", default=True, dest="rs", required=False, type=bool, help="Enable random search."
     )
@@ -54,7 +56,7 @@ def build_parser():
         ("lr", "learning_rate", float, None, "Learning rate for the model"),
         ("nc", "num_class", int, None, "Number of classes considered for the task"),
         ("emb", "embeddings", int, None, "Embedding size of the input data"),
-        ("k", "kernel", int, None, "Kernel size for Temporal CNN"),
+        ("k", "kernel_size", int, None, "Kernel size for Temporal CNN"),
         ("hi", "hidden", int, None, "Dimensionality of hidden layer in Neural Networks"),
         ("de", "depth", int, None, "Number of layers in Neural Network"),
         ("ho", "horizon", int, None, "History length for Neural Networks"),
@@ -115,7 +117,7 @@ def main(my_args=tuple(sys.argv[1:])):
 
     load_weights = args.command == "transfer"
     task = args.task_config
-    
+
     log_dir_base = f"{args.data_dir}/logs" if args.log_dir is None else args.log_dir
     log_dir_model = os.path.join(log_dir_base, task, args.model_config)
     if load_weights:
@@ -149,7 +151,7 @@ def main(my_args=tuple(sys.argv[1:])):
     data = preprocess_data(args.data_dir)
 
     gin_bindings_task = gin_bindings + ["TASK = " + "'" + str(task) + "'"]
-    seeds = args.seed if hasattr(args, 'seeds') else default_seeds
+    seeds = args.seed if hasattr(args, "seeds") else default_seeds
     for seed in seeds:
         log_dir_seed = os.path.join(log_dir_bindings, str(seed))
         train_with_gin(

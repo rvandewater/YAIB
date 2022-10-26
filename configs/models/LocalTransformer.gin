@@ -20,17 +20,23 @@ DLWrapper.train.patience = 10
 DLWrapper.train.min_delta = 1e-4
 
 # Optimizer params
-Adam.lr = [3e-4, 1e-4, 3e-5, 1e-5]
+random_search.learning_rate = [3e-4, 1e-4, 3e-5, 1e-5]
+Adam.lr = %LEARNING_RATE
 Adam.weight_decay = 1e-6
 
 # Encoder params
 LocalTransformer.emb = %EMB
-LocalTransformer.hidden = [32, 64, 128, 256]
-LocalTransformer.heads = [1, 2, 4, 8]
+random_search.hidden = [32, 64, 128, 256]
+LocalTransformer.hidden_dim = %HIDDEN
+random_search.heads = [1, 2, 4, 8]
+LocalTransformer.heads = %HEADS
 LocalTransformer.ff_hidden_mult = 2
-LocalTransformer.depth = [1, 2, 3]
-LocalTransformer.dropout = [0.0, 0.1, 0.2, 0.3, 0.4]
-LocalTransformer.dropout_att = [0.0, 0.1, 0.2, 0.3, 0.4]
-Transformer.l1_reg = 0.0
+random_search.depth = [1, 2, 3]
+LocalTransformer.depth = %DEPTH
+random_search.dropout = [0.0, 0.1, 0.2, 0.3, 0.4]
+LocalTransformer.dropout = %DROPOUT
+random_search.dropout_att = [0.0, 0.1, 0.2, 0.3, 0.4]
+LocalTransformer.dropout_att = %DROPOUT_ATT
+LocalTransformer.l1_reg = 0.0
 LocalTransformer.num_classes = %NUM_CLASSES
 LocalTransformer.local_context = %HORIZON
