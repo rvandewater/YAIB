@@ -44,7 +44,7 @@ def get_bindings_w_rs(cli_params, args, log_dir, do_rs_for_conf=True, **rs_param
 
         if name == "depth":
             num_leaves = 2**param
-            gin_bindings += ["NUM_LEAVES = " + str(num_leaves)]
+            gin_bindings += [f"NUM_LEAVES = {num_leaves}"]
 
     print(gin_bindings)
     print(log_dir)
