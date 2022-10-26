@@ -32,7 +32,7 @@ def save_config_file(log_dir):
 @gin.configurable("random_search")
 def get_bindings_w_rs(cli_params, args, log_dir, do_rs_for_conf=True, **rs_params_from_config):
     # only handle cli params that are set (exist in args and aren't None)
-    cli_params = {param: args[param] for param in cli_params if getattr(args, "horizon", None) is not None}
+    cli_params = {param: args[param] for param in cli_params if getattr(args, param, None) is not None}
     # merge params for random search from config with cli params
     merged_params = rs_params_from_config | cli_params if do_rs_for_conf else cli_params
     gin_bindings = []
