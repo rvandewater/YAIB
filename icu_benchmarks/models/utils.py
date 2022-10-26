@@ -31,13 +31,16 @@ def save_config_file(log_dir):
 
 @gin.configurable("random_search")
 def get_bindings_w_rs(cli_params, args, log_dir, do_rs_for_conf=True, **rs_params_from_config):
-    existing_cli_params = {param: args[param] for param in cli_params if getattr(args, "horizon", None) is not None}
-    merged_params = rs_params_from_config | existing_cli_params if do_rs_for_conf else existing_cli_params
+    # only handle cli params that are set (exist in args and aren't None)
+    cli_params = {param: args[param] for param in cli_params if getattr(args, "horizon", None) is not None}
+    # merge params for random search from config with cli params
+    merged_params = rs_params_from_config | cli_params if do_rs_for_conf else cli_params
     gin_bindings = []
     for name, params in merged_params.items():
+        # randomly choose one param from list
         param = params[np.random.randint(len(params))]
         gin_bindings += [f"{name.upper()} = {param}"]
-        # log_dir += f"/{name}_{param}"
+        log_dir += f"/{name}_{param}"
 
         if name == "depth":
             num_leaves = 2**param
