@@ -79,10 +79,10 @@ def build_parser():
         )
 
     #
-    # TRANSFER PARSER
+    # EVALUATION PARSER
     #
-    transfer_parser = subparsers.add_parser("transfer", help="Evaluate trained model on data.", parents=[parent_parser])
-    transfer_parser.add_argument("-c", "--train-config", required=True, dest="train_config", help="Original train gin.")
+    evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
+    evaluate_parser.add_argument("-c", "--train-config", required=True, dest="train_config", help="Original train gin.")
 
     return parser
 
@@ -95,7 +95,7 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
 
-    load_weights = args.command == "transfer"
+    load_weights = args.command == "evaluate"
     task = args.task_config
 
     log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
