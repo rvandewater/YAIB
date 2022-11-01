@@ -15,13 +15,10 @@ train_common.do_test = True
 MLWrapper.model = @LGBMRegressor()
 MLWrapper.train.patience = 10
 
-bindings.depth = [3, 4, 5, 6, 7]
-LGBMRegressor.max_depth = %DEPTH
+LGBMRegressor.max_depth = RS([3, 4, 5, 6, 7])
 LGBMRegressor.num_leaves = 16
 LGBMRegressor.n_estimators = 100000
 LGBMRegressor.min_child_samples = 1000
-bindings.subsample_data = [0.33, 0.66, 1.00]
-LGBMRegressor.subsample = %SUBSAMPLE_DATA
+LGBMRegressor.subsample = RS([0.33, 0.66, 1.00])
 LGBMRegressor.subsample_freq = 1
-bindings.subsample_feat = [0.33, 0.66, 1.00]
-LGBMRegressor.colsample_bytree = %SUBSAMPLE_FEAT
+LGBMRegressor.colsample_bytree = RS([0.33, 0.66, 1.00])

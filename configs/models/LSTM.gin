@@ -19,14 +19,11 @@ DLWrapper.train.patience = 10
 DLWrapper.train.min_delta = 1e-4
 
 # Optimizer params
-bindings.learning_rate = [3e-4, 1e-4, 3e-5, 1e-5]
-Adam.lr = %LEARNING_RATE
+Adam.lr = RS([3e-4, 1e-4, 3e-5, 1e-5])
 Adam.weight_decay = 1e-6
 
 # Encoder params
 LSTM.input_dim = %EMB
-bindings.hidden = [32, 64, 128, 256]
-LSTM.hidden_dim = %HIDDEN
-bindings.depth = [1, 2, 3]
-LSTM.layer_dim = %DEPTH
+LSTM.hidden_dim = RS([32, 64, 128, 256])
+LSTM.layer_dim = RS([1, 2, 3])
 LSTM.num_classes = %NUM_CLASSES

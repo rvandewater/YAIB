@@ -3,10 +3,12 @@ import argparse
 from argparse import BooleanOptionalAction
 from ast import literal_eval
 import logging
+import re
 import sys
 from pathlib import Path
 
 import gin
+import numpy as np
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
@@ -56,9 +58,24 @@ def to_correct_type(value):
         return value
 
 
+def rs_from_match(matchobj):
+    values = to_correct_type(matchobj.group(0)[3:-1])
+    return str(values[np.random.randint(len(values))])
+
+
+def rs_gin_configs(gin_config_files):
+    parsed_configs = []
+    for gin_file in gin_config_files:
+        with open(gin_file, encoding="utf-8") as f:
+            contents = f.read()
+            parsed_contents = re.sub(r'RS\((.*)\)', rs_from_match, contents, flags=re.MULTILINE)
+            parsed_configs += [parsed_contents]
+    return parsed_configs
+
+
 def main(my_args=tuple(sys.argv[1:])):
     args = build_parser().parse_args(my_args)
-    hyperparams = {param.split('=')[0]: to_correct_type(param.split('=')[1]) for param in args.hyperparams}
+    hyperparams = {param.split('=')[0]: to_correct_type(param.split('=')[1]) for param in args.hyperparams} if args.hyperparams else {}
 
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
@@ -80,14 +97,10 @@ def main(my_args=tuple(sys.argv[1:])):
         overwrite = args.overwrite
         if args.experiment_config:
             experiment_config = Path(f"configs/experiments/{args.experiment_config}.gin")
-            print(experiment_config)
-            gin.parse_config_file(experiment_config)
             gin_config_files = [experiment_config]
         else:
             model_config = Path(f"configs/models/{args.model_config}.gin")
             task_config = Path(f"configs/tasks/{args.task_config}.gin")
-            gin.parse_config_file(model_config)
-            gin.parse_config_file(task_config)
             gin_config_files = [model_config, task_config]
         gin_bindings, log_dir_bindings = get_bindings(hyperparams, log_dir_model)
         if args.random_search:
@@ -101,10 +114,12 @@ def main(my_args=tuple(sys.argv[1:])):
 
     logging.info(f"Selected hyper parameters: {gin_bindings}")
     logging.info(f"Log directory: {log_dir_bindings}")
-
+    gin_configs = rs_gin_configs(gin_config_files)
+    gin.parse_config(gin_configs)
     data = preprocess_data(args.data_dir)
 
     gin_bindings_task = gin_bindings + [f"TASK = '{task}'"]
+    all_configs = gin_configs + gin_bindings_task
     for seed in args.seed:
         log_dir_seed = log_dir_bindings / str(seed)
         train_with_gin(
@@ -112,8 +127,7 @@ def main(my_args=tuple(sys.argv[1:])):
             data=data,
             overwrite=overwrite,
             load_weights=load_weights,
-            gin_config_files=gin_config_files,
-            gin_bindings=gin_bindings_task,
+            gin_configs=all_configs,
             seed=seed,
             reproducible=reproducible,
         )

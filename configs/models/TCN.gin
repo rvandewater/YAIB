@@ -20,17 +20,13 @@ DLWrapper.train.patience = 10
 DLWrapper.train.min_delta = 1e-4
 
 # Optimizer params
-bindings.learning_rate = [3e-4, 1e-4, 3e-5, 1e-5]
-Adam.lr = %LEARNING_RATE
+Adam.lr = RS([3e-4, 1e-4, 3e-5, 1e-5])
 Adam.weight_decay = 1e-6
 
 # Encoder params
 TCN.num_inputs = %EMB
-bindings.hidden = [32, 64, 128, 256]
-TCN.num_channels = %HIDDEN
-bindings.kernel_size = [2, 4, 8, 16, 32]
-TCN.kernel_size = %KERNEL_SIZE
-bindings.dropout = [0.0, 0.1, 0.2, 0.3, 0.4]
-TCN.dropout = %DROPOUT
+TCN.num_channels = RS([32, 64, 128, 256])
+TCN.kernel_size = RS([2, 4, 8, 16, 32])
+TCN.dropout = RS([0.0, 0.1, 0.2, 0.3, 0.4])
 TCN.num_classes = %NUM_CLASSES
 TCN.max_seq_length = %HORIZON

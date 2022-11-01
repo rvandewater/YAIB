@@ -20,23 +20,17 @@ DLWrapper.train.patience = 10
 DLWrapper.train.min_delta = 1e-4
 
 # Optimizer params
-bindings.learning_rate = [3e-4, 1e-4, 3e-5, 1e-5]
-Adam.lr = %LEARNING_RATE
+Adam.lr = RS([3e-4, 1e-4, 3e-5, 1e-5])
 Adam.weight_decay = 1e-6
 
 # Encoder params
 LocalTransformer.emb = %EMB
-bindings.hidden = [32, 64, 128, 256]
-LocalTransformer.hidden_dim = %HIDDEN
-bindings.heads = [1, 2, 4, 8]
-LocalTransformer.heads = %HEADS
+LocalTransformer.hidden_dim = RS([32, 64, 128, 256])
+LocalTransformer.heads = RS([1, 2, 4, 8])
 LocalTransformer.ff_hidden_mult = 2
-bindings.depth = [1, 2, 3]
-LocalTransformer.depth = %DEPTH
-bindings.dropout = [0.0, 0.1, 0.2, 0.3, 0.4]
-LocalTransformer.dropout = %DROPOUT
-bindings.dropout_att = [0.0, 0.1, 0.2, 0.3, 0.4]
-LocalTransformer.dropout_att = %DROPOUT_ATT
+LocalTransformer.depth = RS([1, 2, 3])
+LocalTransformer.dropout = RS([0.0, 0.1, 0.2, 0.3, 0.4])
+LocalTransformer.dropout_att = RS([0.0, 0.1, 0.2, 0.3, 0.4])
 LocalTransformer.l1_reg = 0.0
 LocalTransformer.num_classes = %NUM_CLASSES
 LocalTransformer.local_context = %HORIZON

@@ -17,8 +17,7 @@ def train_with_gin(
     data=None,
     overwrite=False,
     load_weights=False,
-    gin_config_files=None,
-    gin_bindings=None,
+    gin_configs=None,
     seed=1234,
     reproducible=True,
 ):
@@ -45,11 +44,10 @@ def train_with_gin(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    if gin_config_files is None:
-        gin_config_files = []
-    if gin_bindings is None:
-        gin_bindings = []
-    gin.parse_config_files_and_bindings(gin_config_files, gin_bindings)
+    if gin_configs is None:
+        gin_configs = []
+
+    gin.parse_config(gin_configs)
     train_common(model_dir, data, overwrite, load_weights)
     gin.clear_config()
 

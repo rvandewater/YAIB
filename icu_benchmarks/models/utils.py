@@ -28,15 +28,12 @@ def save_config_file(log_dir):
         f.write(gin.operative_config_str())
 
 
-@gin.configurable("bindings")
-def get_bindings(hyperparams, log_dir, do_rs=False, **rs_params_from_config):
-    # merge params for random search from config with cli params (cli overwrites config)
-    merged_params = rs_params_from_config | hyperparams
+def get_bindings(hyperparams, log_dir, do_rs=False):
     gin_bindings = []
-    for name, params in merged_params.items():
+    for name, params in hyperparams.items():
         # randomly choose one param from list if random search enable, else take first
         param = params[np.random.randint(len(params))] if do_rs else params[0]
-        gin_bindings += [f"{name.upper()} = {param}"]
+        gin_bindings += [f"{name} = {param}"]
         log_dir /= f"{name}_{param}"
 
         if name == "depth":
