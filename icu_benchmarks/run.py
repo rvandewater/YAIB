@@ -75,7 +75,6 @@ def main(my_args=tuple(sys.argv[1:])):
             gin_config_files = [model_config, task_config]
             gin_configs = [rs_gin_config(conf) for conf in gin_config_files]
 
-    
     gin.parse_config(gin_configs)
     data = preprocess_data(args.data_dir)
 
