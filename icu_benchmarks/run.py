@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import argparse
 from argparse import BooleanOptionalAction
+from datetime import datetime
 import gin
 import logging
 import sys
@@ -9,7 +10,7 @@ from pathlib import Path
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
-from icu_benchmarks.gin_parser import rs_gin_configs, get_bindings
+from icu_benchmarks.gin_parser import rs_gin_config, parse_config_lines
 
 MAX_ATTEMPTS = 300
 SEEDS = [1111]
@@ -57,49 +58,42 @@ def main(my_args=tuple(sys.argv[1:])):
     load_weights = args.command == "evaluate"
     task = args.task_config
 
-    log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
-    log_dir_model = log_dir_base / task / args.model_config
     if load_weights:
         reproducible = False
         overwrite = False
-        gin_config_files = [args.train_config]
-        gin_bindings, log_dir_bindings = get_bindings(args.hyperparams, log_dir_model)
+        with open(args.train_config, encoding="utf-8") as f:
+            gin_configs = f.read()
     else:
         reproducible = args.reproducible
         overwrite = args.overwrite
         if args.experiment_config:
             experiment_config = Path(f"configs/experiments/{args.experiment_config}.gin")
-            gin_config_files = [experiment_config]
+            gin_configs = rs_gin_config(experiment_config)
         else:
             model_config = Path(f"configs/models/{args.model_config}.gin")
             task_config = Path(f"configs/tasks/{args.task_config}.gin")
             gin_config_files = [model_config, task_config]
-        gin_bindings, log_dir_bindings = get_bindings(args.hyperparams, log_dir_model)
-        if args.random_search:
-            reproducible = False
-            attempt = 0
-            while Path.exists(log_dir_bindings) and attempt < MAX_ATTEMPTS:
-                gin_bindings, log_dir_bindings = get_bindings(args.hyperparams, log_dir_model, do_rs=True)
-                attempt += 1
-            if Path.exists(log_dir_bindings):
-                raise Exception("Reached max attempt to find unexplored set of parameters parameters")
+            gin_configs = [rs_gin_config(conf) for conf in gin_config_files]
 
-    logging.info(f"Selected hyper parameters: {gin_bindings}")
-    logging.info(f"Log directory: {log_dir_bindings}")
-    gin_configs = rs_gin_configs(gin_config_files)
+    
     gin.parse_config(gin_configs)
     data = preprocess_data(args.data_dir)
 
-    gin_bindings_task = gin_bindings + [f"TASK = '{task}'"]
-    all_configs = gin_configs + gin_bindings_task
+    if args.hyperparams:
+        gin_configs += parse_config_lines(args.hyperparams)
+    gin_configs = gin_configs + [f"TASK = '{task}'"]
+
+    log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
+    log_dir = log_dir_base / task / args.model_config / str(datetime.now())
+
     for seed in args.seed:
-        log_dir_seed = log_dir_bindings / str(seed)
+        log_dir_seed = log_dir / str(seed)
         train_with_gin(
             model_dir=log_dir_seed,
             data=data,
             overwrite=overwrite,
             load_weights=load_weights,
-            gin_configs=all_configs,
+            gin_configs=gin_configs,
             seed=seed,
             reproducible=reproducible,
         )
