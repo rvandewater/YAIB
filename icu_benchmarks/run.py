@@ -1,18 +1,15 @@
 # -*- coding: utf-8 -*-
 import argparse
 from argparse import BooleanOptionalAction
-from ast import literal_eval
+import gin
 import logging
-import re
 import sys
 from pathlib import Path
 
-import gin
-import numpy as np
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
-from icu_benchmarks.models.utils import get_bindings
+from icu_benchmarks.gin_parser import rs_gin_configs, get_bindings
 
 MAX_ATTEMPTS = 300
 SEEDS = [1111]
@@ -50,32 +47,8 @@ def build_parser():
     return parser
 
 
-def to_correct_type(value):
-    try:
-        val = literal_eval(value)
-        return val if isinstance(val, list) else [val]
-    except ValueError:
-        return value
-
-
-def rs_from_match(matchobj):
-    values = to_correct_type(matchobj.group(0)[3:-1])
-    return str(values[np.random.randint(len(values))])
-
-
-def rs_gin_configs(gin_config_files):
-    parsed_configs = []
-    for gin_file in gin_config_files:
-        with open(gin_file, encoding="utf-8") as f:
-            contents = f.read()
-            parsed_contents = re.sub(r'RS\((.*)\)', rs_from_match, contents, flags=re.MULTILINE)
-            parsed_configs += [parsed_contents]
-    return parsed_configs
-
-
 def main(my_args=tuple(sys.argv[1:])):
     args = build_parser().parse_args(my_args)
-    hyperparams = {param.split('=')[0]: to_correct_type(param.split('=')[1]) for param in args.hyperparams} if args.hyperparams else {}
 
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
@@ -89,9 +62,8 @@ def main(my_args=tuple(sys.argv[1:])):
     if load_weights:
         reproducible = False
         overwrite = False
-        gin.parse_config_file(args.train_config)
         gin_config_files = [args.train_config]
-        gin_bindings, log_dir_bindings = get_bindings(hyperparams, log_dir_model)
+        gin_bindings, log_dir_bindings = get_bindings(args.hyperparams, log_dir_model)
     else:
         reproducible = args.reproducible
         overwrite = args.overwrite
@@ -102,12 +74,12 @@ def main(my_args=tuple(sys.argv[1:])):
             model_config = Path(f"configs/models/{args.model_config}.gin")
             task_config = Path(f"configs/tasks/{args.task_config}.gin")
             gin_config_files = [model_config, task_config]
-        gin_bindings, log_dir_bindings = get_bindings(hyperparams, log_dir_model)
+        gin_bindings, log_dir_bindings = get_bindings(args.hyperparams, log_dir_model)
         if args.random_search:
             reproducible = False
             attempt = 0
             while Path.exists(log_dir_bindings) and attempt < MAX_ATTEMPTS:
-                gin_bindings, log_dir_bindings = get_bindings(hyperparams, log_dir_model, do_rs=True)
+                gin_bindings, log_dir_bindings = get_bindings(args.hyperparams, log_dir_model, do_rs=True)
                 attempt += 1
             if Path.exists(log_dir_bindings):
                 raise Exception("Reached max attempt to find unexplored set of parameters parameters")
