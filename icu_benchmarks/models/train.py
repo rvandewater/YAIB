@@ -64,21 +64,22 @@ def train_common(
     Common wrapper to train all benchmarked models.
     """
     if not load_weights:
-        os.makedirs(log_dir)
+        log_dir.mkdir()
+
     dataset = RICUDataset(data, split="train")
     val_dataset = RICUDataset(data, split="val")
 
     model.set_logdir(log_dir)
 
     if load_weights:
-        if os.path.isfile(os.path.join(log_dir, "model.torch")):
-            model.load_weights(os.path.join(log_dir, "model.torch"))
-        elif os.path.isfile(os.path.join(log_dir, "model.txt")):
-            model.load_weights(os.path.join(log_dir, "model.txt"))
-        elif os.path.isfile(os.path.join(log_dir, "model.joblib")):
-            model.load_weights(os.path.join(log_dir, "model.joblib"))
+        if (log_dir / "model.torch").is_file():
+            model.load_weights(log_dir / "model.torch")
+        elif (log_dir / "model.txt").is_file():
+            model.load_weights(log_dir / "model.txt")
+        elif (log_dir / "model.joblib").is_file():
+            model.load_weights(log_dir / "model.joblib")
         else:
-            raise Exception("No weights to load at path : {}".format(os.path.join(log_dir, "model.*")))
+            raise Exception("No weights to load at path : {}".format(log_dir / "model.*"))
         do_test = True
 
     else:
