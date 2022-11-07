@@ -10,7 +10,7 @@ from pathlib import Path
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
-from icu_benchmarks.gin_parser import rs_gin_config, parse_config_lines
+from icu_benchmarks.gin_parser import parse_gin_config_files, parse_config_lines
 
 MAX_ATTEMPTS = 300
 SEEDS = [1111]
@@ -27,18 +27,16 @@ def build_parser():
     # ARGUMENTS FOR ALL COMMANDS
     general_args = parent_parser.add_argument_group("General arguments")
     general_args.add_argument("-dir", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
-    general_args.add_argument("-t", "--task-config", default="Mortality_At24Hours", help="Name of the task gin.")
-    general_args.add_argument("-m", "--model-config", default="LGBMClassifier", help="Name of the model gin.")
-    general_args.add_argument("-e", "--experiment-config", help="Name of the experiment gin.")
+    general_args.add_argument("-t", "--task", default="Mortality_At24Hours", help="Name of the task gin.")
+    general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
+    general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument("-l", "--log-dir", type=Path, help="Path to the log directory with model weights.")
     general_args.add_argument("-s", "--seed", default=SEEDS, nargs="+", type=int, help="Random seed at train and eval.")
 
     # MODEL TRAINING ARGUMENTS
     parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
     train_args = parser_prep_and_train.add_argument_group("Train arguments")
-    train_args.add_argument("-o", "--overwrite", default=False, action=BooleanOptionalAction, help="Overwrite previous model.")
     train_args.add_argument("--reproducible", default=True, action=BooleanOptionalAction, help="Set torch to be reproducible.")
-    train_args.add_argument("-rs", "--random-search", default=True, action=BooleanOptionalAction, help="Enable random search.")
     train_args.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
 
     # EVALUATION PARSER
@@ -56,41 +54,35 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.getLogger().setLevel(logging.INFO)
 
     load_weights = args.command == "evaluate"
-    task = args.task_config
+    task = args.task
+    model = args.model
 
     if load_weights:
         reproducible = False
-        overwrite = False
-        with open(args.train_config, encoding="utf-8") as f:
-            gin_configs = f.read()
+        gin_config_files = [args.train_config]
     else:
         reproducible = args.reproducible
-        overwrite = args.overwrite
-        if args.experiment_config:
-            experiment_config = Path(f"configs/experiments/{args.experiment_config}.gin")
-            gin_configs = rs_gin_config(experiment_config)
+        if args.experiment:
+            gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
         else:
-            model_config = Path(f"configs/models/{args.model_config}.gin")
-            task_config = Path(f"configs/tasks/{args.task_config}.gin")
-            gin_config_files = [model_config, task_config]
-            gin_configs = [rs_gin_config(conf) for conf in gin_config_files]
+            gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
 
+    gin_configs = parse_gin_config_files(gin_config_files)
+    gin_configs += [f"TASK = '{task}'"]
     gin.parse_config(gin_configs)
     data = preprocess_data(args.data_dir)
 
     if args.hyperparams:
         gin_configs += parse_config_lines(args.hyperparams)
-    gin_configs = gin_configs + [f"TASK = '{task}'"]
 
     log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
-    log_dir = log_dir_base / task / args.model_config / str(datetime.now())
+    log_dir = log_dir_base / task / model / str(datetime.now())
 
     for seed in args.seed:
         log_dir_seed = log_dir / str(seed)
         train_with_gin(
             model_dir=log_dir_seed,
             data=data,
-            overwrite=overwrite,
             load_weights=load_weights,
             gin_configs=gin_configs,
             seed=seed,

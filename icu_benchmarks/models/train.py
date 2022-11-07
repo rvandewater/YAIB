@@ -15,18 +15,18 @@ from icu_benchmarks.models.utils import save_config_file
 def train_with_gin(
     model_dir=None,
     data=None,
-    overwrite=False,
     load_weights=False,
     gin_configs=None,
     seed=1234,
     reproducible=True,
 ):
     """Trains a model based on the provided gin configuration.
+
     This function will set the provided gin bindings, call the train() function
     and clear the gin config. Please see train() for required gin bindings.
+
     Args:
         model_dir: String with path to directory where model output should be saved.
-        overwrite: Boolean indicating whether to overwrite output directory.
         gin_config_files: List of gin config files to load.
         gin_bindings: List of gin bindings to use.
         seed: Integer corresponding to the common seed used for any random operation.
@@ -48,7 +48,7 @@ def train_with_gin(
         gin_configs = []
 
     gin.parse_config(gin_configs)
-    train_common(model_dir, data, overwrite, load_weights)
+    train_common(model_dir, data, load_weights)
     gin.clear_config()
 
 
@@ -56,7 +56,6 @@ def train_with_gin(
 def train_common(
     log_dir,
     data,
-    overwrite=False,
     load_weights=False,
     model=MLWrapper,
     weight=None,
@@ -65,12 +64,6 @@ def train_common(
     """
     Common wrapper to train all benchmarked models.
     """
-    if os.path.isdir(log_dir) and not load_weights:
-        if overwrite or (not os.path.isfile(os.path.join(log_dir, "test_metrics.pkl"))):
-            shutil.rmtree(log_dir)
-        else:
-            raise ValueError("Directory already exists and overwrite is False.")
-
     if not load_weights:
         os.makedirs(log_dir)
     dataset = RICUDataset(data, split="train")
