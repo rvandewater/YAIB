@@ -16,7 +16,7 @@ MLWrapper.model = @LGBMRegressor()
 MLWrapper.train.patience = 10
 
 LGBMRegressor.max_depth = RS([3, 4, 5, 6, 7])
-LGBMRegressor.num_leaves = 16
+LGBMRegressor.num_leaves = RS([8, 16, 32, 64, 128])
 LGBMRegressor.n_estimators = 100000
 LGBMRegressor.min_child_samples = 1000
 LGBMRegressor.subsample = RS([0.33, 0.66, 1.00])
