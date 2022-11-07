@@ -11,7 +11,7 @@ def parse_config_lines(config_lines):
         if "=" not in line:
             parsed_lines += [line.rstrip()]
             continue
-        
+
         name, value_string = (sub.strip() for sub in line.split("="))
         if "RS([" not in value_string:
             if name in randomly_searched_params:

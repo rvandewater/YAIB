@@ -71,7 +71,9 @@ def main(my_args=tuple(sys.argv[1:])):
     log_dir = log_dir_model / str(datetime.now())
     log_dir.mkdir(parents=True)
 
-    gin_configs, randomly_searched_params = parse_gin_config_files_and_bindings(gin_config_files, args.hyperparams, log_dir_model)
+    gin_configs, randomly_searched_params = parse_gin_config_files_and_bindings(
+        gin_config_files, args.hyperparams, log_dir_model
+    )
     (log_dir / randomly_searched_params).touch()
     gin_configs += [f"TASK = '{task}'"]
     gin.parse_config(gin_configs)
