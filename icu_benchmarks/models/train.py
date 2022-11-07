@@ -1,6 +1,5 @@
 import os
 import random
-import shutil
 import sys
 import gin
 import torch
