@@ -10,9 +10,8 @@ from pathlib import Path
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
-from icu_benchmarks.gin_parser import parse_gin_config_files, parse_config_lines
+from icu_benchmarks.gin_parser import parse_gin_config_files_and_bindings
 
-MAX_ATTEMPTS = 300
 SEEDS = [1111]
 
 
@@ -67,16 +66,16 @@ def main(my_args=tuple(sys.argv[1:])):
         else:
             gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
 
-    gin_configs = parse_gin_config_files(gin_config_files)
+    log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
+    log_dir_model = log_dir_base / task / model
+    log_dir = log_dir_model / str(datetime.now())
+    log_dir.mkdir(parents=True)
+
+    gin_configs, randomly_searched_params = parse_gin_config_files_and_bindings(gin_config_files, args.hyperparams, log_dir_model)
+    (log_dir / randomly_searched_params).touch()
     gin_configs += [f"TASK = '{task}'"]
     gin.parse_config(gin_configs)
     data = preprocess_data(args.data_dir)
-
-    if args.hyperparams:
-        gin_configs += parse_config_lines(args.hyperparams)
-
-    log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
-    log_dir = log_dir_base / task / model / str(datetime.now())
 
     for seed in args.seed:
         log_dir_seed = log_dir / str(seed)
