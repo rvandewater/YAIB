@@ -9,9 +9,9 @@ class Ingredients(pd.DataFrame):
     """Wrapper around pandas.DataFrames to store columns roles (e.g., predictor)
 
     Args:
-        roles (dict, optional): roles of DataFrame columns as (list of) strings.
+        roles: roles of DataFrame columns as (list of) strings.
             Defaults to None.
-        check_roles (bool, optional): If set to false, doesn't check whether the roles match existing columns.
+        check_roles: If set to false, doesn't check whether the roles match existing columns.
             Defaults to True.
 
     See also: pandas.DataFrame
@@ -65,7 +65,7 @@ class Ingredients(pd.DataFrame):
         """Return the underlying pandas.DataFrame.
 
         Returns:
-            pandas.DataFrame
+            Self as DataFrame.
         """
         return pd.DataFrame(self)
 
@@ -83,8 +83,8 @@ class Ingredients(pd.DataFrame):
         """Adds an additional role for a column that already has roles.
 
         Args:
-            column (str): The column to receive additional roles.
-            new_role (str): The role to add to the column.
+            column: The column to receive additional roles.
+            new_role: The role to add to the column.
 
         Raises:
             RuntimeError: If the column has no role yet.
@@ -99,9 +99,9 @@ class Ingredients(pd.DataFrame):
         """Adds a new role for a column without roles or changes an existing role to a different one.
 
         Args:
-            column (str): The column to update the roles of.
-            new_role (str): The role to add or change to.
-            old_role (str, optional): Defaults to None. The role to be changed.
+            column: The column to update the roles of.
+            new_role: The role to add or change to.
+            old_role: Defaults to None. The role to be changed.
 
         Raises:
             ValueError: If old_role is given but column has no roles.
