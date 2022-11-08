@@ -36,7 +36,7 @@ class RICUDataset(Dataset):
         """
         return self.num_stays
 
-    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice.
 
         Used for deep learning implementations.
