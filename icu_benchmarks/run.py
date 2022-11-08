@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import argparse
 from argparse import BooleanOptionalAction
-from datetime import datetime
 import gin
 import logging
 import sys
@@ -10,12 +9,17 @@ from pathlib import Path
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
-from icu_benchmarks.gin_parser import parse_gin_config_files_and_bindings
+from icu_benchmarks.gin_parser import random_search_configs_and_create_log_dir
 
 SEEDS = [1111]
 
 
 def build_parser():
+    """Builds an ArgumentParser for the command line.
+
+    Returns:
+        The configured ArgumentParser.
+    """
     parser = argparse.ArgumentParser(
         description="Benchmark lib for processing and evaluation of deep learning models on ICU data"
     )
@@ -59,22 +63,16 @@ def main(my_args=tuple(sys.argv[1:])):
     if load_weights:
         reproducible = False
         gin_config_files = [args.train_config]
+    elif args.experiment:
+        reproducible = args.reproducible
+        gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
     else:
         reproducible = args.reproducible
-        if args.experiment:
-            gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
-        else:
-            gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
+        gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
 
     log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
     log_dir_model = log_dir_base / task / model
-    log_dir = log_dir_model / str(datetime.now())
-    log_dir.mkdir(parents=True)
-
-    gin_configs, randomly_searched_params = parse_gin_config_files_and_bindings(
-        gin_config_files, args.hyperparams, log_dir_model
-    )
-    (log_dir / randomly_searched_params).touch()
+    gin_configs, log_dir = random_search_configs_and_create_log_dir(gin_config_files, args.hyperparams, log_dir_model)
     gin_configs += [f"TASK = '{task}'"]
     gin.parse_config(gin_configs)
     data = preprocess_data(args.data_dir)
