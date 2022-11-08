@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
-from typing import Tuple
 
 
 @gin.configurable("Dataset")
@@ -12,9 +11,9 @@ class RICUDataset(Dataset):
     """Subclass of torch Dataset that represents the data to learn on.
 
     Args:
-        data (dict): Dict of the different splits of the data.
-        split (string): Either 'train','val' or 'test'.
-        vars (dict[str]): Contains the names of columns in the data.
+        data: Dict of the different splits of the data.
+        split: Either 'train','val' or 'test'.
+        vars: Contains the names of columns in the data.
     """
 
     def __init__(self, data: dict, split: str = "train", vars: dict[str] = gin.REQUIRED):
@@ -33,7 +32,7 @@ class RICUDataset(Dataset):
         """Returns number of stays in the data.
 
         Returns:
-            int: number of stays in the data
+            number of stays in the data
         """
         return self.num_stays
 
@@ -43,10 +42,10 @@ class RICUDataset(Dataset):
         Used for deep learning implementations.
 
         Args:
-            idx (int): A specific row index to sample.
+            idx: A specific row index to sample.
 
         Returns:
-            (Tensor, Tensor, Tensor): A sample from the data, consisting of data, labels and padding mask.
+            A sample from the data, consisting of data, labels and padding mask.
         """
         pad_value = 0.0
         stay_id = self.static_df.iloc[idx][self.vars["GROUP"]]
@@ -85,18 +84,18 @@ class RICUDataset(Dataset):
         """Return the weight balance for the split of interest.
 
         Returns:
-            list: Weights for each label.
+            Weights for each label.
         """
         counts = self.outc_df.value_counts()
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
-    def get_data_and_labels(self) -> Tuple[np.array, np.array]:
+    def get_data_and_labels(self) -> tuple[np.array, np.array]:
         """Function to return all the data and labels aligned at once.
 
         We use this function for the ML methods which don't require an iterator.
 
         Returns:
-            (np.array, np.array): a tuple containing data points and label for the split.
+            A tuple containing data points and label for the split.
         """
         logging.info("Gathering the samples for split " + self.split)
         labels = self.outc_df["label"].to_numpy().astype(float)
