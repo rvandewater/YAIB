@@ -44,13 +44,19 @@ We currently use the following libraries:
 # CLI Commands
 
 ## Preprocess and Train
+```
+python -m icu_benchmarks.run train -dir ../data/mortality_seq/hirid -d hirid -t Mortality_At24Hours -m LGBMClassifier -hp LGBMClassifier.subsample='RS([0.33,0.66])' LGBMClassifier.colsample_bytree=0.66
+```
+> `RS([...])` is the syntax for invoking random search on a list of hyperparameters, both in configs and the command line.
 
-```
-python -m icu_benchmarks.run train -dir ../data/mortality_seq/mimic/ -d mimic -m LogisticRegression -t Mortality_At24Hours -o True -sd 1111 2222 3333
-```
 > Run with `PYTORCH_ENABLE_MPS_FALLBACK=1` on Macs with Metal Performance Shaders
-## Run Tests
 
+## Evaluate
+```
+python -m icu_benchmarks.run evaluate -dir ../data/mortality_seq/miiv -d hirid --target miiv -s ../data/mortality_seq/hirid/logs/hirid/Mortality_At24Hours/LGBMClassifier/2022-11-09T12-24-40/1111/
+```
+
+## Run Tests
 ```
 python -m pytest ./tests/recipes
 coverage run -m pytest ./tests/recipes
@@ -59,7 +65,8 @@ coverage report
 coverage html
 ```
 
-## Autoformat
+## Autoformat and lint
 ```
 black . -l 127
+flake8 . --count --max-complexity=14 --max-line-length=127 --statistics
 ```
