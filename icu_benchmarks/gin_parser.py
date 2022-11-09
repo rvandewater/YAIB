@@ -3,7 +3,7 @@ from ast import literal_eval
 from datetime import datetime
 from pathlib import Path
 
-MAX_ATTEMTPS = 300
+MAX_ATTEMTPS = 1000
 
 
 def random_search_config_lines(config_lines: list[str]) -> tuple[list[str], str]:
