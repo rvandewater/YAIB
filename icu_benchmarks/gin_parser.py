@@ -27,16 +27,16 @@ def random_search_config_lines(config_lines: list[str]) -> tuple[list[str], str]
             continue
 
         name, value_string = (sub.strip() for sub in line.split("="))
-        if "RS([" not in value_string:  # line doesn't contain parameter to randomly search
-            if name in randomly_searched_params:
-                del randomly_searched_params[name]  # parameter was randomly searched before, but is now set explicitly
-            param = value_string
-        else:
+        if "RS([" in value_string:
             values = literal_eval(value_string[3:-1])  # value_string should be RS([...]), only evaluate list in RS()
             if not isinstance(values, list):
                 raise ValueError("Wrong parameter for random search, expects list.")
             param = str(values[np.random.randint(len(values))])  # do random search in possible values
             randomly_searched_params[name] = param
+        else:  # line doesn't contain parameter to randomly search
+            if name in randomly_searched_params:
+                del randomly_searched_params[name]  # parameter was randomly searched before, but is now set explicitly
+            param = value_string
 
         parsed_lines += [f"{name} = {param}"]
 
