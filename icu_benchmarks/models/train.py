@@ -5,6 +5,8 @@ import gin
 import torch
 import logging
 import numpy as np
+import pandas as pd
+from pathlib import Path
 
 from icu_benchmarks.data.loader import RICUDataset
 from icu_benchmarks.models.wrappers import MLWrapper
@@ -12,12 +14,13 @@ from icu_benchmarks.models.utils import save_config_file
 
 
 def train_with_gin(
-    model_dir=None,
-    data=None,
-    load_weights=False,
-    gin_configs=None,
-    seed=1234,
-    reproducible=True,
+    log_dir: Path = None,
+    data: dict[str, pd.DataFrame] = None,
+    load_weights: bool = False,
+    source_dir: Path = None,
+    gin_configs: list[str] = None,
+    seed: int = 1234,
+    reproducible: bool = True,
 ):
     """Trains a model based on the provided gin configuration.
 
@@ -25,12 +28,14 @@ def train_with_gin(
     and clear the gin config. Please see train() for required gin bindings.
 
     Args:
-        model_dir: String with path to directory where model output should be saved.
-        gin_config_files: List of gin config files to load.
-        gin_bindings: List of gin bindings to use.
-        seed: Integer corresponding to the common seed used for any random operation.
+        log_dir: Path to directory where model output should be saved.
+        data: Dict containing data to be trained on.
+        load_weights: If set to true, skip training and load weights from source_dir instead.
+        source_dir: If set to load weights, path to directory containing trained weights.
+        gin_configs: List of gin configs.
+        seed: Common seed used for any random operation.
+        reproducible: If set to true, set torch to run reproducibly.
     """
-
     # Setting the seed before gin parsing
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
@@ -47,43 +52,39 @@ def train_with_gin(
         gin_configs = []
 
     gin.parse_config(gin_configs)
-    train_common(model_dir, data, load_weights)
+    train_common(log_dir, data, load_weights, source_dir)
     gin.clear_config()
 
 
 @gin.configurable("train_common")
 def train_common(
-    log_dir,
-    data,
-    load_weights=False,
-    model=MLWrapper,
-    weight=None,
-    do_test=False,
+    log_dir: Path,
+    data: dict[str, pd.DataFrame],
+    load_weights: bool = False,
+    source_dir: Path = None,
+    model: object = MLWrapper,
+    weight: str = None,
+    do_test: bool = False,
 ):
-    """
-    Common wrapper to train all benchmarked models.
-    """
-    if not load_weights:
-        log_dir.mkdir()
+    """Common wrapper to train all benchmarked models."""
+    model.set_logdir(log_dir)
+    save_config_file(log_dir)  # We save the operative config before and also after training
 
     dataset = RICUDataset(data, split="train")
     val_dataset = RICUDataset(data, split="val")
 
-    model.set_logdir(log_dir)
-
     if load_weights:
-        if (log_dir / "model.torch").is_file():
-            model.load_weights(log_dir / "model.torch")
-        elif (log_dir / "model.txt").is_file():
-            model.load_weights(log_dir / "model.txt")
-        elif (log_dir / "model.joblib").is_file():
-            model.load_weights(log_dir / "model.joblib")
+        if (source_dir / "model.torch").is_file():
+            model.load_weights(source_dir / "model.torch")
+        elif (source_dir / "model.txt").is_file():
+            model.load_weights(source_dir / "model.txt")
+        elif (source_dir / "model.joblib").is_file():
+            model.load_weights(source_dir / "model.joblib")
         else:
-            raise Exception("No weights to load at path : {}".format(log_dir / "model.*"))
+            raise Exception("No weights to load at path : {}".format(source_dir / "model.*"))
         do_test = True
 
     else:
-        save_config_file(log_dir)  # We save the operative config before and also after training
         try:
             model.train(dataset, val_dataset, weight)
         except ValueError as e:

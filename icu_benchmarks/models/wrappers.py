@@ -413,7 +413,7 @@ class MLWrapper(object):
             joblib.dump(self.model, save_path)
 
     def load_weights(self, load_path):
-        if load_path.split(".")[-1] == "txt":
+        if load_path.suffix == ".txt":
             self.model = lightgbm.Booster(model_file=load_path)
         else:
             with open(load_path, "rb") as f:

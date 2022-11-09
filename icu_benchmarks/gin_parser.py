@@ -1,6 +1,5 @@
 import numpy as np
 from ast import literal_eval
-from datetime import datetime
 from pathlib import Path
 
 MAX_ATTEMTPS = 1000
@@ -44,14 +43,11 @@ def random_search_config_lines(config_lines: list[str]) -> tuple[list[str], str]
     return parsed_lines, ("-").join(randomly_searched_params)
 
 
-def random_search_configs_and_create_log_dir(
-    gin_files: list[Path], hyperparams_from_cli: list[str], log_dir: Path
-) -> tuple[list[str], Path]:
-    """Does random search in gin configs and creates log directory.
+def random_search_configs(gin_files: list[Path], hyperparams_from_cli: list[str], log_dir: Path) -> tuple[list[str], Path]:
+    """Does random search in gin configs and hyperparameters from the command line.
 
     Parses all gin config files and hyperparameters from the command line and randomly searches them.
     Tries to find an unexplored set of hyperparameters from previous runs a maximum of MAX_ATTEMPTS by comparing filenames.
-    Creates log directory with current timestamp and creates file whose name represents randomly searched hyperparameters.
 
     Args:
         gin_files: A list of all configuration files to possibly do random search in.
@@ -63,11 +59,8 @@ def random_search_configs_and_create_log_dir(
 
     Returns:
         A list containing all parsed gin config lines.
-        A Path to the newly created log dir of the current run.
+        A string representing the randomly searched hyperparameters.
     """
-    if not log_dir.exists():
-        log_dir.mkdir(parents=True)
-
     configs_to_read = []
     for file in gin_files:
         with open(file, encoding="utf-8") as f:
@@ -77,8 +70,8 @@ def random_search_configs_and_create_log_dir(
 
     for _ in range(MAX_ATTEMTPS):
         parsed_lines, randomly_searched_params = random_search_config_lines(configs_to_read)
-        if not randomly_searched_params:
-            hyperparams_already_tried = False  # no hyperparams to randomly search, so proceed
+        if not randomly_searched_params or not log_dir.exists():
+            hyperparams_already_tried = False  # no hyperparams to randomly search or no previous runs, so proceed
             break
         # look through all previous runs to see if this set of hyperparameters exists already
         hyperparams_already_tried = any([(run / randomly_searched_params).exists() for run in log_dir.iterdir()])
@@ -87,9 +80,4 @@ def random_search_configs_and_create_log_dir(
     if hyperparams_already_tried:
         raise RuntimeError(f"Could not find unexplored set of hyperparameters in {MAX_ATTEMTPS} attempts.")
 
-    log_dir_run = log_dir / str(datetime.now())
-    log_dir_run.mkdir()
-    if randomly_searched_params:
-        (log_dir_run / randomly_searched_params).touch()
-
-    return parsed_lines, log_dir_run
+    return parsed_lines, randomly_searched_params
