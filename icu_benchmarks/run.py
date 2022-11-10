@@ -30,8 +30,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # ARGUMENTS FOR ALL COMMANDS
     general_args = parent_parser.add_argument_group("General arguments")
-    general_args.add_argument("-dir", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
-    general_args.add_argument("-d", "--data", required=True, help="Name of the (source) dataset.")
+    general_args.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
+    general_args.add_argument("-n", "--name", required=True, help="Name of the (source) dataset.")
     general_args.add_argument("-t", "--task", default="Mortality_At24Hours", help="Name of the task gin.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
@@ -90,20 +90,20 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.getLogger().setLevel(logging.INFO)
 
     load_weights = args.command == "evaluate"
-    data = args.data
+    name = args.name
     task = args.task
     model = args.model
     log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
 
     if load_weights:
-        log_dir_model = log_dir_base / args.target / task / model / f"from_{data}"
+        log_dir_model = log_dir_base / args.target / task / model / f"from_{name}"
         source_dir = args.source_dir
         reproducible = False
         with open(source_dir / "train_config.gin") as f:
             gin_configs = f.read()
         log_dir = create_run_dir(log_dir_model)
     else:
-        log_dir_model = log_dir_base / data / task / model
+        log_dir_model = log_dir_base / name / task / model
         source_dir = None
         reproducible = args.reproducible
         if args.experiment:
@@ -124,10 +124,11 @@ def main(my_args=tuple(sys.argv[1:])):
             data=data,
             load_weights=load_weights,
             source_dir=source_dir,
-            gin_configs=gin_configs,
             seed=seed,
             reproducible=reproducible,
         )
+    
+    gin.clear_config()
 
 
 """Main module."""

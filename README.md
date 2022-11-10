@@ -46,7 +46,11 @@ We currently use the following libraries:
 ## Preprocess and Train
 The following command will start training on a prepared HiRID dataset for sequential Mortality prediction with an LGBM Classifier: 
 ```
-python -m icu_benchmarks.run train -dir ../data/mortality_seq/hirid -d hirid -t Mortality_At24Hours -m LGBMClassifier -hp LGBMClassifier.subsample='RS([0.33,0.66])' LGBMClassifier.colsample_bytree=0.66
+python -m icu_benchmarks.run train -d ../data/mortality_seq/hirid \
+                                   -n hirid \
+                                   -t Mortality_At24Hours \
+                                   -m LGBMClassifier \
+                                   -hp LGBMClassifier.subsample='RS([0.33,0.66])' LGBMClassifier.colsample_bytree=0.66
 ```
 > `RS([...])` is the syntax for invoking random search on a list of hyperparameters, both in configs and the command line.
 
@@ -56,7 +60,12 @@ python -m icu_benchmarks.run train -dir ../data/mortality_seq/hirid -d hirid -t 
 ## Evaluate
 It is possible to evaluate a model trained on another dataset. In this case, the source dataset is HiRID and the target is MIMIC-IV:
 ```
-python -m icu_benchmarks.run evaluate -dir ../data/mortality_seq/miiv -d hirid --target miiv -s ../data/mortality_seq/hirid/logs/hirid/Mortality_At24Hours/LGBMClassifier/2022-11-09T12-24-40/1111/
+python -m icu_benchmarks.run evaluate -d ../data/mortality_seq/miiv \
+                                      -n hirid \
+                                      -t Mortality_At24Hours \
+                                      -m LGBMClassifier \
+                                      --target miiv \
+                                      -s ../../data/mortality_seq/hirid/logs/hirid/Mortality_At24Hours/LGBMClassifier/2022-11-10T20-34-57/seed_1111
 ```
 
 ## Run Tests

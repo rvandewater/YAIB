@@ -6,7 +6,7 @@ import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 
-from icu_benchmarks.recipes.recipe import Recipe, Ingredients
+from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_of
 from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale
 
@@ -34,9 +34,8 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
-    stays = data["STATIC"][[id]]
     fraction_to_load = 1 if not debug else 0.01
-    stays = stays.sample(frac=fraction_to_load, random_state=seed)
+    stays = data["STATIC"][[id]].sample(frac=fraction_to_load, random_state=seed)
 
     num_stays = len(stays)
     delims = (num_stays * np.array([0, train_pct, train_pct + val_pct, 1])).astype(int)
@@ -45,10 +44,10 @@ def make_single_split(
     for i, fold in enumerate(splits.keys()):
         # Loop through train / val / test
         stays_in_fold = stays.iloc[delims[i]:delims[i + 1], :]
-        for type in data.keys():
+        for data_type in data.keys():
             # Loop through DYNAMIC / STATIC / OUTCOME
             # set sort to true to make sure that IDs are reordered after scrambling earlier
-            splits[fold][type] = data[type].merge(stays_in_fold, on=id, how="right", sort=True)
+            splits[fold][data_type] = data[data_type].merge(stays_in_fold, on=id, how="right", sort=True)
 
     return splits
 
