@@ -109,7 +109,7 @@ def main(my_args=tuple(sys.argv[1:])):
 
     for seed in args.seed:
         gin.parse_config(gin_configs)
-        data = preprocess_data(args.data_dir, seed)
+        data = preprocess_data(args.data_dir, seed=seed)
         log_dir_seed = log_dir / f"seed_{str(seed)}"
         log_dir_seed.mkdir()
         train_with_gin(

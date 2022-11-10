@@ -99,7 +99,7 @@ def preprocess_data(
     data = load_data(data_dir)
 
     logging.info("Generating splits")
-    data = make_single_split(data, seed)
+    data = make_single_split(data, seed=seed)
 
     logging.info("Preprocess static data")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
