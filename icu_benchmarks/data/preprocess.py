@@ -29,7 +29,12 @@ def load_data(data_dir: Path, file_names: dict[str] = gin.REQUIRED) -> dict[pd.D
 
 @gin.configurable("splits")
 def make_single_split(
-    data: dict[pd.DataFrame], train_pct: float = 0.7, val_pct: float = 0.1, seed: int = 42, vars: dict[str] = gin.REQUIRED
+    data: dict[pd.DataFrame],
+    train_pct: float = 0.7,
+    val_pct: float = 0.1,
+    seed: int = 42,
+    vars: dict[str] = gin.REQUIRED,
+    debug: bool = False,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
@@ -39,13 +44,15 @@ def make_single_split(
         val_pct: Proportion of stays assigned to validation fold.
         seed: Random seed.
         vars: Contains the names of columns in the data.
+        debug: Load less data if true.
 
     Returns:
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
     stays = data["STATIC"][[id]]
-    stays = stays.sample(frac=1, random_state=seed)
+    fraction_to_load = 1 if not debug else 0.01
+    stays = stays.sample(frac=fraction_to_load, random_state=seed)
 
     num_stays = len(stays)
     delims = (num_stays * np.array([0, train_pct, train_pct + val_pct, 1])).astype(int)
@@ -81,7 +88,7 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
 
 @gin.configurable("preprocess")
 def preprocess_data(
-    data_dir: Path, use_features: bool = gin.REQUIRED, vars: dict[str] = gin.REQUIRED, seed: int = 42,
+    data_dir: Path, use_features: bool = gin.REQUIRED, vars: dict[str] = gin.REQUIRED, seed: int = 42, debug: bool = False
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -90,6 +97,7 @@ def preprocess_data(
         use_features: Whether to generate features on the dynamic data.
         vars: Contains the names of columns in the data.
         seed: Random seed.
+        debug: Load less data if true.
 
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with data type (STATIC/DYNAMIC/OUTCOME)
@@ -98,7 +106,7 @@ def preprocess_data(
     data = load_data(data_dir)
 
     logging.info("Generating splits")
-    data = make_single_split(data, seed=seed)
+    data = make_single_split(data, seed=seed, debug=debug)
 
     logging.info("Preprocess static data")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])

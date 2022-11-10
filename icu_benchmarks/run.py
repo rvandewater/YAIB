@@ -37,6 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument("-l", "--log-dir", type=Path, help="Path to the log directory with model weights.")
     general_args.add_argument("--seed", default=SEEDS, nargs="+", type=int, help="Random seed at train and eval.")
+    general_args.add_argument("--debug", action=BooleanOptionalAction, help="Set to load less data.")
 
     # MODEL TRAINING ARGUMENTS
     parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
@@ -109,7 +110,7 @@ def main(my_args=tuple(sys.argv[1:])):
 
     for seed in args.seed:
         gin.parse_config(gin_configs)
-        data = preprocess_data(args.data_dir, seed=seed)
+        data = preprocess_data(args.data_dir, seed=seed, debug=args.debug)
         log_dir_seed = log_dir / f"seed_{str(seed)}"
         log_dir_seed.mkdir()
         train_with_gin(
