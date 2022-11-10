@@ -15,13 +15,13 @@ FILE_NAMES = constants.FILE_NAMES
 
 
 def load_data(data_dir: Path) -> dict[pd.DataFrame]:
-    """Load data from disk
+    """Load data from disk.
 
     Args:
-        data_dir (Path): path to folder with data stored as parquet files
+        data_dir: Path to folder with data stored as parquet files.
 
     Returns:
-        dict[pd.DataFrame]: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
+        Dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
     """
     data = {}
     for f in ["STATIC", "DYNAMIC", "OUTCOME"]:
@@ -32,16 +32,16 @@ def load_data(data_dir: Path) -> dict[pd.DataFrame]:
 def make_single_split(
     data: dict[pd.DataFrame], train_pct: float = 0.7, val_pct: float = 0.1, seed: int = 42
 ) -> dict[dict[pd.DataFrame]]:
-    """Randomly split the data into training, validation, and test set
+    """Randomly split the data into training, validation, and test set.
 
     Args:
-        data (dict[pd.DataFrame]): dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
-        train_pct (float, optional): Proportion of stays assigned to training fold. Defaults to 0.7.
-        val_pct (float, optional): Proportion of stays assigned to validation fold. Defaults to 0.1.
-        seed (int, optional): Random seed. Defaults to 42.
+        data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
+        train_pct: Proportion of stays assigned to training fold. Defaults to 0.7.
+        val_pct: Proportion of stays assigned to validation fold. Defaults to 0.1.
+        seed: Random seed. Defaults to 42.
 
     Returns:
-        dict[dict[pd.DataFrame]]: input data divided into 'train', 'val', and 'test'
+        Input data divided into 'train', 'val', and 'test'.
     """
     id = VARS["STAY_ID"]
     stays = data["STATIC"][[id]]
@@ -66,12 +66,12 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
     """Fits and transforms the training data, then transforms the validation and test data with the recipe.
 
     Args:
-        recipe (Recipe): Object containing info about the data and steps.
-        data (dict[dict[pd.DataFrame]]): Dict containing 'train', 'val', and 'test' and types of data per split.
-        type (str): Whether to apply recipe to dynamic data, static data or outcomes.
+        recipe: Object containing info about the data and steps.
+        data: Dict containing 'train', 'val', and 'test' and types of data per split.
+        type: Whether to apply recipe to dynamic data, static data or outcomes.
 
     Returns:
-        dict[dict[pd.DataFrame]]: Transformed data divided into 'train', 'val', and 'test'
+        Transformed data divided into 'train', 'val', and 'test'.
     """
     data["train"][type] = recipe.prep()
     data["val"][type] = recipe.bake(data["val"][type])
@@ -83,12 +83,12 @@ def preprocess_data(data_dir: Path, seed: int = 42) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
-        work_dir (Path): path to the directory holding the data
-        seed (int, optional): Random seed. Defaults to 42.
+        work_dir: path to the directory holding the data
+        seed: Random seed. Defaults to 42.
 
     Returns:
-        dict[dict[pd.DataFrame]]: preprocessed data as DataFrame in a hierarchical dict with data type
-            (STATIC/DYNAMIC/OUTCOME) nested within split (train/val/test).
+        Preprocessed data as DataFrame in a hierarchical dict with data type (STATIC/DYNAMIC/OUTCOME)
+            nested within split (train/val/test).
     """
     data = load_data(data_dir)
 

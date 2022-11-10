@@ -8,11 +8,11 @@ class Selector:
     """Class responsible for selecting the variables affected by a recipe step
 
     Args:
-        description (str): Text used to represent Selector when printed in summaries
-        names (Union[str, list[str]], optional): Column names to select. Defaults to None.
-        roles (Union[str, list[str]], optional): Column roles to select, see also Ingredients. Defaults to None.
-        types (Union[str, list[str]], optional): Column data types to select. Defaults to None.
-        pattern (re.Pattern, optional): Regex pattern to search column names with. Defaults to None.
+        description: Text used to represent Selector when printed in summaries
+        names: Column names to select. Defaults to None.
+        roles: Column roles to select, see also Ingredients. Defaults to None.
+        types: Column data types to select. Defaults to None.
+        pattern: Regex pattern to search column names with. Defaults to None.
     """
 
     def __init__(
@@ -33,7 +33,7 @@ class Selector:
         """Set the column names to select with this Selector
 
         Args:
-            names (Union[str, list[str]]): column names to select
+            names: column names to select
         """
         self.names = enlist_str(names)
 
@@ -41,7 +41,7 @@ class Selector:
         """Set the column roles to select with this Selector
 
         Args:
-            roles (Union[str, list[str]]): column roles to select, see also Ingredients
+            roles: column roles to select, see also Ingredients
         """
         self.roles = enlist_str(roles)
 
@@ -49,7 +49,7 @@ class Selector:
         """Set the column data types to select with this Selector
 
         Args:
-            roles (Union[str, list[str]]): column data types to select
+            roles: column data types to select
         """
         self.types = enlist_str(roles)
 
@@ -57,7 +57,7 @@ class Selector:
         """Set the pattern to search with this Selector
 
         Args:
-            pattern (re.Pattern): Regex pattern to search column names with.
+            pattern: Regex pattern to search column names with.
         """
         self.pattern = pattern
 
@@ -65,13 +65,13 @@ class Selector:
         """Select variables from Ingredients
 
         Args:
-            ingr (Ingredients): object from which to select the variables
+            ingr: object from which to select the variables
 
         Raises:
             TypeError: when something other than an Ingredient object is passed
 
         Returns:
-            list[str]: selected variables
+            Selected variables.
         """
 
         if not isinstance(ingr, Ingredients):
@@ -103,13 +103,13 @@ def enlist_str(x: Union[str, list[str], None]) -> Union[list[str], None]:
     """Wrap a str in a list if it isn't a list yet
 
     Args:
-        x (Union[str, list[str], None]): object to wrap.
+        x: object to wrap.
 
     Raises:
         TypeError: If neither a str nor a list of strings is passed
 
     Returns:
-        Union[list[str], None]: _description_
+        _description_
     """
     if isinstance(x, str):
         return [x]
@@ -131,11 +131,11 @@ def intersection(x: list, y: list) -> list:
         does not deduplicate items (i.e., does not return a set)
 
     Args:
-        x (list): first list
-        y (list): second list
+        x: first list
+        y: second list
 
     Returns:
-        list: elements in `x` that are also in `y`
+        Elements in `x` that are also in `y`.
     """
     if isinstance(x, str):
         x = [x]
@@ -148,10 +148,10 @@ def all_of(names: Union[str, list[str]]) -> Selector:
     """Define selector for any columns with one of the given names
 
     Args:
-        names (Union[str, list[str]]): names to select
+        names: names to select
 
     Returns:
-        Selector: object representing the selection rule
+        Object representing the selection rule.
     """
     return Selector(description=str(names), names=names)
 
@@ -160,10 +160,10 @@ def regex_names(regex: str) -> Selector:
     """Define selector for any columns where the name matches the regex pattern
 
     Args:
-        pattern (str): string to be transformed to regex pattern to search for
+        pattern: string to be transformed to regex pattern to search for
 
     Returns:
-        Selector: object representing the selection rule
+        Object representing the selection rule.
     """
     pattern = re.compile(regex)
     return Selector(description=f"regex: {regex}", pattern=pattern)
@@ -173,10 +173,10 @@ def starts_with(prefix: str) -> Selector:
     """Define selector for any columns where the name starts with the prefix
 
     Args:
-        prefix (str): prefix to search for
+        prefix: prefix to search for
 
     Returns:
-        Selector: object representing the selection rule
+        Object representing the selection rule.
     """
     return regex_names(f"^{prefix}")
 
@@ -185,10 +185,10 @@ def ends_with(suffix: str) -> Selector:
     """Define selector for any columns where the name ends with the suffix
 
     Args:
-        prsuffixefix (str): suffix to search for
+        prsuffixefix: suffix to search for
 
     Returns:
-        Selector: object representing the selection rule
+        Object representing the selection rule.
     """
     return regex_names(f"{suffix}$")
 
@@ -197,10 +197,10 @@ def contains(substring: str) -> Selector:
     """Define selector for any columns where the name contains the substring
 
     Args:
-        substring (str): substring to search for
+        substring: substring to search for
 
     Returns:
-        Selector: object representing the selection rule
+        Object representing the selection rule.
     """
     return regex_names(f"{substring}")
 
@@ -209,10 +209,10 @@ def has_role(roles: Union[str, list[str]]) -> Selector:
     """Define selector for any columns with one of the given roles
 
     Args:
-        roles (Union[str, list[str]]): roles to select
+        roles: roles to select
 
     Returns:
-       Selector: object representing the selection rule
+       Object representing the selection rule.
     """
     return Selector(description=f"roles: {roles}", roles=roles)
 
@@ -221,14 +221,13 @@ def has_type(types: Union[str, list[str]]) -> Selector:
     """Define selector for any columns with one of the given types
 
     Args:
-        types (Union[str, list[str]]): data types to select
+        types: data types to select
 
     Note:
-        Data types are selected based on string representation as returned
-        by `df[[varname]].dtype.name`
+        Data types are selected based on string representation as returned by `df[[varname]].dtype.name`.
 
     Returns:
-        Selector: object representing the selection rule
+        Object representing the selection rule.
     """
     return Selector(description=f"types: {types}", types=types)
 
@@ -237,7 +236,7 @@ def all_predictors() -> Selector:
     """Define selector for all predictor columns
 
     Returns:
-        Selector: object representing the selection rule
+        Object representing the selection rule.
     """
     sel = has_role(["predictor"])
     sel.description = "all predictors"
@@ -248,7 +247,7 @@ def all_numeric_predictors() -> Selector:
     """Define selector for all numerical predictor columns
 
     Returns:
-        Selector: object representing the selection rule
+        Object representing the selection rule.
     """
     sel = all_predictors()
     sel.set_types(["int16", "int32", "int64", "float16", "float32", "float64"])
@@ -260,7 +259,7 @@ def all_outcomes() -> Selector:
     """Define selector for all outcome columns
 
     Returns:
-        Selector: object representing the selection rule
+        Object representing the selection rule.
     """
     sel = has_role(["outcome"])
     sel.description = "all outcomes"
@@ -271,7 +270,7 @@ def all_groups() -> Selector:
     """Define selector for all grouping variables
 
     Returns:
-        Selector: object representing the selection rule
+        Object representing the selection rule.
     """
     return Selector(description="all grouping variables", roles=["group"])
 
@@ -282,7 +281,7 @@ def select_groups(ingr: Ingredients) -> list[str]:
     Defines and directly applies Selector(roles=["group"])
 
     Returns:
-        list[str]: grouping columns
+        grouping columns
     """
     return all_groups()(ingr)
 
@@ -291,7 +290,7 @@ def all_sequences() -> Selector:
     """Define selector for all grouping variables
 
     Returns:
-        Selector: object representing the selection rule
+        Object representing the selection rule.
     """
     return Selector(description="all sequence variables", roles=["sequence"])
 
@@ -302,6 +301,6 @@ def select_sequence(ingr: Ingredients) -> list[str]:
     Defines and directly applies Selector(roles=["sequence"])
 
     Returns:
-        list[str]: grouping columns
+        Grouping columns.
     """
     return all_sequences()(ingr)
