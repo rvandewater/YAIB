@@ -23,7 +23,7 @@ def random_search_config_lines(config_lines: list[str]) -> tuple[list[str], str]
     for line in config_lines:
         try:
             name, value_string = (sub.strip() for sub in line.split("="))
-        except:  # line is empty or contains import, include etc.
+        except ValueError:  # line is empty or contains import, include etc.
             parsed_lines += [line.rstrip()]
             continue
 
@@ -42,7 +42,7 @@ def random_search_config_lines(config_lines: list[str]) -> tuple[list[str], str]
                 del randomly_searched_params[name]  # parameter was randomly searched before, but is now set explicitly
             try:
                 param = literal_eval(value_string)
-            except:
+            except ValueError:
                 param = value_string
 
         # repr adds quotes for strings
