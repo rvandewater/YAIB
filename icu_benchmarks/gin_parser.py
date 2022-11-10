@@ -21,23 +21,32 @@ def random_search_config_lines(config_lines: list[str]) -> tuple[list[str], str]
     parsed_lines = []
     randomly_searched_params = {}
     for line in config_lines:
-        if "=" not in line:  # line is empty or contains import, include etc.
+        try:
+            name, value_string = (sub.strip() for sub in line.split("="))
+        except:  # line is empty or contains import, include etc.
             parsed_lines += [line.rstrip()]
             continue
 
-        name, value_string = (sub.strip() for sub in line.split("="))
-        if "RS([" in value_string:
+        if value_string.startswith("{") or value_string.startswith("@") or value_string.startswith("%"):
+            # variable is set to dict, reference or macro, don't do anything
+            parsed_lines += [line.rstrip()]
+            continue
+        elif "RS([" in value_string:
             values = literal_eval(value_string[3:-1])  # value_string should be RS([...]), only evaluate list in RS()
             if not isinstance(values, list):
                 raise ValueError("Wrong parameter for random search, expects list.")
-            param = str(values[np.random.randint(len(values))])  # do random search in possible values
+            param = values[np.random.randint(len(values))]  # do random search in possible values
             randomly_searched_params[name] = param
         else:  # line doesn't contain parameter to randomly search
             if name in randomly_searched_params:
                 del randomly_searched_params[name]  # parameter was randomly searched before, but is now set explicitly
-            param = value_string
+            try:
+                param = literal_eval(value_string)
+            except:
+                param = value_string
 
-        parsed_lines += [f"{name} = {param}"]
+        # repr adds quotes for strings
+        parsed_lines += [f"{name} = {repr(param) if type(param) == str else param}"]
 
     randomly_searched_params = [f"{name.split('.')[-1]}_{param}" for name, param in randomly_searched_params.items()]
     return parsed_lines, ("-").join(randomly_searched_params)
