@@ -107,10 +107,9 @@ def main(my_args=tuple(sys.argv[1:])):
         log_dir = create_run_dir(log_dir_model, randomly_searched_params)
         gin_configs += [f"TASK = '{task}'"]
 
-    gin.parse_config(gin_configs)
-    data = preprocess_data(args.data_dir)
-
     for seed in args.seed:
+        gin.parse_config(gin_configs)
+        data = preprocess_data(args.data_dir, seed)
         log_dir_seed = log_dir / str(seed)
         log_dir_seed.mkdir()
         train_with_gin(

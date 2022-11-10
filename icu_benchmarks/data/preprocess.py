@@ -35,9 +35,9 @@ def make_single_split(
 
     Args:
         data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
-        train_pct: Proportion of stays assigned to training fold. Defaults to 0.7.
-        val_pct: Proportion of stays assigned to validation fold. Defaults to 0.1.
-        seed: Random seed. Defaults to 42.
+        train_pct: Proportion of stays assigned to training fold.
+        val_pct: Proportion of stays assigned to validation fold.
+        seed: Random seed.
         vars: Contains the names of columns in the data.
 
     Returns:
@@ -81,7 +81,7 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
 
 @gin.configurable("preprocess")
 def preprocess_data(
-    data_dir: str, use_features: bool = gin.REQUIRED, vars: dict[str] = gin.REQUIRED
+    data_dir: str, use_features: bool = gin.REQUIRED, vars: dict[str] = gin.REQUIRED, seed: int = 42,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -89,6 +89,7 @@ def preprocess_data(
         data_dir: Path to the directory holding the data.
         use_features: Whether to generate features on the dynamic data.
         vars: Contains the names of columns in the data.
+        seed: Random seed.
 
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with data type (STATIC/DYNAMIC/OUTCOME)
@@ -98,7 +99,7 @@ def preprocess_data(
     data = load_data(data_dir)
 
     logging.info("Generating splits")
-    data = make_single_split(data)
+    data = make_single_split(data, seed)
 
     logging.info("Preprocess static data")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
