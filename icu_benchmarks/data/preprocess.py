@@ -4,27 +4,11 @@ import pandas as pd
 import numpy as np
 import pyarrow.parquet as pq
 from pathlib import Path
+import pickle
 
-from icu_benchmarks.recipes.recipe import Recipe
+from icu_benchmarks.recipes.recipe import Recipe, Ingredients
 from icu_benchmarks.recipes.selector import all_of
 from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale
-
-
-@gin.configurable("loading")
-def load_data(data_dir: Path, file_names: dict[str] = gin.REQUIRED) -> dict[pd.DataFrame]:
-    """Load data from disk.
-
-    Args:
-        data_dir: Path to folder with data stored as parquet files.
-        file_names: Contains the parquet file names in data_dir.
-
-    Returns:
-        Dictionary containing data divided into OUTCOME, STATIC, and DYNAMIC.
-    """
-    data = {}
-    for f in ["STATIC", "DYNAMIC", "OUTCOME"]:
-        data[f] = pq.read_table(data_dir / file_names[f]).to_pandas()
-    return data
 
 
 @gin.configurable("splits")
@@ -88,34 +72,53 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
 
 @gin.configurable("preprocess")
 def preprocess_data(
-    data_dir: Path, use_features: bool = gin.REQUIRED, vars: dict[str] = gin.REQUIRED, seed: int = 42, debug: bool = False
+    data_dir: Path,
+    file_names: dict[str] = gin.REQUIRED,
+    use_features: bool = gin.REQUIRED,
+    vars: dict[str] = gin.REQUIRED,
+    seed: int = 42,
+    debug: bool = False,
+    use_cache: bool = False,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
         data_dir: Path to the directory holding the data.
+        file_names: Contains the parquet file names in data_dir.
         use_features: Whether to generate features on the dynamic data.
         vars: Contains the names of columns in the data.
         seed: Random seed.
         debug: Load less data if true.
+        use_cache: Cache and use cached preprocessed data if true.
 
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with data type (STATIC/DYNAMIC/OUTCOME)
             nested within split (train/val/test).
     """
-    data = load_data(data_dir)
+    cache_dir = data_dir / "cache"
+    cache_file = cache_dir / f"seed_{seed}"
 
-    logging.info("Generating splits")
+    if use_cache:
+        if cache_file.exists():
+            with open(cache_file, "rb") as f:
+                logging.info(f"Loading cached data from {cache_file}.")
+                return pickle.load(f)
+        else:
+            logging.info(f"No cached data found in {cache_file}, loading raw data.")
+
+    data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in ["STATIC", "DYNAMIC", "OUTCOME"]}
+
+    logging.info("Generating splits.")
     data = make_single_split(data, seed=seed, debug=debug)
 
-    logging.info("Preprocess static data")
+    logging.info("Preprocessing static data.")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
     sta_rec.add_step(StepScale())
     sta_rec.add_step(StepImputeFill(value=0))
 
     data = apply_recipe_to_splits(sta_rec, data, "STATIC")
 
-    logging.info("Preprocess dynamic data")
+    logging.info("Preprocessing dynamic data.")
     dyn_rec = Recipe(data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
     dyn_rec.add_step(StepScale())
     if use_features:
@@ -128,6 +131,14 @@ def preprocess_data(
 
     data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")
 
-    logging.info("Finished preprocessing")
+    if use_cache and not cache_file.exists():
+        if not cache_dir.exists():
+            cache_dir.mkdir()
+        cache_file.touch()
+        with open(cache_file, "wb") as f:
+            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+        logging.info(f"Cached data in {cache_file}.")
+
+    logging.info("Finished preprocessing.")
 
     return data

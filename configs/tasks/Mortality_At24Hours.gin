@@ -13,7 +13,7 @@ train_common.weight = None  #FIXME figure out when to use "balanced"
 # DL
 DLWrapper.loss = @cross_entropy
 
-loading.file_names = {
+preprocess.file_names = {
     "DYNAMIC": "dyn.parquet",
     "OUTCOME": "outc.parquet",
     "STATIC": "sta.parquet",

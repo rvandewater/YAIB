@@ -36,8 +36,9 @@ def build_parser() -> argparse.ArgumentParser:
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument("-l", "--log-dir", type=Path, help="Path to the log directory with model weights.")
-    general_args.add_argument("--seed", default=SEEDS, nargs="+", type=int, help="Random seed at train and eval.")
-    general_args.add_argument("--debug", action=BooleanOptionalAction, help="Set to load less data.")
+    general_args.add_argument("-s", "--seed", default=SEEDS, nargs="+", type=int, help="Random seed at train and eval.")
+    general_args.add_argument("-db", "--debug", action=BooleanOptionalAction, help="Set to load less data.")
+    general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
 
     # MODEL TRAINING ARGUMENTS
     parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
@@ -49,7 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     # EVALUATION PARSER
     evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
     evaluate_parser.add_argument(
-        "-s", "--source-dir", required=True, type=Path, help="Directory containing train gin and model weights."
+        "--source", required=True, type=Path, help="Directory containing train gin and model weights."
     )
     evaluate_parser.add_argument("--target", required=True, type=Path, help="Name of the taget dataset.")
 
@@ -78,6 +79,11 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
 
 def main(my_args=tuple(sys.argv[1:])):
     args = build_parser().parse_args(my_args)
+
+    debug = args.debug
+    cache = args.cache
+    if debug and cache:
+        raise ValueError("Caching is not supported in debug mode.")
 
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
@@ -110,7 +116,7 @@ def main(my_args=tuple(sys.argv[1:])):
 
     for seed in args.seed:
         gin.parse_config(gin_configs)
-        data = preprocess_data(args.data_dir, seed=seed, debug=args.debug)
+        data = preprocess_data(args.data_dir, seed=seed, debug=debug, use_cache=cache)
         log_dir_seed = log_dir / f"seed_{str(seed)}"
         log_dir_seed.mkdir()
         train_with_gin(
