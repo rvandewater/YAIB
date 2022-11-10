@@ -89,7 +89,7 @@ def main(my_args=tuple(sys.argv[1:])):
     log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
 
     if load_weights:
-        log_dir_model = log_dir_base / data / task / args.target / model
+        log_dir_model = log_dir_base / args.target / task / model / f"from_{data}"
         source_dir = args.source_dir
         reproducible = False
         with open(source_dir / "train_config.gin") as f:
@@ -110,7 +110,7 @@ def main(my_args=tuple(sys.argv[1:])):
     for seed in args.seed:
         gin.parse_config(gin_configs)
         data = preprocess_data(args.data_dir, seed)
-        log_dir_seed = log_dir / str(seed)
+        log_dir_seed = log_dir / f"seed_{str(seed)}"
         log_dir_seed.mkdir()
         train_with_gin(
             log_dir=log_dir_seed,
