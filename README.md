@@ -44,6 +44,7 @@ We currently use the following libraries:
 # CLI Commands
 
 ## Preprocess and Train
+The following command will start training on a prepared HiRID dataset for sequential Mortality prediction with an LGBM Classifier: 
 ```
 python -m icu_benchmarks.run train -dir ../data/mortality_seq/hirid -d hirid -t Mortality_At24Hours -m LGBMClassifier -hp LGBMClassifier.subsample='RS([0.33,0.66])' LGBMClassifier.colsample_bytree=0.66
 ```
@@ -51,7 +52,9 @@ python -m icu_benchmarks.run train -dir ../data/mortality_seq/hirid -d hirid -t 
 
 > Run with `PYTORCH_ENABLE_MPS_FALLBACK=1` on Macs with Metal Performance Shaders
 
+> For Windows based systems, please note that paths need to be formatted differently, e.g: ` r"\..\data\mortality_seq\hirid"`
 ## Evaluate
+It is possible to evaluate a model trained on another dataset. In this case, the source dataset is HiRID and the target is MIMIC-IV:
 ```
 python -m icu_benchmarks.run evaluate -dir ../data/mortality_seq/miiv -d hirid --target miiv -s ../data/mortality_seq/hirid/logs/hirid/Mortality_At24Hours/LGBMClassifier/2022-11-09T12-24-40/1111/
 ```
@@ -66,6 +69,7 @@ coverage html
 ```
 
 ## Autoformat and lint
+For development purposes, we use the `Black` package to autoformat our code and a `Flake8` Linting/CI check:
 ```
 black . -l 127
 flake8 . --count --max-complexity=14 --max-line-length=127 --statistics
