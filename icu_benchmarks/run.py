@@ -118,10 +118,11 @@ def main(my_args=tuple(sys.argv[1:])):
             data=data,
             load_weights=load_weights,
             source_dir=source_dir,
-            gin_configs=gin_configs,
             seed=seed,
             reproducible=reproducible,
         )
+    
+    gin.clear_config()
 
 
 """Main module."""

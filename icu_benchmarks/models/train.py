@@ -18,7 +18,6 @@ def train_with_gin(
     data: dict[str, pd.DataFrame] = None,
     load_weights: bool = False,
     source_dir: Path = None,
-    gin_configs: list[str] = None,
     seed: int = 1234,
     reproducible: bool = True,
 ):
@@ -32,7 +31,6 @@ def train_with_gin(
         data: Dict containing data to be trained on.
         load_weights: If set to true, skip training and load weights from source_dir instead.
         source_dir: If set to load weights, path to directory containing trained weights.
-        gin_configs: List of gin configs.
         seed: Common seed used for any random operation.
         reproducible: If set to true, set torch to run reproducibly.
     """
@@ -48,12 +46,7 @@ def train_with_gin(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    if gin_configs is None:
-        gin_configs = []
-
-    gin.parse_config(gin_configs)
     train_common(log_dir, data, load_weights, source_dir)
-    gin.clear_config()
 
 
 @gin.configurable("train_common")
