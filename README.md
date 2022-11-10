@@ -46,8 +46,8 @@ We currently use the following libraries:
 ## Preprocess and Train
 The following command will start training on a prepared HiRID dataset for sequential Mortality prediction with an LGBM Classifier: 
 ```
-python -m icu_benchmarks.run train -dir ../data/mortality_seq/hirid \
-                                   -d hirid \
+python -m icu_benchmarks.run train -d ../data/mortality_seq/hirid \
+                                   -n hirid \
                                    -t Mortality_At24Hours \
                                    -m LGBMClassifier \
                                    -hp LGBMClassifier.subsample='RS([0.33,0.66])' LGBMClassifier.colsample_bytree=0.66
@@ -60,8 +60,8 @@ python -m icu_benchmarks.run train -dir ../data/mortality_seq/hirid \
 ## Evaluate
 It is possible to evaluate a model trained on another dataset. In this case, the source dataset is HiRID and the target is MIMIC-IV:
 ```
-python -m icu_benchmarks.run evaluate -dir ../data/mortality_seq/miiv \
-                                      -d hirid \
+python -m icu_benchmarks.run evaluate -d ../data/mortality_seq/miiv \
+                                      -n hirid \
                                       -t Mortality_At24Hours \
                                       -m LGBMClassifier \
                                       --target miiv \
