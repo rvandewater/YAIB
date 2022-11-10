@@ -18,11 +18,11 @@ class Recipe:
     sklearn-inspired transformation Steps to turn into a model-ready input.
 
     Args:
-        data (Union[pd.DataFrame, Ingredients]): data to be preprocessed.
-        outcomes (Union[str, list[str]]): names of columns in data that are assigned the 'outcome' role
-        predictors (Union[str, list[str]]): names of columns in data that should be assigned the 'predictor' role
-        groups (Union[str, list[str]]): names of columns in data that should be assigned the 'group' role
-        sequence (Union[str, list[str]]): names of columns in data that should be assigned the 'sequence' role
+        data: data to be preprocessed.
+        outcomes: names of columns in data that are assigned the 'outcome' role
+        predictors: names of columns in data that should be assigned the 'predictor' role
+        groups: names of columns in data that should be assigned the 'group' role
+        sequence: names of columns in data that should be assigned the 'sequence' role
     """
 
     def __init__(
@@ -49,14 +49,14 @@ class Recipe:
         """Adds an additional role for one or more columns of the Recipe's Ingredients.
 
         Args:
-            vars (Union[str, list[str]]): The column to receive additional roles.
-            new_role (str, optional): Defaults to predictor. The role to add to the column.
+            vars: The column to receive additional roles.
+            new_role: Defaults to predictor. The role to add to the column.
 
         See also:
             Ingredients.add_role()
 
         Returns:
-            Recipe: self
+            self
         """
         if isinstance(vars, str):
             vars = [vars]
@@ -64,20 +64,20 @@ class Recipe:
             self.data.add_role(v, new_role)
         return self
 
-    def update_roles(self, vars: Union[str, list[str]], new_role: str = "predictor", old_role=None) -> Recipe:
+    def update_roles(self, vars: Union[str, list[str]], new_role: str = "predictor", old_role: str = None) -> Recipe:
         """Adds a new role for one or more columns of the Recipe's Ingredients without roles
         or changes an existing role to a different one.
 
         Args:
-            vars (Union[str, list[str]]): The column to receive additional roles.
-            new_role (str, optional): Defaults to predictor'. The role to add or change to.
-            old_role (str, optional): Defaults to None. The role to be changed.
+            vars: The column to receive additional roles.
+            new_role: Defaults to predictor'. The role to add or change to.
+            old_role: Defaults to None. The role to be changed.
 
         See also:
             Ingredients.update_role()
 
         Returns:
-            Recipe: self
+            self
         """
         if isinstance(vars, str):
             vars = [vars]
@@ -89,10 +89,10 @@ class Recipe:
         """Adds a new step to the Recipe
 
         Args:
-            step (Step): a transformation step that should be applied to the Ingredients during prep() and bake()
+            step: a transformation step that should be applied to the Ingredients during prep() and bake()
 
         Returns:
-            Recipe: self
+            self
         """
         self.steps.append(step)
         return self
@@ -119,11 +119,11 @@ class Recipe:
         """Fits and transforms, in other words preps, the data.
 
         Args:
-            data (Union[pd.DataFrame, Ingredients], optional): Data to fit and transform. Defaults to None.
-            refit (bool, optional): Defaults to False. Whether to refit data.
+            data: Data to fit and transform. Defaults to None.
+            refit: Defaults to False. Whether to refit data.
 
         Returns:
-            pd.DataFrame: Transformed data.
+            Transformed data.
         """
         data = self._check_data(data)
         data = copy(data)
@@ -134,10 +134,10 @@ class Recipe:
         """Transforms, or bakes, the data if it has been prepped.
 
         Args:
-            data (Union[pd.DataFrame, Ingredients], optional): Data to transform. Defaults to None.
+            data: Data to transform. Defaults to None.
 
         Returns:
-            pd.DataFrame: Transformed data.
+            Transformed data.
         """
         data = self._check_data(data)
         data = copy(data)

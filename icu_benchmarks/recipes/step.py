@@ -23,12 +23,10 @@ class Step:
     They fit a transformer to the selected columns and afterwards transform the data with the fitted transformer.
 
     Args:
-        sel (Selector): Object that holds information about the selected columns.
+        sel: Object that holds information about the selected columns.
 
     Attributes:
-        columns (list): List with the names of the selected columns.
-        _trained (bool): If the step was fitted already.
-        _group (bool): If the step runs on grouped data.
+        columns: List with the names of the selected columns.
     """
 
     def __init__(self, sel: Selector = all_predictors()):
@@ -49,7 +47,7 @@ class Step:
         """This function fits the transformer to the data.
 
         Args:
-            data (Ingredients): The DataFrame to fit to.
+            data: The DataFrame to fit to.
         """
         data = self._check_ingredients(data)
         self.columns = self.sel(data)
@@ -64,14 +62,14 @@ class Step:
         """Check input for allowed types
 
         Args:
-            data (Union[Ingredients, DataFrameGroupBy]): input to the step
+            data: input to the step
 
         Raises:
             ValueError: If a grouped pd.DataFrame is provided to a step that can't use groups.
             ValueError: If input are not (potentially grouped) Ingredients.
 
         Returns:
-            Ingredients: validated input
+            Validated input
         """
         if isinstance(data, DataFrameGroupBy):
             if not self._group:
@@ -85,7 +83,7 @@ class Step:
         """This function transforms the data with the fitted transformer.
 
         Args:
-            data (Ingredients): The DataFrame to transform.
+            data: The DataFrame to transform.
 
         Returns:
             The transformed DataFrame.
@@ -137,11 +135,11 @@ class StepHistorical(Step):
     """This step generates columns with a historical accumulator provided by the user.
 
     Args:
-        fun (Accumulator): Instance of the Accumulator enumerable that signifies which type of historical accumulation
+        fun: Instance of the Accumulator enumerable that signifies which type of historical accumulation
             to use (default is MAX).
-        suffix (String, optional): Defaults to none. Set the name to have the step generate new columns with this suffix
+        suffix: Defaults to none. Set the name to have the step generate new columns with this suffix
             instead of the default suffix.
-        role (str, optional): Defaults to 'predictor'. In case new columns are added, set their role to role.
+        role: Defaults to 'predictor'. In case new columns are added, set their role to role.
     """
 
     def __init__(
@@ -201,15 +199,11 @@ class StepSklearn(Step):
     """This step takes a transformer from scikit-learn and makes it usable as a step in a recipe.
 
     Args:
-        sklearn_transformer (object): Instance of scikit-learn transformer that implements fit() and transform().
-        columnwise (bool, optional): Defaults to False. Set to True to fit and transform the DF column by column.
-        in_place (bool, optional): Defaults to True.
-            Set to False to have the step generate new columns instead of overwriting the existing ones.
+        sklearn_transformer: Instance of scikit-learn transformer that implements fit() and transform().
+        columnwise: Defaults to False. Set to True to fit and transform the DF column by column.
+        in_place: Defaults to True. Set to False to have the step generate new columns
+            instead of overwriting the existing ones.
         role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
-
-    Attributes:
-        _transformers (dict): If the transformer is applied columnwise,
-            this dict holds references to the separately fitted instances.
     """
 
     def __init__(
@@ -312,10 +306,9 @@ class StepResampling(Step):
         They fit a transformer to the selected columns and afterwards transform the data with the fitted transformer.
 
         Args:
-            new_resolution(str): Resolution to resample to.
-            accumulator_dict Dict[Selector, Accumulator] : Supply dictionary with individual accumulation methods for each
-                Selector.
-            default_accumulator(Accumulator, Optional): Accumulator to use for variables not supplied in dictionary.
+            new_resolution: Resolution to resample to.
+            accumulator_dict: Supply dictionary with individual accumulation methods for each Selector.
+            default_accumulator: Accumulator to use for variables not supplied in dictionary.
         """
         super().__init__()
         self.new_resolution = new_resolution
@@ -373,11 +366,9 @@ class StepScale:
     """Provides a wrapper for a scaling with StepSklearn.
 
     Args:
-       with_mean (bool, optional): Defaults to True. If True, center the data before scaling.
-       with_std (bool, optional): Defaults to True.
-           If True, scale the data to unit variance (or equivalently, unit standard deviation).
-       in_place (bool, optional): Defaults to True.
-           Set to False to have the step generate new columns instead of overwriting the existing ones.
+       with_mean: Defaults to True. If True, center the data before scaling.
+       with_std: Defaults to True. If True, scale the data to unit variance (or equivalently, unit standard deviation).
+       in_place: Defaults to True. Set to False to have the step generate new columns instead of overwriting the existing ones.
        role (str, optional): Defaults to 'predictor'. Incase new columns are added, set their role to role.
     """
 
