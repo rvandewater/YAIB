@@ -111,7 +111,7 @@ def main(my_args=tuple(sys.argv[1:])):
     data = preprocess_data(args.data_dir)
 
     for seed in args.seed:
-        log_dir_seed = log_dir / str(seed)
+        log_dir_seed = log_dir / f"seed_{str(seed)}"
         log_dir_seed.mkdir()
         train_with_gin(
             log_dir=log_dir_seed,
