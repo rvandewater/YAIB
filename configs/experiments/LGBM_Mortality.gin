@@ -1,0 +1,5 @@
+import icu_benchmarks.models.utils
+include "configs/models/LGBMClassifier.gin"
+include "configs/tasks/Mortality_At24Hours.gin"
+
+bindings.depth = [6]

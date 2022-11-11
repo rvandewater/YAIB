@@ -44,33 +44,34 @@ We currently use the following libraries:
 # CLI Commands
 
 ## Preprocess and Train
-
+The following command will start training on a prepared HiRID dataset for sequential Mortality prediction with an LGBM Classifier: 
 ```
 python -m icu_benchmarks.run train \
-                            --data-dir ../data/ricu/mimic \
-                            -c configs/tasks/Classification/LogisticRegression.gin \
-                            -l logs/benchmark_exp/LogisticRegression/ \
-                            -t Dynamic_CircFailure_12Hours\
-                            -o True \
-                            --penalty 'l2' \
-                            --c_parameter 0.01 \
-                            -sd 1111 2222 3333 4444 5555 6666 7777 8888 9999 0000
+    -d ../data/mortality_seq/hirid \
+    -n hirid \
+    -t Mortality_At24Hours \
+    -m LGBMClassifier \
+    -hp LGBMClassifier.subsample='RS([0.33,0.66])' LGBMClassifier.colsample_bytree=0.66
+```
+> `RS([...])` is the syntax for invoking random search on a list of hyperparameters, both in configs and the command line.
 
-python -m icu_benchmarks.run train \
-                            --data-dir ../data/ricu/mimic \
-                            -c configs/tasks/Classification/LGBM.gin \
-                            -l logs/ricu/random_search/24_binary/LGBM/run \
-                            -t Mortality_At24Hours \
-                            -rs True\
-                            -sd 1111 2222 3333 \
-                            --depth 3 4 5 6 7 \
-                            --loss-weight balanced None \
-                            --subsample-feat 0.33 0.66 1.00 \
-                            --subsample-data 0.33 0.66 1.00
+> Run with `PYTORCH_ENABLE_MPS_FALLBACK=1` on Macs with Metal Performance Shaders
+
+> Please note that, for Windows based systems, paths need to be formatted differently, e.g: ` r"\..\data\mortality_seq\hirid"`.
+> Additionally, the next line character (\\)  needs to be replaced by (^) (Command Prompt) or (`) (Powershell) respectively.
+## Evaluate
+It is possible to evaluate a model trained on another dataset. In this case, the source dataset is HiRID and the target is MIMIC-IV:
+```
+python -m icu_benchmarks.run evaluate \
+    -d ../data/mortality_seq/miiv \
+    -n miiv \
+    -t Mortality_At24Hours \
+    -m LGBMClassifier \
+    -sn hirid \
+    --source ../data/mortality_seq/hirid/logs/hirid/Mortality_At24Hours/LGBMClassifier/2022-11-10T22-52-52/seed_1111
 ```
 
 ## Run Tests
-
 ```
 python -m pytest ./tests/recipes
 coverage run -m pytest ./tests/recipes
@@ -79,7 +80,9 @@ coverage report
 coverage html
 ```
 
-## Autoformat
+## Autoformat and lint
+For development purposes, we use the `Black` package to autoformat our code and a `Flake8` Linting/CI check:
 ```
 black . -l 127
+flake8 . --count --max-complexity=14 --max-line-length=127 --statistics
 ```
