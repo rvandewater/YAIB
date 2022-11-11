@@ -51,7 +51,9 @@ python -m icu_benchmarks.run train \
     -n hirid \
     -t Mortality_At24Hours \
     -m LGBMClassifier \
-    -hp LGBMClassifier.subsample='RS([0.33,0.66])' LGBMClassifier.colsample_bytree=0.66
+    -hp LGBMClassifier.subsample='RS([0.33,0.66])' LGBMClassifier.colsample_bytree=0.66 \
+    -c \
+    -s 1111 2222 3333 4444 5555
 ```
 > `RS([...])` is the syntax for invoking random search on a list of hyperparameters, both in configs and the command line.
 
@@ -68,7 +70,9 @@ python -m icu_benchmarks.run evaluate \
     -t Mortality_At24Hours \
     -m LGBMClassifier \
     -sn hirid \
-    --source ../data/mortality_seq/hirid/logs/hirid/Mortality_At24Hours/LGBMClassifier/2022-11-10T22-52-52/seed_1111
+    --source-dir ../data/mortality_seq/hirid/logs/hirid/Mortality_At24Hours/LGBMClassifier/2022-11-10T22-52-52/seed_1111 \
+    -c \
+    -s 1111 2222 3333 4444 5555
 ```
 
 ## Run Tests
