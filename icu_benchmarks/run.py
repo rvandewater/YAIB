@@ -31,7 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     # ARGUMENTS FOR ALL COMMANDS
     general_args = parent_parser.add_argument_group("General arguments")
     general_args.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
-    general_args.add_argument("-n", "--name", required=True, help="Name of the (source) dataset.")
+    general_args.add_argument("-n", "--name", required=True, help="Name of the (target) dataset.")
     general_args.add_argument("-t", "--task", default="Mortality_At24Hours", help="Name of the task gin.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
@@ -47,10 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # EVALUATION PARSER
     evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
-    evaluate_parser.add_argument(
-        "-s", "--source-dir", required=True, type=Path, help="Directory containing train gin and model weights."
-    )
-    evaluate_parser.add_argument("--target", required=True, type=Path, help="Name of the taget dataset.")
+    evaluate_parser.add_argument("-sn", "--source-name", required=True, type=Path, help="Name of the source dataset.")
+    evaluate_parser.add_argument("--source", required=True, type=Path, help="Directory containing gin and model weights.")
 
     return parser
 
@@ -89,8 +87,8 @@ def main(my_args=tuple(sys.argv[1:])):
     log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
 
     if load_weights:
-        log_dir_model = log_dir_base / args.target / task / model / f"from_{name}"
-        source_dir = args.source_dir
+        log_dir_model = log_dir_base / name / task / model / f"from_{args.source_name}"
+        source_dir = args.source
         reproducible = False
         with open(source_dir / "train_config.gin") as f:
             gin_configs = f.read()
