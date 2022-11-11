@@ -1,5 +1,7 @@
 import logging
 import gin
+import json
+import hashlib
 import pandas as pd
 import numpy as np
 import pyarrow.parquet as pq
@@ -72,8 +74,8 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
 def preprocess_data(
     data_dir: Path,
     file_names: dict[str] = gin.REQUIRED,
-    use_features: bool = gin.REQUIRED,
     vars: dict[str] = gin.REQUIRED,
+    use_features: bool = gin.REQUIRED,
     seed: int = 42,
     debug: bool = False,
     use_cache: bool = False,
@@ -85,8 +87,8 @@ def preprocess_data(
     Args:
         data_dir: Path to the directory holding the data.
         file_names: Contains the parquet file names in data_dir.
-        use_features: Whether to generate features on the dynamic data.
         vars: Contains the names of columns in the data.
+        use_features: Whether to generate features on the dynamic data.
         seed: Random seed.
         debug: Load less data if true.
         use_cache: Cache and use cached preprocessed data if true.
@@ -98,7 +100,10 @@ def preprocess_data(
             nested within split (train/val/test).
     """
     cache_dir = data_dir / "cache"
-    cache_file = cache_dir / f"seed_{seed}"
+    dumped_file_names = json.dumps(file_names, sort_keys=True)
+    dumped_vars = json.dumps(vars, sort_keys=True)
+    config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{use_cache}{train_pct}{val_pct}".encode('utf-8')
+    cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
     if use_cache:
         if cache_file.exists():
