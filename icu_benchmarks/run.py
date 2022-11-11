@@ -50,7 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     # EVALUATION PARSER
     evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
     evaluate_parser.add_argument("-sn", "--source-name", required=True, type=Path, help="Name of the source dataset.")
-    evaluate_parser.add_argument("--source", required=True, type=Path, help="Directory containing gin and model weights.")
+    evaluate_parser.add_argument("--source-dir", required=True, type=Path, help="Directory containing gin and model weights.")
 
     return parser
 
@@ -95,7 +95,7 @@ def main(my_args=tuple(sys.argv[1:])):
 
     if load_weights:
         log_dir_model = log_dir_base / name / task / model / f"from_{args.source_name}"
-        source_dir = args.source
+        source_dir = args.source_dir
         reproducible = False
         with open(source_dir / "train_config.gin") as f:
             gin_configs = f.read()
