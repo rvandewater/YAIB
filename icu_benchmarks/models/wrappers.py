@@ -363,15 +363,16 @@ class MLWrapper(object):
             train_pred = self.model.predict_proba(train_rep)
 
         train_metric_results = {}
-        train_string = "Train Results :"
+        train_string = ""
         train_values = []
-        val_string = "Val Results :" + "loss" + ":{:.4f}"
+        val_string = "Val Results: " + "loss" + ":{:.4f}"
         val_values = [val_loss]
         val_metric_results = {"loss": val_loss}
         for name, metric in metrics.items():
             train_metric_results[name] = metric(self.label_transform(train_label), self.output_transform(train_pred))
             val_metric_results[name] = metric(self.label_transform(val_label), self.output_transform(val_pred))
-            train_string += ", " + name + ":{:.4f}"
+            train_string += "Train Results: " if len(train_string) == 0 else ", "
+            train_string += name + ":{:.4f}"
             val_string += ", " + name + ":{:.4f}"
             train_values.append(train_metric_results[name])
             val_values.append(val_metric_results[name])
@@ -394,12 +395,13 @@ class MLWrapper(object):
             test_pred = self.model.predict(test_rep)
         else:
             test_pred = self.model.predict_proba(test_rep)
-        test_string = "Test Results :"
+        test_string = ""
         test_values = []
         test_metric_results = {}
         for name, metric in self.metrics.items():
             test_metric_results[name] = metric(self.label_transform(test_label), self.output_transform(test_pred))
-            test_string += ", " + name + ":{:.4f}"
+            test_string += "Test Results: " if len(test_string) == 0 else ", "
+            test_string += name + ":{:.4f}"
             test_values.append(test_metric_results[name])
 
         logging.info(test_string.format(*test_values))
