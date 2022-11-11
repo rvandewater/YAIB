@@ -57,7 +57,7 @@ python -m icu_benchmarks.run train -d ../data/mortality_seq/hirid \
 > Run with `PYTORCH_ENABLE_MPS_FALLBACK=1` on Macs with Metal Performance Shaders
 
 > Please note that, for Windows based systems, paths need to be formatted differently, e.g: ` r"\..\data\mortality_seq\hirid"`.
-> Additionally, the next line character (\)  needs to be replaced by (^) (Command Prompt) or (`) (Powershell) respectively.
+> Additionally, the next line character (\\)  needs to be replaced by (^) (Command Prompt) or (`) (Powershell) respectively.
 ## Evaluate
 It is possible to evaluate a model trained on another dataset. In this case, the source dataset is HiRID and the target is MIMIC-IV:
 ```
