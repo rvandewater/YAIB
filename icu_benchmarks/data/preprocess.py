@@ -11,23 +11,22 @@ from icu_benchmarks.recipes.selector import all_of
 from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale
 
 
-@gin.configurable("splits")
 def make_single_split(
     data: dict[pd.DataFrame],
+    vars: dict[str],
     train_pct: float = 0.7,
     val_pct: float = 0.1,
     seed: int = 42,
-    vars: dict[str] = gin.REQUIRED,
     debug: bool = False,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
     Args:
         data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
+        vars: Contains the names of columns in the data.
         train_pct: Proportion of stays assigned to training fold.
         val_pct: Proportion of stays assigned to validation fold.
         seed: Random seed.
-        vars: Contains the names of columns in the data.
         debug: Load less data if true.
 
     Returns:
@@ -78,6 +77,8 @@ def preprocess_data(
     seed: int = 42,
     debug: bool = False,
     use_cache: bool = False,
+    train_pct: float = 0.7,
+    val_pct: float = 0.1,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -89,6 +90,8 @@ def preprocess_data(
         seed: Random seed.
         debug: Load less data if true.
         use_cache: Cache and use cached preprocessed data if true.
+        train_pct: Proportion of stays assigned to training fold.
+        val_pct: Proportion of stays assigned to validation fold.
 
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with data type (STATIC/DYNAMIC/OUTCOME)
@@ -108,7 +111,7 @@ def preprocess_data(
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in ["STATIC", "DYNAMIC", "OUTCOME"]}
 
     logging.info("Generating splits.")
-    data = make_single_split(data, seed=seed, debug=debug)
+    data = make_single_split(data, vars, train_pct=train_pct, val_pct=val_pct, seed=seed, debug=debug)
 
     logging.info("Preprocessing static data.")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])

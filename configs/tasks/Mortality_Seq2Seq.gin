@@ -33,11 +33,9 @@ vars = {
 }
 
 preprocess.vars = %vars
-splits.vars = %vars
 Dataset.vars = %vars
 
-splits.seed = 42
-splits.train_pct = 0.7
-splits.val_pct = 0.1
+preprocess.train_pct = 0.7
+preprocess.val_pct = 0.1
 
 EMB = 48
