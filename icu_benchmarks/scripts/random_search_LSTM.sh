@@ -6,7 +6,7 @@ do
     -n hirid \
     -t Mortality_At24Hours \
     -m LSTM \
-    -hp DLWrapper.train.patience=5
+    -hp DLWrapper.train.patience=8 \
     -c \
     -s 1111 2222 3333
 done
