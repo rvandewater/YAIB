@@ -2,7 +2,7 @@
 for i in {1..25}
 do
    python -m icu_benchmarks.run train \
-    -d ../data/mortality_seq/hirid \
+    -d $1 \
     -n hirid \
     -t Mortality_At24Hours \
     -m LSTM \
