@@ -112,6 +112,7 @@ icu-benchmarks evaluate \
 
 ### Output Structure
 ```
+<pre>
 log_dir/
 ├── dataset1/
 │   ├── task1/
@@ -126,7 +127,7 @@ log_dir/
 │   │   │   │       └── ...
 │   │   │   ├── YYYY-MM-DDTHH-MM-SS (run2)/
 │   │   │   │   └── ...
-<pre><b>│   │   │   ├── from_dataset2/
+<b>│   │   │   ├── from_dataset2/
 │   │   │   │   ├── YYYY-MM-DDTHH-MM-SS (run1)/
 │   │   │   │   │   ├── seed1/
 │   │   │   │   │   │   ├── train_config.gin
@@ -136,13 +137,14 @@ log_dir/
 │   │   │   │   └── YYYY-MM-DDTHH-MM-SS (run2)/
 │   │   │   │       └── ...
 │   │   │   └── from_dataset3/
-│   │   │       └── ...</pre></b>
+│   │   │       └── ...</b>
 │   │   └── model2/
 │   │       └── ...
 │   └── task2/
 │       └── ...
 └── dataset2/
     └── ...
+</pre>
 ```
 
 ## Run Tests
