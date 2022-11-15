@@ -4,18 +4,18 @@ channels:
   - conda-forge
   - anaconda
 dependencies:
-  - black
-  - coverage
-  - flake8
-  - gin-config
-  - ignite
-  - lightgbm
-  - numpy
-  - pandas
-  - pyarrow
-  - pytest
-  - pytorch=1.12.1
-  - cudatoolkit=11.6.0
-  - scikit-learn
-  - tensorboard
-  - tqdm
+  - black=22.10.0
+  - coverage=6.5.0
+  - flake8=5.0.4
+  - gin-config=0.5.0
+  - ignite=0.4.10
+  - lightgbm=3.3.3
+  - numpy=1.23.4
+  - pandas=1.5.1
+  - pyarrow=9.0.0
+  - pytest=7.2.0
+  - pytorch=1.13.0
+  - pytorch-cuda=11.7.0
+  - scikit-learn=1.1.3
+  - tensorboard=2.11.0
+  - tqdm=4.64.1
