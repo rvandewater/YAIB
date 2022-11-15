@@ -43,10 +43,20 @@ We currently use the following libraries:
 
 # CLI Commands
 
+## Setup
+
+```
+conda env update -f <environment.yml|environment_mps.yml>
+conda activate yaib
+pip install -e .
+```
+
+> Use `environment.yml` on Intel hardware, `environment_mps.yml` on Macs with Metal Performance Shaders
+
 ## Preprocess and Train
 The following command will start training on a prepared HiRID dataset for sequential Mortality prediction with an LGBM Classifier: 
 ```
-python -m icu_benchmarks.run train \
+icu-benchmarks train \
     -d ../data/mortality_seq/hirid \
     -n hirid \
     -t Mortality_At24Hours \
@@ -64,7 +74,7 @@ python -m icu_benchmarks.run train \
 ## Evaluate
 It is possible to evaluate a model trained on another dataset. In this case, the source dataset is HiRID and the target is MIMIC-IV:
 ```
-python -m icu_benchmarks.run evaluate \
+icu-benchmarks evaluate \
     -d ../data/mortality_seq/miiv \
     -n miiv \
     -t Mortality_At24Hours \
