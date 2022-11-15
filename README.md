@@ -111,7 +111,6 @@ icu-benchmarks evaluate \
 ```
 
 ### Output Structure
-```
 <pre>
 log_dir/
 ├── dataset1/
@@ -145,7 +144,6 @@ log_dir/
 └── dataset2/
     └── ...
 </pre>
-```
 
 ## Run Tests
 ```
