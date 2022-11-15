@@ -1,0 +1,28 @@
+import icu_benchmarks.models.utils
+include "configs/tasks/Mortality_At24Hours.gin"
+
+RES = 1
+RES_LAB = 1
+
+preprocess.use_features = False
+
+# Train params
+train_common.model = @DLWrapper()
+train_common.do_test = True
+
+DLWrapper.encoder = @LSTM()
+DLWrapper.optimizer_fn = @Adam
+DLWrapper.train.epochs = 1000
+DLWrapper.train.batch_size = 64 # FIXME bug with tensor dimensions on Apple MPS leads to BS = input length constraint
+DLWrapper.train.patience = 10
+DLWrapper.train.min_delta = 1e-4
+
+# Optimizer params
+Adam.lr = 1e-4
+Adam.weight_decay = 1e-6
+
+# Encoder params
+LSTM.input_dim = %EMB
+LSTM.hidden_dim = 128
+LSTM.layer_dim = 1
+LSTM.num_classes = %NUM_CLASSES
