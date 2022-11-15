@@ -80,14 +80,14 @@ log_dir/
 │   │   ├── model1/
 │   │   │   ├── YYYY-MM-DDTHH-MM-SS (run1)/
 │   │   │   │   ├── HYPER_PARAMS
-│   │   │   │   └── seed1/
-│   │   │   │       ├── model
-│   │   │   │       ├── train_config.gin
-│   │   │   │       └── metrics
+│   │   │   │   ├── seed1/
+│   │   │   │   │   ├── model
+│   │   │   │   │   ├── train_config.gin
+│   │   │   │   │   └── metrics
+│   │   │   │   └── seed2/
+│   │   │   │       └── ...
 │   │   │   ├── YYYY-MM-DDTHH-MM-SS (run2)/
 │   │   │   │   └── ...
-│   │   │   └── seed2/
-│   │   │       └── ...
 │   │   └── model2/
 │   │       └── ...
 │   └── task2/
@@ -118,13 +118,15 @@ log_dir/
 │   │   ├── model1/
 │   │   │   ├── YYYY-MM-DDTHH-MM-SS (run1)/
 │   │   │   │   ├── HYPER_PARAMS
-│   │   │   │   └── seed1/
-│   │   │   │       ├── model
-│   │   │   │       ├── train_config.gin
-│   │   │   │       └── metrics
+│   │   │   │   ├── seed1/
+│   │   │   │   │   ├── model
+│   │   │   │   │   ├── train_config.gin
+│   │   │   │   │   └── metrics
+│   │   │   │   └── seed2/
+│   │   │   │       └── ...
 │   │   │   ├── YYYY-MM-DDTHH-MM-SS (run2)/
 │   │   │   │   └── ...
-│   │   │   ├── **from_dataset2/**
+<pre><b>│   │   │   ├── from_dataset2/
 │   │   │   │   ├── YYYY-MM-DDTHH-MM-SS (run1)/
 │   │   │   │   │   ├── seed1/
 │   │   │   │   │   │   ├── train_config.gin
@@ -133,8 +135,8 @@ log_dir/
 │   │   │   │   │       └── ...
 │   │   │   │   └── YYYY-MM-DDTHH-MM-SS (run2)/
 │   │   │   │       └── ...
-│   │   │   └── seed2/
-│   │   │       └── ...
+│   │   │   └── from_dataset3/
+│   │   │       └── ...</pre></b>
 │   │   └── model2/
 │   │       └── ...
 │   └── task2/
