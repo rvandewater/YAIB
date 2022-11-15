@@ -71,6 +71,31 @@ icu-benchmarks train \
 
 > Please note that, for Windows based systems, paths need to be formatted differently, e.g: ` r"\..\data\mortality_seq\hirid"`.
 > Additionally, the next line character (\\)  needs to be replaced by (^) (Command Prompt) or (`) (Powershell) respectively.
+
+### Output Structure
+```
+log_dir/
+├── dataset1/
+│   ├── task1/
+│   │   ├── model1/
+│   │   │   ├── YYYY-MM-DDTHH-MM-SS (run1)/
+│   │   │   │   ├── HYPER_PARAMS
+│   │   │   │   └── seed1/
+│   │   │   │       ├── model
+│   │   │   │       ├── train_config.gin
+│   │   │   │       └── metrics
+│   │   │   ├── YYYY-MM-DDTHH-MM-SS (run2)/
+│   │   │   │   └── ...
+│   │   │   └── seed2/
+│   │   │       └── ...
+│   │   └── model2/
+│   │       └── ...
+│   └── task2/
+│       └── ...
+└── dataset2/
+    └── ...
+```
+
 ## Evaluate
 It is possible to evaluate a model trained on another dataset. In this case, the source dataset is HiRID and the target is MIMIC-IV:
 ```
@@ -83,6 +108,39 @@ icu-benchmarks evaluate \
     --source-dir ../data/mortality_seq/hirid/logs/hirid/Mortality_At24Hours/LGBMClassifier/2022-11-10T22-52-52/seed_1111 \
     -c \
     -s 1111 2222 3333 4444 5555
+```
+
+### Output Structure
+```
+log_dir/
+├── dataset1/
+│   ├── task1/
+│   │   ├── model1/
+│   │   │   ├── YYYY-MM-DDTHH-MM-SS (run1)/
+│   │   │   │   ├── HYPER_PARAMS
+│   │   │   │   └── seed1/
+│   │   │   │       ├── model
+│   │   │   │       ├── train_config.gin
+│   │   │   │       └── metrics
+│   │   │   ├── YYYY-MM-DDTHH-MM-SS (run2)/
+│   │   │   │   └── ...
+│   │   │   ├── **from_dataset2/**
+│   │   │   │   ├── YYYY-MM-DDTHH-MM-SS (run1)/
+│   │   │   │   │   ├── seed1/
+│   │   │   │   │   │   ├── train_config.gin
+│   │   │   │   │   │   └── metrics
+│   │   │   │   │   └── seed2/
+│   │   │   │   │       └── ...
+│   │   │   │   └── YYYY-MM-DDTHH-MM-SS (run2)/
+│   │   │   │       └── ...
+│   │   │   └── seed2/
+│   │   │       └── ...
+│   │   └── model2/
+│   │       └── ...
+│   └── task2/
+│       └── ...
+└── dataset2/
+    └── ...
 ```
 
 ## Run Tests
