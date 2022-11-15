@@ -101,12 +101,13 @@ def main(my_args=tuple(sys.argv[1:])):
             gin_configs = f.read()
         log_dir = create_run_dir(log_dir_model)
     else:
-        log_dir_model = log_dir_base / name / task / model
         source_dir = None
         reproducible = args.reproducible
         if args.experiment:
+            log_dir_model = log_dir_base / name / args.experiment
             gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
         else:
+            log_dir_model = log_dir_base / name / task / model
             gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
         gin_configs, randomly_searched_params = random_search_configs(gin_config_files, args.hyperparams, log_dir_model)
         log_dir = create_run_dir(log_dir_model, randomly_searched_params)
