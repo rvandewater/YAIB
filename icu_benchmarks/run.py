@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 from icu_benchmarks.data.preprocess import preprocess_data
-from icu_benchmarks.models.train import train_with_gin
+from icu_benchmarks.models.train import train_common
 from icu_benchmarks.gin_parser import random_search_configs
 
 SEEDS = [1111]
@@ -117,7 +117,7 @@ def main(my_args=tuple(sys.argv[1:])):
         data = preprocess_data(args.data_dir, seed=seed, debug=debug, use_cache=cache)
         log_dir_seed = log_dir / f"seed_{str(seed)}"
         log_dir_seed.mkdir()
-        train_with_gin(
+        train_common(
             log_dir=log_dir_seed,
             data=data,
             load_weights=load_weights,

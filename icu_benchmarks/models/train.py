@@ -13,18 +13,19 @@ from icu_benchmarks.models.wrappers import MLWrapper
 from icu_benchmarks.models.utils import save_config_file
 
 
-def train_with_gin(
-    log_dir: Path = None,
-    data: dict[str, pd.DataFrame] = None,
+@gin.configurable("train_common")
+def train_common(
+    log_dir: Path,
+    data: dict[str, pd.DataFrame],
     load_weights: bool = False,
     source_dir: Path = None,
     seed: int = 1234,
     reproducible: bool = True,
+    model: object = MLWrapper,
+    weight: str = None,
+    do_test: bool = False,
 ):
-    """Trains a model based on the provided gin configuration.
-
-    This function will set the provided gin bindings, call the train() function
-    and clear the gin config. Please see train() for required gin bindings.
+    """Common wrapper to train all benchmarked models.
 
     Args:
         log_dir: Path to directory where model output should be saved.
@@ -34,6 +35,7 @@ def train_with_gin(
         seed: Common seed used for any random operation.
         reproducible: If set to true, set torch to run reproducibly.
     """
+
     # Setting the seed before gin parsing
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
@@ -46,20 +48,6 @@ def train_with_gin(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    train_common(log_dir, data, load_weights, source_dir)
-
-
-@gin.configurable("train_common")
-def train_common(
-    log_dir: Path,
-    data: dict[str, pd.DataFrame],
-    load_weights: bool = False,
-    source_dir: Path = None,
-    model: object = MLWrapper,
-    weight: str = None,
-    do_test: bool = False,
-):
-    """Common wrapper to train all benchmarked models."""
     model.set_logdir(log_dir)
     save_config_file(log_dir)  # We save the operative config before and also after training
 
