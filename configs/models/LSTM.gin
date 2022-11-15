@@ -14,7 +14,7 @@ train_common.do_test = True
 DLWrapper.encoder = @LSTM()
 DLWrapper.optimizer_fn = @Adam
 DLWrapper.train.epochs = 1000
-DLWrapper.train.batch_size = 25 # FIXME bug with tensor dimensions on Apple MPS leads to BS = input length constraint
+DLWrapper.train.batch_size = 64 # FIXME bug with tensor dimensions on Apple MPS leads to BS = input length constraint
 DLWrapper.train.patience = 10
 DLWrapper.train.min_delta = 1e-4
 
