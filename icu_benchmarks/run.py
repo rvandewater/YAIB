@@ -91,35 +91,36 @@ def main(my_args=tuple(sys.argv[1:])):
     name = args.name
     task = args.task
     model = args.model
+    experiment = args.experiment
     log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
+    log_dir_name = log_dir_base / name
+    log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / task / model)
 
     if load_weights:
-        log_dir_model = log_dir_base / name / task / model / f"from_{args.source_name}"
+        log_dir /= f"from_{args.source_name}"
         source_dir = args.source_dir
         reproducible = False
         with open(source_dir / "train_config.gin") as f:
             gin_configs = f.read()
-        log_dir = create_run_dir(log_dir_model)
+        run_dir = create_run_dir(log_dir)
     else:
         source_dir = None
         reproducible = args.reproducible
         if args.experiment:
-            log_dir_model = log_dir_base / name / args.experiment
             gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
         else:
-            log_dir_model = log_dir_base / name / task / model
             gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
-        gin_configs, randomly_searched_params = random_search_configs(gin_config_files, args.hyperparams, log_dir_model)
-        log_dir = create_run_dir(log_dir_model, randomly_searched_params)
+        gin_configs, randomly_searched_params = random_search_configs(gin_config_files, args.hyperparams, log_dir)
+        run_dir = create_run_dir(log_dir, randomly_searched_params)
         gin_configs += [f"TASK = '{task}'"]
 
     for seed in args.seed:
         gin.parse_config(gin_configs)
         data = preprocess_data(args.data_dir, seed=seed, debug=debug, use_cache=cache)
-        log_dir_seed = log_dir / f"seed_{str(seed)}"
-        log_dir_seed.mkdir()
+        run_dir_seed = run_dir / f"seed_{str(seed)}"
+        run_dir_seed.mkdir()
         train_common(
-            log_dir=log_dir_seed,
+            log_dir=run_dir_seed,
             data=data,
             load_weights=load_weights,
             source_dir=source_dir,
