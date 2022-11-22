@@ -4,9 +4,12 @@ import sys
 
 log_dir = Path(sys.argv[1])
 
-for dataset_dir in log_dir.iterdir():
-    for experiment_dir in dataset_dir.iterdir():
-        for source_dir in experiment_dir.iterdir():
+def sorted_dir(dir: Path) -> list[Path]:
+    return sorted(list(dir.iterdir()))
+
+for dataset_dir in sorted_dir(log_dir):
+    for experiment_dir in sorted_dir(dataset_dir):
+        for source_dir in sorted_dir(experiment_dir):
             PR = 0
             AUC = 0
             num_seeds = 0
