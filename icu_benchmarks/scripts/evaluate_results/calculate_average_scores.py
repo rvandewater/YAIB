@@ -4,8 +4,10 @@ import sys
 
 log_dir = Path(sys.argv[1])
 
+
 def sorted_dir(dir: Path) -> list[Path]:
     return sorted(list(dir.iterdir()))
+
 
 for dataset_dir in sorted_dir(log_dir):
     for experiment_dir in sorted_dir(dataset_dir):
@@ -18,8 +20,8 @@ for dataset_dir in sorted_dir(log_dir):
                 num_seeds += 1
                 with open(seed / "test_metrics.pkl", "rb") as f:
                     result = pickle.load(f)
-                    PR += result['PR']
-                    AUC += result['AUC']
+                    PR += result["PR"]
+                    AUC += result["AUC"]
 
             PR = PR / num_seeds
             AUC = AUC / num_seeds
