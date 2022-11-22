@@ -44,6 +44,8 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
+    
+    # shuffles dataframe
     stays = data["STATIC"][[id]].sample(frac=1, random_state=seed)
 
     num_stays = len(stays)
@@ -56,6 +58,8 @@ def make_single_split(
         for data_type in data.keys():
             # Loop through DYNAMIC / STATIC / OUTCOME
             # set sort to true to make sure that IDs are reordered after scrambling earlier
+            
+            # this operation effectively selects the rows corresponding to stays_in_fold and stores them in splits
             splits[fold][data_type] = data[data_type].merge(stays_in_fold, on=id, how="right", sort=True)
 
     return splits

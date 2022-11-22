@@ -94,3 +94,13 @@ def train_common(
         weight = dataset.get_balance()
         model.test(test_dataset, weight)
     save_config_file(log_dir)
+
+def train_imputation_method(
+        log_dir: Path,
+        data: dict[str, pd.DataFrame],
+        load_weights: bool = False,
+        source_dir: Path = None,
+        model: object = MLWrapper,
+        weight: str = None,
+        do_test: bool = False) -> None:
+    ...
