@@ -17,4 +17,5 @@ for seed in log_dir.iterdir():
 PR = PR / num_seeds
 AUC = AUC / num_seeds
 
-print(f"PR: {PR:.4f} | AUC: {AUC:.4f}")
+print(f"PR: {PR:.4f}")
+print(f"AUC: {AUC:.4f}")
