@@ -38,7 +38,7 @@ preprocess.stat_recipe_steps = [StepScale(), StepImputeFill(value=0)]
 preprocess.dyn_recipe_steps = [StepScale(), StepImputeFill(method="ffill"), StepImputeFill(value=0)]
 
 splits.vars = %vars
-Dataset.vars = %vars
+ClassificationDataset.vars = %vars
 
 splits.seed = 42
 splits.train_pct = 0.7

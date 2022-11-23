@@ -34,7 +34,7 @@ vars = {
 
 preprocess.vars = %vars
 splits.vars = %vars
-Dataset.vars = %vars
+ClassificationDataset.vars = %vars
 
 splits.seed = 42
 splits.train_pct = 0.7

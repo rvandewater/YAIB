@@ -26,7 +26,7 @@ vars = {
 
 preprocess.vars = %vars
 splits.vars = %vars
-Dataset.vars = %vars
+ImputationDataset.vars = %vars
 
 splits.seed = 42
 splits.train_pct = 0.7
