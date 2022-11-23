@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-from icu_benchmarks.data.loader import RICUDataset
-from icu_benchmarks.models.wrappers import MLWrapper
+from icu_benchmarks.data.loader import RICUDataset, ImputationDataset
+from icu_benchmarks.models.wrappers import MLWrapper, DLWrapper
 from icu_benchmarks.models.utils import save_config_file
 
 
@@ -103,4 +103,10 @@ def train_imputation_method(
         model: object = MLWrapper,
         weight: str = None,
         do_test: bool = False) -> None:
-    ...
+    
+    train_dataset = ImputationDataset(data, split="train")
+    validation_dataset = ImputationDataset(data, split="val")
+    test_dataset = ImputationDataset(data, split="test")
+    
+    if load_weights:
+        model = Impu

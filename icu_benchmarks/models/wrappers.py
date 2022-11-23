@@ -1,7 +1,12 @@
+from typing import List, Optional
+from torch.nn import Module, MSELoss
+from torch.nn.modules.loss import _Loss
 import inspect
 import logging
 import os
 import pickle
+
+
 
 import gin
 import lightgbm
@@ -24,9 +29,11 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import joblib
 
-from icu_benchmarks.models.utils import save_model, load_model_state
+from icu_benchmarks.models.utils import save_model, load_model_state, create_optimizer, create_scheduler
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
 from icu_benchmarks.models.encoders import LSTMNet
+
+from pytorch_lightning import LightningModule
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
@@ -420,3 +427,41 @@ class MLWrapper(object):
         else:
             with open(load_path, "rb") as f:
                 self.model = joblib.load(f)
+
+class ImputationWrapper(LightningModule):
+    def __init__(
+            self,
+            model: Module,
+            loss_function: _Loss = MSELoss,
+            optimizer: str = "adam",
+            lr: float = 0.002,
+            momentum: float = 0.9,
+            lr_scheduler: Optional[str] = None,
+            lr_factor: float = 0.99,
+            lr_steps: Optional[List[int]] = None,
+            epochs: int = 100) -> None:
+        super().__init__()
+        self.save_hyperparameters()
+        self.loss_function = loss_function
+    
+    def forward(self, amputated, amputation_mask) -> torch.Tensor:
+        raise NotImplementedError()
+    
+    def training_step(self, batch):
+        amputated, amputation_mask, target = batch
+        imputated = self(amputated, amputation_mask)
+        
+        loss = self.loss_function(imputated, target)
+        return loss
+    
+    def validation_step(self, batch):
+        amputated, amputation_mask, target = batch
+        imputated = self(amputated, amputation_mask)
+        
+        loss = self.loss_function(imputated, target)
+        return loss
+
+    def configure_optimizers(self):
+        optimizer = create_optimizer(self.hparams.optimzier, self, self.hparams.lr, self.hparams.momentum)
+        scheduler = create_scheduler(self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs)
+        return {"optimizer": optimizer, "scheduler": scheduler}

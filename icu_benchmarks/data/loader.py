@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import torch
 from torch import Tensor
+from typing import Dict, Tuple
 from torch.utils.data import Dataset
 
 from icu_benchmarks.imputation.amputations import ampute_data
@@ -19,7 +20,7 @@ class RICUDataset(Dataset):
         vars: Contains the names of columns in the data.
     """
 
-    def __init__(self, data: dict, split: str = "train", vars: dict[str] = gin.REQUIRED):
+    def __init__(self, data: Dict, split: str = "train", vars: Dict[str] = gin.REQUIRED):
         self.split = split
         self.vars = vars
         self.static_df = data[split]["STATIC"]
@@ -39,7 +40,7 @@ class RICUDataset(Dataset):
         """
         return self.num_stays
 
-    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice.
 
         Used for deep learning implementations.
@@ -92,13 +93,13 @@ class RICUDataset(Dataset):
         counts = self.outc_df.value_counts()
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
-    def get_data_and_labels(self) -> tuple[np.array, np.array]:
+    def get_data_and_labels(self) -> Tuple[np.array, np.array]:
         """Function to return all the data and labels aligned at once.
 
         We use this function for the ML methods which don't require an iterator.
 
         Returns:
-            A tuple containing data points and label for the split.
+            A Tuple containing data points and label for the split.
         """
         logging.info("Gathering the samples for split " + self.split)
         labels = self.outc_df["label"].to_numpy().astype(float)
@@ -122,7 +123,7 @@ class ImputationDataset(Dataset):
         vars: Contains the names of columns in the data.
     """
 
-    def __init__(self, data: dict[str, DataFrame], split: str = "train", vars: dict[str] = gin.REQUIRED, mask_proportion=0.3, mask_method="MCAR", mask_observation_proportion=0.3):
+    def __init__(self, data: Dict[str, DataFrame], split: str = "train", vars: Dict[str] = gin.REQUIRED, mask_proportion=0.3, mask_method="MCAR", mask_observation_proportion=0.3):
         self.split = split
         self.vars = vars
         self.static_df = data[split]["STATIC"]
@@ -143,7 +144,7 @@ class ImputationDataset(Dataset):
         """
         return self.num_stays
 
-    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice.
 
         Used for deep learning implementations.
@@ -163,20 +164,16 @@ class ImputationDataset(Dataset):
 
         return torch.from_numpy(amputated_window), torch.from_numpy(amputation_mask), torch.from_numpy(window)
 
-    def get_data_and_labels(self) -> tuple[np.array, np.array]:
+    def get_data_and_labels(self) -> Tuple[np.array, np.array]:
         """Function to return all the data and labels aligned at once.
 
         We use this function for the ML methods which don't require an iterator.
 
         Returns:
-            A tuple containing data points and label for the split.
+            A Tuple containing data points and label for the split.
         """
         logging.info("Gathering the samples for split " + self.split)
-        labels = self.outc_df["label"].to_numpy().astype(float)
-        rep: DataFrame = self.dyn_df
-        if len(labels) == self.num_stays:
-            # order of groups could be random, we make sure not to change it
-            rep = rep.groupby(level=self.vars["GROUP"], sort=False).last()
-        rep = rep.to_numpy()
+        rep: DataFrame = self.dyn_df.to_numpy()
+        
 
-        return rep, labels
+        return self.amputated_values, rep

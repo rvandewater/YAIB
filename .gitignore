@@ -112,3 +112,5 @@ lsf*
 # Legacy temp stuff
 icu_benchmarks/legacy_MH
 MH_DEBUG
+
+.vscode
