@@ -120,6 +120,17 @@ class StepImputeFill(Step):
         return new_data
 
 
+class StepFilterMissing(Step):
+    def __init__(self, sel=all_predictors(), max_missing_values=0):
+        super().__init__(sel)
+        self.max_missing_values = max_missing_values
+        
+    def transform(self, data):
+        new_data = self._check_ingredients(data)
+        
+        rows_to_remove = new_data.isna().sum(axis=1) > self.max_missing_values
+        return new_data.drop(rows_to_remove.index)
+
 class Accumulator(Enum):
     MAX = "max"
     MIN = "min"

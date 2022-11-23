@@ -1,6 +1,6 @@
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
-from icu_benchmarks.recipes.step import *
+from icu_benchmarks.recipes.step import StepScaler, StepFilterMissing
 
 
 TASK = "Dynamic_UrineOutput_2Hours_Reg"
@@ -14,19 +14,13 @@ DLWrapper.loss = @mse_loss
 
 loading.file_names = {
     "DYNAMIC": "dyn.parquet",
-    "OUTCOME": "outc.parquet",
     "STATIC": "sta.parquet",
 }
 
 vars = {
     "GROUP": "stay_id",
     "SEQUENCE": "time",
-    "DYNAMIC": ["alb", "alp", "alt", "ast", "be", "bicar", "bili",
-       "bili_dir", "bnd", "bun", "ca", "cai", "ck", "ckmb", "cl", "crea",
-       "crp", "dbp", "fgn", "fio2", "glu", "hgb", "hr", "inr_pt", "k", "lact",
-       "lymph", "map", "mch", "mchc", "mcv", "methb", "mg", "na", "neut",
-       "o2sat", "pco2", "ph", "phos", "plt", "po2", "ptt", "resp", "sbp",
-       "temp", "tnt", "urine", "wbc"],
+    "DYNAMIC": ["hr","map","sbp", "dbp", "resp", "o2sat"],
     "STATIC": ["age", "sex", "height", "weight"],
 }
 
@@ -40,4 +34,5 @@ splits.val_pct = 0.1
 
 EMB = 48
 
-preprocess.recipes = [StepScaler()]
+preprocess.stat_recipe_steps = [StepScaler(), StepFilterMissing()]
+preprocess.dyn_recipe_steps = [StepScaler(), StepFilterMissing()]

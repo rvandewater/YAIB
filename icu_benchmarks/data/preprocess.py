@@ -7,7 +7,7 @@ from pathlib import Path
 
 from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_of
-from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale
+from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale, Step
 
 
 @gin.configurable("loading")
@@ -84,7 +84,8 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
 
 @gin.configurable("preprocess")
 def preprocess_data(
-    data_dir: str, use_features: bool = gin.REQUIRED, vars: dict[str] = gin.REQUIRED
+    data_dir: str, use_features: bool = gin.REQUIRED, vars: dict[str] = gin.REQUIRED,
+    stat_recipe_steps: list[Step] = gin.REQUIRED, dyn_recipe_steps: list[Step] = gin.REQUIRED,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -105,21 +106,23 @@ def preprocess_data(
 
     logging.info("Preprocess static data")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
-    sta_rec.add_step(StepScale())
-    sta_rec.add_step(StepImputeFill(value=0))
+    sta_rec.steps = stat_recipe_steps
+    # sta_rec.add_step(StepScale())
+    # sta_rec.add_step(StepImputeFill(value=0))
 
     data = apply_recipe_to_splits(sta_rec, data, "STATIC")
 
     logging.info("Preprocess dynamic data")
     dyn_rec = Recipe(data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
-    dyn_rec.add_step(StepScale())
+    # dyn_rec.add_step(StepScale())
     if use_features:
         dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
         dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
         dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.COUNT, suffix="count_hist"))
         dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MEAN, suffix="mean_hist"))
-    dyn_rec.add_step(StepImputeFill(method="ffill"))
-    dyn_rec.add_step(StepImputeFill(value=0))
+    # dyn_rec.add_step(StepImputeFill(method="ffill"))
+    # dyn_rec.add_step(StepImputeFill(value=0))
+    dyn_rec = dyn_recipe_steps
 
     data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")
 
