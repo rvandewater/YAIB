@@ -429,6 +429,9 @@ class MLWrapper(object):
                 self.model = joblib.load(f)
 
 class ImputationWrapper(LightningModule):
+    
+    needs_training = True
+    
     def __init__(
             self,
             model: Module,
@@ -448,6 +451,8 @@ class ImputationWrapper(LightningModule):
         raise NotImplementedError()
     
     def training_step(self, batch):
+        if not self.needs_training:
+            return
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
         

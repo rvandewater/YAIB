@@ -6,7 +6,7 @@ import gin
 import logging
 import sys
 from pathlib import Path
-
+from pytorch_lightning import seed_everything
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
@@ -109,6 +109,8 @@ def main(my_args=tuple(sys.argv[1:])):
     data = preprocess_data(args.data_dir)
 
     for seed in args.seed:
+        if reproducible:
+            seed_everything(seed)
         log_dir_seed = log_dir / f"seed_{str(seed)}"
         log_dir_seed.mkdir()
         train_with_gin(
