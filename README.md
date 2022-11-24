@@ -1,49 +1,13 @@
 # Yet Another ICU Benchmark
 This project aims to provide a unified interface for multiple common ICU prediction endpoints for common ICU datasets. 
-We aim to support the following datasets: 
+We support the following datasets: 
 - Amsterdam UMC Database
 - HiRID
 - MIMIC III/IV
 - eICU
 
-For installation details, please check the [legacy readme](README_old.md). 
-
-This file contains documentation on the structure of the project. This is subject to change as we adapt it.
-## Directories
-A short description of the folders:
-- configs: this folder contains subdirectories with GIN configuration files, that specify details about the benchmark tasks
-- docs: legacy documents
-- files: folder with contents:
-  - dataset_stats: some sample data in parquet files (?)
-  - fake_data: generated data to demonstrate HiRID benchmark
-  - pretrained_weights: weights that have been pre-trained on HiRID data
-- icu_benchmarks: top-level package, contains the following:
-  - common: package that contains common constants, dataset class, processing code
-  - data: package that contains the main preprocessing code, also contains pytorch dataloader
-  - endpoints: package that contains detailed endpoint generation code
-  - imputation: imputation methods
-  - labels: label generation
-  - models: main package for the defined models
-  - preprocessing: preprocessing package code
-  - synthetic_data: package for generating synthetic data
-- preprocessing: (?)
-- run_scripts: lots of shell scripts for previous paper experiments (?)
-- tests: testing package
-
-## Libraries
-We currently use the following libraries:
-- [Pytorch](https://pytorch.org/) 
-    - An open source machine learning framework for 
-- [Pytorch Ignite](https://github.com/pytorch/ignite)
-    - Library for training and evaluating neural networks in Pytorch
-- [GIN](https://github.com/google/gin-config)
-    - Gin provides a lightweight configuration framework for Python
-- [Pathos](https://pathos.readthedocs.io/en/latest/)
-  - Parallel computing framework, used for preprocessing
-
-# CLI Commands
-
-## Setup
+We refer to the `PyICU` or `RICU` package for generating cohorts and labels in order to execute a task. 
+# Installation
 
 ```
 conda env update -f <environment.yml|environment_mps.yml>
@@ -51,8 +15,11 @@ conda activate yaib
 pip install -e .
 ```
 
-> Use `environment.yml` on Intel hardware, `environment_mps.yml` on Macs with Metal Performance Shaders
+> Use `environment.yml` on Intel hardware, `environment_mps.yml` on Macs with Metal Performance Shaders.
 
+> Note that the last command installs the package called `icu-benchmarks`.
+
+# Use with CLI Commands
 ## Preprocess and Train
 The following command will start training on a prepared HiRID dataset for sequential Mortality prediction with an LGBM Classifier: 
 ```
@@ -67,7 +34,7 @@ icu-benchmarks train \
 ```
 > `RS([...])` is the syntax for invoking random search on a list of hyperparameters, both in configs and the command line.
 
-> Run with `PYTORCH_ENABLE_MPS_FALLBACK=1` on Macs with Metal Performance Shaders
+> Run with `PYTORCH_ENABLE_MPS_FALLBACK=1` on Macs with Metal Performance Shaders.
 
 > Please note that, for Windows based systems, paths need to be formatted differently, e.g: ` r"\..\data\mortality_seq\hirid"`.
 > Additionally, the next line character (\\)  needs to be replaced by (^) (Command Prompt) or (`) (Powershell) respectively.
@@ -111,6 +78,8 @@ icu-benchmarks evaluate \
 ```
 
 ### Output Structure
+The benchmark generates an output structure that takes into account multiple aspects of the training and evaluation 
+specifications:
 <pre>
 log_dir/
 ├── dataset1/
@@ -144,6 +113,39 @@ log_dir/
 └── dataset2/
     └── ...
 </pre>
+
+# Development
+## Directories
+Note: redo this for the first release
+
+A short description of the folders:
+- configs: this folder contains subdirectories with GIN configuration files, that specify details about the benchmark tasks
+- docs: legacy documents
+- files: folder with contents:
+  - dataset_stats: some sample data in parquet files (?)
+  - fake_data: generated data to demonstrate HiRID benchmark
+  - pretrained_weights: weights that have been pre-trained on HiRID data
+- icu_benchmarks: top-level package, contains the following:
+  - common: package that contains common constants, dataset class, processing code
+  - data: package that contains the main preprocessing code, also contains pytorch dataloader
+  - endpoints: package that contains detailed endpoint generation code
+  - imputation: imputation methods
+  - labels: label generation
+  - models: main package for the defined models
+  - preprocessing: preprocessing package code
+  - synthetic_data: package for generating synthetic data
+- preprocessing: (?)
+- run_scripts: lots of shell scripts for previous paper experiments (?)
+- tests: testing package
+
+## Libraries
+We currently use the following libraries for development:
+- [Pytorch](https://pytorch.org/) 
+    - An open source machine learning framework for 
+- [Pytorch Ignite](https://github.com/pytorch/ignite)
+    - Library for training and evaluating neural networks in Pytorch
+- [GIN](https://github.com/google/gin-config)
+    - Gin provides a lightweight configuration framework for Python
 
 ## Run Tests
 ```
