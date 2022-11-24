@@ -15,7 +15,7 @@ conda activate yaib
 pip install -e .
 ```
 
-> Use `environment.yml` on Intel hardware, `environment_mps.yml` on Macs with Metal Performance Shaders.
+> Use `environment.yml` on x86 hardware and `environment_mps.yml` on Macs with Metal Performance Shaders.
 
 > Note that the last command installs the package called `icu-benchmarks`.
 
