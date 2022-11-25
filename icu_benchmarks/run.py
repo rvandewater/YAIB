@@ -103,7 +103,10 @@ def main(my_args=tuple(sys.argv[1:])):
         if args.experiment:
             gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
         else:
-            gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
+            model_config_path = Path(f"configs/models/{model}.gin")
+            if not model_config_path.exists():
+                model_config_path = Path(f"configs/imputation/{model}.gin")
+            gin_config_files = [model_config_path, Path(f"configs/tasks/{task}.gin")]
         gin_configs, randomly_searched_params = random_search_configs(gin_config_files, args.hyperparams, log_dir_model)
         log_dir = create_run_dir(log_dir_model, randomly_searched_params)
         gin_configs += [f"TASK = '{task}'"]

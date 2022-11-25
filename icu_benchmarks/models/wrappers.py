@@ -446,7 +446,7 @@ class ImputationWrapper(LightningModule):
             epochs: int = 100,
             input_size: torch.Tensor = None) -> None:
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer
         
@@ -487,6 +487,10 @@ class ImputationWrapper(LightningModule):
         self.log_dict({f"val/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
         for metric in self.metrics.values():
             metric.reset()
+    
+    def on_test_epoch_start(self) -> None:
+        self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
+        return super().on_test_epoch_start()
     
     def test_step(self, batch, batch_idx):
         

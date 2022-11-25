@@ -4,7 +4,7 @@ import torch
 import gin
 
 
-@gin.configurable("MLPImputation")
+@gin.configurable("MLP")
 class MLPImputation(ImputationWrapper):
     
     needs_training = True

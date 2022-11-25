@@ -100,6 +100,7 @@ def train_common(
             sys.exit(1)
 
     if do_test:
+        logging.info("testing...")
         test_dataset = RICUDataset(data, split="test")
         weight = dataset.get_balance()
         model.test(test_dataset, weight)
@@ -122,7 +123,7 @@ def train_imputation_method(
         reproducible: bool = True,
         wandb: bool = True) -> None:
     
-    logging.info("training imputation method...")
+    logging.info(f"training imputation method {model.__name__}...")
     train_dataset = ImputationDataset(data, split="train")
     validation_dataset = ImputationDataset(data, split="val")
     
@@ -138,8 +139,6 @@ def train_imputation_method(
         model = model(input_size=data_shape)
     save_config_file(log_dir)
 
-    print("EPOCHS:", epochs)
-    
     loggers = [TensorBoardLogger(log_dir)]
     if wandb:
         loggers.append(WandbLogger(save_dir=log_dir, project="Data_Imputation"))
@@ -148,22 +147,27 @@ def train_imputation_method(
         max_epochs=epochs,
         callbacks=[
             EarlyStopping(monitor="train/loss", min_delta=min_delta, patience=patience),
-            ModelCheckpoint(log_dir, monitor="val-metrics/rmse", save_top_k=1, save_last=True),
+            ModelCheckpoint(log_dir, monitor="val/rmse", save_top_k=1, save_last=True),
         ],
         # precision=16,
         accelerator="auto",
-        gpus=torch.cuda.device_count(),
+        devices=torch.cuda.device_count(),
         deterministic=reproducible,
         logger=loggers,
     )
     
     if model.needs_fit:
+        logging.info("fitting model to data...")
         model.fit(train_dataset)
+        logging.info("fitting complete!")
     
     if model.needs_training:
+        logging.info("training model on data...")
         trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=validation_loader)
+        logging.info("training complete!")
     
     if do_test:
+        logging.info("evaluating model on test data...")
         test_dataset = ImputationDataset(data, split="test")
         test_loader = DataLoader(test_dataset, num_workers=num_workers, batch_size=batch_size * 4, pin_memory=True)
         trainer.test(model, dataloaders=test_loader)

@@ -8,7 +8,7 @@ import icu_benchmarks.data.preprocess
 preprocess.use_features = False
 
 # Train params
-train_imputation_method.model = @MLPImputation
+train_imputation_method.model = @MLP
 train_imputation_method.do_test = True
 train_imputation_method.epochs = 1000
 train_imputation_method.batch_size = 64
@@ -25,5 +25,5 @@ Adam.weight_decay = 1e-6
 
 # Encoder params
 
-MLPImputation.num_hidden_layers = 5
-MLPImputation.hidden_layer_size = 15
+MLP.num_hidden_layers = 5
+MLP.hidden_layer_size = 15
