@@ -1,3 +1,4 @@
+from torchmetrics import MeanSquaredError, MeanAbsoluteError, Accuracy
 from typing import List, Optional
 from torch.nn import Module, MSELoss
 from torch.nn.modules.loss import _Loss
@@ -23,7 +24,7 @@ from sklearn.metrics import (
 
 import torch
 from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-from ignite.metrics import MeanAbsoluteError, Accuracy
+# from ignite.metrics import MeanAbsoluteError, Accuracy
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -428,10 +429,10 @@ class MLWrapper(object):
             with open(load_path, "rb") as f:
                 self.model = joblib.load(f)
 
+@gin.configurable("ImputationWrapper")
 class ImputationWrapper(LightningModule):
     def __init__(
             self,
-            model: Module,
             loss_function: _Loss = MSELoss,
             optimizer: str = "adam",
             lr: float = 0.002,
@@ -443,6 +444,11 @@ class ImputationWrapper(LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.loss_function = loss_function
+        
+        self.metrics = {
+            "rmse": MeanSquaredError(squared=False),
+            "mae": MeanAbsoluteError(),
+        }
     
     def forward(self, amputated, amputation_mask) -> torch.Tensor:
         raise NotImplementedError()
@@ -457,9 +463,15 @@ class ImputationWrapper(LightningModule):
     def validation_step(self, batch):
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
+    
+        for metric in self.metrics.values():
+            metric.update(imputated, target)
+    
+    def on_validation_end(self) -> None:
+        self.log_dict({metric_name: metric.compute() for metric_name, metric in self.metrics.items()})
+        for metric in self.metrics.values():
+            metric.reset()
         
-        loss = self.loss_function(imputated, target)
-        return loss
 
     def configure_optimizers(self):
         optimizer = create_optimizer(self.hparams.optimzier, self, self.hparams.lr, self.hparams.momentum)

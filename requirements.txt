@@ -9,3 +9,5 @@ tqdm
 pandas
 pyarrow
 tensorboard
+pytorch_lightning
+torchmetrics

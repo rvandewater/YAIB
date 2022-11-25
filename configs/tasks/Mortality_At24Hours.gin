@@ -34,6 +34,7 @@ vars = {
 }
 
 preprocess.vars = %vars
+preprocess.mode = "classification"
 preprocess.stat_recipe_steps = [StepScale(), StepImputeFill(value=0)]
 preprocess.dyn_recipe_steps = [StepScale(), StepImputeFill(method="ffill"), StepImputeFill(value=0)]
 

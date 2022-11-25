@@ -33,6 +33,7 @@ vars = {
 }
 
 preprocess.vars = %vars
+preprocess.mode = "classification"
 splits.vars = %vars
 ClassificationDataset.vars = %vars
 

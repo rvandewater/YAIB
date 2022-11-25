@@ -25,6 +25,7 @@ vars = {
 }
 
 preprocess.vars = %vars
+preprocess.mode = "imputation"
 splits.vars = %vars
 ImputationDataset.vars = %vars
 

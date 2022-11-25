@@ -20,7 +20,7 @@ class RICUDataset(Dataset):
         vars: Contains the names of columns in the data.
     """
 
-    def __init__(self, data: Dict, split: str = "train", vars: Dict[str] = gin.REQUIRED):
+    def __init__(self, data: dict, split: str = "train", vars: dict[str] = gin.REQUIRED):
         self.split = split
         self.vars = vars
         self.static_df = data[split]["STATIC"]
@@ -123,7 +123,7 @@ class ImputationDataset(Dataset):
         vars: Contains the names of columns in the data.
     """
 
-    def __init__(self, data: Dict[str, DataFrame], split: str = "train", vars: Dict[str] = gin.REQUIRED, mask_proportion=0.3, mask_method="MCAR", mask_observation_proportion=0.3):
+    def __init__(self, data: dict[DataFrame], split: str = "train", vars: dict[str] = gin.REQUIRED, mask_proportion=0.3, mask_method="MCAR", mask_observation_proportion=0.3):
         self.split = split
         self.vars = vars
         self.static_df = data[split]["STATIC"]
