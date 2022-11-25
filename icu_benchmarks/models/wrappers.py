@@ -448,11 +448,16 @@ class ImputationWrapper(LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.loss = loss
+        self.optimizer = optimizer
         
         self.metrics = {
             "rmse": MeanSquaredError(squared=False),
             "mae": MeanAbsoluteError(),
         }
+    
+    def on_fit_start(self) -> None:
+        self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
+        return super().on_fit_start()
     
     def fit(self, input_data) -> None:
         raise NotImplementedError()
@@ -461,31 +466,49 @@ class ImputationWrapper(LightningModule):
         raise NotImplementedError()
     
     def training_step(self, batch):
-        if not self.needs_training:
-            return
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
         
         loss = self.loss(imputated, target)
+        self.log("train/loss", loss.item(), prog_bar=True)
         return loss
     
-    def validation_step(self, batch):
+    def validation_step(self, batch, batch_idx):
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
+        
+        loss = self.loss(imputated, target)
+        self.log("val/loss", loss.item(), prog_bar=True)
     
         for metric in self.metrics.values():
             metric.update(imputated, target)
     
-    def on_validation_end(self) -> None:
-        self.log_dict({metric_name: metric.compute() for metric_name, metric in self.metrics.items()})
+    def on_validation_epoch_end(self) -> None:
+        self.log_dict({f"val/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
         for metric in self.metrics.values():
             metric.reset()
+    
+    def test_step(self, batch, batch_idx):
         
+        amputated, amputation_mask, target = batch
+        imputated = self(amputated, amputation_mask)
+        
+        loss = self.loss(imputated, target)
+        self.log("test/loss", loss.item())
+    
+        for metric in self.metrics.values():
+            metric.update(imputated, target)
+    
+    
+    def on_test_epoch_end(self) -> None:
+        self.log_dict({f"test/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
+        for metric in self.metrics.values():
+            metric.reset()
 
     def configure_optimizers(self):
-        if isinstance(self.hparams.optimizer, str):
-            optimizer = create_optimizer(self.hparams.optimizer, self, self.hparams.lr, self.hparams.momentum)
+        if isinstance(self.optimizer, str):
+            optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
         else:
-            optimizer = self.hparams.optimizer
+            optimizer = self.optimizer(self.parameters())
         scheduler = create_scheduler(self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs)
-        return {"optimizer": optimizer, "scheduler": scheduler}
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}

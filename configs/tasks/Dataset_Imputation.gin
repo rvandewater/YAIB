@@ -2,17 +2,10 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.data.preprocess
 
-
-TASK = "Imputation"
+TASK = "Dataset_Imputation"
+MODE = "Imputation"
 
 # DL
-ImputationWrapper.loss = @mse_loss
-
-
-loading.file_names = {
-    "DYNAMIC": "dyn.parquet",
-    "STATIC": "sta.parquet",
-}
 
 vars = {
     "GROUP": "stay_id",
@@ -21,9 +14,15 @@ vars = {
     "STATIC": ["age", "sex", "height", "weight"],
 }
 
+loading.file_names = {
+    "DYNAMIC": "dyn.parquet",
+    "STATIC": "sta.parquet",
+}
+
+# loading.vars = %vars
 preprocess.vars = %vars
-preprocess.mode = %TASK
-training.mode = %TASK
+preprocess.mode = %MODE
+training.mode = %MODE
 splits.vars = %vars
 ImputationDataset.vars = %vars
 

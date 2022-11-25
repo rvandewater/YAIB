@@ -7,6 +7,9 @@ import logging
 import sys
 from pathlib import Path
 from pytorch_lightning import seed_everything
+import sys
+
+sys.path.append("..")
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin

@@ -22,8 +22,9 @@ def load_data(data_dir: Path, file_names: dict[str] = gin.REQUIRED) -> dict[pd.D
         Dictionary containing data divided into OUTCOME, STATIC, and DYNAMIC.
     """
     data = {}
-    for f in ["STATIC", "DYNAMIC", "OUTCOME"]:
-        data[f] = pq.read_table(data_dir / file_names[f]).to_pandas()
+    for category, file_name in file_names.items():
+        data[category] = pq.read_table(data_dir / file_name).to_pandas()
+        # data[category] = pq.read_table(data_dir / file_name).to_pandas()[vars[category] + [vars["GROUP"]]]
     return data
 
 
@@ -101,8 +102,9 @@ def preprocess_data(
     data_dir = Path(data_dir)
     data = load_data(data_dir)
     if mode == "Imputation":
-        rows_to_remove = data["DYNAMIC"].isna().sum(axis=1) > 0
-        data = {table_name: table.drop(rows_to_remove.index) for table_name, table in data.items()}
+        rows_to_remove = data["DYNAMIC"][vars["DYNAMIC"]].isna().sum(axis=1) != 0
+        ids_to_remove = data["DYNAMIC"].loc[rows_to_remove][vars["GROUP"]].unique()
+        data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
 
     logging.info("Generating splits")
     data = make_single_split(data)

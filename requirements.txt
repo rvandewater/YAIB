@@ -12,3 +12,4 @@ tensorboard
 hyperimpute
 pytorch_lightning
 torchmetrics
+wandb

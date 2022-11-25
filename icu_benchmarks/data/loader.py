@@ -128,14 +128,18 @@ class ImputationDataset(Dataset):
         self.vars = vars
         self.static_df = data[split]["STATIC"]
         self.dyn_df = data[split]["DYNAMIC"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+        self.dyn_df = self.dyn_df.loc[:, self.vars["DYNAMIC"]]
 
         # calculate basic info for the data
         self.num_stays = self.static_df.shape[0]
         self.num_measurements = self.dyn_df.shape[0]
         self.maxlen = self.dyn_df.groupby([self.vars["GROUP"]]).size().max()
- 
-        self.amputated_values, self.amputation_mask = ampute_data(self.dyn_df.to_numpy(), mask_method, mask_proportion, mask_observation_proportion)
 
+        self.amputated_values, self.amputation_mask = ampute_data(self.dyn_df, mask_method, mask_proportion, mask_observation_proportion)
+        self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars["DYNAMIC"])
+        self.amputation_mask[self.vars["GROUP"]] = self.dyn_df.index
+        self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
+        
     def __len__(self) -> int:
         """Returns number of stays in the data.
 
@@ -158,11 +162,15 @@ class ImputationDataset(Dataset):
         stay_id = self.static_df.iloc[idx][self.vars["GROUP"]]
 
         # slice to make sure to always return a DF
-        window = self.dyn_df.loc[stay_id:stay_id].to_tensor()
-        amputated_window = self.amputated_values[idx]
-        amputation_mask = self.amputation_mask[idx]
+        window = self.dyn_df.loc[stay_id:stay_id, self.vars["DYNAMIC"]]
+        amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars["DYNAMIC"]]
+        amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars["DYNAMIC"]]
 
-        return torch.from_numpy(amputated_window), torch.from_numpy(amputation_mask), torch.from_numpy(window)
+        return (
+            torch.from_numpy(amputated_window.values).to(torch.float32),
+            torch.from_numpy(amputation_mask.values).to(torch.float32),
+            torch.from_numpy(window.values).to(torch.float32),
+        )
 
     def get_data_and_labels(self) -> Tuple[np.array, np.array]:
         """Function to return all the data and labels aligned at once.

@@ -191,8 +191,7 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
         The data with the generated missing values.
     """
 
-    if isinstance(X, np.array):
-        X = torch.tensor(data.values.astype(np.float32))
+    X = torch.tensor(data.values.astype(np.float32))
     
     if mechanism == "MAR":
         mask = MAR_logistic_mask(X, p_miss, p_obs)

@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from typing import Type
 from torch.utils.data import DataLoader
 from pathlib import Path
@@ -24,7 +25,7 @@ def train_with_gin(
     source_dir: Path = None,
     seed: int = 1234,
     reproducible: bool = True,
-    mode: str = "classification",
+    mode: str = "Classification",
 ):
     """Trains a model based on the provided gin configuration.
 
@@ -51,11 +52,12 @@ def train_with_gin(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    if mode == "classification":
+    if mode == "Classification":
         train_common(log_dir, data, load_weights, source_dir)
-    elif mode == "imputation":
+    elif mode == "Imputation":
         train_imputation_method(log_dir, data, load_weights, source_dir, reproducible=reproducible)
-
+    else:
+        raise ValueError(f"Unknown training mode: {mode}")
 
 @gin.configurable("train_common")
 def train_common(
@@ -117,8 +119,10 @@ def train_imputation_method(
         batch_size: int = 64,
         patience: int = 10,
         min_delta = 1e-4,
-        reproducible: bool = True) -> None:
+        reproducible: bool = True,
+        wandb: bool = True) -> None:
     
+    logging.info("training imputation method...")
     train_dataset = ImputationDataset(data, split="train")
     validation_dataset = ImputationDataset(data, split="val")
     
@@ -126,7 +130,7 @@ def train_imputation_method(
     # usually a much larger batch size for validation can be used, as not gradient updates have to be performed on them
     validation_loader = DataLoader(validation_dataset, num_workers=num_workers, pin_memory=True, batch_size=batch_size * 4)
     
-    data_shape = iter(train_loader).next().shape()
+    data_shape = next(iter(train_loader))[0].shape
     
     if load_weights:
         model = model.load_from_chekpoint(source_dir)
@@ -134,16 +138,23 @@ def train_imputation_method(
         model = model(input_size=data_shape)
     save_config_file(log_dir)
 
+    print("EPOCHS:", epochs)
+    
+    loggers = [TensorBoardLogger(log_dir)]
+    if wandb:
+        loggers.append(WandbLogger(save_dir=log_dir, project="Data_Imputation"))
+        
     trainer = Trainer(
         max_epochs=epochs,
         callbacks=[
-            EarlyStopping(monitor="loss", min_delta=min_delta, patience=patience),
-            ModelCheckpoint(log_dir, monitor="rmse", save_top_k=1, save_last=True),
+            EarlyStopping(monitor="train/loss", min_delta=min_delta, patience=patience),
+            ModelCheckpoint(log_dir, monitor="val-metrics/rmse", save_top_k=1, save_last=True),
         ],
-        precision=16,
+        # precision=16,
         accelerator="auto",
         gpus=torch.cuda.device_count(),
         deterministic=reproducible,
+        logger=loggers,
     )
     
     if model.needs_fit:

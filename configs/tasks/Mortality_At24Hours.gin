@@ -34,6 +34,7 @@ vars = {
 
 preprocess.vars = %vars
 preprocess.mode = "Classification"
+training.mode = "Classification"
 
 splits.vars = %vars
 ClassificationDataset.vars = %vars
