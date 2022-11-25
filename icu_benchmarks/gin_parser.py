@@ -86,7 +86,7 @@ def random_search_configs(gin_files: list[Path], hyperparams_from_cli: list[str]
         hyperparams_already_tried = any([(run / randomly_searched_params).exists() for run in log_dir.iterdir()])
         if not hyperparams_already_tried:
             break
-    if hyperparams_already_tried:
-        raise RuntimeError(f"Could not find unexplored set of hyperparameters in {MAX_ATTEMTPS} attempts.")
+    # if hyperparams_already_tried:
+    #     raise RuntimeError(f"Could not find unexplored set of hyperparameters in {MAX_ATTEMTPS} attempts.")
 
     return parsed_lines, randomly_searched_params

@@ -1,13 +1,12 @@
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
-import icu_benchmarks.preprocess
-from icu_benchmarks.recipes.step import StepScaler, StepFilterMissing
+import icu_benchmarks.data.preprocess
 
 
 TASK = "Imputation"
 
 # DL
-Imputation.loss = @mse_loss
+ImputationWrapper.loss = @mse_loss
 
 
 loading.file_names = {

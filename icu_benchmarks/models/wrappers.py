@@ -432,10 +432,11 @@ class MLWrapper(object):
 class ImputationWrapper(LightningModule):
     
     needs_training = True
+    needs_fit = False
     
     def __init__(
             self,
-            loss_function: _Loss = MSELoss(),
+            loss: _Loss = MSELoss(),
             optimizer: Union[str, Optimizer] = "adam",
             lr: float = 0.002,
             momentum: float = 0.9,
@@ -446,12 +447,15 @@ class ImputationWrapper(LightningModule):
             input_size: torch.Tensor = None) -> None:
         super().__init__()
         self.save_hyperparameters()
-        self.loss = loss_function
+        self.loss = loss
         
         self.metrics = {
             "rmse": MeanSquaredError(squared=False),
             "mae": MeanAbsoluteError(),
         }
+    
+    def fit(self, input_data) -> None:
+        raise NotImplementedError()
     
     def forward(self, amputated, amputation_mask) -> torch.Tensor:
         raise NotImplementedError()

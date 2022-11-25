@@ -54,7 +54,7 @@ def train_with_gin(
     if mode == "classification":
         train_common(log_dir, data, load_weights, source_dir)
     elif mode == "imputation":
-        train_imputation_method(log_dir, data, load_weights, source_dir)
+        train_imputation_method(log_dir, data, load_weights, source_dir, reproducible=reproducible)
 
 
 @gin.configurable("train_common")
@@ -116,7 +116,8 @@ def train_imputation_method(
         num_workers: int = os.cpu_count(),
         batch_size: int = 64,
         patience: int = 10,
-        min_delta = 1e-4) -> None:
+        min_delta = 1e-4,
+        reproducible: bool = True) -> None:
     
     train_dataset = ImputationDataset(data, split="train")
     validation_dataset = ImputationDataset(data, split="val")
@@ -131,6 +132,7 @@ def train_imputation_method(
         model = model.load_from_chekpoint(source_dir)
     else:
         model = model(input_size=data_shape)
+    save_config_file(log_dir)
 
     trainer = Trainer(
         max_epochs=epochs,
@@ -141,5 +143,17 @@ def train_imputation_method(
         precision=16,
         accelerator="auto",
         gpus=torch.cuda.device_count(),
+        deterministic=reproducible,
     )
     
+    if model.needs_fit:
+        model.fit(train_dataset)
+    
+    if model.needs_training:
+        trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=validation_loader)
+    
+    if do_test:
+        test_dataset = ImputationDataset(data, split="test")
+        test_loader = DataLoader(test_dataset, num_workers=num_workers, batch_size=batch_size * 4, pin_memory=True)
+        trainer.test(model, dataloaders=test_loader)
+    save_config_file(log_dir)
