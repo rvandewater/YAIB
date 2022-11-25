@@ -431,6 +431,9 @@ class MLWrapper(object):
 
 @gin.configurable("ImputationWrapper")
 class ImputationWrapper(LightningModule):
+    
+    needs_training = True
+    
     def __init__(
             self,
             loss_function: _Loss = MSELoss,
@@ -454,6 +457,8 @@ class ImputationWrapper(LightningModule):
         raise NotImplementedError()
     
     def training_step(self, batch):
+        if not self.needs_training:
+            return
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
         
