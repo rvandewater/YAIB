@@ -1,13 +1,12 @@
 from torchmetrics import MeanSquaredError, MeanAbsoluteError, Accuracy
-from typing import List, Optional
+from typing import List, Optional, Union
 from torch.nn import Module, MSELoss
 from torch.nn.modules.loss import _Loss
+from torch.optim import Optimizer
 import inspect
 import logging
 import os
 import pickle
-
-
 
 import gin
 import lightgbm
@@ -436,17 +435,18 @@ class ImputationWrapper(LightningModule):
     
     def __init__(
             self,
-            loss_function: _Loss = MSELoss,
-            optimizer: str = "adam",
+            loss_function: _Loss = MSELoss(),
+            optimizer: Union[str, Optimizer] = "adam",
             lr: float = 0.002,
             momentum: float = 0.9,
             lr_scheduler: Optional[str] = None,
             lr_factor: float = 0.99,
             lr_steps: Optional[List[int]] = None,
-            epochs: int = 100) -> None:
+            epochs: int = 100,
+            input_size: torch.Tensor = None) -> None:
         super().__init__()
         self.save_hyperparameters()
-        self.loss_function = loss_function
+        self.loss = loss_function
         
         self.metrics = {
             "rmse": MeanSquaredError(squared=False),
@@ -462,7 +462,7 @@ class ImputationWrapper(LightningModule):
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
         
-        loss = self.loss_function(imputated, target)
+        loss = self.loss(imputated, target)
         return loss
     
     def validation_step(self, batch):
@@ -479,6 +479,9 @@ class ImputationWrapper(LightningModule):
         
 
     def configure_optimizers(self):
-        optimizer = create_optimizer(self.hparams.optimzier, self, self.hparams.lr, self.hparams.momentum)
+        if isinstance(self.hparams.optimizer, str):
+            optimizer = create_optimizer(self.hparams.optimizer, self, self.hparams.lr, self.hparams.momentum)
+        else:
+            optimizer = self.hparams.optimizer
         scheduler = create_scheduler(self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs)
         return {"optimizer": optimizer, "scheduler": scheduler}

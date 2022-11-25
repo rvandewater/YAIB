@@ -1,15 +1,13 @@
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
+import icu_benchmarks.preprocess
 from icu_benchmarks.recipes.step import StepScaler, StepFilterMissing
 
 
-TASK = "Dynamic_UrineOutput_2Hours_Reg"
-
-NUM_CLASSES = 1
-HORIZON = 24
+TASK = "Imputation"
 
 # DL
-DLWrapper.loss = @mse_loss
+Imputation.loss = @mse_loss
 
 
 loading.file_names = {
@@ -25,15 +23,14 @@ vars = {
 }
 
 preprocess.vars = %vars
-preprocess.mode = "imputation"
+preprocess.mode = %TASK
+training.mode = %TASK
 splits.vars = %vars
 ImputationDataset.vars = %vars
+
 
 splits.seed = 42
 splits.train_pct = 0.7
 splits.val_pct = 0.1
 
 EMB = 48
-
-preprocess.stat_recipe_steps = [StepScaler(), StepFilterMissing()]
-preprocess.dyn_recipe_steps = [StepScaler(), StepFilterMissing()]

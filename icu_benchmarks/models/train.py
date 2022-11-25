@@ -6,13 +6,17 @@ import torch
 import logging
 import numpy as np
 import pandas as pd
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from typing import Type
+from torch.utils.data import DataLoader
 from pathlib import Path
 
 from icu_benchmarks.data.loader import RICUDataset, ImputationDataset
-from icu_benchmarks.models.wrappers import MLWrapper, DLWrapper
+from icu_benchmarks.models.wrappers import MLWrapper, DLWrapper, ImputationWrapper
 from icu_benchmarks.models.utils import save_config_file
 
-
+@gin.configurable("training")
 def train_with_gin(
     log_dir: Path = None,
     data: dict[str, pd.DataFrame] = None,
@@ -20,6 +24,7 @@ def train_with_gin(
     source_dir: Path = None,
     seed: int = 1234,
     reproducible: bool = True,
+    mode: str = "classification",
 ):
     """Trains a model based on the provided gin configuration.
 
@@ -46,7 +51,10 @@ def train_with_gin(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    train_common(log_dir, data, load_weights, source_dir)
+    if mode == "classification":
+        train_common(log_dir, data, load_weights, source_dir)
+    elif mode == "imputation":
+        train_imputation_method(log_dir, data, load_weights, source_dir)
 
 
 @gin.configurable("train_common")
@@ -95,18 +103,43 @@ def train_common(
         model.test(test_dataset, weight)
     save_config_file(log_dir)
 
+@gin.configurable("train_imputation_method")
 def train_imputation_method(
         log_dir: Path,
         data: dict[str, pd.DataFrame],
         load_weights: bool = False,
         source_dir: Path = None,
-        model: object = MLWrapper,
+        model: Type = ImputationWrapper,
         weight: str = None,
-        do_test: bool = False) -> None:
+        do_test: bool = False,
+        epochs: int = 10,
+        num_workers: int = os.cpu_count(),
+        batch_size: int = 64,
+        patience: int = 10,
+        min_delta = 1e-4) -> None:
     
     train_dataset = ImputationDataset(data, split="train")
     validation_dataset = ImputationDataset(data, split="val")
-    test_dataset = ImputationDataset(data, split="test")
+    
+    train_loader = DataLoader(train_dataset, num_workers=num_workers, pin_memory=True, batch_size=batch_size)
+    # usually a much larger batch size for validation can be used, as not gradient updates have to be performed on them
+    validation_loader = DataLoader(validation_dataset, num_workers=num_workers, pin_memory=True, batch_size=batch_size * 4)
+    
+    data_shape = iter(train_loader).next().shape()
     
     if load_weights:
-        model = Impu
+        model = model.load_from_chekpoint(source_dir)
+    else:
+        model = model(input_size=data_shape)
+
+    trainer = Trainer(
+        max_epochs=epochs,
+        callbacks=[
+            EarlyStopping(monitor="loss", min_delta=min_delta, patience=patience),
+            ModelCheckpoint(log_dir, monitor="rmse", save_top_k=1, save_last=True),
+        ],
+        precision=16,
+        accelerator="auto",
+        gpus=torch.cuda.device_count(),
+    )
+    

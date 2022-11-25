@@ -100,7 +100,7 @@ def preprocess_data(
     """
     data_dir = Path(data_dir)
     data = load_data(data_dir)
-    if mode == "imputation":
+    if mode == "Imputation":
         rows_to_remove = data["DYNAMIC"].isna().sum(axis=1) > 0
         data = {table_name: table.drop(rows_to_remove.index) for table_name, table in data.items()}
 
@@ -120,7 +120,7 @@ def preprocess_data(
     logging.info("Preprocess dynamic data")
     dyn_rec = Recipe(data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
     dyn_rec.add_step(StepScale())
-    if mode == "classification":
+    if mode == "Classification":
         if use_features:
             dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
             dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))

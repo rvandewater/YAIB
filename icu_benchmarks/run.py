@@ -6,10 +6,7 @@ import gin
 import logging
 import sys
 from pathlib import Path
-<<<<<<< HEAD
-=======
 from pytorch_lightning import seed_everything
->>>>>>> de521ff63e5afdba78c28889fb20fea0834363b5
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
