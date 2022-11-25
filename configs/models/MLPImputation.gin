@@ -1,0 +1,25 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+import icu_benchmarks.imputation.mlp
+
+# Train params
+train_imputation_method.model = @MLPImputation
+train_imputation_method.do_test = True
+train_imputation_method.epochs = 1000
+train_imputation_method.batch_size = 64
+train_imputation_method.patience = 10
+train_imputation_method.min_delta = 1e-4
+
+ImputationWrapper.optimizer = @Adam
+ImputationWrapper.lr_scheduler = "cosine"
+
+# Optimizer params
+Adam.lr = RS([3e-4, 1e-4, 3e-5, 1e-5])
+Adam.weight_decay = 1e-6
+
+# Encoder params
+
+MLPImputation.num_hidden_layers = 5
+MLPImputation.hidden_layer_size = 15
