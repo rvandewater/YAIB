@@ -112,7 +112,6 @@ def main(my_args=tuple(sys.argv[1:])):
             gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
         gin_configs, randomly_searched_params = random_search_configs(gin_config_files, args.hyperparams, log_dir)
         run_dir = create_run_dir(log_dir, randomly_searched_params)
-        gin_configs += [f"TASK = '{task}'"]
 
     for seed in args.seed:
         gin.parse_config(gin_configs)
