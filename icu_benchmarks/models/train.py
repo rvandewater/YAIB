@@ -26,6 +26,7 @@ def train_with_gin(
     seed: int = 1234,
     reproducible: bool = True,
     mode: str = "Classification",
+    dataset_name: str = "",
 ):
     """Trains a model based on the provided gin configuration.
 
@@ -55,7 +56,7 @@ def train_with_gin(
     if mode == "Classification":
         train_common(log_dir, data, load_weights, source_dir)
     elif mode == "Imputation":
-        train_imputation_method(log_dir, data, load_weights, source_dir, reproducible=reproducible)
+        train_imputation_method(log_dir, data, load_weights, source_dir, reproducible=reproducible, dataset_name=dataset_name)
     else:
         raise ValueError(f"Unknown training mode: {mode}")
 
@@ -113,7 +114,6 @@ def train_imputation_method(
         load_weights: bool = False,
         source_dir: Path = None,
         model: Type = ImputationWrapper,
-        weight: str = None,
         do_test: bool = False,
         epochs: int = 10,
         num_workers: int = os.cpu_count(),
@@ -121,13 +121,14 @@ def train_imputation_method(
         patience: int = 10,
         min_delta = 1e-4,
         reproducible: bool = True,
-        wandb: bool = True) -> None:
+        wandb: bool = True,
+        dataset_name: str = "") -> None:
     
     logging.info(f"training imputation method {model.__name__}...")
     train_dataset = ImputationDataset(data, split="train")
     validation_dataset = ImputationDataset(data, split="val")
     
-    train_loader = DataLoader(train_dataset, num_workers=num_workers, pin_memory=True, batch_size=batch_size)
+    train_loader = DataLoader(train_dataset, num_workers=num_workers, pin_memory=True, batch_size=batch_size, shuffle=True)
     # usually a much larger batch size for validation can be used, as not gradient updates have to be performed on them
     validation_loader = DataLoader(validation_dataset, num_workers=num_workers, pin_memory=True, batch_size=batch_size * 4)
     
@@ -141,7 +142,8 @@ def train_imputation_method(
 
     loggers = [TensorBoardLogger(log_dir)]
     if wandb:
-        loggers.append(WandbLogger(save_dir=log_dir, project="Data_Imputation"))
+        run_name = f"{type(model).__name__}-{dataset_name}"
+        loggers.append(WandbLogger(run_name, save_dir=log_dir, project="Data_Imputation"))
         
     trainer = Trainer(
         max_epochs=epochs,

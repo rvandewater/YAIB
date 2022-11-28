@@ -126,6 +126,7 @@ def main(my_args=tuple(sys.argv[1:])):
             source_dir=source_dir,
             seed=seed,
             reproducible=reproducible,
+            dataset_name=name,
         )
 
     gin.clear_config()

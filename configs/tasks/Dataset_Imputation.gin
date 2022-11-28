@@ -26,6 +26,7 @@ training.mode = %MODE
 splits.vars = %vars
 ImputationDataset.vars = %vars
 
+train_imputation_method.wandb = True
 
 splits.seed = 42
 splits.train_pct = 0.7
