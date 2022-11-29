@@ -42,7 +42,7 @@ def run_random_searches(scopes: list[str] = gin.REQUIRED) -> list[str]:
 
 
 def parse_gin_and_random_search(
-    gin_config_files: list[Path], hyperparams_from_cli: list[str], log_dir: Path, max_attempts: int = 1000
+    gin_config_files: list[Path], hyperparams_from_cli: list[str], train_on_cpu: bool, log_dir: Path, max_attempts: int = 1000
 ) -> str:
     """Parses and binds gin configs and finds unexplored parameters via random search.
 
@@ -51,6 +51,7 @@ def parse_gin_and_random_search(
     Args:
         gin_config_files: A list of all configuration files to pparse.
         hyperparams_from_cli: A list of all hyperparameters from the command line.
+        train_on_cpu: Set to True to train models on CPU only.
         log_dir: Directory in which the runs are logged.
         max_attempts: Maximum number of tries to find unxplored set of parameters.
 
@@ -61,6 +62,12 @@ def parse_gin_and_random_search(
         A string representing the randomly searched hyperparameters.
     """
     gin.parse_config_files_and_bindings(gin_config_files, hyperparams_from_cli, finalize_config=False)
+
+    if train_on_cpu:
+        gin.bind_parameter("DLWrapper.train_on_cpu", True)
+        gin.bind_parameter("LSTMNet.train_on_cpu", True)
+        gin.bind_parameter("GRUNet.train_on_cpu", True)
+
     for _ in range(max_attempts):
         randomly_searched_params = run_random_searches()
         randomly_searched_params_str = ("-").join(

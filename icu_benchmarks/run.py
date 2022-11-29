@@ -44,6 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser_prep_and_train.add_argument(
         "--reproducible", default=True, action=BooleanOptionalAction, help="Set torch to be reproducible."
     )
+    parser_prep_and_train.add_argument("--cpu", default=True, action=BooleanOptionalAction, help="Set to train on CPU.")
     parser_prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
 
     # EVALUATION PARSER
@@ -108,7 +109,7 @@ def main(my_args=tuple(sys.argv[1:])):
             gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
         else:
             gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
-        randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, log_dir)
+        randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, args.cpu, log_dir)
         run_dir = create_run_dir(log_dir, randomly_searched_params)
 
     for seed in args.seed:
