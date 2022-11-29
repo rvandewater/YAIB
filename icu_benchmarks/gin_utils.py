@@ -41,13 +41,16 @@ def run_random_searches(scopes: list[str] = gin.REQUIRED) -> list[str]:
     return randomly_searched_params
 
 
-def parse_gin_and_random_search(gin_config_files: list[Path], log_dir: Path, max_attempts: int = 1000) -> str:
+def parse_gin_and_random_search(
+    gin_config_files: list[Path], hyperparams_from_cli: list[str], log_dir: Path, max_attempts: int = 1000
+) -> str:
     """Parses and binds gin configs and finds unexplored parameters via random search.
 
     Tries to find an unexplored set of hyperparameters a maximum of max_attempts by comparing filenames.
 
     Args:
         gin_config_files: A list of all configuration files to pparse.
+        hyperparams_from_cli: A list of all hyperparameters from the command line.
         log_dir: Directory in which the runs are logged.
         max_attempts: Maximum number of tries to find unxplored set of parameters.
 
@@ -57,7 +60,7 @@ def parse_gin_and_random_search(gin_config_files: list[Path], log_dir: Path, max
     Returns:
         A string representing the randomly searched hyperparameters.
     """
-    gin.parse_config_files_and_bindings(gin_config_files, None, finalize_config=False)
+    gin.parse_config_files_and_bindings(gin_config_files, hyperparams_from_cli, finalize_config=False)
     for _ in range(max_attempts):
         randomly_searched_params = run_random_searches()
         randomly_searched_params_str = ("-").join(
@@ -74,6 +77,6 @@ def parse_gin_and_random_search(gin_config_files: list[Path], log_dir: Path, max
         raise RuntimeError(f"Could not find unexplored set of hyperparameters in {max_attempts} attempts.")
     for param, value in randomly_searched_params:
         gin.bind_parameter(param, value)
-    # parse gin again so overwriting parameters in experiments takes precedence
-    gin.parse_config_files_and_bindings(gin_config_files, None)  
+    # parse gin again so overwriting parameters in experiments and CLI takes precedence
+    gin.parse_config_files_and_bindings(gin_config_files, hyperparams_from_cli)
     return randomly_searched_params_str
