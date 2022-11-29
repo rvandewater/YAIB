@@ -28,7 +28,7 @@ icu-benchmarks train \
     -n hirid \
     -t Mortality_At24Hours \
     -m LGBMClassifier \
-    -hp LGBMClassifier.subsample=1.0 model/random_search.num_leaves='[20,40,60]' \
+    -hp LGBMClassifier.subsample=1.0 model/random_search.num_leaves=[20,40,60] \
     -c \
     -s 1111 2222 3333 4444 5555
 ```
