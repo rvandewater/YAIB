@@ -9,7 +9,7 @@ from pathlib import Path
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
-from icu_benchmarks.gin_parser import parse_gin_and_random_search
+from icu_benchmarks.gin_utils import parse_gin_and_random_search
 
 SEEDS = [1111]
 
