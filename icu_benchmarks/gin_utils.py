@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 @gin.configurable
-def random_search(class_to_configure: type=gin.REQUIRED, **kwargs: dict[str, list]) -> list[str]:
+def random_search(class_to_configure: type = gin.REQUIRED, **kwargs: dict[str, list]) -> list[str]:
     """Randomly searches parameters for a class and sets gin bindings.
 
     Args:
@@ -25,7 +25,7 @@ def random_search(class_to_configure: type=gin.REQUIRED, **kwargs: dict[str, lis
 
 
 @gin.configurable
-def run_random_searches(scopes: list[str]=gin.REQUIRED) -> list[str]:
+def run_random_searches(scopes: list[str] = gin.REQUIRED) -> list[str]:
     """Executes random searches for the different scopes defined in gin configs.
 
     Args:
@@ -33,7 +33,7 @@ def run_random_searches(scopes: list[str]=gin.REQUIRED) -> list[str]:
 
     Returns:
         The randomly searched parameters.
-    """  
+    """
     randomly_searched_params = []
     for scope in scopes:
         with gin.config_scope(scope):
@@ -41,7 +41,7 @@ def run_random_searches(scopes: list[str]=gin.REQUIRED) -> list[str]:
     return randomly_searched_params
 
 
-def parse_gin_and_random_search(gin_config_files: list[Path], log_dir: Path, max_attempts: int=1000) -> str:
+def parse_gin_and_random_search(gin_config_files: list[Path], log_dir: Path, max_attempts: int = 1000) -> str:
     """Parses and binds gin configs and finds unexplored parameters via random search.
 
     Tries to find an unexplored set of hyperparameters a maximum of max_attempts by comparing filenames.
@@ -60,7 +60,9 @@ def parse_gin_and_random_search(gin_config_files: list[Path], log_dir: Path, max
     gin.parse_config_files_and_bindings(gin_config_files, None, finalize_config=False)
     for _ in range(max_attempts):
         randomly_searched_params = run_random_searches()
-        randomly_searched_params_str = ("-").join([f"{param.split('.')[-1]}_{value}" for param, value in randomly_searched_params])
+        randomly_searched_params_str = ("-").join(
+            [f"{param.split('.')[-1]}_{value}" for param, value in randomly_searched_params]
+        )
         if not randomly_searched_params or not log_dir.exists():
             hyperparams_already_tried = False  # no hyperparams to randomly search or no previous runs, so proceed
             break
@@ -72,5 +74,6 @@ def parse_gin_and_random_search(gin_config_files: list[Path], log_dir: Path, max
         raise RuntimeError(f"Could not find unexplored set of hyperparameters in {max_attempts} attempts.")
     for param, value in randomly_searched_params:
         gin.bind_parameter(param, value)
-    gin.parse_config_files_and_bindings(gin_config_files, None)  # parse gin again so overwriting parameters in experiments takes precedence
+    # parse gin again so overwriting parameters in experiments takes precedence
+    gin.parse_config_files_and_bindings(gin_config_files, None)  
     return randomly_searched_params_str
