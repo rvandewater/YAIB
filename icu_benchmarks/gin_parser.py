@@ -1,11 +1,12 @@
 import numpy as np
 from ast import literal_eval
 from pathlib import Path
+from typing import Tuple, List
 
 MAX_ATTEMTPS = 1000
 
 
-def random_search_config_lines(config_lines: list[str]) -> tuple[list[str], str]:
+def random_search_config_lines(config_lines: List[str]) -> Tuple[List[str], str]:
     """Parses all configuration lines and randomly searches where applicable.
 
     Args:
@@ -52,7 +53,7 @@ def random_search_config_lines(config_lines: list[str]) -> tuple[list[str], str]
     return parsed_lines, ("-").join(randomly_searched_params)
 
 
-def random_search_configs(gin_files: list[Path], hyperparams_from_cli: list[str], log_dir: Path) -> tuple[list[str], Path]:
+def random_search_configs(gin_files: List[Path], hyperparams_from_cli: List[str], log_dir: Path) -> Tuple[List[str], Path]:
     """Does random search in gin configs and hyperparameters from the command line.
 
     Parses all gin config files and hyperparameters from the command line and randomly searches them.

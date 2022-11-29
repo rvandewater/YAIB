@@ -6,6 +6,7 @@ import torch
 import logging
 import numpy as np
 import pandas as pd
+from typing import Dict
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
@@ -20,7 +21,7 @@ from icu_benchmarks.models.utils import save_config_file
 @gin.configurable("training")
 def train_with_gin(
     log_dir: Path = None,
-    data: dict[str, pd.DataFrame] = None,
+    data: Dict[str, pd.DataFrame] = None,
     load_weights: bool = False,
     source_dir: Path = None,
     seed: int = 1234,
@@ -63,7 +64,7 @@ def train_with_gin(
 @gin.configurable("train_common")
 def train_common(
     log_dir: Path,
-    data: dict[str, pd.DataFrame],
+    data: Dict[str, pd.DataFrame],
     load_weights: bool = False,
     source_dir: Path = None,
     model: object = MLWrapper,
@@ -110,7 +111,7 @@ def train_common(
 @gin.configurable("train_imputation_method")
 def train_imputation_method(
         log_dir: Path,
-        data: dict[str, pd.DataFrame],
+        data: Dict[str, pd.DataFrame],
         load_weights: bool = False,
         source_dir: Path = None,
         model: Type = ImputationWrapper,

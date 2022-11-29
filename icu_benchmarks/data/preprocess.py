@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import pyarrow.parquet as pq
 from pathlib import Path
+from typing import Dict 
 
 from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_of
@@ -11,7 +12,7 @@ from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeF
 
 
 @gin.configurable("loading")
-def load_data(data_dir: Path, file_names: dict[str] = gin.REQUIRED) -> dict[pd.DataFrame]:
+def load_data(data_dir: Path, file_names: Dict[str, str] = gin.REQUIRED) -> Dict[str, pd.DataFrame]:
     """Load data from disk.
 
     Args:
@@ -30,8 +31,8 @@ def load_data(data_dir: Path, file_names: dict[str] = gin.REQUIRED) -> dict[pd.D
 
 @gin.configurable("splits")
 def make_single_split(
-    data: dict[pd.DataFrame], train_pct: float = 0.7, val_pct: float = 0.1, seed: int = 42, vars: dict[str] = gin.REQUIRED
-) -> dict[dict[pd.DataFrame]]:
+    data: Dict[str, pd.DataFrame], train_pct: float = 0.7, val_pct: float = 0.1, seed: int = 42, vars: Dict[str, str] = gin.REQUIRED
+) -> Dict[str, Dict[str, pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
     Args:
@@ -66,7 +67,7 @@ def make_single_split(
     return splits
 
 
-def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
+def apply_recipe_to_splits(recipe: Recipe, data: Dict[str, Dict[str, pd.DataFrame]], type: str) -> Dict[str, Dict[str, pd.DataFrame]]:
     """Fits and transforms the training data, then transforms the validation and test data with the recipe.
 
     Args:
@@ -85,9 +86,9 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
 
 @gin.configurable("preprocess")
 def preprocess_data(
-    data_dir: str, use_features: bool = gin.REQUIRED, vars: dict[str] = gin.REQUIRED, mode = gin.REQUIRED,
+    data_dir: str, use_features: bool = gin.REQUIRED, vars: Dict[str, str] = gin.REQUIRED, mode = gin.REQUIRED,
     # stat_recipe_steps: list[Step] = gin.REQUIRED, dyn_recipe_steps: list[Step] = gin.REQUIRED,
-) -> dict[dict[pd.DataFrame]]:
+) -> Dict[str, Dict[str, pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
