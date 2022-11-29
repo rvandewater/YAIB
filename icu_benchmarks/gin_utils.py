@@ -17,7 +17,7 @@ def random_search(class_to_configure: type = gin.REQUIRED, **kwargs: dict[str, l
     randomly_searched_params = []
     for param, values in kwargs.items():
         param_to_set = f"{class_to_configure.__name__}.{param}"
-        if param_to_set in gin.config_str():
+        if f"{param_to_set}=" in gin.config_str().replace(" ", ""):
             continue  # hyperparameter is already set in the config (e.g. from experiment), so skip random search
         value = values[np.random.randint(len(values))]
         randomly_searched_params += [(param_to_set, value)]
