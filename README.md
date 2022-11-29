@@ -61,7 +61,9 @@ In this example, we have the two scopes `model` and `optimizer`.
 For each scope a `class_to_configure` needs to be set to the class it represents, in this case `LSTMNet` and `Adam` respectively.
 We can add whichever parameter we want to the classes following this syntax: 
 ```
-model/random_search.<param> = ['list', 'of', 'possible', 'values']
+run_random_searches.scopes = ["<scope>", ...]
+<scope>/random_search.class_to_configure = @<SomeClass>
+<scope>/random_search.<param> = ['list', 'of', 'possible', 'values']
 ```
 The scopes take care of adding the parameters only to the pertinent classes, whereas the `random_search()` function actually randomly choses a value
 and binds it to the gin configuration.
