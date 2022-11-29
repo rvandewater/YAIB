@@ -28,7 +28,7 @@ icu-benchmarks train \
     -n hirid \
     -t Mortality_At24Hours \
     -m LGBMClassifier \
-    -hp LGBMClassifier.subsample='RS([0.33,0.66])' LGBMClassifier.colsample_bytree=0.66 \
+    -hp LGBMClassifier.subsample=1.0 model/random_search.num_leaves='[20,40,60]' \
     -c \
     -s 1111 2222 3333 4444 5555
 ```
@@ -38,6 +38,49 @@ icu-benchmarks train \
 
 > Please note that, for Windows based systems, paths need to be formatted differently, e.g: ` r"\..\data\mortality_seq\hirid"`.
 > Additionally, the next line character (\\)  needs to be replaced by (^) (Command Prompt) or (`) (Powershell) respectively.
+
+### Random Search in Configs
+To understand how a parameter can be searched via random search, let's look at the following example configuration:
+```
+...
+# Optimizer params
+Adam.weight_decay = 1e-6
+optimizer/random_search.class_to_configure = @Adam
+optimizer/random_search.lr = [3e-4, 1e-4, 3e-5, 1e-5]
+
+# Encoder params
+LSTMNet.input_dim = %EMB
+LSTMNet.num_classes = %NUM_CLASSES
+model/random_search.class_to_configure = @LSTMNet
+model/random_search.hidden_dim = [32, 64, 128, 256]
+model/random_search.layer_dim = [1, 2, 3]
+
+run_random_searches.scopes = ["model", "optimizer"]
+```
+`run_random_searches.scopes` defines the scopes that the random search runs in (the strings in front of the slashes in the lines above).
+Each scope represents a class which will get bindings with randomly searched parameters.
+In this example, we have the two scopes `model` and `optimizer`.
+For each scope a `class_to_configure` needs to be set to the class it represents, in this case `LSTMNet` and `Adam` respectively.
+Then, we can add whichever parameter we want to the classes like this: `model/random_search.<param> = ['list', 'of', 'possible', 'values']`.
+The scopes take care of adding the parameters only to the pertinent classes, whereas the `random_search()` function actually randomly choses a value
+and binds it to the gin configuration.
+
+If we run `experiments` and want to overwrite the model configuration, this can be done easily:
+```
+include "configs/tasks/Mortality_At24Hours.gin"
+include "configs/models/LSTM.gin"
+
+Adam.lr = 1e-4
+
+model/random_search.hidden_dim = [100, 200]
+```
+This configuration for example overwrites the `lr` parameter of `Adam` with a concrete value,
+while it only specifies a different search space for `hidden_dim` of `LSTMNet` to run the random search on.
+
+The same holds true for the command line. Setting the following flag would achieve the same result (make sure to only have spaces between parameters):
+```
+-hp Adam.lr=1e-4 model/random_search.hidden_dim='[100,200]'
+```
 
 ### Output Structure
 ```
