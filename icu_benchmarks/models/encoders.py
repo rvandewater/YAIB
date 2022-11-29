@@ -5,7 +5,7 @@ import torch.nn as nn
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, SparseBlock, PositionalEncoding
 
 
-@gin.configurable("LSTM")
+@gin.configurable
 class LSTMNet(nn.Module):
     def __init__(self, input_dim, hidden_dim, layer_dim, num_classes):
         super().__init__()
@@ -33,7 +33,7 @@ class LSTMNet(nn.Module):
         return pred
 
 
-@gin.configurable("GRU")
+@gin.configurable
 class GRUNet(nn.Module):
     def __init__(self, input_dim, hidden_dim, layer_dim, num_classes):
         super().__init__()
@@ -61,7 +61,7 @@ class GRUNet(nn.Module):
         return pred
 
 
-@gin.configurable("Transformer")
+@gin.configurable
 class Transformer(nn.Module):
     def __init__(
         self, emb, hidden, heads, ff_hidden_mult, depth, num_classes, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0
@@ -102,7 +102,7 @@ class Transformer(nn.Module):
         return pred
 
 
-@gin.configurable("LocalTransformer")
+@gin.configurable
 class LocalTransformer(nn.Module):
     def __init__(
         self,
@@ -155,64 +155,8 @@ class LocalTransformer(nn.Module):
         return pred
 
 
-@gin.configurable("NaiveSparseTransformer")
-class NaiveSparseTransformer(nn.Module):
-    def __init__(
-        self,
-        emb,
-        hidden,
-        heads,
-        ff_hidden_mult,
-        depth,
-        num_classes,
-        dropout=0.0,
-        l1_reg=0,
-        mask_aggregation="union",
-        local_context=3,
-        pos_encoding=True,
-        dropout_att=0.0,
-    ):
-        super().__init__()
-        self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
-
-        tblocks = []
-        for i in range(depth):
-            tblocks.append(
-                SparseBlock(
-                    emb=hidden,
-                    hidden=hidden,
-                    heads=heads,
-                    mask=True,
-                    ff_hidden_mult=ff_hidden_mult,
-                    dropout=dropout,
-                    mask_aggregation=mask_aggregation,
-                    local_context=local_context,
-                    dropout_att=dropout_att,
-                )
-            )
-        if pos_encoding:
-            self.pos_encoder = PositionalEncoding(hidden)
-        else:
-            self.pos_encoder = None
-
-        self.tblocks = nn.Sequential(*tblocks)
-        self.logit = nn.Linear(hidden, num_classes)
-        self.l1_reg = l1_reg
-
-    def forward(self, x):
-        x = self.input_embedding(x)
-        if self.pos_encoder is not None:
-            x = self.pos_encoder(x)
-        x = self.tblocks(x)
-        pred = self.logit(x)
-        w_input = list(self.input_embedding.parameters())[0]
-        l1_norm_input = torch.torch.norm(w_input, 1)
-
-        return pred, l1_norm_input * self.l1_reg
-
-
 # From TCN original paper https://github.com/locuslab/TCN
-@gin.configurable("TCN")
+@gin.configurable
 class TemporalConvNet(nn.Module):
     def __init__(self, num_inputs, num_channels, num_classes, max_seq_length=0, kernel_size=2, dropout=0.0):
         super(TemporalConvNet, self).__init__()

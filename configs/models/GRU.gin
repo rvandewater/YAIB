@@ -3,28 +3,30 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 
-RES = 1
-RES_LAB = 1
-
 preprocess.use_features = False
 
 # Train params
 train_common.model = @DLWrapper()
 train_common.do_test = True
 
-DLWrapper.encoder = @GRU()
+DLWrapper.encoder = @GRUNet()
 DLWrapper.optimizer_fn = @Adam
+
 DLWrapper.train.epochs = 1000
 DLWrapper.train.batch_size = 64
 DLWrapper.train.patience = 10
 DLWrapper.train.min_delta = 1e-4
 
 # Optimizer params
-Adam.lr = RS([3e-4, 1e-4, 3e-5, 1e-5])
 Adam.weight_decay = 1e-6
+optimizer/random_search.class_to_configure = @Adam
+optimizer/random_search.lr = [3e-4, 1e-4, 3e-5, 1e-5]
 
 # Encoder params
-GRU.input_dim = %EMB
-GRU.hidden_dim = RS([32, 64, 128, 256])
-GRU.layer_dim = RS([1, 2, 3])
-GRU.num_classes = %NUM_CLASSES
+GRUNet.input_dim = %EMB
+GRUNet.num_classes = %NUM_CLASSES
+model/random_search.class_to_configure = @GRUNet
+model/random_search.hidden_dim = [32, 64, 128, 256]
+model/random_search.layer_dim = [1, 2, 3]
+
+run_random_searches.scopes = ["model", "optimizer"]
