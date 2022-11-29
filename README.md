@@ -32,8 +32,6 @@ icu-benchmarks train \
     -c \
     -s 1111 2222 3333 4444 5555
 ```
-> `RS([...])` is the syntax for invoking random search on a list of hyperparameters, both in configs and the command line.
-
 > Run with `PYTORCH_ENABLE_MPS_FALLBACK=1` on Macs with Metal Performance Shaders.
 
 > Please note that, for Windows based systems, paths need to be formatted differently, e.g: ` r"\..\data\mortality_seq\hirid"`.
