@@ -2,7 +2,7 @@ import gin
 import numpy as np
 import torch
 import torch.nn as nn
-from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, SparseBlock, PositionalEncoding
+from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
 
 
 @gin.configurable
