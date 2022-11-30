@@ -1,5 +1,7 @@
 ![YAIB logo](docs/figures/yaib_logo.png)
 # Yet Another ICU Benchmark
+[![CI](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml)
+
 This project aims to provide a unified interface for multiple common ICU prediction endpoints for common ICU datasets. 
 We support the following datasets: 
 - Amsterdam UMC Database
