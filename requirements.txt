@@ -13,3 +13,6 @@ hyperimpute
 pytorch_lightning
 torchmetrics
 wandb
+mypy
+flake8
+flake8-docstrings
