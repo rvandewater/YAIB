@@ -1,7 +1,7 @@
 import re
 
 from .ingredients import Ingredients
-from typing import Union
+from typing import Union, List
 
 
 class Selector:
@@ -18,9 +18,9 @@ class Selector:
     def __init__(
         self,
         description: str,
-        names: Union[str, list[str]] = None,
-        roles: Union[str, list[str]] = None,
-        types: Union[str, list[str]] = None,
+        names: Union[str, List[str]] = None,
+        roles: Union[str, List[str]] = None,
+        types: Union[str, List[str]] = None,
         pattern: re.Pattern = None,
     ):
         self.description = description
@@ -29,7 +29,7 @@ class Selector:
         self.set_types(types)
         self.set_pattern(pattern)
 
-    def set_names(self, names: Union[str, list[str]]):
+    def set_names(self, names: Union[str, List[str]]):
         """Set the column names to select with this Selector
 
         Args:
@@ -37,7 +37,7 @@ class Selector:
         """
         self.names = enlist_str(names)
 
-    def set_roles(self, roles: Union[str, list[str]]):
+    def set_roles(self, roles: Union[str, List[str]]):
         """Set the column roles to select with this Selector
 
         Args:
@@ -45,7 +45,7 @@ class Selector:
         """
         self.roles = enlist_str(roles)
 
-    def set_types(self, roles: Union[str, list[str]]):
+    def set_types(self, roles: Union[str, List[str]]):
         """Set the column data types to select with this Selector
 
         Args:
@@ -61,7 +61,7 @@ class Selector:
         """
         self.pattern = pattern
 
-    def __call__(self, ingr: Ingredients) -> list[str]:
+    def __call__(self, ingr: Ingredients) -> List[str]:
         """Select variables from Ingredients
 
         Args:
@@ -99,7 +99,7 @@ class Selector:
         return self.description
 
 
-def enlist_str(x: Union[str, list[str], None]) -> Union[list[str], None]:
+def enlist_str(x: Union[str, List[str], None]) -> Union[List[str], None]:
     """Wrap a str in a list if it isn't a list yet
 
     Args:
@@ -144,7 +144,7 @@ def intersection(x: list, y: list) -> list:
     return [i for i in x if i in y]
 
 
-def all_of(names: Union[str, list[str]]) -> Selector:
+def all_of(names: Union[str, List[str]]) -> Selector:
     """Define selector for any columns with one of the given names
 
     Args:
@@ -205,7 +205,7 @@ def contains(substring: str) -> Selector:
     return regex_names(f"{substring}")
 
 
-def has_role(roles: Union[str, list[str]]) -> Selector:
+def has_role(roles: Union[str, List[str]]) -> Selector:
     """Define selector for any columns with one of the given roles
 
     Args:
@@ -217,7 +217,7 @@ def has_role(roles: Union[str, list[str]]) -> Selector:
     return Selector(description=f"roles: {roles}", roles=roles)
 
 
-def has_type(types: Union[str, list[str]]) -> Selector:
+def has_type(types: Union[str, List[str]]) -> Selector:
     """Define selector for any columns with one of the given types
 
     Args:
@@ -275,7 +275,7 @@ def all_groups() -> Selector:
     return Selector(description="all grouping variables", roles=["group"])
 
 
-def select_groups(ingr: Ingredients) -> list[str]:
+def select_groups(ingr: Ingredients) -> List[str]:
     """Select any grouping columns
 
     Defines and directly applies Selector(roles=["group"])
@@ -295,7 +295,7 @@ def all_sequences() -> Selector:
     return Selector(description="all sequence variables", roles=["sequence"])
 
 
-def select_sequence(ingr: Ingredients) -> list[str]:
+def select_sequence(ingr: Ingredients) -> List[str]:
     """Select any sequence columns
 
     Defines and directly applies Selector(roles=["sequence"])

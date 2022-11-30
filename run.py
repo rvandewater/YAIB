@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
 import argparse
-from argparse import BooleanOptionalAction
+# from argparse import BooleanOptionalAction
 from datetime import datetime
 import gin
 import logging
 import sys
 from pathlib import Path
 from pytorch_lightning import seed_everything
-import sys
-
-sys.path.append("..")
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_with_gin
@@ -44,8 +41,11 @@ def build_parser() -> argparse.ArgumentParser:
     # MODEL TRAINING ARGUMENTS
     parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
     parser_prep_and_train.add_argument(
-        "--reproducible", default=True, action=BooleanOptionalAction, help="Set torch to be reproducible."
+        "--reproducible", default=True, action="store_true", help="Set torch to be reproducible."
     )
+    # parser_prep_and_train.add_argument(
+    #     "--reproducible", default=True, action=BooleanOptionalAction, help="Set torch to be reproducible."
+    # )
     parser_prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
 
     # EVALUATION PARSER
