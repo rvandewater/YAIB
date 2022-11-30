@@ -133,6 +133,7 @@ class ImputationDataset(Dataset):
         # calculate basic info for the data
         self.num_stays = self.static_df.shape[0]
         self.num_measurements = self.dyn_df.shape[0]
+        self.dyn_measurements = self.dyn_df.shape[1]
         self.maxlen = self.dyn_df.groupby([self.vars["GROUP"]]).size().max()
 
         self.amputated_values, self.amputation_mask = ampute_data(self.dyn_df, mask_method, mask_proportion, mask_observation_proportion)

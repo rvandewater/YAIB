@@ -1,0 +1,23 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+import icu_benchmarks.imputation.baselines
+import icu_benchmarks.data.preprocess
+
+preprocess.use_features = False
+
+# Train params
+train_imputation_method.model = @SAITS
+train_imputation_method.wandb = True
+train_imputation_method.do_test = True
+
+# Model params
+SAITS.n_layers = 2
+SAITS.d_model = 256
+SAITS.d_inner = 128
+SAITS.n_head = 4
+SAITS.d_k = 64
+SAITS.d_v = 64
+SAITS.dropout = 0.1
+SAITS.epochs = 10
