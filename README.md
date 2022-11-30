@@ -1,3 +1,4 @@
+![YAIB logo](docs/figures/yaib_logo.png)
 # Yet Another ICU Benchmark
 This project aims to provide a unified interface for multiple common ICU prediction endpoints for common ICU datasets. 
 We support the following datasets: 
