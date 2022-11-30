@@ -13,3 +13,4 @@ hyperimpute
 pytorch_lightning
 torchmetrics
 wandb
+pypots
