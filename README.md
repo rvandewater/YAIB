@@ -41,6 +41,13 @@ We currently use the following libraries:
 - [Pathos](https://pathos.readthedocs.io/en/latest/)
   - Parallel computing framework, used for preprocessing
 
+## Installation
+
+You can either install this repo using conda or using the setup.py. As the hyperimpute package currently depends on a package with faulty install procedures (`geomloss`), the you have to install the package like this:
+```bash
+pip install torch numpy && pip install -e .
+```
+
 # CLI Commands
 
 ## Preprocess and Train

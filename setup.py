@@ -3,7 +3,21 @@
 
 """The setup script."""
 
+from pathlib import Path
+from typing import Union
 from setuptools import setup, find_packages
+
+
+root_path = Path(__file__).resolve().parent
+
+
+def _get_requirements(*file_path: Union[Path, str]):
+    requirements_list = []
+    for fp in file_path:
+        with (root_path / fp).open() as requirements_file:
+            requirements_list.extend(list(requirement.strip() for requirement in requirements_file.readlines()))
+    return requirements_list
+
 
 with open("README_old.md") as readme_file:
     readme = readme_file.read()
@@ -22,7 +36,7 @@ setup(
     ],
     description="This project aim is to build a benchmark for ICU related tasks.",
     entry_points={"console_scripts": ["icu-benchmarks = icu_benchmarks.run:main"]},
-    install_requires=[],  # dependencies managed via conda for the moment
+    install_requires=_get_requirements("requirements.txt"),
     license="MIT license",
     long_description=readme,
     include_package_data=True,
