@@ -15,22 +15,27 @@ train_common.do_test = True
 
 DLWrapper.encoder = @Transformer()
 DLWrapper.optimizer_fn = @Adam
+
 DLWrapper.train.epochs = 1000
 DLWrapper.train.batch_size = 8 16
 DLWrapper.train.patience = 10
 DLWrapper.train.min_delta = 1e-4
 
 # Optimizer params
-Adam.lr = RS([3e-4, 1e-4, 3e-5, 1e-5])
 Adam.weight_decay = 1e-6
+optimizer/random_search.class_to_configure = @Adam
+optimizer/random_search.lr = [3e-4, 1e-4, 3e-5, 1e-5]
 
 # Encoder params
 Transformer.emb = %EMB
-Transformer.hidden_dim = RS([32, 64, 128, 256])
-Transformer.heads = RS([1, 2, 4, 8])
 Transformer.ff_hidden_mult = 2
-Transformer.depth = RS([1, 2, 3])
-Transformer.dropout = RS([0.0, 0.1, 0.2, 0.3, 0.4])
-Transformer.dropout_att = RS([0.0, 0.1, 0.2, 0.3, 0.4])
 Transformer.l1_reg = 0.0
 Transformer.num_classes = %NUM_CLASSES
+model/random_search.class_to_configure = @Transformer
+model/random_search.hidden_dim = [32, 64, 128, 256]
+model/random_search.heads = [1, 2, 4, 8]
+model/random_search.depth = [1, 2, 3]
+model/random_search.dropout = [0.0, 0.1, 0.2, 0.3, 0.4]
+model/random_search.dropout_att = [0.0, 0.1, 0.2, 0.3, 0.4]
+
+run_random_searches.scopes = ["model", "optimizer"]

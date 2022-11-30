@@ -3,8 +3,6 @@ import icu_benchmarks.data.loader
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
-TASK = "Mortality_At24Hours"
-
 NUM_CLASSES = 2
 HORIZON = 24
 
@@ -13,7 +11,7 @@ train_common.weight = None  #FIXME figure out when to use "balanced"
 # DL
 DLWrapper.loss = @cross_entropy
 
-loading.file_names = {
+preprocess.file_names = {
     "DYNAMIC": "dyn.parquet",
     "OUTCOME": "outc.parquet",
     "STATIC": "sta.parquet",
@@ -32,11 +30,9 @@ vars = {
 }
 
 preprocess.vars = %vars
-splits.vars = %vars
 Dataset.vars = %vars
 
-splits.seed = 42
-splits.train_pct = 0.7
-splits.val_pct = 0.1
+preprocess.train_pct = 0.7
+preprocess.val_pct = 0.1
 
 EMB = 48
