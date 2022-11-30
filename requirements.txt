@@ -14,3 +14,6 @@ pytorch_lightning
 torchmetrics
 wandb
 pypots
+mypy
+flake8
+flake8-docstrings
