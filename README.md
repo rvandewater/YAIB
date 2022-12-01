@@ -58,7 +58,16 @@ HiRID, eICU, and MIMIC IV can be accessed through [PhysioNet](https://physionet.
 found [here](https://eicu-crd.mit.edu/gettingstarted/access/).
 AUMCdb can be accessed through a seperate access [procedure](https://github.com/AmsterdamUMC/AmsterdamUMCdb). We do not have
 involvement in the access procedure and can not answer to any requests for data access.
-## Extracting cohorts
+
+## Data Conversion
+
+Since the datasets were created independently of each other, they do not share the same data structure or data identifiers. In
+order to make them interoperable, use the preprocessing utilities
+provided by the [ricu package](https://github.com/eth-mds/ricu). ricu pre-defines a large number of
+clinical concepts and how to load them from a given dataset, providing a common interface to the data, that is used in this
+benchmark.
+
+### Extracting cohorts
 TODO
 ## Preprocess and Train
 
