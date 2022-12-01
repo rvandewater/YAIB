@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import pyarrow.parquet as pq
 from pathlib import Path
-from typing import Dict 
+from typing import Dict
 
 from icu_benchmarks.recipes.recipe import Recipe
 from icu_benchmarks.recipes.selector import all_of
@@ -31,7 +31,11 @@ def load_data(data_dir: Path, file_names: Dict[str, str] = gin.REQUIRED) -> Dict
 
 @gin.configurable("splits")
 def make_single_split(
-    data: Dict[str, pd.DataFrame], train_pct: float = 0.7, val_pct: float = 0.1, seed: int = 42, vars: Dict[str, str] = gin.REQUIRED
+    data: Dict[str, pd.DataFrame],
+    train_pct: float = 0.7,
+    val_pct: float = 0.1,
+    seed: int = 42,
+    vars: Dict[str, str] = gin.REQUIRED,
 ) -> Dict[str, Dict[str, pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
@@ -46,7 +50,7 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
-    
+
     # shuffles dataframe
     stays = data["STATIC"][[id]].sample(frac=1, random_state=seed)
 
@@ -56,18 +60,20 @@ def make_single_split(
     splits = {"train": {}, "val": {}, "test": {}}
     for i, fold in enumerate(splits.keys()):
         # Loop through train / val / test
-        stays_in_fold = stays.iloc[delims[i]:delims[i + 1], :]
+        stays_in_fold = stays.iloc[delims[i] : delims[i + 1], :]
         for data_type in data.keys():
             # Loop through DYNAMIC / STATIC / OUTCOME
             # set sort to true to make sure that IDs are reordered after scrambling earlier
-            
+
             # this operation effectively selects the rows corresponding to stays_in_fold and stores them in splits
             splits[fold][data_type] = data[data_type].merge(stays_in_fold, on=id, how="right", sort=True)
 
     return splits
 
 
-def apply_recipe_to_splits(recipe: Recipe, data: Dict[str, Dict[str, pd.DataFrame]], type: str) -> Dict[str, Dict[str, pd.DataFrame]]:
+def apply_recipe_to_splits(
+    recipe: Recipe, data: Dict[str, Dict[str, pd.DataFrame]], type: str
+) -> Dict[str, Dict[str, pd.DataFrame]]:
     """Fits and transforms the training data, then transforms the validation and test data with the recipe.
 
     Args:
@@ -86,7 +92,10 @@ def apply_recipe_to_splits(recipe: Recipe, data: Dict[str, Dict[str, pd.DataFram
 
 @gin.configurable("preprocess")
 def preprocess_data(
-    data_dir: str, use_features: bool = gin.REQUIRED, vars: Dict[str, str] = gin.REQUIRED, mode = gin.REQUIRED,
+    data_dir: str,
+    use_features: bool = gin.REQUIRED,
+    vars: Dict[str, str] = gin.REQUIRED,
+    mode=gin.REQUIRED,
     # stat_recipe_steps: list[Step] = gin.REQUIRED, dyn_recipe_steps: list[Step] = gin.REQUIRED,
 ) -> Dict[str, Dict[str, pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
@@ -109,7 +118,6 @@ def preprocess_data(
 
     logging.info("Generating splits")
     data = make_single_split(data)
-    
 
     logging.info("Preprocess static data")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
@@ -132,11 +140,8 @@ def preprocess_data(
         dyn_rec.add_step(StepImputeFill(method="ffill"))
         dyn_rec.add_step(StepImputeFill(value=0))
     # dyn_rec = dyn_recipe_steps
-    
-
 
     data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")
-    
 
     logging.info("Finished preprocessing")
 

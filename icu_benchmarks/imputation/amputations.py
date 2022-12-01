@@ -1,7 +1,7 @@
-'''This file implements amputation mechanisms (MCAR, MAR (logisitc) and MNAR (logistic)) for missing data generation. 
+"""This file implements amputation mechanisms (MCAR, MAR (logisitc) and MNAR (logistic)) for missing data generation. 
 It was inspired from: https://rmisstastic.netlify.app/how-to/python/generate_html/how%20to%20generate%20missing%20values
 Original code: https://github.com/BorisMuzellec/MissingDataOT/blob/master/utils.py
-'''
+"""
 
 import gin
 import torch
@@ -15,17 +15,18 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 
+
 def MCAR_mask(X, p):
     """
     Missing completely at random mechanism.
-    
+
     Parameters
     ----------
     X : torch.FloatTensor, shape (n, d)
         Data for which missing values will be simulated.
     p : float
         Proportion of missing values to generate for variables which will have missing values.
-    
+
     Returns
     -------
     mask : torch.BoolTensor
@@ -46,7 +47,7 @@ def MAR_logistic_mask(X, p, p_obs):
     Missing at random mechanism with a logistic masking model. First, a subset of variables with *no* missing values is
     randomly selected. The remaining variables have missing values according to a logistic model with random weights,
     re-scaled so as to attain the desired proportion of missing values on those variables.
-    
+
     Parameters
     ----------
     X : torch.FloatTensor, shape (n, d)
@@ -55,7 +56,7 @@ def MAR_logistic_mask(X, p, p_obs):
         Proportion of missing values to generate for variables which will have missing values.
     p_obs : float
         Proportion of variables with *no* missing values that will be used for the logistic masking model.
-    
+
     Returns
     -------
     mask : torch.BoolTensor
@@ -66,7 +67,7 @@ def MAR_logistic_mask(X, p, p_obs):
     mask = torch.zeros(n, d).bool()
 
     # number of variables that will have no missing values (at least one variable)
-    d_obs = max(int(p_obs * d), 1) 
+    d_obs = max(int(p_obs * d), 1)
     # number of variables that will have missing values
     d_na = d - d_obs
 
@@ -90,7 +91,7 @@ def MAR_logistic_mask(X, p, p_obs):
     return mask
 
 
-def MNAR_logistic_mask(X, p, p_params =.3, exclude_inputs=True):
+def MNAR_logistic_mask(X, p, p_params=0.3, exclude_inputs=True):
     """
     Missing not at random mechanism with a logistic masking model. It implements two mechanisms:
     (i) Missing probabilities are selected with a logistic model, taking all variables as inputs. Hence, values that are
@@ -99,7 +100,7 @@ def MNAR_logistic_mask(X, p, p_params =.3, exclude_inputs=True):
     determined by the logistic model. Then inputs are then masked MCAR (hence, missing values from the second set will
     depend on masked values.
     In either case, weights are random and the intercept is selected to attain the desired proportion of missing values.
-    
+
     Parameters
     ----------
     X : torch.FloatTensor, shape (n, d)
@@ -110,7 +111,7 @@ def MNAR_logistic_mask(X, p, p_params =.3, exclude_inputs=True):
         Proportion of variables that will be used for the logistic masking model (only if exclude_inputs).
     exclude_inputs : boolean, default=True
         True: mechanism (ii) is used, False: (i)
-    
+
     Returns
     -------
     mask : torch.BoolTensor
@@ -164,27 +165,30 @@ def fit_intercepts(X, coeffs, p):
     d_obs, d_na = coeffs.shape
     intercepts = torch.zeros(d_na)
     for j in range(d_na):
+
         def f(x):
             return torch.sigmoid(X.mv(coeffs[:, j]) + x).mean().item() - p
+
         intercepts[j] = optimize.bisect(f, -50, 50)
     return intercepts
+
 
 @gin.configurable("amputation")
 def ampute_data(data, mechanism, p_miss, p_obs=0.3):
     """
-    Generate missing values for specifics missing-data mechanism and proportion of missing values. 
-    
+    Generate missing values for specifics missing-data mechanism and proportion of missing values.
+
     Parameters
     ----------
     data : DataFrame
         Data for which missing values will be simulated.
-    mechanism : str, 
+    mechanism : str,
             Indicates the missing-data mechanism to be used. ("MCAR", "MAR" or "MNAR")
     p_miss : float
         Proportion of missing values to generate for variables which will have missing values.
     p_obs : float
-            If mecha = "MAR" or "MNAR", proportion of variables with *no* missing values that will be used for the logistic masking model.   
-    
+            If mecha = "MAR" or "MNAR", proportion of variables with *no* missing values that will be used for the logistic masking model.
+
     Returns
     ----------
     imputed_data: DataFrame
@@ -192,7 +196,7 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
     """
 
     X = torch.tensor(data.values.astype(np.float32))
-    
+
     if mechanism == "MAR":
         mask = MAR_logistic_mask(X, p_miss, p_obs)
     elif mechanism == "MNAR":
@@ -200,7 +204,7 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
     elif mechanism == "MCAR":
         mask = MCAR_mask(X, p_miss)
     else:
-        print('Not a valid amputation mechanism. Missing-data mechanisms to be used are MCAR, MAR or MNAR.')
-    
+        print("Not a valid amputation mechanism. Missing-data mechanisms to be used are MCAR, MAR or MNAR.")
+
     amputed_data = data.mask(mask)
     return amputed_data, mask
