@@ -112,7 +112,6 @@ class RICUDataset(Dataset):
         return rep, labels
 
 
-
 @gin.configurable("ImputationDataset")
 class ImputationDataset(Dataset):
     """Subclass of torch Dataset that represents the data to learn on.
@@ -123,7 +122,15 @@ class ImputationDataset(Dataset):
         vars: Contains the names of columns in the data.
     """
 
-    def __init__(self, data: Dict[str, DataFrame], split: str = "train", vars: Dict[str, str] = gin.REQUIRED, mask_proportion=0.3, mask_method="MCAR", mask_observation_proportion=0.3):
+    def __init__(
+        self,
+        data: Dict[str, DataFrame],
+        split: str = "train",
+        vars: Dict[str, str] = gin.REQUIRED,
+        mask_proportion=0.3,
+        mask_method="MCAR",
+        mask_observation_proportion=0.3,
+    ):
         self.split = split
         self.vars = vars
         self.static_df = data[split]["STATIC"]
@@ -136,11 +143,13 @@ class ImputationDataset(Dataset):
         self.dyn_measurements = self.dyn_df.shape[1]
         self.maxlen = self.dyn_df.groupby([self.vars["GROUP"]]).size().max()
 
-        self.amputated_values, self.amputation_mask = ampute_data(self.dyn_df, mask_method, mask_proportion, mask_observation_proportion)
+        self.amputated_values, self.amputation_mask = ampute_data(
+            self.dyn_df, mask_method, mask_proportion, mask_observation_proportion
+        )
         self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars["DYNAMIC"])
         self.amputation_mask[self.vars["GROUP"]] = self.dyn_df.index
         self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
-        
+
     def __len__(self) -> int:
         """Returns number of stays in the data.
 
@@ -183,6 +192,5 @@ class ImputationDataset(Dataset):
         """
         logging.info("Gathering the samples for split " + self.split)
         rep: DataFrame = self.dyn_df.to_numpy()
-        
 
         return self.amputated_values, rep

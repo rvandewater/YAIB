@@ -23,6 +23,7 @@ from sklearn.metrics import (
 
 import torch
 from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
+
 # from ignite.metrics import MeanAbsoluteError, Accuracy
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -428,105 +429,107 @@ class MLWrapper(object):
             with open(load_path, "rb") as f:
                 self.model = joblib.load(f)
 
+
 @gin.configurable("ImputationWrapper")
 class ImputationWrapper(LightningModule):
-    
+
     needs_training = True
     needs_fit = False
-    
+
     def __init__(
-            self,
-            loss: _Loss = MSELoss(),
-            optimizer: Union[str, Optimizer] = "adam",
-            lr: float = 0.002,
-            momentum: float = 0.9,
-            lr_scheduler: Optional[str] = None,
-            lr_factor: float = 0.99,
-            lr_steps: Optional[List[int]] = None,
-            epochs: int = 100,
-            input_size: torch.Tensor = None,
-            initialization_method: str = "normal") -> None:
+        self,
+        loss: _Loss = MSELoss(),
+        optimizer: Union[str, Optimizer] = "adam",
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        epochs: int = 100,
+        input_size: torch.Tensor = None,
+        initialization_method: str = "normal",
+    ) -> None:
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer
-        
+
         self.metrics = {
             "rmse": MeanSquaredError(squared=False),
             "mae": MeanAbsoluteError(),
         }
-    
-    def init_weights(self, init_type='normal', gain=0.02):
+
+    def init_weights(self, init_type="normal", gain=0.02):
         def init_func(m):
             classname = m.__class__.__name__
-            if hasattr(m, 'weight') and (classname.find('Conv') != -1 or classname.find('Linear') != -1):
-                if init_type == 'normal':
+            if hasattr(m, "weight") and (classname.find("Conv") != -1 or classname.find("Linear") != -1):
+                if init_type == "normal":
                     torch.nn.init.normal_(m.weight.data, 0.0, gain)
-                elif init_type == 'xavier':
+                elif init_type == "xavier":
                     torch.nn.init.xavier_normal_(m.weight.data, gain=gain)
-                elif init_type == 'kaiming':
-                    torch.nn.init.kaiming_normal_(m.weight.data, a=0, mode='fan_out')
-                elif init_type == 'orthogonal':
+                elif init_type == "kaiming":
+                    torch.nn.init.kaiming_normal_(m.weight.data, a=0, mode="fan_out")
+                elif init_type == "orthogonal":
                     torch.nn.init.orthogonal_(m.weight.data, gain=gain)
                 else:
-                    raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
-                if hasattr(m, 'bias') and m.bias is not None:
+                    raise NotImplementedError("initialization method [%s] is not implemented" % init_type)
+                if hasattr(m, "bias") and m.bias is not None:
                     torch.nn.init.constant_(m.bias.data, 0.0)
-            elif classname.find('BatchNorm2d') != -1:
+            elif classname.find("BatchNorm2d") != -1:
                 torch.nn.init.normal_(m.weight.data, 1.0, gain)
                 torch.nn.init.constant_(m.bias.data, 0.0)
+
         self.apply(init_func)
-    
+
     def on_fit_start(self) -> None:
         self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
         self.init_weights(self.hparams.initialization_method)
         return super().on_fit_start()
-    
+
     def fit(self, input_data) -> None:
         raise NotImplementedError()
-    
+
     def forward(self, amputated, amputation_mask) -> torch.Tensor:
         raise NotImplementedError()
-    
+
     def training_step(self, batch):
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
-        
+
         loss = self.loss(imputated, target)
         self.log("train/loss", loss.item(), prog_bar=True)
         return loss
-    
+
     def validation_step(self, batch, batch_idx):
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
-        
+
         loss = self.loss(imputated, target)
         self.log("val/loss", loss.item(), prog_bar=True)
-    
+
         for metric in self.metrics.values():
             metric.update(imputated, target)
-    
+
     def on_validation_epoch_end(self) -> None:
         self.log_dict({f"val/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
         for metric in self.metrics.values():
             metric.reset()
-    
+
     def on_test_epoch_start(self) -> None:
         self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
         return super().on_test_epoch_start()
-    
+
     def test_step(self, batch, batch_idx):
-        
+
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
-        
+
         loss = self.loss(imputated, target)
         self.log("test/loss", loss.item())
-    
+
         for metric in self.metrics.values():
             metric.update(imputated, target)
-    
-    
+
     def on_test_epoch_end(self) -> None:
         self.log_dict({f"test/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
         for metric in self.metrics.values():
@@ -537,5 +540,7 @@ class ImputationWrapper(LightningModule):
             optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
         else:
             optimizer = self.optimizer(self.parameters())
-        scheduler = create_scheduler(self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs)
+        scheduler = create_scheduler(
+            self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
+        )
         return {"optimizer": optimizer, "lr_scheduler": scheduler}

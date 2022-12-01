@@ -18,6 +18,7 @@ from icu_benchmarks.data.loader import RICUDataset, ImputationDataset
 from icu_benchmarks.models.wrappers import MLWrapper, DLWrapper, ImputationWrapper
 from icu_benchmarks.models.utils import save_config_file
 
+
 @gin.configurable("training")
 def train_with_gin(
     log_dir: Path = None,
@@ -60,6 +61,7 @@ def train_with_gin(
         train_imputation_method(log_dir, data, load_weights, source_dir, reproducible=reproducible, dataset_name=dataset_name)
     else:
         raise ValueError(f"Unknown training mode: {mode}")
+
 
 @gin.configurable("train_common")
 def train_common(
@@ -108,33 +110,35 @@ def train_common(
         model.test(test_dataset, weight)
     save_config_file(log_dir)
 
+
 @gin.configurable("train_imputation_method")
 def train_imputation_method(
-        log_dir: Path,
-        data: Dict[str, pd.DataFrame],
-        load_weights: bool = False,
-        source_dir: Path = None,
-        model: Type = ImputationWrapper,
-        do_test: bool = False,
-        epochs: int = 10,
-        num_workers: int = os.cpu_count(),
-        batch_size: int = 64,
-        patience: int = 10,
-        min_delta = 1e-4,
-        reproducible: bool = True,
-        wandb: bool = True,
-        dataset_name: str = "") -> None:
-    
+    log_dir: Path,
+    data: Dict[str, pd.DataFrame],
+    load_weights: bool = False,
+    source_dir: Path = None,
+    model: Type = ImputationWrapper,
+    do_test: bool = False,
+    epochs: int = 10,
+    num_workers: int = os.cpu_count(),
+    batch_size: int = 64,
+    patience: int = 10,
+    min_delta=1e-4,
+    reproducible: bool = True,
+    wandb: bool = True,
+    dataset_name: str = "",
+) -> None:
+
     logging.info(f"training imputation method {model.__name__}...")
     train_dataset = ImputationDataset(data, split="train")
     validation_dataset = ImputationDataset(data, split="val")
-    
+
     train_loader = DataLoader(train_dataset, num_workers=num_workers, pin_memory=True, batch_size=batch_size, shuffle=True)
     # usually a much larger batch size for validation can be used, as not gradient updates have to be performed on them
     validation_loader = DataLoader(validation_dataset, num_workers=num_workers, pin_memory=True, batch_size=batch_size * 4)
-    
+
     data_shape = next(iter(train_loader))[0].shape
-    
+
     if load_weights:
         model = model.load_from_chekpoint(source_dir)
     else:
@@ -145,7 +149,7 @@ def train_imputation_method(
     if wandb:
         run_name = f"{type(model).__name__}-{dataset_name}"
         loggers.append(WandbLogger(run_name, save_dir=log_dir, project="Data_Imputation"))
-        
+
     trainer = Trainer(
         max_epochs=epochs,
         callbacks=[
@@ -158,17 +162,17 @@ def train_imputation_method(
         deterministic=reproducible,
         logger=loggers,
     )
-    
+
     if model.needs_fit:
         logging.info("fitting model to data...")
         model.fit(train_dataset)
         logging.info("fitting complete!")
-    
+
     if model.needs_training:
         logging.info("training model on data...")
         trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=validation_loader)
         logging.info("training complete!")
-    
+
     if do_test:
         logging.info("evaluating model on test data...")
         test_dataset = ImputationDataset(data, split="test")
