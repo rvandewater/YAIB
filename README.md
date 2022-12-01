@@ -4,13 +4,39 @@
 
 [![CI](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml)
 
-This project aims to provide a unified interface for multiple common ICU prediction endpoints for common ICU datasets.
-We support the following datasets:
+Yet another ICU benchmark (YAIB) aims to
+This package provides a framework for doing clinical machine learning experiments.
+We support the following datasets out of the box:
 
-- Amsterdam UMC Database
-- HiRID
-- MIMIC III/IV
-- eICU
+| Dataset                 | MIMIC-III / IV                                                                                                                            | eICU-CRD                                             | HiRID                                                 | AUMCdb         |
+|-------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|-------------------------------------------------------|----------------|
+| Admissions              | 40k / 50k                                                                                                                                 | 200k                                                 | 33k                                                   | 23k            |
+| Frequency (time-series) | 1 hour                                                                                                                                    | 5 minutes                                            | 2 / 5 minutes                                         | up to 1 minute |
+| Origin                  | USA                                                                                                                                       | USA                                                  | Switzerland                                           | Netherlands    |
+
+The benchmark is designed for operating on preprocessed parquet files. We refer to the PyICU (in development)
+or [ricu package](https://github.com/eth-mds/ricu) for generating these parquet files for particular cohorts and endpoints.
+
+We provide several common tasks for clinical prediction:
+
+| No  | Task Theme                | Temporality        | Type                                | 
+|-----|---------------------------|--------------------|-------------------------------------|
+| 1   | ICU Mortality             | Hourly (after 24H) | Sequential Classification           |
+| 2   | Acute Kidney Injury (AKI) | Hourly             | Sequence to Sequence Classification |
+| 3   | Sepsis                    | Hourly             | Sequence to Sequence Classification |
+| 4   | Circulatory Failure       | 5 Minutes          | Sequence to Sequence Classification |
+| 5   | Length of Stay (LoS)      | Hourly             | Sequence to Sequence Regression     | 
+
+Please refer to [cohort definitions]() for further information.
+
+## Paper
+
+If you use this code in your research, please cite the following publication:
+
+```
+```
+
+This paper can also be found on arxiv: TBD
 
 # Installation
 
@@ -24,13 +50,16 @@ pip install -e .
 
 > Note that the last command installs the package called `icu-benchmarks`.
 
-# Datasets
-
-The benchmark is designed for operating on preprocessed parquet files. We refer to the PyICU (in development)
-or [ricu package](https://github.com/eth-mds/ricu) for generating these parquet files for particular cohorts and endpoints.
-
 # Usage
 
+## Getting the Datasets
+
+HiRID, eICU, and MIMIC IV can be accessed through [PhysioNet](https://physionet.org/). A guide to this process can be
+found [here](https://eicu-crd.mit.edu/gettingstarted/access/).
+AUMCdb can be accessed through a seperate access [procedure](https://github.com/AmsterdamUMC/AmsterdamUMCdb). We do not have
+involvement in the access procedure and can not answer to any requests for data access.
+## Extracting cohorts
+TODO
 ## Preprocess and Train
 
 The following command will start training on a prepared HiRID dataset for sequential Mortality prediction with an LGBM
@@ -192,6 +221,16 @@ log_dir/
     └── ...
 </pre>
 
+## Metrics
+
+Several metrics are defined for this benchmark:
+
+- Binary Classification: Because our tasks are all highly imbalanced, we use both ROC and PR Area Under the Curve
+  using [sklearn.metrics.roc_auc_score](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html)
+  and [sklearn.metrics.average_precision_score](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html#sklearn.metrics.average_precision_score)
+- Regression : The Mean Absolute Error (MAE) is used
+  with [sklearn.metrics.mean_absolute_error](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html)
+
 # Development
 
 YAIB is in active development. The following sections could be relevant for adding new code to our repository
@@ -227,3 +266,8 @@ For development purposes, we use the `Black` package to autoformat our code and 
 black . -l 127
 flake8 . --count --max-complexity=14 --max-line-length=127 --statistics
 ```
+
+# Acknowledgements
+
+We do not own any of the datasets used in this benchmark. This project uses heavily adapted components of
+the [HiRID benchmark](https://github.com/ratschlab/HIRID-ICU-Benchmark/).
