@@ -15,6 +15,7 @@ from sklearn.metrics import (
     balanced_accuracy_score,
     mean_absolute_error,
     precision_recall_curve,
+    roc_curve,
 )
 
 import torch
@@ -256,7 +257,9 @@ class DLWrapper(object):
         with open(os.path.join(self.logdir, "best_metrics.json"), "w") as f:
             json.dump(best_metrics, f, cls=JsonMetricsEncoder)
 
+        # Append results of this seed.
         append_results(os.path.join(os.path.join(self.logdir, ".."), "val_metrics.json"), val_metric_results, seed)
+
         self.load_weights(os.path.join(self.logdir, "model.torch"))  # We load back the best iteration
 
     def test(self, dataset, seed, weight):
@@ -310,6 +313,7 @@ class MLWrapper(object):
         self.logdir = logdir
 
     def set_metrics(self, labels):
+        # Recorded metrics for the type of prediction task
         if len(np.unique(labels)) == 2:
             if isinstance(self.model, lightgbm.basic.Booster):
                 self.output_transform = lambda x: x
@@ -317,7 +321,12 @@ class MLWrapper(object):
                 self.output_transform = lambda x: x[:, 1]
             self.label_transform = lambda x: x
 
-            self.metrics = {"PR": average_precision_score, "AUC": roc_auc_score, "PRC": precision_recall_curve}
+            self.metrics = {
+                "PR": average_precision_score,
+                "AUC": roc_auc_score,
+                "ROC": roc_curve,
+                "PRC": precision_recall_curve,
+            }
 
         elif np.all(labels[:10].astype(int) == labels[:10]):
             self.output_transform = lambda x: np.argmax(x, axis=-1)
@@ -381,13 +390,14 @@ class MLWrapper(object):
         for name, metric in metrics.items():
             train_metric_results[name] = metric(self.label_transform(train_label), self.output_transform(train_pred))
             val_metric_results[name] = metric(self.label_transform(val_label), self.output_transform(val_pred))
-            train_string += "Train Results: " if len(train_string) == 0 else ", "
-            train_string += name + ":{:.4f}"
-            val_string += ", " + name + ":{:.4f}"
-            train_values.append(train_metric_results[name])
-            val_values.append(val_metric_results[name])
-        # logging.info(train_string.format(*train_values))
-        # logging.info(val_string.format(*val_values))
+            if isinstance(train_metric_results[name], np.float):
+                train_string += "Train Results: " if len(train_string) == 0 else ", "
+                train_string += name + ":{:.4f}"
+                val_string += ", " + name + ":{:.4f}"
+                train_values.append(train_metric_results[name])
+                val_values.append(val_metric_results[name])
+        logging.info(train_string.format(*train_values))
+        logging.info(val_string.format(*val_values))
 
         if save_weights:
             if model_type == "lgbm":
@@ -412,6 +422,7 @@ class MLWrapper(object):
         test_metric_results = {}
         for name, metric in self.metrics.items():
             test_metric_results[name] = metric(self.label_transform(test_label), self.output_transform(test_pred))
+            # Only log float values
             if isinstance(test_metric_results[name], np.float):
                 test_string += "Test Results: " if len(test_string) == 0 else ", "
                 test_string += name + ":{:.4f}"

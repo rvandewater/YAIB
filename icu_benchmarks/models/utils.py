@@ -5,6 +5,7 @@ import torch
 import os
 import json
 
+
 def save_model(model, optimizer, epoch, save_file):
     state = {
         "model": model.state_dict(),
