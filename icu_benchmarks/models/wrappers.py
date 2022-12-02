@@ -14,6 +14,7 @@ from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
     mean_absolute_error,
+    precision_recall_curve,
 )
 
 import torch
@@ -24,7 +25,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import joblib
 
-from icu_benchmarks.models.utils import save_model, load_model_state, append_results
+from icu_benchmarks.models.utils import save_model, load_model_state, append_results, JsonMetricsEncoder
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
 from icu_benchmarks.models.encoders import LSTMNet
 
@@ -231,7 +232,7 @@ class DLWrapper(object):
             train_string = "Train Epoch:{}"
             train_values = [epoch + 1]
             for name, value in train_metric_results.items():
-                if name.split("_")[-1] != "Curve":
+                if isinstance(value, np.float):
                     train_string += ", " + name + ":{:.4f}"
                     train_values.append(value)
                     train_writer.add_scalar(name, value, epoch)
@@ -240,6 +241,7 @@ class DLWrapper(object):
             val_string = "Val Epoch:{}"
             val_values = [epoch + 1]
             for name, value in val_metric_results.items():
+
                 if name.split("_")[-1] != "Curve":
                     val_string += ", " + name + ":{:.4f}"
                     val_values.append(value)
@@ -251,16 +253,13 @@ class DLWrapper(object):
 
         best_metrics["loss"] = best_loss
 
-        best_metrics["PR_Curve"] = [item.tolist() for item in best_metrics["PR_Curve"]]
+        with open(os.path.join(self.logdir, "best_metrics.json"), "w") as f:
+            json.dump(best_metrics, f, cls=JsonMetricsEncoder)
 
-
-        # with open(os.path.join(self.logdir, "best_metrics.json"), "w") as f:
-        #     json.dump(best_metrics, f)
-        #
-        # append_results(os.path.join(os.path.join(self.logdir, ".."), "val_metrics.json"),val_metric_results,seed)
+        append_results(os.path.join(os.path.join(self.logdir, ".."), "val_metrics.json"), val_metric_results, seed)
         self.load_weights(os.path.join(self.logdir, "model.torch"))  # We load back the best iteration
 
-    def test(self, dataset, weight):
+    def test(self, dataset, seed, weight):
         self.set_metrics()
         test_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.n_worker, pin_memory=self.pin_memory)
         if isinstance(weight, list):
@@ -268,8 +267,8 @@ class DLWrapper(object):
         test_loss, test_metrics = self.evaluate(test_loader, self.metrics, weight)
 
         test_metrics["loss"] = test_loss
-        with open(os.path.join(self.logdir, "test_metrics.json"), "wb") as f:
-            json.dump(test_metrics, f)
+        with open(os.path.join(self.logdir, "test_metrics.json"), "w") as f:
+            json.dump(test_metrics, f, cls=JsonMetricsEncoder)
 
         append_results(os.path.join(os.path.join(self.logdir, ".."), "test_metrics.json"), test_metrics, seed)
         for key, value in test_metrics.items():
@@ -318,7 +317,7 @@ class MLWrapper(object):
                 self.output_transform = lambda x: x[:, 1]
             self.label_transform = lambda x: x
 
-            self.metrics = {"PR": average_precision_score, "AUC": roc_auc_score}
+            self.metrics = {"PR": average_precision_score, "AUC": roc_auc_score, "PRC": precision_recall_curve}
 
         elif np.all(labels[:10].astype(int) == labels[:10]):
             self.output_transform = lambda x: np.argmax(x, axis=-1)
@@ -387,8 +386,8 @@ class MLWrapper(object):
             val_string += ", " + name + ":{:.4f}"
             train_values.append(train_metric_results[name])
             val_values.append(val_metric_results[name])
-        logging.info(train_string.format(*train_values))
-        logging.info(val_string.format(*val_values))
+        # logging.info(train_string.format(*train_values))
+        # logging.info(val_string.format(*val_values))
 
         if save_weights:
             if model_type == "lgbm":
@@ -397,11 +396,9 @@ class MLWrapper(object):
                 self.save_weights(save_path=os.path.join(self.logdir, "model.joblib"), model_type=model_type)
 
         with open(os.path.join(self.logdir, "val_metrics.json"), "w") as f:
-            json.dump(val_metric_results,f)
+            json.dump(val_metric_results, f, cls=JsonMetricsEncoder)
 
-        append_results(os.path.join(os.path.join(self.logdir, ".."), "val_metrics.json"),val_metric_results,seed)
-
-
+        append_results(os.path.join(os.path.join(self.logdir, ".."), "val_metrics.json"), val_metric_results, seed)
 
     def test(self, dataset, seed, weight):
         test_rep, test_label = dataset.get_data_and_labels()
@@ -415,26 +412,17 @@ class MLWrapper(object):
         test_metric_results = {}
         for name, metric in self.metrics.items():
             test_metric_results[name] = metric(self.label_transform(test_label), self.output_transform(test_pred))
-            test_string += "Test Results: " if len(test_string) == 0 else ", "
-            test_string += name + ":{:.4f}"
-            test_values.append(test_metric_results[name])
+            if isinstance(test_metric_results[name], np.float):
+                test_string += "Test Results: " if len(test_string) == 0 else ", "
+                test_string += name + ":{:.4f}"
+                test_values.append(test_metric_results[name])
 
         logging.info(test_string.format(*test_values))
         with open(os.path.join(self.logdir, "test_metrics.json"), "w") as f:
-            json.dump(test_metric_results,f)
+            json.dump(test_metric_results, f, cls=JsonMetricsEncoder)
 
         # Write results to common folder
         append_results(os.path.join(os.path.join(self.logdir, ".."), "test_metrics.json"), test_metric_results, seed)
-        # experiment_parent = os.path.join(os.path.join(self.logdir, ".."), "test_metrics.json")
-        # try:
-        #     with open(experiment_parent)as f:
-        #         file = json.load(f)
-        # except IOError:
-        #     file = {}
-        # with open(experiment_parent, "w") as f:
-        #     file[seed] = test_metric_results
-        #     json.dump(file, f)
-
 
     def save_weights(self, save_path, model_type="lgbm"):
         if model_type == "lgbm":
