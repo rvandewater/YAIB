@@ -8,9 +8,9 @@ import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 
-from icu_benchmarks.recipes.recipe import Recipe
-from icu_benchmarks.recipes.selector import all_of
-from icu_benchmarks.recipes.step import Accumulator, StepHistorical, StepImputeFill, StepScale
+from recipys.recipe import Recipe
+from recipys.selector import all_of
+from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepScale
 
 
 def make_single_split(

@@ -7,10 +7,9 @@ import logging
 import sys
 from pathlib import Path
 
-
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
-from icu_benchmarks.gin_parser import random_search_configs
+from icu_benchmarks.gin_utils import parse_gin_and_random_search
 
 SEEDS = [1111]
 
@@ -45,6 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser_prep_and_train.add_argument(
         "--reproducible", default=True, action=BooleanOptionalAction, help="Set torch to be reproducible."
     )
+    parser_prep_and_train.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train on CPU.")
     parser_prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
 
     # EVALUATION PARSER
@@ -100,8 +100,7 @@ def main(my_args=tuple(sys.argv[1:])):
         log_dir /= f"from_{args.source_name}"
         source_dir = args.source_dir
         reproducible = False
-        with open(source_dir / "train_config.gin") as f:
-            gin_configs = f.read()
+        gin.parse_config_file(source_dir / "train_config.gin")
         run_dir = create_run_dir(log_dir)
     else:
         source_dir = None
@@ -110,12 +109,10 @@ def main(my_args=tuple(sys.argv[1:])):
             gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
         else:
             gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
-        gin_configs, randomly_searched_params = random_search_configs(gin_config_files, args.hyperparams, log_dir)
+        randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, args.cpu, log_dir)
         run_dir = create_run_dir(log_dir, randomly_searched_params)
-        gin_configs += [f"TASK = '{task}'"]
 
     for seed in args.seed:
-        gin.parse_config(gin_configs)
         data = preprocess_data(args.data_dir, seed=seed, debug=debug, use_cache=cache)
         run_dir_seed = run_dir / f"seed_{str(seed)}"
         run_dir_seed.mkdir()
@@ -127,8 +124,6 @@ def main(my_args=tuple(sys.argv[1:])):
             seed=seed,
             reproducible=reproducible,
         )
-
-    gin.clear_config()
 
 
 """Main module."""
