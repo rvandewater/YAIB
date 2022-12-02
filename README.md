@@ -48,6 +48,11 @@ You can either install this repo using conda or using the setup.py. As the hyper
 pip install torch numpy && pip install -e .
 ```
 
+If you have problems with lightgbm try:
+```bash
+pip install lightgbm --install-option=--nomp
+```
+
 # CLI Commands
 
 ## Preprocess and Train
