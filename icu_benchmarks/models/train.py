@@ -158,7 +158,7 @@ def train_imputation_method(
         ],
         # precision=16,
         accelerator="auto",
-        devices=torch.cuda.device_count(),
+        devices=torch.cuda.device_count() if torch.cuda.device_count() else 'auto',
         deterministic=reproducible,
         logger=loggers,
     )
