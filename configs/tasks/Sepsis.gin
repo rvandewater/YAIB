@@ -31,6 +31,7 @@ vars = {
 
 preprocess.vars = %vars
 Dataset.vars = %vars
+Dataset.use_static = True
 
 preprocess.train_pct = 0.7
 preprocess.val_pct = 0.1
