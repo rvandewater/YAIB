@@ -8,9 +8,11 @@ import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 
+from sklearn.impute import MissingIndicator
+
 from recipys.recipe import Recipe
 from recipys.selector import all_of
-from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepScale
+from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepScale, StepSklearn
 
 
 def make_single_split(
@@ -128,6 +130,7 @@ def preprocess_data(
     logging.info("Preprocessing dynamic data.")
     dyn_rec = Recipe(data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
     dyn_rec.add_step(StepScale())
+    dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars["DYNAMIC"]), in_place=False))
     if use_features:
         dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
         dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
