@@ -17,6 +17,7 @@ from sklearn.metrics import (
     precision_recall_curve,
     roc_curve,
 )
+from sklearn.calibration import calibration_curve
 
 import torch
 from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
@@ -326,6 +327,7 @@ class MLWrapper(object):
                 "AUC": roc_auc_score,
                 "ROC": roc_curve,
                 "PRC": precision_recall_curve,
+                "Calibration": calibration_curve
             }
 
         elif np.all(labels[:10].astype(int) == labels[:10]):
