@@ -2,7 +2,7 @@ import inspect
 import logging
 import os
 import pickle
-
+import json
 import gin
 import lightgbm
 import numpy as np
@@ -24,7 +24,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import joblib
 
-from icu_benchmarks.models.utils import save_model, load_model_state
+from icu_benchmarks.models.utils import save_model, load_model_state, append_results
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
 from icu_benchmarks.models.encoders import LSTMNet
 
@@ -42,6 +42,7 @@ class DLWrapper(object):
     def __init__(
         self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, train_on_cpu=False
     ):
+        logging.info(torch.cuda.is_available())
         if torch.cuda.is_available() and not train_on_cpu:
             logging.info("Model will be trained using GPU Hardware")
             device = torch.device("cuda")
@@ -164,6 +165,7 @@ class DLWrapper(object):
         train_dataset,
         val_dataset,
         weight,
+        seed,
         epochs=1000,
         batch_size=64,
         patience=10,
@@ -247,10 +249,15 @@ class DLWrapper(object):
             logging.info(train_string.format(*train_values))
             logging.info(val_string.format(*val_values))
 
-        with open(os.path.join(self.logdir, "val_metrics.pkl"), "wb") as f:
-            best_metrics["loss"] = best_loss
-            pickle.dump(best_metrics, f)
+        best_metrics["loss"] = best_loss
 
+        best_metrics["PR_Curve"] = [item.tolist() for item in best_metrics["PR_Curve"]]
+
+
+        # with open(os.path.join(self.logdir, "best_metrics.json"), "w") as f:
+        #     json.dump(best_metrics, f)
+        #
+        # append_results(os.path.join(os.path.join(self.logdir, ".."), "val_metrics.json"),val_metric_results,seed)
         self.load_weights(os.path.join(self.logdir, "model.torch"))  # We load back the best iteration
 
     def test(self, dataset, weight):
@@ -260,9 +267,11 @@ class DLWrapper(object):
             weight = torch.FloatTensor(weight).to(self.device)
         test_loss, test_metrics = self.evaluate(test_loader, self.metrics, weight)
 
-        with open(os.path.join(self.logdir, "test_metrics.pkl"), "wb") as f:
-            test_metrics["loss"] = test_loss
-            pickle.dump(test_metrics, f)
+        test_metrics["loss"] = test_loss
+        with open(os.path.join(self.logdir, "test_metrics.json"), "wb") as f:
+            json.dump(test_metrics, f)
+
+        append_results(os.path.join(os.path.join(self.logdir, ".."), "test_metrics.json"), test_metrics, seed)
         for key, value in test_metrics.items():
             if isinstance(value, float):
                 logging.info("Test {} :  {}".format(key, value))
@@ -329,7 +338,7 @@ class MLWrapper(object):
         self.scaler = scaler
 
     @gin.configurable(module="MLWrapper")
-    def train(self, train_dataset, val_dataset, weight, patience=10, save_weights=True):
+    def train(self, train_dataset, val_dataset, weight, seed, patience=10, save_weights=True):
 
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
@@ -387,10 +396,14 @@ class MLWrapper(object):
             else:
                 self.save_weights(save_path=os.path.join(self.logdir, "model.joblib"), model_type=model_type)
 
-        with open(os.path.join(self.logdir, "val_metrics.pkl"), "wb") as f:
-            pickle.dump(val_metric_results, f)
+        with open(os.path.join(self.logdir, "val_metrics.json"), "w") as f:
+            json.dump(val_metric_results,f)
 
-    def test(self, dataset, weight):
+        append_results(os.path.join(os.path.join(self.logdir, ".."), "val_metrics.json"),val_metric_results,seed)
+
+
+
+    def test(self, dataset, seed, weight):
         test_rep, test_label = dataset.get_data_and_labels()
         self.set_metrics(test_label)
         if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
@@ -407,8 +420,21 @@ class MLWrapper(object):
             test_values.append(test_metric_results[name])
 
         logging.info(test_string.format(*test_values))
-        with open(os.path.join(self.logdir, "test_metrics.pkl"), "wb") as f:
-            pickle.dump(test_metric_results, f)
+        with open(os.path.join(self.logdir, "test_metrics.json"), "w") as f:
+            json.dump(test_metric_results,f)
+
+        # Write results to common folder
+        append_results(os.path.join(os.path.join(self.logdir, ".."), "test_metrics.json"), test_metric_results, seed)
+        # experiment_parent = os.path.join(os.path.join(self.logdir, ".."), "test_metrics.json")
+        # try:
+        #     with open(experiment_parent)as f:
+        #         file = json.load(f)
+        # except IOError:
+        #     file = {}
+        # with open(experiment_parent, "w") as f:
+        #     file[seed] = test_metric_results
+        #     json.dump(file, f)
+
 
     def save_weights(self, save_path, model_type="lgbm"):
         if model_type == "lgbm":

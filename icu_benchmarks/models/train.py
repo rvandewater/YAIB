@@ -67,7 +67,7 @@ def train_common(
 
     else:
         try:
-            model.train(dataset, val_dataset, weight)
+            model.train(dataset, val_dataset, weight, seed)
         except ValueError as e:
             logging.exception(e)
             if "Only one class present" in str(e):
@@ -80,5 +80,5 @@ def train_common(
     if do_test:
         test_dataset = RICUDataset(data, split="test")
         weight = dataset.get_balance()
-        model.test(test_dataset, weight)
+        model.test(test_dataset, seed, weight)
     save_config_file(log_dir)

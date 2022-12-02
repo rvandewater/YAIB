@@ -44,7 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser_prep_and_train.add_argument(
         "--reproducible", default=True, action=BooleanOptionalAction, help="Set torch to be reproducible."
     )
-    parser_prep_and_train.add_argument("--cpu", default=True, action=BooleanOptionalAction, help="Set to train on CPU.")
+    parser_prep_and_train.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train on CPU.")
     parser_prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
 
     # EVALUATION PARSER
@@ -72,6 +72,7 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     log_dir_run.mkdir(parents=True)
     if randomly_searched_params:
         (log_dir_run / randomly_searched_params).touch()
+    logging.info(f"Using {log_dir} for experiment tracking")
     return log_dir_run
 
 
