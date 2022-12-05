@@ -4,9 +4,6 @@ import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.loader
 
-RES = 1
-RES_LAB = 1
-
 preprocess.use_features = False
 
 # Train params
