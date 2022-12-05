@@ -125,7 +125,11 @@ def preprocess_data(
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
     sta_rec.add_step(StepScale())
     sta_rec.add_step(StepImputeFill(value=0))
-    sta_rec.add_step(StepSklearn(LabelEncoder(), sel=all_of(list(data["train"]["STATIC"].select_dtypes(include="O").columns)), columnwise=True))
+    sta_rec.add_step(
+        StepSklearn(
+            LabelEncoder(), sel=all_of(list(data["train"]["STATIC"].select_dtypes(include="O").columns)), columnwise=True
+        )
+    )
 
     data = apply_recipe_to_splits(sta_rec, data, "STATIC")
 
