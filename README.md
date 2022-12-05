@@ -27,13 +27,14 @@ In the folder `demo_data` we provide processed publicly available demo datasets 
 
 # Use with CLI Commands
 ## Preprocess and Train
-The following command will run training and evaluation on a demo dataset from MIMIC for Mortality prediction at 24h with LogisticRegression: 
+The following command will run training and evaluation on a demo dataset from MIMIC for Mortality prediction at 24h with LogisticRegression. Child samples are reduced due to the small amount of training data.
 ```
 icu-benchmarks train \
     -d demo_data/mortality24/mimic_demo \
     -n mimic_demo \
     -t Mortality_At24Hours_Demo \
-    -m LGBMClassifier \    
+    -m LGBMClassifier \
+    -hp LGBMClassifier.min_child_samples=10 \
     -c \
     -s 1111 2222 3333 4444 5555 \
     -l ../yaib_logs/
@@ -124,7 +125,8 @@ icu-benchmarks evaluate \
     -d demo_data/mortality24/eicu_demo \
     -n eicu_demo \
     -t Mortality_At24Hours \
-    -m LogisticRegression \
+    -m LGBMClassifier \
+    -hp LGBMClassifier.min_child_samples=10 \
     -sn mimic \
     --source-dir ../yaib_logs/mimic_demo/Mortality_At24Hours_Demo/LGBMClassifier/2022-12-02T18-39-34/seed_1111 \ 
     -c \
