@@ -51,7 +51,7 @@ This paper can also be found on arxiv: TBD
 YAIB currently requires an installation of Conda. Below you will find the three CLI commands to install YAIB.
 The
 
-The first command will install an environment based on Python 3.10 (currently) and activate that environment.
+The first command will install an environment based on Python 3.10 (currently).
 
 ```
 conda env update -f <environment.yml|environment_mps.yml>
