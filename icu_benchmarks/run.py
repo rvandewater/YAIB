@@ -34,7 +34,9 @@ def build_parser() -> argparse.ArgumentParser:
     general_args.add_argument("-t", "--task", default="Mortality_At24Hours", help="Name of the task gin.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
-    general_args.add_argument("-l", "--log-dir", required=True, type=Path, help="Path to the log directory with model weights.")
+    general_args.add_argument(
+        "-l", "--log-dir", required=True, type=Path, help="Path to the log directory with model weights."
+    )
     general_args.add_argument("-s", "--seed", default=SEEDS, nargs="+", type=int, help="Random seed at train and eval.")
     general_args.add_argument("-db", "--debug", action=BooleanOptionalAction, help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
