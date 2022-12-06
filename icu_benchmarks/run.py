@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import argparse
 from argparse import BooleanOptionalAction
+from bayes_opt import BayesianOptimization
 from datetime import datetime
 import gin
 import logging
+from logging import INFO, NOTSET
 import sys
 from pathlib import Path
 
@@ -49,6 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser_prep_and_train.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train on CPU.")
     parser_prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
+    parser_prep_and_train.add_argument("--tune", action=BooleanOptionalAction, help="Find best hyperparameters.")
 
     # EVALUATION PARSER
     evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
@@ -78,6 +81,70 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     return log_dir_run
 
 
+@gin.configurable
+def preprocess_and_train_for_folds(
+    data_dir,
+    log_dir,
+    seed,
+    load_weights=False,
+    source_dir=None,
+    num_folds=gin.REQUIRED,
+    reproducible=False,
+    debug=False,
+    use_cache=False,
+    test_on="test"
+):
+    agg_loss = 0
+    for fold_index in range(num_folds):
+            data = preprocess_data(data_dir, seed=seed, debug=debug, use_cache=use_cache, fold_index=fold_index)
+            
+            run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
+            run_dir_seed.mkdir(parents=True, exist_ok=True)
+
+            agg_loss += train_common(
+                data,
+                log_dir=run_dir_seed,
+                load_weights=load_weights,
+                source_dir=source_dir,
+                seed=seed,
+                reproducible=reproducible,
+                test_on=test_on
+            )
+            
+    return agg_loss / num_folds
+
+
+@gin.configurable
+def hyperparameter(class_to_tune=gin.REQUIRED, **kwargs):
+    return {f"{class_to_tune.__name__}.{param}": value for param, value in kwargs.items()}
+
+
+@gin.configurable
+def tune_hyperparameters(data_dir, log_dir, seed, scopes=gin.REQUIRED, init_points=3, n_iter=20, cast_to_int=None):
+    def bind_params_from_dict(params_dict):
+        for param, value in params_dict.items():
+            value = int(value) if param in cast_to_int else value
+            gin.bind_parameter(param, value)
+
+    def bind_params_and_train(**hyperparams):
+        bind_params_from_dict(hyperparams)
+        # return negative loss because BO maximizes
+        return -preprocess_and_train_for_folds(data_dir, (log_dir / "hyperparameter_tuning"), seed, use_cache=True, test_on="val")
+
+    hyperparams = {}
+    for scope in scopes:
+        with gin.config_scope(scope):
+            hyperparams.update(hyperparameter())
+
+    bo = BayesianOptimization(bind_params_and_train, hyperparams)
+    bo.set_gp_params(alpha=1e-3)
+    logging.disable(level=INFO)
+    bo.maximize(init_points=init_points, n_iter=n_iter)
+    logging.disable(level=NOTSET)
+    logging.info(bo.max)
+    bind_params_from_dict(bo.max['params'])
+
+
 def main(my_args=tuple(sys.argv[1:])):
     args = build_parser().parse_args(my_args)
 
@@ -102,8 +169,7 @@ def main(my_args=tuple(sys.argv[1:])):
         log_dir /= f"from_{args.source_name}"
         source_dir = args.source_dir
         reproducible = False
-        gin.parse_config_file(source_dir / "train_config.gin")
-        run_dir = create_run_dir(log_dir)
+        gin_config_files = [source_dir / "train_config.gin"]
     else:
         source_dir = None
         reproducible = args.reproducible
@@ -111,20 +177,24 @@ def main(my_args=tuple(sys.argv[1:])):
             gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
         else:
             gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
-        randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, args.cpu, log_dir)
-        run_dir = create_run_dir(log_dir, randomly_searched_params)
+        # randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, args.cpu, log_dir)
+    
+    run_dir = create_run_dir(log_dir)
+    gin.parse_config_files_and_bindings(gin_config_files, None, finalize_config=False)
 
     for seed in args.seed:
-        data = preprocess_data(args.data_dir, seed=seed, debug=debug, use_cache=cache)
-        run_dir_seed = run_dir / f"seed_{str(seed)}"
-        run_dir_seed.mkdir()
-        train_common(
-            log_dir=run_dir_seed,
-            data=data,
+        if args.tune:
+            tune_hyperparameters(args.data_dir, run_dir, seed)
+
+        preprocess_and_train_for_folds(
+            args.data_dir,
+            log_dir=run_dir,
             load_weights=load_weights,
             source_dir=source_dir,
             seed=seed,
             reproducible=reproducible,
+            debug=args.debug,
+            use_cache=args.cache,
         )
 
 

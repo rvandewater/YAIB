@@ -7,7 +7,6 @@ preprocess.use_features = True
 
 # Train params
 train_common.model = @MLWrapper()
-train_common.do_test = True
 
 MLWrapper.model = @LGBMClassifier()
 MLWrapper.train.patience = 10
@@ -15,10 +14,14 @@ MLWrapper.train.patience = 10
 LGBMClassifier.n_estimators = 100000
 LGBMClassifier.min_child_samples = 1000
 LGBMClassifier.subsample_freq = 1
-model/random_search.class_to_configure = @LGBMClassifier
-model/random_search.max_depth = [3, 4, 5, 6, 7]
-model/random_search.num_leaves = [8, 16, 32, 64, 128]
-model/random_search.subsample = [0.33, 0.66, 1.00]
-model/random_search.colsample_bytree = [0.33, 0.66, 1.00]
 
-run_random_searches.scopes = ["model"]
+model/hyperparameter.class_to_tune = @LGBMClassifier
+model/hyperparameter.max_depth = (3, 7)
+model/hyperparameter.num_leaves = (8, 128)
+model/hyperparameter.subsample = (0.33, 1.00)
+model/hyperparameter.colsample_bytree = (0.33, 1.00)
+
+tune_hyperparameters.scopes = ["model"]
+tune_hyperparameters.init_points = 1
+tune_hyperparameters.n_iter = 2
+tune_hyperparameters.cast_to_int = ["LGBMClassifier.max_depth", "LGBMClassifier.num_leaves", "LGBMClassifier.depth"]
