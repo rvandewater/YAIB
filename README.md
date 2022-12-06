@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml)
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+![Platform](https://img.shields.io/badge/platform-linux--64%20|%20win--64%20|%20osx--64-lightgrey)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 [//]: # (TODO: add coverage once we have some tests )
