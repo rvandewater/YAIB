@@ -31,7 +31,8 @@ def build_parser() -> argparse.ArgumentParser:
     general_args = parent_parser.add_argument_group("General arguments")
     general_args.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
     general_args.add_argument("-n", "--name", required=True, help="Name of the (target) dataset.")
-    general_args.add_argument("-t", "--task", default="Mortality_At24Hours", help="Name of the task gin.")
+    general_args.add_argument("-t", "--task", default="BinaryClassification", help="Name of the task gin.")
+    general_args.add_argument("-tn", "--task-name", required=True, help="Name of the task.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument(
@@ -95,7 +96,7 @@ def main(my_args=tuple(sys.argv[1:])):
     model = args.model
     experiment = args.experiment
     log_dir_name = args.log_dir / name
-    log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / task / model)
+    log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / args.task_name / model)
 
     if load_weights:
         log_dir /= f"from_{args.source_name}"
