@@ -3,16 +3,20 @@
 # Yet Another ICU Benchmark
 
 [![CI](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml)
+[![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+[//]: # (TODO: add coverage once we have some tests )
 
 Yet another ICU benchmark (YAIB) aims to
 This package provides a framework for doing clinical machine learning experiments.
 We support the following datasets out of the box:
 
 | Dataset                 | [MIMIC-III](https://physionet.org/content/mimiciii/) / [IV](https://physionet.org/content/mimiciv/) | [eICU-CRD](https://physionet.org/content/eicu-crd/) | [HiRID](https://physionet.org/content/hirid/1.1.1/) | [AUMCdb](https://doi.org/10.17026/dans-22u-f8vd) |
-|-------------------------|-------------------------------------------------------------------------------------------------------------|---------------------------------------------------------|-----------------------------------------------------|----------------------------------|
-| Admissions              | 40k / 50k                                                                                                   | 200k                                                    | 33k                                                 | 23k                              |
-| Frequency (time-series) | 1 hour                                                                                                      | 5 minutes                                               | 2 / 5 minutes                                       | up to 1 minute                   |
-| Origin                  | USA                                                                                                         | USA                                                     | Switzerland                                         | Netherlands                      |
+|-------------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------|-----------------------------------------------------|--------------------------------------------------|
+| Admissions              | 40k / 50k                                                                                           | 200k                                                | 33k                                                 | 23k                                              |
+| Frequency (time-series) | 1 hour                                                                                              | 5 minutes                                           | 2 / 5 minutes                                       | up to 1 minute                                   |
+| Origin                  | USA                                                                                                 | USA                                                 | Switzerland                                         | Netherlands                                      |
 
 The benchmark is designed for operating on preprocessed parquet files. We refer to the PyICU (in development)
 or [ricu package](https://github.com/eth-mds/ricu) for generating these parquet files for particular cohorts and endpoints.
