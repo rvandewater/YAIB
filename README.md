@@ -8,11 +8,11 @@ Yet another ICU benchmark (YAIB) aims to
 This package provides a framework for doing clinical machine learning experiments.
 We support the following datasets out of the box:
 
-| Dataset                 | MIMIC-III / IV                                                                                                                            | eICU-CRD                                             | HiRID                                                 | AUMCdb         |
-|-------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|-------------------------------------------------------|----------------|
-| Admissions              | 40k / 50k                                                                                                                                 | 200k                                                 | 33k                                                   | 23k            |
-| Frequency (time-series) | 1 hour                                                                                                                                    | 5 minutes                                            | 2 / 5 minutes                                         | up to 1 minute |
-| Origin                  | USA                                                                                                                                       | USA                                                  | Switzerland                                           | Netherlands    |
+| Dataset                 | [MIMIC-III](https://physionet.org/content/mimiciii/) / [IV](https://physionet.org/content/mimiciv/) | [eICU-CRD](https://physionet.org/content/eicu-crd/) | [HiRID](https://physionet.org/content/hirid/1.1.1/) | [AUMCdb](https://doi.org/10.17026/dans-22u-f8vd) |
+|-------------------------|-------------------------------------------------------------------------------------------------------------|---------------------------------------------------------|-----------------------------------------------------|----------------------------------|
+| Admissions              | 40k / 50k                                                                                                   | 200k                                                    | 33k                                                 | 23k                              |
+| Frequency (time-series) | 1 hour                                                                                                      | 5 minutes                                               | 2 / 5 minutes                                       | up to 1 minute                   |
+| Origin                  | USA                                                                                                         | USA                                                     | Switzerland                                         | Netherlands                      |
 
 The benchmark is designed for operating on preprocessed parquet files. We refer to the PyICU (in development)
 or [ricu package](https://github.com/eth-mds/ricu) for generating these parquet files for particular cohorts and endpoints.
@@ -22,10 +22,13 @@ We provide several common tasks for clinical prediction:
 | No  | Task Theme                | Temporality        | Type                                | 
 |-----|---------------------------|--------------------|-------------------------------------|
 | 1   | ICU Mortality             | Hourly (after 24H) | Sequential Classification           |
-| 2   | Acute Kidney Injury (AKI) | Hourly             | Sequence to Sequence Classification |
-| 3   | Sepsis                    | Hourly             | Sequence to Sequence Classification |
-| 4   | Circulatory Failure       | 5 Minutes          | Sequence to Sequence Classification |
-| 5   | Length of Stay (LoS)      | Hourly             | Sequence to Sequence Regression     | 
+| 2   | Acute Kidney Injury (AKI) | Hourly (within 6H) | Sequence to Sequence Classification |
+| 3   | Sepsis                    | Hourly (within 6H) | Sequence to Sequence Classification |
+
+[//]: # (| 4   | Circulatory Failure       | 5 Minutes          | Sequence to Sequence Classification |)
+
+[//]: # (| 5   | Length of Stay &#40;LoS&#41;      | Hourly             | Sequence to Sequence Regression     | )
+
 
 Please refer to [cohort definitions]() for further information.
 
@@ -68,7 +71,9 @@ clinical concepts and how to load them from a given dataset, providing a common 
 benchmark.
 
 ### Extracting cohorts
+
 TODO
+
 ## Preprocess and Train
 
 The following command will start training on a prepared HiRID dataset for sequential Mortality prediction with an LGBM
@@ -240,6 +245,27 @@ Several metrics are defined for this benchmark:
 - Regression : The Mean Absolute Error (MAE) is used
   with [sklearn.metrics.mean_absolute_error](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html)
 
+## Models
+
+We provide several existing machine learning models that are commonly used for multivariate time-series data.
+`pytorch` is used for the deep learning models, `lightgbm` for the boosted tree approaches, and `sklearn` for the logistic
+regression model and metrics.
+The benchmark provides the following built-in models:
+
+- [Logistic Regression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html?highlight=logistic+regression):
+  Standard regression approach.
+- [LightGBM](https://proceedings.neurips.cc/paper/2017/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf): Efficient gradient
+  boosting trees.
+- [Long Short-term Memory (LSTM)](https://ieeexplore.ieee.org/document/818041): The most commonly used type of Recurrent Neural
+  Networks for long sequences.
+- [Gated Recurrent Unit (GRU)](https://arxiv.org/abs/1406.1078) : A extension to LSTM which showed improvement over them in the
+  context of polyphonic music modeling and speech signal modeling ([paper](https://arxiv.org/abs/1412.3555)).
+- [Temporal Convolutional Networks (TCN)](https://arxiv.org/pdf/1803.01271 ): 1D convolution approach to sequence data. By
+  using dilated convolution to extend the receptive field of the network it has shown great performance on long-term
+  dependencies.
+- [Transformers](https://papers.nips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf): The most common Attention
+  based approach.
+
 # Development
 
 YAIB is in active development. The following sections could be relevant for adding new code to our repository
@@ -278,5 +304,9 @@ flake8 . --count --max-complexity=14 --max-line-length=127 --statistics
 
 # Acknowledgements
 
-We do not own any of the datasets used in this benchmark. This project uses heavily adapted components of
+We do not own any of the datasets used in this benchmark. This project uses adapted components of
 the [HiRID benchmark](https://github.com/ratschlab/HIRID-ICU-Benchmark/).
+
+# License
+
+This source code is released under the MIT license, included [here](LICENSE)
