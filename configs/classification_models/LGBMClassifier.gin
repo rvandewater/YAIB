@@ -3,9 +3,6 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 
-RES = 1
-RES_LAB = 1
-
 preprocess.use_features = True
 
 # Train params
@@ -15,10 +12,13 @@ train_common.do_test = True
 MLWrapper.model = @LGBMClassifier()
 MLWrapper.train.patience = 10
 
-LGBMClassifier.max_depth = RS([3, 4, 5, 6, 7])
-LGBMClassifier.num_leaves = RS([8, 16, 32, 64, 128])
 LGBMClassifier.n_estimators = 100000
 LGBMClassifier.min_child_samples = 1000
-LGBMClassifier.subsample = RS([0.33, 0.66, 1.00])
 LGBMClassifier.subsample_freq = 1
-LGBMClassifier.colsample_bytree = RS([0.33, 0.66, 1.00])
+model/random_search.class_to_configure = @LGBMClassifier
+model/random_search.max_depth = [3, 4, 5, 6, 7]
+model/random_search.num_leaves = [8, 16, 32, 64, 128]
+model/random_search.subsample = [0.33, 0.66, 1.00]
+model/random_search.colsample_bytree = [0.33, 0.66, 1.00]
+
+run_random_searches.scopes = ["model"]

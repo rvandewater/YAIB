@@ -47,13 +47,15 @@ gin.config.external_configurable(LogisticRegression)
 
 @gin.configurable("DLWrapper")
 class DLWrapper(object):
-    def __init__(self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam):
-        if torch.cuda.is_available():
+    def __init__(
+        self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, train_on_cpu=False
+    ):
+        if torch.cuda.is_available() and not train_on_cpu:
             logging.info("Model will be trained using GPU Hardware")
             device = torch.device("cuda")
             self.pin_memory = True
             self.n_worker = 1
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available() and not train_on_cpu:
             logging.info("Model will be trained using Apple’s MPS")
             device = torch.device("mps")
             self.pin_memory = True
@@ -62,7 +64,7 @@ class DLWrapper(object):
             logging.info("Model will be trained using CPU Hardware. This should be considerably slower")
             device = torch.device("cpu")
             self.pin_memory = False
-            self.n_worker = 16
+            self.n_worker = 8
         self.device = device
         self.encoder = encoder
         self.encoder.to(device)

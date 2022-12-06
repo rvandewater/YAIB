@@ -3,9 +3,6 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 
-RES = 1
-RES_LAB = 1
-
 preprocess.use_features = True
 
 # Train params
@@ -15,7 +12,8 @@ train_common.do_test = True
 MLWrapper.model = @LogisticRegression()
 MLWrapper.train.patience = 10
 
-LogisticRegression.solver = 'saga'
-LogisticRegression.C = RS([0.001, 0.01, 0.1, 1.0, 10])
-LogisticRegression.penalty = RS(["l1", "l2", "none"])
+LogisticRegression.solver = "saga"
 LogisticRegression.max_iter = 100000
+model/random_search.class_to_configure = @LogisticRegression
+model/random_search.C = [0.001, 0.01, 0.1, 1.0, 10]
+model/random_search.penalty = ["l1", "l2", "none"]
