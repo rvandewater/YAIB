@@ -48,8 +48,9 @@ def train_common(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    model.set_logdir(log_dir)
-    save_config_file(log_dir)  # We save the operative config before and also after training
+    if log_dir:
+        model.set_log_dir(log_dir)
+        save_config_file(log_dir)
 
     dataset = RICUDataset(data, split="train")
     val_dataset = RICUDataset(data, split="val")
