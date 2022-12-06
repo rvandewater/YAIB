@@ -1,4 +1,4 @@
-name: Lint and test recipes
+name: CI
 
 on:
   workflow_dispatch:
