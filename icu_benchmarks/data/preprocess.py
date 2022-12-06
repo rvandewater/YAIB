@@ -18,11 +18,7 @@ from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepScale,
 
 
 def make_single_split(
-    data: dict[pd.DataFrame],
-    vars: dict[str],
-    fold_index: int,
-    seed: int = 42,
-    debug: bool = False,
+    data: dict[pd.DataFrame], vars: dict[str], fold_index: int, seed: int = 42, debug: bool = False,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
@@ -45,16 +41,18 @@ def make_single_split(
     test, val = np.array_split(test_and_val, 2)
 
     split = {
-        'train': stays.loc[train],
-        'val': stays.loc[test],
-        'test': stays.loc[val],
+        "train": stays.loc[train],
+        "val": stays.loc[test],
+        "test": stays.loc[val],
     }
     data_split = {}
 
-    for fold in split.keys(): # Loop through train / val / test
+    for fold in split.keys():  # Loop through train / val / test
         # Loop through DYNAMIC / STATIC / OUTCOME
         # set sort to true to make sure that IDs are reordered after scrambling earlier
-        data_split[fold] = {data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()}
+        data_split[fold] = {
+            data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
+        }
 
     return data_split
 

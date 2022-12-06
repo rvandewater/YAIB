@@ -92,25 +92,25 @@ def preprocess_and_train_for_folds(
     reproducible=False,
     debug=False,
     use_cache=False,
-    test_on="test"
+    test_on="test",
 ):
     agg_loss = 0
     for fold_index in range(num_folds):
-            data = preprocess_data(data_dir, seed=seed, debug=debug, use_cache=use_cache, fold_index=fold_index)
-            
-            run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
-            run_dir_seed.mkdir(parents=True, exist_ok=True)
+        data = preprocess_data(data_dir, seed=seed, debug=debug, use_cache=use_cache, fold_index=fold_index)
 
-            agg_loss += train_common(
-                data,
-                log_dir=run_dir_seed,
-                load_weights=load_weights,
-                source_dir=source_dir,
-                seed=seed,
-                reproducible=reproducible,
-                test_on=test_on
-            )
-            
+        run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
+        run_dir_seed.mkdir(parents=True, exist_ok=True)
+
+        agg_loss += train_common(
+            data,
+            log_dir=run_dir_seed,
+            load_weights=load_weights,
+            source_dir=source_dir,
+            seed=seed,
+            reproducible=reproducible,
+            test_on=test_on,
+        )
+
     return agg_loss / num_folds
 
 
@@ -129,7 +129,9 @@ def tune_hyperparameters(data_dir, log_dir, seed, scopes=gin.REQUIRED, init_poin
     def bind_params_and_train(**hyperparams):
         bind_params_from_dict(hyperparams)
         # return negative loss because BO maximizes
-        return -preprocess_and_train_for_folds(data_dir, (log_dir / "hyperparameter_tuning"), seed, use_cache=True, test_on="val")
+        return -preprocess_and_train_for_folds(
+            data_dir, (log_dir / "hyperparameter_tuning"), seed, use_cache=True, test_on="val"
+        )
 
     hyperparams = {}
     for scope in scopes:
@@ -142,7 +144,7 @@ def tune_hyperparameters(data_dir, log_dir, seed, scopes=gin.REQUIRED, init_poin
     bo.maximize(init_points=init_points, n_iter=n_iter)
     logging.disable(level=NOTSET)
     logging.info(bo.max)
-    bind_params_from_dict(bo.max['params'])
+    bind_params_from_dict(bo.max["params"])
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -178,7 +180,7 @@ def main(my_args=tuple(sys.argv[1:])):
         else:
             gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
         # randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, args.cpu, log_dir)
-    
+
     run_dir = create_run_dir(log_dir)
     gin.parse_config_files_and_bindings(gin_config_files, None, finalize_config=False)
 
