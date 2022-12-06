@@ -266,6 +266,8 @@ class DLWrapper(object):
         for key, value in test_metrics.items():
             if isinstance(value, float):
                 logging.info("Test {} :  {}".format(key, value))
+        
+        return test_loss
 
     def evaluate(self, eval_loader, metrics, weight):
         self.encoder.eval()
@@ -367,15 +369,15 @@ class MLWrapper(object):
         train_metric_results = {}
         train_string = ""
         train_values = []
-        val_string = "Val Results: " + "loss" + ":{:.4f}"
+        val_string = "Val Results: loss: {:.4f}"
         val_values = [val_loss]
         val_metric_results = {"loss": val_loss}
         for name, metric in metrics.items():
             train_metric_results[name] = metric(self.label_transform(train_label), self.output_transform(train_pred))
             val_metric_results[name] = metric(self.label_transform(val_label), self.output_transform(val_pred))
             train_string += "Train Results: " if len(train_string) == 0 else ", "
-            train_string += name + ":{:.4f}"
-            val_string += ", " + name + ":{:.4f}"
+            train_string += name + ": {:.4f}"
+            val_string += ", " + name + ": {:.4f}"
             train_values.append(train_metric_results[name])
             val_values.append(val_metric_results[name])
         logging.info(train_string.format(*train_values))
@@ -397,6 +399,9 @@ class MLWrapper(object):
             test_pred = self.model.predict(test_rep)
         else:
             test_pred = self.model.predict_proba(test_rep)
+
+        test_loss = list(self.model.best_score_["valid_0"].values())[0]
+    
         test_string = ""
         test_values = []
         test_metric_results = {}
@@ -409,6 +414,8 @@ class MLWrapper(object):
         logging.info(test_string.format(*test_values))
         with open(os.path.join(self.log_dir, "test_metrics.pkl"), "wb") as f:
             pickle.dump(test_metric_results, f)
+
+        return test_loss
 
     def save_weights(self, save_path, model_type="lgbm"):
         if model_type == "lgbm":
