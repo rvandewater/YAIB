@@ -22,6 +22,6 @@ model/hyperparameter.subsample = (0.33, 1.00)
 model/hyperparameter.colsample_bytree = (0.33, 1.00)
 
 tune_hyperparameters.scopes = ["model"]
-tune_hyperparameters.init_points = 1
-tune_hyperparameters.n_iter = 2
+tune_hyperparameters.init_points = 4
+tune_hyperparameters.n_iter = 100
 tune_hyperparameters.cast_to_int = ["LGBMClassifier.max_depth", "LGBMClassifier.num_leaves", "LGBMClassifier.depth"]
