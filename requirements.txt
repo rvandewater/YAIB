@@ -17,3 +17,4 @@ pypots
 mypy
 flake8
 flake8-docstrings
+git+https://github.com/rvandewater/recipys.git
