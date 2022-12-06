@@ -9,8 +9,7 @@
 
 [//]: # (TODO: add coverage once we have some tests )
 
-Yet another ICU benchmark (YAIB) aims to
-This package provides a framework for doing clinical machine learning experiments.
+Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on (ICU) EHR data.
 We support the following datasets out of the box:
 
 | Dataset                 | [MIMIC-III](https://physionet.org/content/mimiciii/) / [IV](https://physionet.org/content/mimiciv/) | [eICU-CRD](https://physionet.org/content/eicu-crd/) | [HiRID](https://physionet.org/content/hirid/1.1.1/) | [AUMCdb](https://doi.org/10.17026/dans-22u-f8vd) |
