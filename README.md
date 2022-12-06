@@ -48,15 +48,23 @@ This paper can also be found on arxiv: TBD
 
 # Installation
 
+YAIB currently requires an installation of Conda. Below you will find the three CLI commands to install YAIB.
+The
+
+The first command will install an environment based on Python 3.10 (currently) and activate that environment.
+
 ```
 conda env update -f <environment.yml|environment_mps.yml>
-conda activate yaib
-pip install -e .
 ```
 
 > Use `environment.yml` on x86 hardware and `environment_mps.yml` on Macs with Metal Performance Shaders.
 
-> Note that the last command installs the package called `icu-benchmarks`.
+We then activate the enviornment and install a package called `icu-benchmarks`, after which YAIB should be operational.
+
+```
+conda activate yaib
+pip install -e .
+```
 
 # Usage
 
