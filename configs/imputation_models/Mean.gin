@@ -8,6 +8,6 @@ import icu_benchmarks.data.preprocess
 preprocess.use_features = False
 
 # Train params
-train_imputation_method.model = @Mean
-train_imputation_method.wandb = True
-train_imputation_method.do_test = True
+train_common.model = @Mean
+train_common.wandb = True
+train_common.do_test = True

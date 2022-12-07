@@ -8,9 +8,9 @@ import icu_benchmarks.data.preprocess
 preprocess.use_features = False
 
 # Train params
-train_imputation_method.model = @Attention
-train_imputation_method.wandb = True
-train_imputation_method.do_test = True
+train_common.model = @Attention
+train_common.wandb = True
+train_common.do_test = True
 
 # Model params
 Attention.n_layers = 2

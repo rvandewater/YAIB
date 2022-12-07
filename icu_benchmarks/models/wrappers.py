@@ -32,9 +32,8 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import joblib
 
-from icu_benchmarks.models.utils import save_model, load_model_state, create_optimizer, create_scheduler
+from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
-from icu_benchmarks.models.encoders import LSTMNet
 
 from pytorch_lightning import LightningModule
 
@@ -118,7 +117,7 @@ class DLWrapper(LightningModule):
         else:
             self.output_transform = softmax_multi_output_transform
             self.metrics = {"Accuracy": Accuracy(), "BalancedAccuracy": BalancedAccuracy()}
-    
+
     def on_fit_start(self):
         self.set_metrics()
         return super().on_fit_start()
@@ -155,9 +154,7 @@ class DLWrapper(LightningModule):
         else:
             loss = self.loss(out_flat[:, 0], label_flat.float()) + aux_loss  # Regression task
 
-
         return loss, out_flat, label_flat
-
 
     def training_step(self, batch, batch_idx):
         loss, preds, target = self.step_fn(batch)
@@ -180,7 +177,6 @@ class DLWrapper(LightningModule):
             metric.update(transformed_output)
         self.log("test/loss", loss, on_step=False, on_epoch=True)
 
-
     def on_train_epoch_end(self) -> None:
         self.log_dict({f"train/{name}": metric.compute() for name, metric in self.metrics.items()})
         for metric in self.metrics.values():
@@ -195,7 +191,7 @@ class DLWrapper(LightningModule):
     def on_test_epoch_start(self) -> None:
         self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
         return super().on_test_epoch_start()
-    
+
     def on_test_epoch_end(self) -> None:
         self.log_dict({f"test/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
         for metric in self.metrics.values():
@@ -210,7 +206,7 @@ class DLWrapper(LightningModule):
             self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
         )
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
-    
+
     def configure_optimizers(self):
         if isinstance(self.optimizer, str):
             optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
@@ -368,7 +364,6 @@ class ImputationWrapper(LightningModule):
         lr_scheduler: Optional[str] = None,
         lr_factor: float = 0.99,
         lr_steps: Optional[List[int]] = None,
-        epochs: int = 100,
         input_size: torch.Tensor = None,
         initialization_method: str = "normal",
         **kwargs: str,

@@ -25,7 +25,7 @@ def train_common(
     data: Dict[str, pd.DataFrame],
     load_weights: bool = False,
     only_evaluate = False,
-    source_path: Path = None,
+    source_dir: Path = None,
     reproducible: bool = True,
     mode: str = "Classification",
     dataset_name: str = "",
@@ -37,7 +37,6 @@ def train_common(
     patience=10,
     min_delta=1e-4,
     wandb: bool = True,
-    save_weights=True,
     num_workers: int = os.cpu_count(),
 ):
     """Common wrapper to train all benchmarked models.
@@ -50,11 +49,7 @@ def train_common(
         seed: Common seed used for any random operation.
         reproducible: If set to true, set torch to run reproducibly.
     """
-    
     DatasetClass = ImputationDataset if mode == "Imputation" else RICUDataset
-
-    # if mode == "Imputation":
-    #     return train_imputation_method(log_dir, data, load_weights, source_path, reproducible=reproducible, dataset_name=dataset_name)
 
     save_config_file(log_dir)  # We save the operative config before and also after training
 
@@ -78,13 +73,14 @@ def train_common(
     data_shape = next(iter(train_loader))[0].shape
 
     if load_weights:
-        if source_path.exists():
-            model = model.from_checkpoint(source_path)
+        if source_dir.exists():
+            
+            model = model.from_checkpoint(source_dir / "model.ckpt")
         else:
-            raise Exception(f"No weights to load at path : {source_path}")
+            raise Exception(f"No weights to load at path : {source_dir}")
         do_test = True
     else:
-        model = model(weight=weight, input_size=data_shape)
+        model = model(weight=weight, input_size=data_shape, epochs=epochs)
         if mode == "Classification":
             model.set_weight(weight, train_dataset)
     
@@ -98,7 +94,7 @@ def train_common(
             max_epochs=epochs,
             callbacks=[
                 EarlyStopping(monitor="train/loss", min_delta=min_delta, patience=patience),
-                ModelCheckpoint(log_dir, monitor="val/rmse", save_top_k=1, save_last=True),
+                ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
             ],
             # precision=16,
             accelerator="auto",
@@ -120,7 +116,15 @@ def train_common(
     if only_evaluate or do_test:
         logging.info("testing...")
         test_dataset = DatasetClass(data, split="test")
+        
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=batch_size * 4,
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=True,
+        )
         if mode == "Classification":
             model.set_weight("balanced", train_dataset)
-        trainer.test(test_dataset)
+        trainer.test(model, dataloaders=test_loader)
     save_config_file(log_dir)

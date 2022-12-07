@@ -3,10 +3,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
-
+from icu_benchmarks.models.wrappers import DLWrapper
 
 @gin.configurable
-class LSTMNet(nn.Module):
+class LSTMNet(DLWrapper):
+    
+    needs_training = True
+    needs_fit = False
+    
     def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, train_on_cpu=False):
         super().__init__()
         self.hidden_dim = hidden_dim
@@ -34,7 +38,11 @@ class LSTMNet(nn.Module):
 
 
 @gin.configurable
-class GRUNet(nn.Module):
+class GRUNet(DLWrapper):
+
+    needs_training = True
+    needs_fit = False
+
     def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, train_on_cpu=False):
         super().__init__()
         self.hidden_dim = hidden_dim
@@ -62,7 +70,11 @@ class GRUNet(nn.Module):
 
 
 @gin.configurable
-class Transformer(nn.Module):
+class Transformer(DLWrapper):
+    
+    needs_training = True
+    needs_fit = False
+
     def __init__(
         self, emb, hidden, heads, ff_hidden_mult, depth, num_classes, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0
     ):
@@ -103,7 +115,11 @@ class Transformer(nn.Module):
 
 
 @gin.configurable
-class LocalTransformer(nn.Module):
+class LocalTransformer(DLWrapper):
+    
+    needs_training = True
+    needs_fit = False
+
     def __init__(
         self,
         emb,
@@ -157,7 +173,11 @@ class LocalTransformer(nn.Module):
 
 # From TCN original paper https://github.com/locuslab/TCN
 @gin.configurable
-class TemporalConvNet(nn.Module):
+class TemporalConvNet(DLWrapper):
+    
+    needs_training = True
+    needs_fit = False
+    
     def __init__(self, num_inputs, num_channels, num_classes, max_seq_length=0, kernel_size=2, dropout=0.0):
         super(TemporalConvNet, self).__init__()
         layers = []

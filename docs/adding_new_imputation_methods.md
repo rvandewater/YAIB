@@ -47,15 +47,15 @@ import icu_benchmarks.imputation.new_model
 preprocess.use_features = False
 
 # Train params
-train_imputation_method.model = @newmethod # change this into the name of the gin configuration file
-train_imputation_method.do_test = True
+train_common.model = @newmethod # change this into the name of the gin configuration file
+train_common.do_test = True
 
 # here you can set some training parameters
-train_imputation_method.epochs = 1000
-train_imputation_method.batch_size = 64
-train_imputation_method.patience = 10
-train_imputation_method.min_delta = 1e-4
-train_imputation_method.wandb = True
+train_common.epochs = 1000
+train_common.batch_size = 64
+train_common.patience = 10
+train_common.min_delta = 1e-4
+train_common.wandb = True
 
 ImputationWrapper.optimizer = @Adam
 ImputationWrapper.lr_scheduler = "cosine"
