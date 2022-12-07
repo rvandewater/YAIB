@@ -1,6 +1,6 @@
 from torchmetrics import MeanSquaredError, MeanAbsoluteError, Accuracy
 from typing import List, Optional, Union
-from torch.nn import Module, MSELoss
+from torch.nn import Module, MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 import inspect
@@ -22,7 +22,9 @@ from sklearn.metrics import (
 )
 
 import torch
-from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
+# from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
+
+from torchmetrics import AveragePrecision, AUROC, PrecisionRecallCurve, ROC
 
 # from ignite.metrics import MeanAbsoluteError, Accuracy
 from torch.utils.data import DataLoader
@@ -46,30 +48,13 @@ gin.config.external_configurable(LogisticRegression)
 
 
 @gin.configurable("DLWrapper")
-class DLWrapper(object):
+class DLWrapper(LightningModule):
     def __init__(
-        self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, train_on_cpu=False
+        self, loss=CrossEntropyLoss(), optimizer=torch.optim.Adam, loss_weights=None
     ):
-        if torch.cuda.is_available() and not train_on_cpu:
-            logging.info("Model will be trained using GPU Hardware")
-            device = torch.device("cuda")
-            self.pin_memory = True
-            self.n_worker = 1
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available() and not train_on_cpu:
-            logging.info("Model will be trained using Apple’s MPS")
-            device = torch.device("mps")
-            self.pin_memory = True
-            self.n_worker = 1
-        else:
-            logging.info("Model will be trained using CPU Hardware. This should be considerably slower")
-            device = torch.device("cpu")
-            self.pin_memory = False
-            self.n_worker = 8
-        self.device = device
-        self.encoder = encoder
-        self.encoder.to(device)
+        self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
-        self.optimizer = optimizer_fn(self.encoder.parameters())
+        self.optimizer = optimizer
         self.scaler = None
 
     def set_logdir(self, logdir):
@@ -96,9 +81,9 @@ class DLWrapper(object):
             self.output_transform = softmax_binary_output_transform
             self.metrics = {
                 "PR": AveragePrecision(),
-                "AUC": ROC_AUC(),
+                "AUC": AUROC(),
                 "PR_Curve": PrecisionRecallCurve(),
-                "ROC_Curve": RocCurve(),
+                "ROC_Curve": ROC(),
                 "Calibration_Curve": CalibrationCurve(),
             }
 
@@ -113,7 +98,7 @@ class DLWrapper(object):
             self.output_transform = softmax_multi_output_transform
             self.metrics = {"Accuracy": Accuracy(), "BalancedAccuracy": BalancedAccuracy()}
 
-    def step_fn(self, element, loss_weight=None):
+    def training_step(self, element, element_idx):
 
         if len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
@@ -141,30 +126,25 @@ class DLWrapper(object):
         out_flat = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1])
         label_flat = torch.masked_select(labels, mask)
         if out_flat.shape[-1] > 1:
-            loss = self.loss(out_flat, label_flat.long(), weight=loss_weight) + aux_loss  # torch.long because NLL
+            loss = self.loss(out_flat, label_flat.long(), weight=self.hparams.loss_weight) + aux_loss  # torch.long because NLL
         else:
             loss = self.loss(out_flat[:, 0], label_flat.float()) + aux_loss  # Regression task
 
-        return loss, out_flat, label_flat
+        transformed_output = self.output_transform((out_flat, label_flat))
+        for metric in self.metrics:
+            metric.update(transformed_output)
+        self.log("train/loss", on_step=False, on_epoch=True)
 
-    def _do_training(self, train_loader, weight, metrics):
-        # Training epoch
-        train_loss = []
-        self.encoder.train()
-        for t, elem in tqdm(enumerate(train_loader)):
-            loss, preds, target = self.step_fn(elem, weight)
-            loss.backward()
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-            train_loss.append(loss)
-            for name, metric in metrics.items():
-                metric.update(self.output_transform((preds, target)))
-        train_metric_results = {}
-        for name, metric in metrics.items():
-            train_metric_results[name] = metric.compute()
+        return loss
+
+    def on_train_epoch_end(self) -> None:
+        self.log_dict({name: metric.compute() for name, metric in self.metrics.items()})
+        for metric in self.metrics:
             metric.reset()
-        train_loss = float(sum(train_loss) / (t + 1))
-        return train_loss, train_metric_results
+        return super().on_train_epoch_end()
+
+    def validation_step(self, batch, batch_idx):
+        ...
 
     @gin.configurable(module="DLWrapper")
     def train(
@@ -298,7 +278,6 @@ class DLWrapper(object):
 
     def load_weights(self, load_path):
         load_model_state(load_path, self.encoder, optimizer=self.optimizer)
-
 
 @gin.configurable("MLWrapper")
 class MLWrapper(object):

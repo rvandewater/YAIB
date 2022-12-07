@@ -24,14 +24,19 @@ def train_common(
     log_dir: Path,
     data: dict[str, pd.DataFrame],
     load_weights: bool = False,
-    source_dir: Path = None,
-    seed: int = 1234,
+    source_path: Path = None,
     reproducible: bool = True,
     mode: str = "Classification",
     dataset_name: str = "",
     model: object = MLWrapper,
     weight: str = None,
     do_test: bool = False,
+    batch_size=64,
+    epochs=1000,
+    patience=10,
+    min_delta=1e-4,
+    save_weights=True,
+    num_workers: int = os.cpu_count(),
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -44,35 +49,31 @@ def train_common(
         reproducible: If set to true, set torch to run reproducibly.
     """
 
-    # Setting the seed before gin parsing
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-
-    if reproducible:
-        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-        torch.use_deterministic_algorithms(True)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-
-
     if mode == "Imputation":
         return train_imputation_method(log_dir, data, load_weights, source_dir, reproducible=reproducible, dataset_name=dataset_name)
 
-    model.set_logdir(log_dir)
     save_config_file(log_dir)  # We save the operative config before and also after training
 
     dataset = RICUDataset(data, split="train")
     val_dataset = RICUDataset(data, split="val")
+    train_loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
 
     if load_weights:
-        if (source_dir / "model.torch").is_file():
-            model.load_weights(source_dir / "model.torch")
-        elif (source_dir / "model.txt").is_file():
-            model.load_weights(source_dir / "model.txt")
-        elif (source_dir / "model.joblib").is_file():
-            model.load_weights(source_dir / "model.joblib")
+        if source_path.exists():
+            model = model.from_checkpoint(source_path)
         else:
             raise Exception("No weights to load at path : {}".format(source_dir / "model.*"))
         do_test = True
@@ -132,7 +133,6 @@ def train_imputation_method(
     save_config_file(log_dir)
 
     loggers = [TensorBoardLogger(log_dir)]
-    print("GOOOT WANDB:", wandb)
     if wandb:
         run_name = f"{type(model).__name__}-{dataset_name}"
         loggers.append(WandbLogger(run_name, save_dir=log_dir, project="Data_Imputation"))
