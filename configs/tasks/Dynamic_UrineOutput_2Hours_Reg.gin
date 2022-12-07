@@ -31,7 +31,6 @@ vars = {
 }
 
 preprocess.vars = %vars
-splits.vars = %vars
 ClassificationDataset.vars = %vars
 
 splits.seed = 42

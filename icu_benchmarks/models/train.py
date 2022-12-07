@@ -74,8 +74,10 @@ def train_common(
 
     if load_weights:
         if source_dir.exists():
-            
-            model = model.from_checkpoint(source_dir / "model.ckpt")
+            if not model.needs_training:
+                model = torch.load(source_dir / "model.ckpt")
+            else:
+                model = model.from_checkpoint(source_dir / "model.ckpt")
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
         do_test = True
@@ -106,6 +108,8 @@ def train_common(
         if model.needs_fit:
             logging.info("fitting model to data...")
             model.fit(train_dataset)
+            if not model.needs_training:
+                torch.save(model, log_dir / "model.ckpt")
             logging.info("fitting complete!")
 
         if model.needs_training:

@@ -35,8 +35,6 @@ vars = {
 }
 
 preprocess.vars = %vars
-
-splits.vars = %vars
 ClassificationDataset.vars = %vars
 
 preprocess.train_pct = 0.7

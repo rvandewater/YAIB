@@ -2,8 +2,30 @@ import gin
 import numpy as np
 import torch
 import torch.nn as nn
+import lightgbm
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
 from icu_benchmarks.models.wrappers import DLWrapper
+import inspect
+
+@gin.configurable
+class LGBMClassifier(DLWrapper):
+    
+    needs_fit = True
+    needs_training = False
+
+    def __init__(self, *args, **kwargs):
+        lgbm_required_params = inspect.getargspec(lightgbm.LGBMClassifier)
+        lgbm_params = {key: value for key, value in kwargs.items() if key in lgbm_required_params}
+        dl_wrapper_params = {key: value for key, value in kwargs.items() if key not in lgbm_required_params}
+        super().__init__(*args, **dl_wrapper_params)
+        self.model = lightgbm.LGBMClassifier(**lgbm_params)
+    
+    def forward(self, *args, **kwargs):
+        return self.model(*args, **kwargs)
+
+@gin.configurable
+class LGBMRegressor(lightgbm.LGBMRegressor, DLWrapper):
+    pass
 
 @gin.configurable
 class LSTMNet(DLWrapper):

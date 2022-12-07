@@ -41,9 +41,9 @@ gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
 
-gin.config.external_configurable(lightgbm.LGBMClassifier, module="lightgbm")
-gin.config.external_configurable(lightgbm.LGBMRegressor, module="lightgbm")
-gin.config.external_configurable(LogisticRegression)
+# gin.config.external_configurable(lightgbm.LGBMClassifier, module="lightgbm")
+# gin.config.external_configurable(lightgbm.LGBMRegressor, module="lightgbm")
+# gin.config.external_configurable(LogisticRegression)
 
 
 @gin.configurable("DLWrapper")
@@ -70,20 +70,26 @@ class DLWrapper(LightningModule):
         self.optimizer = optimizer
         self.scaler = None
     
-    def set_weight(self, weights, dataset):
+    def set_weight(self, weight, dataset):
         if isinstance(weight, list):
             weight = torch.FloatTensor(weight).to(self.device)
         elif weight == "balanced":
             weight = torch.FloatTensor(dataset.get_balance()).to(self.device)
-        return weight
+        self.loss_weights = weight
 
     def set_logdir(self, logdir):
         self.logdir = logdir
 
     def set_scaler(self, scaler):
         self.scaler = scaler
+    
+    def forward(self, data):
+        raise NotImplementedError()
 
-    def set_metrics(self):
+    def fit(self, data):
+        raise NotImplementedError()
+
+    def set_metrics(self, *args):
         def softmax_binary_output_transform(output):
             with torch.no_grad():
                 y_pred, y = output
@@ -142,7 +148,7 @@ class DLWrapper(LightningModule):
                 data = data.float().to(self.device)
         else:
             raise Exception("Loader should return either (data, label) or (data, label, mask)")
-        out = self.encoder(data)
+        out = selfy(data)
         if len(out) == 2 and isinstance(out, tuple):
             out, aux_loss = out
         else:
@@ -150,7 +156,7 @@ class DLWrapper(LightningModule):
         out_flat = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1])
         label_flat = torch.masked_select(labels, mask)
         if out_flat.shape[-1] > 1:
-            loss = self.loss(out_flat, label_flat.long(), weight=self.hparams.loss_weight) + aux_loss  # torch.long because NLL
+            loss = self.loss(out_flat, label_flat.long(), weight=self.loss_weights) + aux_loss  # torch.long because NLL
         else:
             loss = self.loss(out_flat[:, 0], label_flat.float()) + aux_loss  # Regression task
 
@@ -218,7 +224,7 @@ class DLWrapper(LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
 @gin.configurable("MLWrapper")
-class MLWrapper(object):
+class MLWrapper(LightningModule):
     def __init__(self, model=lightgbm.LGBMClassifier):
         self.model = model
         self.scaler = None
@@ -287,35 +293,36 @@ class MLWrapper(object):
             train_pred = self.model.predict(train_rep)
         else:
             val_pred = self.model.predict_proba(val_rep)
-            train_pred = self.model.predict_proba(train_rep)
+            train_pred = self.model.predict_proba(train_rep)        
 
-        train_metric_results = {}
-        train_string = ""
-        train_values = []
-        val_string = "Val Results: " + "loss" + ":{:.4f}"
-        val_values = [val_loss]
-        val_metric_results = {"loss": val_loss}
-        for name, metric in metrics.items():
-            train_metric_results[name] = metric(self.label_transform(train_label), self.output_transform(train_pred))
-            val_metric_results[name] = metric(self.label_transform(val_label), self.output_transform(val_pred))
-            train_string += "Train Results: " if len(train_string) == 0 else ", "
-            train_string += name + ":{:.4f}"
-            val_string += ", " + name + ":{:.4f}"
-            train_values.append(train_metric_results[name])
-            val_values.append(val_metric_results[name])
-        logging.info(train_string.format(*train_values))
-        logging.info(val_string.format(*val_values))
+        # train_metric_results = {}
+        # train_string = ""
+        # train_values = []
+        # val_string = "Val Results: " + "loss" + ":{:.4f}"
+        # val_values = [val_loss]
+        # val_metric_results = {"loss": val_loss}
+        self.log("val/loss", val_loss)
+        self.log_dict({
+            f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
+            for name, metric in metrics.items()
+        })
+        
+        self.log_dict({
+            f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
+            for name, metric in metrics.items()
+        })
+        # for name, metric in metrics.items():
+        #     train_metric_results[name] = metric(self.label_transform(train_label), self.output_transform(train_pred))
+        #     val_metric_results[name] = metric(self.label_transform(val_label), self.output_transform(val_pred))
+        #     train_string += "Train Results: " if len(train_string) == 0 else ", "
+        #     train_string += name + ":{:.4f}"
+        #     val_string += ", " + name + ":{:.4f}"
+        #     train_values.append(train_metric_results[name])
+        #     val_values.append(val_metric_results[name])
+        # logging.info(train_string.format(*train_values))
+        # logging.info(val_string.format(*val_values))
 
-        if save_weights:
-            if model_type == "lgbm":
-                self.save_weights(save_path=os.path.join(self.logdir, "model.txt"), model_type=model_type)
-            else:
-                self.save_weights(save_path=os.path.join(self.logdir, "model.joblib"), model_type=model_type)
-
-        with open(os.path.join(self.logdir, "val_metrics.pkl"), "wb") as f:
-            pickle.dump(val_metric_results, f)
-
-    def test(self, dataset, weight):
+    def test_step(self, dataset, weight):
         test_rep, test_label = dataset.get_data_and_labels()
         self.set_metrics(test_label)
         if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
