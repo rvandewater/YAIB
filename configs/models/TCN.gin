@@ -3,9 +3,6 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 
-RES = 1
-RES_LAB = 1
-
 preprocess.use_features = False
 
 # Train params

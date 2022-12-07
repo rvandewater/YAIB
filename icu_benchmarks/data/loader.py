@@ -14,14 +14,18 @@ class RICUDataset(Dataset):
         data: Dict of the different splits of the data.
         split: Either 'train','val' or 'test'.
         vars: Contains the names of columns in the data.
+        use_static: If set to True, joins the static demographic data to the dynamic data for additional training input.
     """
 
-    def __init__(self, data: dict, split: str = "train", vars: dict[str] = gin.REQUIRED):
+    def __init__(self, data: dict, split: str = "train", vars: dict[str] = gin.REQUIRED, use_static: bool = True):
         self.split = split
         self.vars = vars
         self.static_df = data[split]["STATIC"]
         self.outc_df = data[split]["OUTCOME"].set_index(self.vars["GROUP"])
         self.dyn_df = data[split]["DYNAMIC"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+
+        if use_static:
+            self.dyn_df = self.dyn_df.join(self.static_df.set_index(self.vars["GROUP"]))
 
         # calculate basic info for the data
         self.num_stays = self.static_df.shape[0]
