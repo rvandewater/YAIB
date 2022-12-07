@@ -34,4 +34,4 @@ Dataset.use_static = True
 
 preprocess_and_train_for_folds.num_folds = 5
 
-EMB = 7
+EMB = 18

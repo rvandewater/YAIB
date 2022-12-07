@@ -90,7 +90,7 @@ class RICUDataset(Dataset):
         Returns:
             Weights for each label.
         """
-        counts = self.outc_df.value_counts()
+        counts = self.outc_df["label"].value_counts()
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
     def get_data_and_labels(self) -> tuple[np.array, np.array]:
