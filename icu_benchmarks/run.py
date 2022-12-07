@@ -44,7 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser_prep_and_train.add_argument(
         "--reproducible", default=True, action=BooleanOptionalAction, help="Set torch to be reproducible."
     )
-    parser_prep_and_train.add_argument("--cpu", default=True, action=BooleanOptionalAction, help="Set to train on CPU.")
+    parser_prep_and_train.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train on CPU.")
     parser_prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
 
     # EVALUATION PARSER
