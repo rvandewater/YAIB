@@ -49,13 +49,34 @@ gin.config.external_configurable(LogisticRegression)
 
 @gin.configurable("DLWrapper")
 class DLWrapper(LightningModule):
+    
+    needs_training = True
+    needs_fit = False
+    
     def __init__(
-        self, loss=CrossEntropyLoss(), optimizer=torch.optim.Adam, loss_weights=None
+        self, loss=CrossEntropyLoss(),
+        optimizer=torch.optim.Adam,
+        input_shape=None,
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        epochs: int = 100,
+        input_size: torch.Tensor = None,
+        initialization_method: str = "normal",
     ):
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer
         self.scaler = None
+    
+    def set_weight(self, weights, dataset):
+        if isinstance(weight, list):
+            weight = torch.FloatTensor(weight).to(self.device)
+        elif weight == "balanced":
+            weight = torch.FloatTensor(dataset.get_balance()).to(self.device)
+        return weight
 
     def set_logdir(self, logdir):
         self.logdir = logdir
@@ -77,7 +98,7 @@ class DLWrapper(LightningModule):
                 return y_pred, y
 
         # output transform is not applied for contrib metrics so we do our own.
-        if self.encoder.logit.out_features == 2:
+        if self.logit.out_features == 2:
             self.output_transform = softmax_binary_output_transform
             self.metrics = {
                 "PR": AveragePrecision(),
@@ -87,7 +108,7 @@ class DLWrapper(LightningModule):
                 "Calibration_Curve": CalibrationCurve(),
             }
 
-        elif self.encoder.logit.out_features == 1:
+        elif self.logit.out_features == 1:
             self.output_transform = lambda x: x
             if self.scaler is not None:
                 self.metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
@@ -97,8 +118,12 @@ class DLWrapper(LightningModule):
         else:
             self.output_transform = softmax_multi_output_transform
             self.metrics = {"Accuracy": Accuracy(), "BalancedAccuracy": BalancedAccuracy()}
+    
+    def on_fit_start(self):
+        self.set_metrics()
+        return super().on_fit_start()
 
-    def training_step(self, element, element_idx):
+    def step_fn(self, element):
 
         if len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
@@ -130,154 +155,71 @@ class DLWrapper(LightningModule):
         else:
             loss = self.loss(out_flat[:, 0], label_flat.float()) + aux_loss  # Regression task
 
-        transformed_output = self.output_transform((out_flat, label_flat))
+
+        return loss, out_flat, label_flat
+
+
+    def training_step(self, batch, batch_idx):
+        loss, preds, target = self.step_fn(batch)
+        transformed_output = self.output_transform((preds, target))
+        for metric in self.metrics.values():
+            metric.update(transformed_output)
+        self.log("train/loss", loss, on_step=False, on_epoch=True)
+
+    def validation_step(self, batch, batch_idx):
+        loss, preds, target = self.step_fn(batch)
+        transformed_output = self.output_transform((preds, target))
         for metric in self.metrics:
             metric.update(transformed_output)
-        self.log("train/loss", on_step=False, on_epoch=True)
+        self.log("val/loss", loss, on_step=False, on_epoch=True)
 
-        return loss
+    def test_step(self, batch, batch_idx):
+        loss, preds, target = self.step_fn(batch)
+        transformed_output = self.output_transform((preds, target))
+        for metric in self.metrics.values():
+            metric.update(transformed_output)
+        self.log("test/loss", loss, on_step=False, on_epoch=True)
+
 
     def on_train_epoch_end(self) -> None:
-        self.log_dict({name: metric.compute() for name, metric in self.metrics.items()})
-        for metric in self.metrics:
+        self.log_dict({f"train/{name}": metric.compute() for name, metric in self.metrics.items()})
+        for metric in self.metrics.values():
             metric.reset()
         return super().on_train_epoch_end()
 
-    def validation_step(self, batch, batch_idx):
-        ...
+    def on_validation_epoch_end(self) -> None:
+        self.log_dict({f"val/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
+        for metric in self.metrics.values():
+            metric.reset()
 
-    @gin.configurable(module="DLWrapper")
-    def train(
-        self,
-        train_dataset,
-        val_dataset,
-        weight,
-        epochs=1000,
-        batch_size=64,
-        patience=10,
-        min_delta=1e-4,
-        save_weights=True,
-    ):
+    def on_test_epoch_start(self) -> None:
+        self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
+        return super().on_test_epoch_start()
+    
+    def on_test_epoch_end(self) -> None:
+        self.log_dict({f"test/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
+        for metric in self.metrics.values():
+            metric.reset()
 
-        self.set_metrics()
-        metrics = self.metrics
-
-        torch.autograd.set_detect_anomaly(True)  # Check for any nans in gradients
-
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=self.n_worker,
-            pin_memory=self.pin_memory,
-            prefetch_factor=2,
+    def configure_optimizers(self):
+        if isinstance(self.optimizer, str):
+            optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
+        else:
+            optimizer = self.optimizer(self.parameters())
+        scheduler = create_scheduler(
+            self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
         )
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=batch_size,
-            shuffle=False,
-            num_workers=self.n_worker,
-            pin_memory=self.pin_memory,
-            prefetch_factor=2,
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
+    
+    def configure_optimizers(self):
+        if isinstance(self.optimizer, str):
+            optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
+        else:
+            optimizer = self.optimizer(self.parameters())
+        scheduler = create_scheduler(
+            self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
         )
-
-        if isinstance(weight, list):
-            weight = torch.FloatTensor(weight).to(self.device)
-        elif weight == "balanced":
-            weight = torch.FloatTensor(train_dataset.get_balance()).to(self.device)
-
-        best_loss = float("inf")
-        epoch_no_improvement = 0
-        train_writer = SummaryWriter(os.path.join(self.logdir, "tensorboard", "train"))
-        val_writer = SummaryWriter(os.path.join(self.logdir, "tensorboard", "val"))
-
-        for epoch in range(epochs):
-            # Train step
-            train_loss, train_metric_results = self._do_training(train_loader, weight, metrics)
-
-            # Validation step
-            val_loss, val_metric_results = self.evaluate(val_loader, metrics, weight)
-
-            # Early stopping
-            if val_loss <= best_loss - min_delta:
-                best_metrics = val_metric_results
-                epoch_no_improvement = 0
-                if save_weights:
-                    self.save_weights(epoch, os.path.join(self.logdir, "model.torch"))
-                best_loss = val_loss
-                logging.info("Validation loss improved to {:.4f} ".format(val_loss))
-            else:
-                epoch_no_improvement += 1
-                logging.info("No improvement on loss for {} epochs".format(epoch_no_improvement))
-            if epoch_no_improvement >= patience:
-                logging.info("No improvement on loss for more than {} epochs. We stop training".format(patience))
-                break
-
-            # Logging
-            train_string = "Train Epoch:{}"
-            train_values = [epoch + 1]
-            for name, value in train_metric_results.items():
-                if name.split("_")[-1] != "Curve":
-                    train_string += ", " + name + ":{:.4f}"
-                    train_values.append(value)
-                    train_writer.add_scalar(name, value, epoch)
-            train_writer.add_scalar("Loss", train_loss, epoch)
-
-            val_string = "Val Epoch:{}"
-            val_values = [epoch + 1]
-            for name, value in val_metric_results.items():
-                if name.split("_")[-1] != "Curve":
-                    val_string += ", " + name + ":{:.4f}"
-                    val_values.append(value)
-                    val_writer.add_scalar(name, value, epoch)
-            val_writer.add_scalar("Loss", val_loss, epoch)
-
-            logging.info(train_string.format(*train_values))
-            logging.info(val_string.format(*val_values))
-
-        with open(os.path.join(self.logdir, "val_metrics.pkl"), "wb") as f:
-            best_metrics["loss"] = best_loss
-            pickle.dump(best_metrics, f)
-
-        self.load_weights(os.path.join(self.logdir, "model.torch"))  # We load back the best iteration
-
-    def test(self, dataset, weight):
-        self.set_metrics()
-        test_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.n_worker, pin_memory=self.pin_memory)
-        if isinstance(weight, list):
-            weight = torch.FloatTensor(weight).to(self.device)
-        test_loss, test_metrics = self.evaluate(test_loader, self.metrics, weight)
-
-        with open(os.path.join(self.logdir, "test_metrics.pkl"), "wb") as f:
-            test_metrics["loss"] = test_loss
-            pickle.dump(test_metrics, f)
-        for key, value in test_metrics.items():
-            if isinstance(value, float):
-                logging.info("Test {} :  {}".format(key, value))
-
-    def evaluate(self, eval_loader, metrics, weight):
-        self.encoder.eval()
-        eval_loss = []
-
-        with torch.no_grad():
-            for v, elem in enumerate(eval_loader):
-                loss, preds, target = self.step_fn(elem, weight)
-                eval_loss.append(loss)
-                for name, metric in metrics.items():
-                    metric.update(self.output_transform((preds, target)))
-
-            eval_metric_results = {}
-            for name, metric in metrics.items():
-                eval_metric_results[name] = metric.compute()
-                metric.reset()
-        eval_loss = float(sum(eval_loss) / (v + 1))
-        return eval_loss, eval_metric_results
-
-    def save_weights(self, epoch, save_path):
-        save_model(self.encoder, self.optimizer, epoch, save_path)
-
-    def load_weights(self, load_path):
-        load_model_state(load_path, self.encoder, optimizer=self.optimizer)
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
 @gin.configurable("MLWrapper")
 class MLWrapper(object):
@@ -429,6 +371,7 @@ class ImputationWrapper(LightningModule):
         epochs: int = 100,
         input_size: torch.Tensor = None,
         initialization_method: str = "normal",
+        **kwargs: str,
     ) -> None:
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])
