@@ -25,7 +25,7 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
     general_args.add_argument("-n", "--name", required=True, help="Name of the (target) dataset.")
     general_args.add_argument("-t", "--task", default="BinaryClassification", help="Name of the task gin.")
-    general_args.add_argument("-tn", "--task-name", required=True, help="Name of the task.")
+    general_args.add_argument("-tn", "--task-name", help="Name of the task.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument(
