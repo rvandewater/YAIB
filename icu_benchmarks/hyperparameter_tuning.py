@@ -3,7 +3,7 @@ import gin
 import logging
 from logging import INFO, NOTSET
 
-import icu_benchmarks.run
+from icu_benchmarks.run_utils import preprocess_and_train_for_folds
 
 
 @gin.configurable
@@ -35,7 +35,7 @@ def choose_and_bind_hyperparameters(
         if not do_tune:
             return 0
         # return negative loss because BO maximizes
-        return - icu_benchmarks.run.preprocess_and_train_for_folds(
+        return - preprocess_and_train_for_folds(
             data_dir, hyperparams_dir, seed, num_folds_to_train=folds_to_tune_on, use_cache=True, test_on="val"
         )
 
