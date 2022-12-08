@@ -7,7 +7,6 @@ preprocess.use_features = False
 
 # Train params
 train_common.model = @DLWrapper()
-train_common.do_test = True
 
 DLWrapper.encoder = @LocalTransformer()
 DLWrapper.optimizer_fn = @Adam

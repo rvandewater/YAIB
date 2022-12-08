@@ -7,7 +7,6 @@ preprocess.use_features = True
 
 # Train params
 train_common.model = @MLWrapper()
-train_common.do_test = True
 
 MLWrapper.model = @LogisticRegression()
 MLWrapper.train.patience = 10
