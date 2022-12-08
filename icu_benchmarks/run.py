@@ -89,13 +89,16 @@ def preprocess_and_train_for_folds(
     load_weights=False,
     source_dir=None,
     num_folds=gin.REQUIRED,
+    num_folds_to_train=None,
     reproducible=False,
     debug=False,
     use_cache=False,
     test_on="test",
 ):
     agg_loss = 0
-    for fold_index in range(num_folds):
+    if not num_folds_to_train:
+        num_folds_to_train = num_folds
+    for fold_index in range(num_folds_to_train):
         data = preprocess_data(
             data_dir, seed=seed, debug=debug, use_cache=use_cache, num_folds=num_folds, fold_index=fold_index
         )
@@ -122,7 +125,11 @@ def hyperparameter(class_to_tune=gin.REQUIRED, **kwargs):
 
 
 @gin.configurable
-def tune_hyperparameters(data_dir, log_dir, seed, scopes=gin.REQUIRED, init_points=3, n_iter=20, cast_to_int=None):
+def tune_hyperparameters(
+    data_dir, log_dir, seed, scopes=gin.REQUIRED, init_points=3, n_iter=20, folds_to_tune_on=gin.REQUIRED, cast_to_int=None
+):
+    hyperparams_dir = log_dir / "hyperparameter_tuning"
+
     def bind_params_from_dict(params_dict):
         for param, value in params_dict.items():
             value = int(value) if param in cast_to_int else value
@@ -132,7 +139,7 @@ def tune_hyperparameters(data_dir, log_dir, seed, scopes=gin.REQUIRED, init_poin
         bind_params_from_dict(hyperparams)
         # return negative loss because BO maximizes
         return -preprocess_and_train_for_folds(
-            data_dir, (log_dir / "hyperparameter_tuning"), seed, use_cache=True, test_on="val"
+            data_dir, hyperparams_dir, seed, num_folds_to_train=folds_to_tune_on, use_cache=True, test_on="val"
         )
 
     hyperparams = {}
