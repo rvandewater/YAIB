@@ -12,10 +12,10 @@ train_common.do_test = True
 MLWrapper.model = @LogisticRegression()
 MLWrapper.train.patience = 10
 
-LogisticRegression.solver = "saga"
-LogisticRegression.max_iter = 100000
-model/random_search.class_to_configure = @LogisticRegression
-model/random_search.C = [0.001, 0.01, 0.1, 1.0, 10]
-model/random_search.penalty = ["l1", "l2", "none"]
+model/hyperparameter.class_to_tune = @LogisticRegression
+model/hyperparameter.solver = "saga"
+model/hyperparameter.max_iter = 100000
+model/hyperparameter.C = (0.001, 10)
+model/hyperparameter.penalty = ["l1", "l2", "none"]
 
-run_random_searches.scopes = ["model"]
+tune_hyperparameters.scopes = ["model"]
