@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
 import argparse
 from argparse import BooleanOptionalAction
-from bayes_opt import BayesianOptimization
 from datetime import datetime
 import gin
 import logging
-from logging import INFO, NOTSET
 import sys
 from pathlib import Path
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
-from icu_benchmarks.gin_utils import parse_gin_and_random_search
+from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
 
 SEEDS = [1111]
 
@@ -95,9 +93,9 @@ def preprocess_and_train_for_folds(
     use_cache=False,
     test_on="test",
 ):
-    agg_loss = 0
     if not num_folds_to_train:
         num_folds_to_train = num_folds
+    agg_loss = 0
     for fold_index in range(num_folds_to_train):
         data = preprocess_data(
             data_dir, seed=seed, debug=debug, use_cache=use_cache, num_folds=num_folds, fold_index=fold_index
@@ -117,43 +115,6 @@ def preprocess_and_train_for_folds(
         )
 
     return agg_loss / num_folds
-
-
-@gin.configurable
-def hyperparameter(class_to_tune=gin.REQUIRED, **kwargs):
-    return {f"{class_to_tune.__name__}.{param}": value for param, value in kwargs.items()}
-
-
-@gin.configurable
-def tune_hyperparameters(
-    data_dir, log_dir, seed, scopes=gin.REQUIRED, init_points=3, n_iter=20, folds_to_tune_on=gin.REQUIRED, cast_to_int=None
-):
-    hyperparams_dir = log_dir / "hyperparameter_tuning"
-
-    def bind_params_from_dict(params_dict):
-        for param, value in params_dict.items():
-            value = int(value) if param in cast_to_int else value
-            gin.bind_parameter(param, value)
-
-    def bind_params_and_train(**hyperparams):
-        bind_params_from_dict(hyperparams)
-        # return negative loss because BO maximizes
-        return -preprocess_and_train_for_folds(
-            data_dir, hyperparams_dir, seed, num_folds_to_train=folds_to_tune_on, use_cache=True, test_on="val"
-        )
-
-    hyperparams = {}
-    for scope in scopes:
-        with gin.config_scope(scope):
-            hyperparams.update(hyperparameter())
-
-    bo = BayesianOptimization(bind_params_and_train, hyperparams)
-    bo.set_gp_params(alpha=1e-3)
-    logging.disable(level=INFO)
-    bo.maximize(init_points=init_points, n_iter=n_iter)
-    logging.disable(level=NOTSET)
-    bind_params_from_dict(bo.max["params"])
-    return {param: int(value) if param in cast_to_int else value for param, value in bo.max["params"].items()}
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -188,23 +149,12 @@ def main(my_args=tuple(sys.argv[1:])):
             gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
         else:
             gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
-        # randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, args.cpu, log_dir)
 
     run_dir = create_run_dir(log_dir)
     gin.parse_config_files_and_bindings(gin_config_files, None, finalize_config=False)
 
     for seed in args.seed:
-        if args.tune:
-            logging.info("Tuning hyperparameters")
-            hyperparams = tune_hyperparameters(args.data_dir, run_dir, seed)
-        else:
-            logging.info("Hyperparameter tuning disabled, choosing randomly from bounds")
-            hyperparams = tune_hyperparameters(args.data_dir, run_dir, seed, init_points=1, n_iter=0)
-        
-        logging.info("Training with these hyperparameters:")
-        for param, value in hyperparams.items():
-            logging.info(f"{param}: {value}")
-
+        choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, seed)
         preprocess_and_train_for_folds(
             args.data_dir,
             run_dir,
