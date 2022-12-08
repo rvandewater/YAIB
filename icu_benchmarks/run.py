@@ -42,9 +42,9 @@ def main(my_args=tuple(sys.argv[1:])):
             gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
 
     run_dir = create_run_dir(log_dir)
-    gin.parse_config_files_and_bindings(gin_config_files, None, finalize_config=False)
 
     for seed in args.seed:
+        gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, seed)
         preprocess_and_train_for_folds(
             args.data_dir,
