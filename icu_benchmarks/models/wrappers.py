@@ -388,9 +388,8 @@ class MLWrapper(object):
             else:
                 self.save_weights(save_path=(self.log_dir / "model.joblib"), model_type=model_type)
 
-        if hasattr(self, "log_dir"):
-            with open(self.log_dir / "train_metrics.pkl", "wb") as f:
-                pickle.dump(train_metric_results, f)
+        with open(self.log_dir / "val_metrics.pkl", "wb") as f:
+            pickle.dump(val_metric_results, f)
 
     def test(self, dataset, weight):
         test_rep, test_label = dataset.get_data_and_labels()
@@ -412,9 +411,8 @@ class MLWrapper(object):
             test_values.append(test_metric_results[name])
 
         logging.info(test_string.format(*test_values))
-        if hasattr(self, "log_dir"):
-            with open(self.log_dir / "test_metrics.pkl", "wb") as f:
-                pickle.dump(test_metric_results, f)
+        with open(self.log_dir / "test_metrics.pkl", "wb") as f:
+            pickle.dump(test_metric_results, f)
 
         return test_loss
 

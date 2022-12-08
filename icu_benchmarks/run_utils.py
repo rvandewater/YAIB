@@ -28,7 +28,7 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument("-l", "--log-dir", required=True, type=Path, help="Log directory with model weights.")
     general_args.add_argument("-s", "--seed", default=1111, type=int, help="Random seed for processing and train.")
-    general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
+    general_args.add_argument("-db", "--debug", action=BooleanOptionalAction, help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
 
     # MODEL TRAINING ARGUMENTS
@@ -69,8 +69,8 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
 @gin.configurable
 def preprocess_and_train_for_folds(
     data_dir,
+    log_dir,
     seed,
-    log_dir=None,
     load_weights=False,
     source_dir=None,
     num_folds=gin.REQUIRED,
@@ -88,10 +88,8 @@ def preprocess_and_train_for_folds(
             data_dir, seed=seed, debug=debug, use_cache=use_cache, num_folds=num_folds, fold_index=fold_index
         )
 
-        run_dir_seed = None
-        if log_dir:
-            run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
-            run_dir_seed.mkdir(parents=True, exist_ok=True)
+        run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
+        run_dir_seed.mkdir(parents=True, exist_ok=True)
 
         agg_loss += train_common(
             data,

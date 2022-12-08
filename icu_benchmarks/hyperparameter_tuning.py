@@ -52,13 +52,15 @@ def choose_and_bind_hyperparameters(
             gin.bind_parameter(param, value)
             logging.info(f"{param}: {value}")
 
+    hyperparams_dir = log_dir / "hyperparameter_tuning"
+
     def bind_params_and_train(**hyperparams):
         bind_params_from_dict(hyperparams)
         if not do_tune:
             return 0
         # return negative loss because BO maximizes
         return -preprocess_and_train_for_folds(
-            data_dir, seed, num_folds_to_train=folds_to_tune_on, use_cache=True, test_on="val"
+            data_dir, hyperparams_dir, seed, num_folds_to_train=folds_to_tune_on, use_cache=True, test_on="val"
         )
 
     if do_tune:
@@ -70,7 +72,7 @@ def choose_and_bind_hyperparameters(
 
     bo = BayesianOptimization(bind_params_and_train, hyperparams, random_state=seed)
     bo.set_gp_params(alpha=1e-3)
-    # logging.disable(level=INFO)
+    logging.disable(level=INFO)
     bo.maximize(init_points=init_points, n_iter=n_iter)
     logging.disable(level=NOTSET)
     logging.info("Training with these hyperparameters:")
