@@ -28,7 +28,7 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument("-l", "--log-dir", required=True, type=Path, help="Log directory with model weights.")
     general_args.add_argument("-s", "--seed", default=1111, type=int, help="Random seed for processing and train.")
-    general_args.add_argument("-db", "--debug", action=BooleanOptionalAction, help="Set to load less data.")
+    general_args.add_argument("-db", "--debug", default=True, action=BooleanOptionalAction, help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
 
     # MODEL TRAINING ARGUMENTS
