@@ -43,19 +43,18 @@ def main(my_args=tuple(sys.argv[1:])):
 
     run_dir = create_run_dir(log_dir)
 
-    for seed in args.seed:
-        gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
-        choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, seed)
-        preprocess_and_train_for_folds(
-            args.data_dir,
-            run_dir,
-            seed,
-            load_weights=load_weights,
-            source_dir=source_dir,
-            reproducible=reproducible,
-            debug=args.debug,
-            use_cache=args.cache,
-        )
+    gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
+    choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, args.seed)
+    preprocess_and_train_for_folds(
+        args.data_dir,
+        run_dir,
+        args.seed,
+        load_weights=load_weights,
+        source_dir=source_dir,
+        reproducible=reproducible,
+        debug=args.debug,
+        use_cache=args.cache,
+    )
 
 
 """Main module."""
