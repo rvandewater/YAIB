@@ -65,6 +65,7 @@ class DLWrapper(LightningModule):
         input_size: torch.Tensor = None,
         initialization_method: str = "normal",
     ):
+        super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer
@@ -84,9 +85,6 @@ class DLWrapper(LightningModule):
         self.scaler = scaler
     
     def forward(self, data):
-        raise NotImplementedError()
-
-    def fit(self, data):
         raise NotImplementedError()
 
     def set_metrics(self, *args):
@@ -128,8 +126,7 @@ class DLWrapper(LightningModule):
         self.set_metrics()
         return super().on_fit_start()
 
-    def step_fn(self, element):
-
+    def step_fn(self, element, step_prefix = ""):
         if len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
             if isinstance(data, list):
@@ -148,70 +145,49 @@ class DLWrapper(LightningModule):
                 data = data.float().to(self.device)
         else:
             raise Exception("Loader should return either (data, label) or (data, label, mask)")
-        out = selfy(data)
+        out = self(data)
         if len(out) == 2 and isinstance(out, tuple):
             out, aux_loss = out
         else:
             aux_loss = 0
-        out_flat = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1])
-        label_flat = torch.masked_select(labels, mask)
-        if out_flat.shape[-1] > 1:
-            loss = self.loss(out_flat, label_flat.long(), weight=self.loss_weights) + aux_loss  # torch.long because NLL
+        prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1])
+        target = torch.masked_select(labels, mask)
+        if prediction.shape[-1] > 1:
+            loss = self.loss(prediction, target.long(), weight=self.loss_weights) + aux_loss  # torch.long because NLL
         else:
-            loss = self.loss(out_flat[:, 0], label_flat.float()) + aux_loss  # Regression task
-
-        return loss, out_flat, label_flat
+            loss = self.loss(prediction[:, 0], target.float()) + aux_loss  # Regression task
+        
+        transformed_output = self.output_transform((prediction, target))
+        for metric in self.metrics.values():
+            metric.update(transformed_output)
+        self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True)
+        
+    def metric_computation(self, step_prefix):
+        self.log_dict({f"{step_prefix}/{name}": metric.compute() for name, metric in self.metrics.items()})
+        for metric in self.metrics.values():
+            metric.reset()
 
     def training_step(self, batch, batch_idx):
-        loss, preds, target = self.step_fn(batch)
-        transformed_output = self.output_transform((preds, target))
-        for metric in self.metrics.values():
-            metric.update(transformed_output)
-        self.log("train/loss", loss, on_step=False, on_epoch=True)
+        self.step_fn(batch, "train")
 
     def validation_step(self, batch, batch_idx):
-        loss, preds, target = self.step_fn(batch)
-        transformed_output = self.output_transform((preds, target))
-        for metric in self.metrics:
-            metric.update(transformed_output)
-        self.log("val/loss", loss, on_step=False, on_epoch=True)
+        self.step_fn(batch, "val")
 
     def test_step(self, batch, batch_idx):
-        loss, preds, target = self.step_fn(batch)
-        transformed_output = self.output_transform((preds, target))
-        for metric in self.metrics.values():
-            metric.update(transformed_output)
-        self.log("test/loss", loss, on_step=False, on_epoch=True)
+        self.step_fn(batch, "test")
 
     def on_train_epoch_end(self) -> None:
-        self.log_dict({f"train/{name}": metric.compute() for name, metric in self.metrics.items()})
-        for metric in self.metrics.values():
-            metric.reset()
-        return super().on_train_epoch_end()
+        self.metric_computation("train")
 
     def on_validation_epoch_end(self) -> None:
-        self.log_dict({f"val/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
-        for metric in self.metrics.values():
-            metric.reset()
+        self.metric_computation("val")
+
+    def on_test_epoch_end(self) -> None:
+        self.metric_computation("test")
 
     def on_test_epoch_start(self) -> None:
         self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
         return super().on_test_epoch_start()
-
-    def on_test_epoch_end(self) -> None:
-        self.log_dict({f"test/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
-        for metric in self.metrics.values():
-            metric.reset()
-
-    def configure_optimizers(self):
-        if isinstance(self.optimizer, str):
-            optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
-        else:
-            optimizer = self.optimizer(self.parameters())
-        scheduler = create_scheduler(
-            self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
-        )
-        return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     def configure_optimizers(self):
         if isinstance(self.optimizer, str):
@@ -225,7 +201,13 @@ class DLWrapper(LightningModule):
 
 @gin.configurable("MLWrapper")
 class MLWrapper(LightningModule):
-    def __init__(self, model=lightgbm.LGBMClassifier):
+    
+    needs_training = False
+    needs_fit = True
+    
+    def __init__(self, *args, model=lightgbm.LGBMClassifier, patience=10, **kwargs):
+        super().__init__()
+        self.save_hyperparameters()
         self.model = model
         self.scaler = None
 
@@ -233,7 +215,7 @@ class MLWrapper(LightningModule):
         self.logdir = logdir
 
     def set_metrics(self, labels):
-        if len(np.unique(labels)) == 2:
+        if len(torch.unique(labels)) == 2:
             if isinstance(self.model, lightgbm.basic.Booster):
                 self.output_transform = lambda x: x
             else:
@@ -258,42 +240,56 @@ class MLWrapper(LightningModule):
 
     def set_scaler(self, scaler):
         self.scaler = scaler
-
-    @gin.configurable(module="MLWrapper")
-    def train(self, train_dataset, val_dataset, weight, patience=10, save_weights=True):
-
-        train_rep, train_label = train_dataset.get_data_and_labels()
-        val_rep, val_label = val_dataset.get_data_and_labels()
+    
+    def set_weight(self, weight, dataset):
+        self.weight = weight
+    
+    def training_step(self, dataset):
+        train_rep, train_label = dataset
+        train_rep, train_label = train_rep.cpu().squeeze(), train_label.cpu().squeeze()
+        
+        print("SHAPES:")
+        print(train_rep.shape, train_label.shape)
+        
         self.set_metrics(train_label)
-        metrics = self.metrics
-
         if "class_weight" in self.model.get_params().keys():  # Set class weights
-            self.model.set_params(class_weight=weight)
+            self.model.set_params(class_weight=self.weight)
 
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
             self.model.set_params(random_state=np.random.get_state()[1][0])
             self.model.fit(
                 train_rep,
                 train_label,
-                eval_set=(val_rep, val_label),
                 callbacks=[
-                    lightgbm.early_stopping(patience, verbose=False),
+                    lightgbm.early_stopping(self.hparams.patience, verbose=False),
                     lightgbm.log_evaluation(period=-1, show_stdv=False),
                 ],
             )
-            val_loss = list(self.model.best_score_["valid_0"].values())[0]
-            model_type = "lgbm"
         else:
-            model_type = "sklearn"
             self.model.fit(train_rep, train_label)
-            val_loss = 0.0
+        
+        if "MAE" in self.metrics.keys():
+            train_pred = self.model.predict(train_rep)
+        else:
+            train_pred = self.model.predict_proba(train_rep)
+        
+        self.log_dict({
+            f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
+            for name, metric in self.metrics.items()
+        })
+
+    def validation_step(self, val_dataset, _):
+        print(val_dataset)
+        # print([i.shape for i in val_dataset])
+
+        # train_rep, train_label = train_dataset.get_data_and_labels()
+        val_rep, val_label = val_dataset
+        val_rep, val_label = val_rep.cpu(), val_label.cpu()
 
         if "MAE" in self.metrics.keys():
             val_pred = self.model.predict(val_rep)
-            train_pred = self.model.predict(train_rep)
         else:
             val_pred = self.model.predict_proba(val_rep)
-            train_pred = self.model.predict_proba(train_rep)        
 
         # train_metric_results = {}
         # train_string = ""
@@ -301,15 +297,10 @@ class MLWrapper(LightningModule):
         # val_string = "Val Results: " + "loss" + ":{:.4f}"
         # val_values = [val_loss]
         # val_metric_results = {"loss": val_loss}
-        self.log("val/loss", val_loss)
-        self.log_dict({
-            f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
-            for name, metric in metrics.items()
-        })
         
         self.log_dict({
             f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
-            for name, metric in metrics.items()
+            for name, metric in self.metrics.items()
         })
         # for name, metric in metrics.items():
         #     train_metric_results[name] = metric(self.label_transform(train_label), self.output_transform(train_pred))
@@ -322,38 +313,48 @@ class MLWrapper(LightningModule):
         # logging.info(train_string.format(*train_values))
         # logging.info(val_string.format(*val_values))
 
-    def test_step(self, dataset, weight):
-        test_rep, test_label = dataset.get_data_and_labels()
+    def test_step(self, dataset):
+        test_rep, test_label = dataset
+        test_rep, test_label = test_rep.cpu(), test_label.cpu()
         self.set_metrics(test_label)
         if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
             test_pred = self.model.predict(test_rep)
         else:
             test_pred = self.model.predict_proba(test_rep)
-        test_string = ""
-        test_values = []
-        test_metric_results = {}
-        for name, metric in self.metrics.items():
-            test_metric_results[name] = metric(self.label_transform(test_label), self.output_transform(test_pred))
-            test_string += "Test Results: " if len(test_string) == 0 else ", "
-            test_string += name + ":{:.4f}"
-            test_values.append(test_metric_results[name])
 
-        logging.info(test_string.format(*test_values))
-        with open(os.path.join(self.logdir, "test_metrics.pkl"), "wb") as f:
-            pickle.dump(test_metric_results, f)
+        
+        self.log_dict({
+            f"val/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
+            for name, metric in self.metrics.items()
+        })
+    
+    def configure_optimizers(self):
+        return None
+        # test_string = ""
+        # test_values = []
+        # test_metric_results = {}
+        # for name, metric in self.metrics.items():
+        #     test_metric_results[name] = metric(self.label_transform(test_label), self.output_transform(test_pred))
+        #     test_string += "Test Results: " if len(test_string) == 0 else ", "
+        #     test_string += name + ":{:.4f}"
+        #     test_values.append(test_metric_results[name])
 
-    def save_weights(self, save_path, model_type="lgbm"):
-        if model_type == "lgbm":
-            self.model.booster_.save_model(save_path)
-        else:
-            joblib.dump(self.model, save_path)
+        # logging.info(test_string.format(*test_values))
+        # with open(os.path.join(self.logdir, "test_metrics.pkl"), "wb") as f:
+        #     pickle.dump(test_metric_results, f)
 
-    def load_weights(self, load_path):
-        if load_path.suffix == ".txt":
-            self.model = lightgbm.Booster(model_file=load_path)
-        else:
-            with open(load_path, "rb") as f:
-                self.model = joblib.load(f)
+    # def save_weights(self, save_path, model_type="lgbm"):
+    #     if model_type == "lgbm":
+    #         self.model.booster_.save_model(save_path)
+    #     else:
+    #         joblib.dump(self.model, save_path)
+
+    # def load_weights(self, load_path):
+    #     if load_path.suffix == ".txt":
+    #         self.model = lightgbm.Booster(model_file=load_path)
+    #     else:
+    #         with open(load_path, "rb") as f:
+    #             self.model = joblib.load(f)
 
 
 @gin.configurable("ImputationWrapper")

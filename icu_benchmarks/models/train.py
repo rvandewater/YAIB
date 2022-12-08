@@ -82,7 +82,7 @@ def train_common(
             raise Exception(f"No weights to load at path : {source_dir}")
         do_test = True
     else:
-        model = model(weight=weight, input_size=data_shape, epochs=epochs)
+        model = model(input_size=data_shape, epochs=epochs)
         if mode == "Classification":
             model.set_weight(weight, train_dataset)
     
@@ -93,7 +93,7 @@ def train_common(
             loggers.append(WandbLogger(run_name, save_dir=log_dir))
 
         trainer = Trainer(
-            max_epochs=epochs,
+            max_epochs=epochs if model.needs_training else 1,
             callbacks=[
                 EarlyStopping(monitor="train/loss", min_delta=min_delta, patience=patience),
                 ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
@@ -103,11 +103,21 @@ def train_common(
             devices=max(torch.cuda.device_count(), 1),
             deterministic=reproducible,
             logger=loggers,
+            num_sanity_val_steps=0,
         )
 
         if model.needs_fit:
             logging.info("fitting model to data...")
-            model.fit(train_dataset)
+            if mode == "Imputation":
+                model.fit(train_dataset)
+            else:
+                print("special fit")
+                print("len dat:", len(val_dataset))
+                trainer.fit(
+                    model,
+                    train_dataloaders=DataLoader([train_dataset.get_data_and_labels()], batch_size=1),
+                    val_dataloaders=DataLoader([val_dataset.get_data_and_labels()], batch_size=1)
+                )
             if not model.needs_training:
                 torch.save(model, log_dir / "model.ckpt")
             logging.info("fitting complete!")
@@ -130,5 +140,11 @@ def train_common(
         )
         if mode == "Classification":
             model.set_weight("balanced", train_dataset)
-        trainer.test(model, dataloaders=test_loader)
+        trainer.test(
+            model, 
+            dataloaders = (
+                test_loader if (mode == "Imputation" or model.needs_training) 
+                else DataLoader([test_dataset.get_data_and_labels()], batch_size=1)
+            )
+        )
     save_config_file(log_dir)

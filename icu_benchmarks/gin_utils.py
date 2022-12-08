@@ -1,10 +1,11 @@
 import gin
 import numpy as np
+from typing import Union, List, Dict
 from pathlib import Path
 
 
 @gin.configurable
-def random_search(class_to_configure: type = gin.REQUIRED, **kwargs: dict[str, list]) -> list[str]:
+def random_search(class_to_configure: Union[type, str] = gin.REQUIRED, **kwargs: Dict[str, list]) -> List[str]:
     """Randomly searches parameters for a class and sets gin bindings.
 
     Args:
@@ -16,7 +17,8 @@ def random_search(class_to_configure: type = gin.REQUIRED, **kwargs: dict[str, l
     """
     randomly_searched_params = []
     for param, values in kwargs.items():
-        param_to_set = f"{class_to_configure.__name__}.{param}"
+        class_name = class_to_configure.__name__ if isinstance(class_to_configure, type) else class_to_configure
+        param_to_set = f"{class_name}.{param}"
         if f"{param_to_set}=" in gin.config_str().replace(" ", ""):
             continue  # hyperparameter is already set in the config (e.g. from experiment), so skip random search
         value = values[np.random.randint(len(values))]
@@ -25,7 +27,7 @@ def random_search(class_to_configure: type = gin.REQUIRED, **kwargs: dict[str, l
 
 
 @gin.configurable
-def run_random_searches(scopes: list[str] = gin.REQUIRED) -> list[str]:
+def run_random_searches(scopes: List[str] = gin.REQUIRED) -> List[str]:
     """Executes random searches for the different scopes defined in gin configs.
 
     Args:
@@ -42,7 +44,7 @@ def run_random_searches(scopes: list[str] = gin.REQUIRED) -> list[str]:
 
 
 def parse_gin_and_random_search(
-    gin_config_files: list[Path], hyperparams_from_cli: list[str], train_on_cpu: bool, log_dir: Path, max_attempts: int = 1000
+    gin_config_files: List[Path], hyperparams_from_cli: List[str], train_on_cpu: bool, log_dir: Path, max_attempts: int = 1000
 ) -> str:
     """Parses and binds gin configs and finds unexplored parameters via random search.
 

@@ -1,7 +1,7 @@
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
-MODE = "Regression"
+MODE = "Classification"
 
 Run.mode = %MODE
 
