@@ -16,7 +16,7 @@ from icu_benchmarks.models.utils import save_config_file
 @gin.configurable("train_common")
 def train_common(
     data: dict[str, pd.DataFrame],
-    log_dir: Path = None,
+    log_dir: Path,
     load_weights: bool = False,
     source_dir: Path = None,
     seed: int = 1234,
@@ -48,9 +48,8 @@ def train_common(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    if log_dir:
-        model.set_log_dir(log_dir)
-        save_config_file(log_dir)
+    model.set_log_dir(log_dir)
+    save_config_file(log_dir)
 
     dataset = RICUDataset(data, split="train")
     val_dataset = RICUDataset(data, split="val")
