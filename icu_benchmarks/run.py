@@ -11,11 +11,6 @@ from icu_benchmarks.run_utils import build_parser, create_run_dir, preprocess_an
 def main(my_args=tuple(sys.argv[1:])):
     args = build_parser().parse_args(my_args)
 
-    debug = args.debug
-    cache = args.cache
-    if debug and cache:
-        raise ValueError("Caching is not supported in debug mode.")
-
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
