@@ -67,7 +67,7 @@ def train_common(
 
     else:
         try:
-            model.train(dataset, val_dataset, weight, save_weights=(log_dir is not None))
+            model.train(dataset, val_dataset, weight)
         except ValueError as e:
             logging.exception(e)
             sys.exit(1)

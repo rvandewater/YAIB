@@ -1,6 +1,5 @@
 import inspect
 import logging
-import os
 from pathlib import Path
 import pickle
 
@@ -330,7 +329,7 @@ class MLWrapper(object):
         self.scaler = scaler
 
     @gin.configurable(module="MLWrapper")
-    def train(self, train_dataset, val_dataset, weight, patience=10, save_weights=True):
+    def train(self, train_dataset, val_dataset, weight, patience=10):
 
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
@@ -382,12 +381,8 @@ class MLWrapper(object):
         logging.info(train_string.format(*train_values))
         logging.info(val_string.format(*val_values))
 
-        if save_weights:
-            if model_type == "lgbm":
-                self.save_weights(save_path=(self.log_dir / "model.txt"), model_type=model_type)
-            else:
-                self.save_weights(save_path=(self.log_dir / "model.joblib"), model_type=model_type)
-
+        model_file = "model.txt" if model_type == "lgbm" else "model.joblib"
+        self.save_weights(save_path=(self.log_dir / model_file), model_type=model_type)
         with open(self.log_dir / "val_metrics.pkl", "wb") as f:
             pickle.dump(val_metric_results, f)
 
