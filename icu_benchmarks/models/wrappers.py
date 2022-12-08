@@ -214,8 +214,7 @@ class DLWrapper(object):
             if val_loss <= best_loss - min_delta:
                 best_metrics = val_metric_results
                 epoch_no_improvement = 0
-                if save_weights:
-                    self.save_weights(epoch, os.path.join(self.log_dir, "model.torch"))
+                self.save_weights(epoch, os.path.join(self.log_dir, "model.torch"))
                 best_loss = val_loss
                 logging.info("Validation loss improved to {:.4f} ".format(val_loss))
             else:
