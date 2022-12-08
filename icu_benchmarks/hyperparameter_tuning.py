@@ -23,7 +23,7 @@ def hyperparameters_to_tune(class_to_tune=gin.REQUIRED, cast_to_int=None, **hype
             continue
         hyperparams_to_tune[name] = values
         if param in cast_to_int:
-            cast_list += [name] 
+            cast_list += [name]
     return hyperparams_to_tune, cast_list
 
 
@@ -53,15 +53,16 @@ def choose_and_bind_hyperparameters(
             logging.info(f"{param}: {value}")
 
     hyperparams_dir = log_dir / "hyperparameter_tuning"
+
     def bind_params_and_train(**hyperparams):
         bind_params_from_dict(hyperparams)
         if not do_tune:
             return 0
         # return negative loss because BO maximizes
-        return - preprocess_and_train_for_folds(
+        return -preprocess_and_train_for_folds(
             data_dir, hyperparams_dir, seed, num_folds_to_train=folds_to_tune_on, use_cache=True, test_on="val"
         )
-    
+
     if do_tune:
         logging.info(f"Tuning hyperparameters from {init_points} points in {n_iter} iterations on {folds_to_tune_on} folds.")
     else:

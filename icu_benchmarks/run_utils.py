@@ -13,9 +13,7 @@ def build_parser() -> ArgumentParser:
     Returns:
         The configured ArgumentParser.
     """
-    parser = ArgumentParser(
-        description="Benchmark lib for processing and evaluation of deep learning models on ICU data"
-    )
+    parser = ArgumentParser(description="Benchmark lib for processing and evaluation of deep learning models on ICU data")
 
     parent_parser = ArgumentParser(add_help=False)
     subparsers = parser.add_subparsers(title="Commands", dest="command", required=True)
@@ -28,26 +26,22 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-tn", "--task-name", help="Name of the task.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
-    general_args.add_argument(
-        "-l", "--log-dir", required=True, type=Path, help="Path to the log directory with model weights."
-    )
-    general_args.add_argument("-s", "--seed", default=[1111], nargs="+", type=int, help="Random seed at train and eval.")
+    general_args.add_argument("-l", "--log-dir", required=True, type=Path, help="Log directory with model weights.")
+    general_args.add_argument("-s", "--seed", default=1111, nargs="+", type=int, help="Random seed for processing and train.")
     general_args.add_argument("-db", "--debug", action=BooleanOptionalAction, help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
 
     # MODEL TRAINING ARGUMENTS
-    parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
-    parser_prep_and_train.add_argument(
-        "--reproducible", default=True, action=BooleanOptionalAction, help="Set torch to be reproducible."
-    )
-    parser_prep_and_train.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train on CPU.")
-    parser_prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
-    parser_prep_and_train.add_argument("--tune", action=BooleanOptionalAction, help="Find best hyperparameters.")
+    prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
+    prep_and_train.add_argument("--reproducible", default=True, action=BooleanOptionalAction, help="Make torch reproducible.")
+    prep_and_train.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train on CPU.")
+    prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
+    prep_and_train.add_argument("--tune", action=BooleanOptionalAction, help="Find best hyperparameters.")
 
     # EVALUATION PARSER
-    evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
-    evaluate_parser.add_argument("-sn", "--source-name", required=True, type=Path, help="Name of the source dataset.")
-    evaluate_parser.add_argument("--source-dir", required=True, type=Path, help="Directory containing gin and model weights.")
+    evaluate = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
+    evaluate.add_argument("-sn", "--source-name", required=True, type=Path, help="Name of the source dataset.")
+    evaluate.add_argument("--source-dir", required=True, type=Path, help="Directory containing gin and model weights.")
 
     return parser
 
