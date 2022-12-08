@@ -152,8 +152,8 @@ def tune_hyperparameters(
     logging.disable(level=INFO)
     bo.maximize(init_points=init_points, n_iter=n_iter)
     logging.disable(level=NOTSET)
-    logging.info(bo.max)
     bind_params_from_dict(bo.max["params"])
+    return {param: int(value) if param in cast_to_int else value for param, value in bo.max["params"].items()}
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -195,14 +195,22 @@ def main(my_args=tuple(sys.argv[1:])):
 
     for seed in args.seed:
         if args.tune:
-            tune_hyperparameters(args.data_dir, run_dir, seed)
+            logging.info("Tuning hyperparameters")
+            hyperparams = tune_hyperparameters(args.data_dir, run_dir, seed)
+        else:
+            logging.info("Hyperparameter tuning disabled, choosing randomly from bounds")
+            hyperparams = tune_hyperparameters(args.data_dir, run_dir, seed, init_points=1, n_iter=0)
+        
+        logging.info("Training with these hyperparameters:")
+        for param, value in hyperparams.items():
+            logging.info(f"{param}: {value}")
 
         preprocess_and_train_for_folds(
             args.data_dir,
-            log_dir=run_dir,
+            run_dir,
+            seed,
             load_weights=load_weights,
             source_dir=source_dir,
-            seed=seed,
             reproducible=reproducible,
             debug=args.debug,
             use_cache=args.cache,
