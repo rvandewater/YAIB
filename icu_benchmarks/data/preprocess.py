@@ -40,7 +40,7 @@ def make_single_split(
     fraction_to_load = 1 if not debug else 0.01
     stays = data["STATIC"][[id]].sample(frac=fraction_to_load, random_state=seed)
 
-    outer = KFold(5, shuffle=True, random_state=seed)
+    outer = KFold(num_folds, shuffle=True, random_state=seed)
 
     train, test_and_val = list(outer.split(stays))[fold_index]
     test, val = np.array_split(test_and_val, 2)
@@ -88,6 +88,7 @@ def preprocess_data(
     seed: int = 42,
     debug: bool = False,
     use_cache: bool = False,
+    num_folds: int = 5,
     fold_index: int = 0,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
@@ -100,8 +101,6 @@ def preprocess_data(
         seed: Random seed.
         debug: Load less data if true.
         use_cache: Cache and use cached preprocessed data if true.
-        train_pct: Proportion of stays assigned to training fold.
-        val_pct: Proportion of stays assigned to validation fold.
 
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with data type (STATIC/DYNAMIC/OUTCOME)
@@ -124,7 +123,7 @@ def preprocess_data(
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in ["STATIC", "DYNAMIC", "OUTCOME"]}
 
     logging.info("Generating splits.")
-    data = make_single_split(data, vars, fold_index, seed=seed, debug=debug)
+    data = make_single_split(data, vars, num_folds, fold_index, seed=seed, debug=debug)
 
     logging.info("Preprocessing static data.")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
