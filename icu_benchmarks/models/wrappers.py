@@ -160,7 +160,15 @@ class DLWrapper(object):
 
     @gin.configurable(module="DLWrapper")
     def train(
-        self, train_dataset, val_dataset, weight, epochs=1000, batch_size=64, patience=10, min_delta=1e-4, save_weights=True,
+        self,
+        train_dataset,
+        val_dataset,
+        weight,
+        epochs=1000,
+        batch_size=64,
+        patience=10,
+        min_delta=1e-4,
+        save_weights=True,
     ):
 
         self.set_metrics()

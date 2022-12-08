@@ -18,7 +18,12 @@ from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepScale,
 
 
 def make_single_split(
-    data: dict[pd.DataFrame], vars: dict[str], fold_index: int, seed: int = 42, debug: bool = False,
+    data: dict[pd.DataFrame],
+    vars: dict[str],
+    num_folds: int,
+    fold_index: int,
+    seed: int = 42,
+    debug: bool = False,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
