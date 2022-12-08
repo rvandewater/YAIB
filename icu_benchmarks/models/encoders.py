@@ -18,7 +18,7 @@ class LGBMClassifier(MLWrapper):
         self.model = self.model_args()
     
     @gin.configurable(module="LGBMClassifier")
-    def model_args(*args, **kwargs):
+    def model_args(self, *args, **kwargs):
         return lightgbm.LGBMClassifier(*args, **kwargs)
 
 @gin.configurable

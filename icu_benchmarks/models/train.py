@@ -115,7 +115,7 @@ def train_common(
                 print("len dat:", len(val_dataset))
                 trainer.fit(
                     model,
-                    train_dataloaders=DataLoader([train_dataset.get_data_and_labels()], batch_size=1),
+                    train_dataloaders=DataLoader([train_dataset.get_data_and_labels() + val_dataset.get_data_and_labels()], batch_size=1),
                     val_dataloaders=DataLoader([val_dataset.get_data_and_labels()], batch_size=1)
                 )
             if not model.needs_training:

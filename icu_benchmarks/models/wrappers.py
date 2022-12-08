@@ -245,8 +245,9 @@ class MLWrapper(LightningModule):
         self.weight = weight
     
     def training_step(self, dataset):
-        train_rep, train_label = dataset
-        train_rep, train_label = train_rep.cpu().squeeze(), train_label.cpu().squeeze()
+        train_rep, train_label, val_rep, val_label = dataset
+        train_rep, train_label = train_rep.squeeze().cpu(), train_label.squeeze().cpu()
+        val_rep, val_label = val_rep.squeeze().cpu(), val_label.squeeze().cpu()
         
         print("SHAPES:")
         print(train_rep.shape, train_label.shape)
@@ -260,12 +261,15 @@ class MLWrapper(LightningModule):
             self.model.fit(
                 train_rep,
                 train_label,
+                eval_set=(val_rep, val_label),
                 callbacks=[
                     lightgbm.early_stopping(self.hparams.patience, verbose=False),
                     lightgbm.log_evaluation(period=-1, show_stdv=False),
                 ],
             )
+            val_loss = list(self.model.best_score_["valid_0"].values())[0]
         else:
+            val_loss = 0.0
             self.model.fit(train_rep, train_label)
         
         if "MAE" in self.metrics.keys():
@@ -273,6 +277,8 @@ class MLWrapper(LightningModule):
         else:
             train_pred = self.model.predict_proba(train_rep)
         
+        self.log("train/loss", 0.0)
+        self.log("val/loss", val_loss)
         self.log_dict({
             f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
             for name, metric in self.metrics.items()
@@ -284,7 +290,7 @@ class MLWrapper(LightningModule):
 
         # train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset
-        val_rep, val_label = val_rep.cpu(), val_label.cpu()
+        val_rep, val_label = val_rep.squeeze().cpu(), val_label.squeeze().cpu()
 
         if "MAE" in self.metrics.keys():
             val_pred = self.model.predict(val_rep)
@@ -315,16 +321,16 @@ class MLWrapper(LightningModule):
 
     def test_step(self, dataset):
         test_rep, test_label = dataset
-        test_rep, test_label = test_rep.cpu(), test_label.cpu()
+        test_rep, test_label = test_rep.squeeze().cpu(), test_label.squeeze().cpu()
         self.set_metrics(test_label)
         if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
             test_pred = self.model.predict(test_rep)
         else:
             test_pred = self.model.predict_proba(test_rep)
 
-        
+        self.log("test/loss", 0.0)
         self.log_dict({
-            f"val/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
+            f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
             for name, metric in self.metrics.items()
         })
     
