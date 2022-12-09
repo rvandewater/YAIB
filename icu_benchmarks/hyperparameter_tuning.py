@@ -2,25 +2,15 @@ import json
 import gin
 import logging
 from logging import INFO, NOTSET
-import numpy as np
 from pathlib import Path
 from skopt import gp_minimize
 import tempfile
 
+from icu_benchmarks.models.utils import JsonMetricsEncoder
 from icu_benchmarks.run_utils import preprocess_and_train_for_folds
 
 TUNE = 25
 
-
-class NpEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return super(NpEncoder, self).default(obj)
 
 
 @gin.configurable("hyperparameter")
@@ -97,7 +87,7 @@ def choose_and_bind_hyperparameters(
             }
             logging.log(TUNE, f"{res.x_iters[-1]} yielded a loss of {res.func_vals[-1]}")
             logging.log(TUNE, f"Best hyperparameters so far: {res.x}")
-            f.write(json.dumps(data, cls=NpEncoder))
+            f.write(json.dumps(data, cls=JsonMetricsEncoder))
 
     x0, y0 = None, None
     checkpoint_file = "hyperparameter_tuning_logs.json"

@@ -1,10 +1,13 @@
+import json
 from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime
 import gin
 from pathlib import Path
+from statistics import stdev, mean
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
+from icu_benchmarks.models.utils import JsonMetricsEncoder
 
 
 def build_parser() -> ArgumentParser:
@@ -89,7 +92,7 @@ def preprocess_and_train_for_folds(
             data_dir, seed=seed, debug=debug, use_cache=use_cache, num_folds=num_folds, fold_index=fold_index
         )
 
-        run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
+        run_dir_seed = log_dir / f"fold_{fold_index}"
         run_dir_seed.mkdir(parents=True, exist_ok=True)
 
         agg_loss += train_common(
@@ -103,3 +106,33 @@ def preprocess_and_train_for_folds(
         )
 
     return agg_loss / num_folds
+
+
+def aggregrate_results(log_dir: Path):
+    aggregated = {}
+    for fold in log_dir.iterdir():
+        with open(fold / "test_metrics.json", "r") as f:
+            result = json.load(f)
+            aggregated[fold.name] = result
+
+    # Aggregate results per metric
+    list_scores = {}
+    for fold, result in aggregated.items():
+        for metric, score in result.items():
+            if isinstance(score, (float, int)):
+                list_scores[metric] = list_scores.setdefault(metric, [])
+                list_scores[metric].append(score)
+
+    # Compute statistical metric over aggregated results
+    averaged_scores = {metric: (mean(list)) for metric, list in list_scores.items()}
+    std_scores = {metric: (stdev(list)) for metric, list in list_scores.items()}
+
+    accumulated_metrics = {"std": std_scores, "avg": averaged_scores}
+
+    with open(log_dir / "aggregated_test_metrics.json", "w") as f:
+        json.dump(aggregated, f, cls=JsonMetricsEncoder)
+
+    with open(log_dir / "accumulated_test_metrics.json", "w") as f:
+        json.dump(accumulated_metrics, f, cls=JsonMetricsEncoder)
+
+

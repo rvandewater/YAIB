@@ -43,6 +43,10 @@ def append_results(experiment_parent, results, seed):
 class JsonMetricsEncoder(json.JSONEncoder):
     # Serializes foreign datatypes
     def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         if isinstance(obj, torch.Tensor):
@@ -50,5 +54,6 @@ class JsonMetricsEncoder(json.JSONEncoder):
         if isinstance(obj, tuple):
             if isinstance(obj)[0] is torch.Tensor or isinstance(obj)[0] is np.ndarray:
                 return map(lambda item: item.tolist(), obj)
+        return super(JsonMetricsEncoder).default(self, obj)
 
-        return json.JSONEncoder.default(self, obj)
+

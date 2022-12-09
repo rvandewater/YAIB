@@ -28,7 +28,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import joblib
 
-from icu_benchmarks.models.utils import save_model, load_model_state, append_results, JsonMetricsEncoder
+from icu_benchmarks.models.utils import save_model, load_model_state, JsonMetricsEncoder
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
 from icu_benchmarks.models.encoders import LSTMNet
 
@@ -255,9 +255,6 @@ class DLWrapper(object):
         with open(self.log_dir / "best_metrics.json", "w") as f:
             json.dump(best_metrics, f, cls=JsonMetricsEncoder)
 
-        # Append results of this seed.
-        append_results(self.log_dir / ".." / "val_metrics.json", val_metric_results, seed)
-
         self.load_weights(self.log_dir / "model.torch")  # We load back the best iteration
 
     def test(self, dataset, weight, seed):
@@ -271,7 +268,6 @@ class DLWrapper(object):
         with open(self.log_dir / "test_metrics.json", "w") as f:
             json.dump(test_metrics, f, cls=JsonMetricsEncoder)
 
-        append_results(self.log_dir / ".." / "test_metrics.json", test_metrics, seed)
         for key, value in test_metrics.items():
             if isinstance(value, float):
                 logging.info("Test {} :  {}".format(key, value))
@@ -403,8 +399,6 @@ class MLWrapper(object):
         with open(self.log_dir / "val_metrics.json", "w") as f:
             json.dump(val_metric_results, f, cls=JsonMetricsEncoder)
 
-        append_results(self.log_dir / ".." / "val_metrics.json", val_metric_results, seed)
-
     def test(self, dataset, weight, seed):
         test_rep, test_label = dataset.get_data_and_labels()
         self.set_metrics(test_label)
@@ -428,8 +422,6 @@ class MLWrapper(object):
         with open(self.log_dir / "test_metrics.json", "w") as f:
             json.dump(test_metric_results, f, cls=JsonMetricsEncoder)
 
-        # Write results to common folder
-        append_results(self.log_dir / ".." / "test_metrics.json", test_metric_results, seed)
 
         return log_loss(test_label, test_pred)
 
