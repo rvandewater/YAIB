@@ -95,9 +95,7 @@ def choose_and_bind_hyperparameters(
                 "x_iters": res.x_iters,
                 "func_vals": res.func_vals,
             }
-            logging.log(
-                TUNE, f"{res.x_iters[-1]} yielded a loss of {res.func_vals[-1]}"
-            )
+            logging.log(TUNE, f"{res.x_iters[-1]} yielded a loss of {res.func_vals[-1]}")
             logging.log(TUNE, f"Best hyperparameters so far: {res.x}")
             f.write(json.dumps(data, cls=NpEncoder))
 
