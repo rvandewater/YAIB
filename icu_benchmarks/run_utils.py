@@ -134,5 +134,3 @@ def aggregrate_results(log_dir: Path):
 
     with open(log_dir / "accumulated_test_metrics.json", "w") as f:
         json.dump(accumulated_metrics, f, cls=JsonMetricsEncoder)
-
-

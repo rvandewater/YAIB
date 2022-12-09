@@ -12,7 +12,6 @@ from icu_benchmarks.run_utils import preprocess_and_train_for_folds
 TUNE = 25
 
 
-
 @gin.configurable("hyperparameter")
 def hyperparameters_to_tune(class_to_tune=gin.REQUIRED, **hyperparams):
     hyperparams_to_tune = {}

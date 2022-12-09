@@ -55,8 +55,6 @@ def main(my_args=tuple(sys.argv[1:])):
     aggregrate_results(run_dir)
 
 
-
-
 """Main module."""
 if __name__ == "__main__":
     main()

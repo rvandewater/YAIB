@@ -55,5 +55,3 @@ class JsonMetricsEncoder(json.JSONEncoder):
             if isinstance(obj)[0] is torch.Tensor or isinstance(obj)[0] is np.ndarray:
                 return map(lambda item: item.tolist(), obj)
         return super(JsonMetricsEncoder).default(self, obj)
-
-

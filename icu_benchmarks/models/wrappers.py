@@ -422,7 +422,6 @@ class MLWrapper(object):
         with open(self.log_dir / "test_metrics.json", "w") as f:
             json.dump(test_metric_results, f, cls=JsonMetricsEncoder)
 
-
         return log_loss(test_label, test_pred)
 
     def save_weights(self, save_path, model_type="lgbm"):
