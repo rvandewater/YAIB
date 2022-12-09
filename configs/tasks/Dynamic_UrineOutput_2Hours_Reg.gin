@@ -1,8 +1,0 @@
-import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.encoders
-
-NUM_CLASSES = 1
-HORIZON = 24
-
-# DL
-DLWrapper.loss = @mse_loss

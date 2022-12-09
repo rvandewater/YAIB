@@ -1,6 +1,6 @@
 import inspect
 import logging
-import os
+from pathlib import Path
 import pickle
 import json
 import gin
@@ -16,6 +16,7 @@ from sklearn.metrics import (
     mean_absolute_error,
     precision_recall_curve,
     roc_curve,
+    log_loss,
 )
 from sklearn.calibration import calibration_curve
 
@@ -45,7 +46,6 @@ class DLWrapper(object):
     def __init__(
         self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, train_on_cpu=False
     ):
-        logging.info(torch.cuda.is_available())
         if torch.cuda.is_available() and not train_on_cpu:
             logging.info("Model will be trained using GPU Hardware")
             device = torch.device("cuda")
@@ -68,8 +68,8 @@ class DLWrapper(object):
         self.optimizer = optimizer_fn(self.encoder.parameters())
         self.scaler = None
 
-    def set_logdir(self, logdir):
-        self.logdir = logdir
+    def set_log_dir(self, log_dir: Path):
+        self.log_dir = log_dir
 
     def set_scaler(self, scaler):
         self.scaler = scaler
@@ -173,7 +173,6 @@ class DLWrapper(object):
         batch_size=64,
         patience=10,
         min_delta=1e-4,
-        save_weights=True,
     ):
 
         self.set_metrics()
@@ -205,8 +204,8 @@ class DLWrapper(object):
 
         best_loss = float("inf")
         epoch_no_improvement = 0
-        train_writer = SummaryWriter(os.path.join(self.logdir, "tensorboard", "train"))
-        val_writer = SummaryWriter(os.path.join(self.logdir, "tensorboard", "val"))
+        train_writer = SummaryWriter(self.log_dir / "tensorboard" / "train")
+        val_writer = SummaryWriter(self.log_dir / "tensorboard" / "val")
 
         for epoch in range(epochs):
             # Train step
@@ -219,8 +218,7 @@ class DLWrapper(object):
             if val_loss <= best_loss - min_delta:
                 best_metrics = val_metric_results
                 epoch_no_improvement = 0
-                if save_weights:
-                    self.save_weights(epoch, os.path.join(self.logdir, "model.torch"))
+                self.save_weights(epoch, self.log_dir / "model.torch")
                 best_loss = val_loss
                 logging.info("Validation loss improved to {:.4f} ".format(val_loss))
             else:
@@ -243,8 +241,7 @@ class DLWrapper(object):
             val_string = "Val Epoch:{}"
             val_values = [epoch + 1]
             for name, value in val_metric_results.items():
-
-                if name.split("_")[-1] != "Curve":
+                if isinstance(value, np.float):
                     val_string += ", " + name + ":{:.4f}"
                     val_values.append(value)
                     val_writer.add_scalar(name, value, epoch)
@@ -255,15 +252,15 @@ class DLWrapper(object):
 
         best_metrics["loss"] = best_loss
 
-        with open(os.path.join(self.logdir, "best_metrics.json"), "w") as f:
+        with open(self.log_dir / "best_metrics.json", "w") as f:
             json.dump(best_metrics, f, cls=JsonMetricsEncoder)
 
         # Append results of this seed.
-        append_results(os.path.join(os.path.join(self.logdir, ".."), "val_metrics.json"), val_metric_results, seed)
+        append_results(self.log_dir / ".." / "val_metrics.json", val_metric_results, seed)
 
-        self.load_weights(os.path.join(self.logdir, "model.torch"))  # We load back the best iteration
+        self.load_weights(self.log_dir / "model.torch")  # We load back the best iteration
 
-    def test(self, dataset, seed, weight):
+    def test(self, dataset, weight, seed):
         self.set_metrics()
         test_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.n_worker, pin_memory=self.pin_memory)
         if isinstance(weight, list):
@@ -271,22 +268,24 @@ class DLWrapper(object):
         test_loss, test_metrics = self.evaluate(test_loader, self.metrics, weight)
 
         test_metrics["loss"] = test_loss
-        with open(os.path.join(self.logdir, "test_metrics.json"), "w") as f:
+        with open(self.log_dir / "test_metrics.json", "w") as f:
             json.dump(test_metrics, f, cls=JsonMetricsEncoder)
 
-        append_results(os.path.join(os.path.join(self.logdir, ".."), "test_metrics.json"), test_metrics, seed)
+        append_results(self.log_dir / ".." / "test_metrics.json", test_metrics, seed)
         for key, value in test_metrics.items():
             if isinstance(value, float):
                 logging.info("Test {} :  {}".format(key, value))
 
+        return test_loss
+
     def evaluate(self, eval_loader, metrics, weight):
         self.encoder.eval()
-        eval_loss = []
+        eval_loss = 0
 
         with torch.no_grad():
-            for v, elem in enumerate(eval_loader):
+            for elem in eval_loader:
                 loss, preds, target = self.step_fn(elem, weight)
-                eval_loss.append(loss)
+                eval_loss += loss
                 for name, metric in metrics.items():
                     metric.update(self.output_transform((preds, target)))
 
@@ -294,7 +293,7 @@ class DLWrapper(object):
             for name, metric in metrics.items():
                 eval_metric_results[name] = metric.compute()
                 metric.reset()
-        eval_loss = float(sum(eval_loss) / (v + 1))
+        eval_loss = float(eval_loss / len(eval_loader))
         return eval_loss, eval_metric_results
 
     def save_weights(self, epoch, save_path):
@@ -310,11 +309,10 @@ class MLWrapper(object):
         self.model = model
         self.scaler = None
 
-    def set_logdir(self, logdir):
-        self.logdir = logdir
+    def set_log_dir(self, log_dir: Path):
+        self.log_dir = log_dir
 
     def set_metrics(self, labels):
-        # Recorded metrics for the type of prediction task
         if len(np.unique(labels)) == 2:
             if isinstance(self.model, lightgbm.basic.Booster):
                 self.output_transform = lambda x: x
@@ -327,7 +325,7 @@ class MLWrapper(object):
                 "AUC": roc_auc_score,
                 "ROC": roc_curve,
                 "PRC": precision_recall_curve,
-                "Calibration": calibration_curve
+                "Calibration": calibration_curve,
             }
 
         elif np.all(labels[:10].astype(int) == labels[:10]):
@@ -348,8 +346,7 @@ class MLWrapper(object):
         self.scaler = scaler
 
     @gin.configurable(module="MLWrapper")
-    def train(self, train_dataset, val_dataset, weight, seed, patience=10, save_weights=True):
-
+    def train(self, train_dataset, val_dataset, weight, seed, patience=10):
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
         self.set_metrics(train_label)
@@ -359,6 +356,7 @@ class MLWrapper(object):
             self.model.set_params(class_weight=weight)
 
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
+            model_type = "lgbm"
             self.model.set_params(random_state=np.random.get_state()[1][0])
             self.model.fit(
                 train_rep,
@@ -370,7 +368,6 @@ class MLWrapper(object):
                 ],
             )
             val_loss = list(self.model.best_score_["valid_0"].values())[0]
-            model_type = "lgbm"
         else:
             model_type = "sklearn"
             self.model.fit(train_rep, train_label)
@@ -386,7 +383,7 @@ class MLWrapper(object):
         train_metric_results = {}
         train_string = ""
         train_values = []
-        val_string = "Val Results: " + "loss" + ":{:.4f}"
+        val_string = "Val Results: loss: {:.4f}"
         val_values = [val_loss]
         val_metric_results = {"loss": val_loss}
         for name, metric in metrics.items():
@@ -401,24 +398,21 @@ class MLWrapper(object):
         logging.info(train_string.format(*train_values))
         logging.info(val_string.format(*val_values))
 
-        if save_weights:
-            if model_type == "lgbm":
-                self.save_weights(save_path=os.path.join(self.logdir, "model.txt"), model_type=model_type)
-            else:
-                self.save_weights(save_path=os.path.join(self.logdir, "model.joblib"), model_type=model_type)
-
-        with open(os.path.join(self.logdir, "val_metrics.json"), "w") as f:
+        model_file = "model.txt" if model_type == "lgbm" else "model.joblib"
+        self.save_weights(save_path=(self.log_dir / model_file), model_type=model_type)
+        with open(self.log_dir / "val_metrics.json", "w") as f:
             json.dump(val_metric_results, f, cls=JsonMetricsEncoder)
 
-        append_results(os.path.join(os.path.join(self.logdir, ".."), "val_metrics.json"), val_metric_results, seed)
+        append_results(self.log_dir / ".." / "val_metrics.json", val_metric_results, seed)
 
-    def test(self, dataset, seed, weight):
+    def test(self, dataset, weight, seed):
         test_rep, test_label = dataset.get_data_and_labels()
         self.set_metrics(test_label)
         if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
             test_pred = self.model.predict(test_rep)
         else:
             test_pred = self.model.predict_proba(test_rep)
+
         test_string = ""
         test_values = []
         test_metric_results = {}
@@ -431,11 +425,13 @@ class MLWrapper(object):
                 test_values.append(test_metric_results[name])
 
         logging.info(test_string.format(*test_values))
-        with open(os.path.join(self.logdir, "test_metrics.json"), "w") as f:
+        with open(self.log_dir / "test_metrics.json", "w") as f:
             json.dump(test_metric_results, f, cls=JsonMetricsEncoder)
 
         # Write results to common folder
-        append_results(os.path.join(os.path.join(self.logdir, ".."), "test_metrics.json"), test_metric_results, seed)
+        append_results(self.log_dir / ".." / "test_metrics.json", test_metric_results, seed)
+
+        return log_loss(test_label, test_pred)
 
     def save_weights(self, save_path, model_type="lgbm"):
         if model_type == "lgbm":
