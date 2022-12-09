@@ -15,21 +15,21 @@ from icu_benchmarks.models.utils import save_config_file
 
 @gin.configurable("train_common")
 def train_common(
-    log_dir: Path,
     data: dict[str, pd.DataFrame],
+    log_dir: Path,
     load_weights: bool = False,
     source_dir: Path = None,
     seed: int = 1234,
     reproducible: bool = True,
     model: object = MLWrapper,
     weight: str = None,
-    do_test: bool = False,
+    test_on: str = "Test",
 ):
     """Common wrapper to train all benchmarked models.
 
     Args:
-        log_dir: Path to directory where model output should be saved.
         data: Dict containing data to be trained on.
+        log_dir: Path to directory where model output should be saved.
         load_weights: If set to true, skip training and load weights from source_dir instead.
         source_dir: If set to load weights, path to directory containing trained weights.
         seed: Common seed used for any random operation.
@@ -48,8 +48,8 @@ def train_common(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    model.set_logdir(log_dir)
-    save_config_file(log_dir)  # We save the operative config before and also after training
+    model.set_log_dir(log_dir)
+    save_config_file(log_dir)
 
     dataset = RICUDataset(data, split="train")
     val_dataset = RICUDataset(data, split="val")
@@ -63,22 +63,14 @@ def train_common(
             model.load_weights(source_dir / "model.joblib")
         else:
             raise Exception("No weights to load at path : {}".format(source_dir / "model.*"))
-        do_test = True
 
     else:
         try:
             model.train(dataset, val_dataset, weight)
         except ValueError as e:
             logging.exception(e)
-            if "Only one class present" in str(e):
-                logging.error(
-                    "There seems to be a problem with the evaluation metric. In case you are attempting "
-                    "to train with the synthetic data, this is expected behaviour"
-                )
             sys.exit(1)
 
-    if do_test:
-        test_dataset = RICUDataset(data, split="test")
-        weight = dataset.get_balance()
-        model.test(test_dataset, weight)
-    save_config_file(log_dir)
+    test_dataset = RICUDataset(data, split=test_on)
+    weight = dataset.get_balance()
+    return model.test(test_dataset, weight)

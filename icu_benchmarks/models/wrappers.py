@@ -1,6 +1,6 @@
 import inspect
 import logging
-import os
+from pathlib import Path
 import pickle
 
 import gin
@@ -14,6 +14,7 @@ from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
     mean_absolute_error,
+    log_loss,
 )
 
 import torch
@@ -64,8 +65,8 @@ class DLWrapper(object):
         self.optimizer = optimizer_fn(self.encoder.parameters())
         self.scaler = None
 
-    def set_logdir(self, logdir):
-        self.logdir = logdir
+    def set_log_dir(self, log_dir: Path):
+        self.log_dir = log_dir
 
     def set_scaler(self, scaler):
         self.scaler = scaler
@@ -168,7 +169,6 @@ class DLWrapper(object):
         batch_size=64,
         patience=10,
         min_delta=1e-4,
-        save_weights=True,
     ):
 
         self.set_metrics()
@@ -200,8 +200,8 @@ class DLWrapper(object):
 
         best_loss = float("inf")
         epoch_no_improvement = 0
-        train_writer = SummaryWriter(os.path.join(self.logdir, "tensorboard", "train"))
-        val_writer = SummaryWriter(os.path.join(self.logdir, "tensorboard", "val"))
+        train_writer = SummaryWriter(self.log_dir / "tensorboard" / "train")
+        val_writer = SummaryWriter(self.log_dir / "tensorboard" / "val")
 
         for epoch in range(epochs):
             # Train step
@@ -214,8 +214,7 @@ class DLWrapper(object):
             if val_loss <= best_loss - min_delta:
                 best_metrics = val_metric_results
                 epoch_no_improvement = 0
-                if save_weights:
-                    self.save_weights(epoch, os.path.join(self.logdir, "model.torch"))
+                self.save_weights(epoch, self.log_dir / "model.torch")
                 best_loss = val_loss
                 logging.info("Validation loss improved to {:.4f} ".format(val_loss))
             else:
@@ -247,11 +246,11 @@ class DLWrapper(object):
             logging.info(train_string.format(*train_values))
             logging.info(val_string.format(*val_values))
 
-        with open(os.path.join(self.logdir, "val_metrics.pkl"), "wb") as f:
+        with open(self.log_dir / "val_metrics.pkl", "wb") as f:
             best_metrics["loss"] = best_loss
             pickle.dump(best_metrics, f)
 
-        self.load_weights(os.path.join(self.logdir, "model.torch"))  # We load back the best iteration
+        self.load_weights(self.log_dir / "model.torch")  # We load back the best iteration
 
     def test(self, dataset, weight):
         self.set_metrics()
@@ -260,21 +259,23 @@ class DLWrapper(object):
             weight = torch.FloatTensor(weight).to(self.device)
         test_loss, test_metrics = self.evaluate(test_loader, self.metrics, weight)
 
-        with open(os.path.join(self.logdir, "test_metrics.pkl"), "wb") as f:
+        with open(self.log_dir / "test_metrics.pkl", "wb") as f:
             test_metrics["loss"] = test_loss
             pickle.dump(test_metrics, f)
         for key, value in test_metrics.items():
             if isinstance(value, float):
                 logging.info("Test {} :  {}".format(key, value))
 
+        return test_loss
+
     def evaluate(self, eval_loader, metrics, weight):
         self.encoder.eval()
-        eval_loss = []
+        eval_loss = 0
 
         with torch.no_grad():
-            for v, elem in enumerate(eval_loader):
+            for elem in eval_loader:
                 loss, preds, target = self.step_fn(elem, weight)
-                eval_loss.append(loss)
+                eval_loss += loss
                 for name, metric in metrics.items():
                     metric.update(self.output_transform((preds, target)))
 
@@ -282,7 +283,7 @@ class DLWrapper(object):
             for name, metric in metrics.items():
                 eval_metric_results[name] = metric.compute()
                 metric.reset()
-        eval_loss = float(sum(eval_loss) / (v + 1))
+        eval_loss = float(eval_loss / len(eval_loader))
         return eval_loss, eval_metric_results
 
     def save_weights(self, epoch, save_path):
@@ -298,8 +299,8 @@ class MLWrapper(object):
         self.model = model
         self.scaler = None
 
-    def set_logdir(self, logdir):
-        self.logdir = logdir
+    def set_log_dir(self, log_dir: Path):
+        self.log_dir = log_dir
 
     def set_metrics(self, labels):
         if len(np.unique(labels)) == 2:
@@ -329,8 +330,7 @@ class MLWrapper(object):
         self.scaler = scaler
 
     @gin.configurable(module="MLWrapper")
-    def train(self, train_dataset, val_dataset, weight, patience=10, save_weights=True):
-
+    def train(self, train_dataset, val_dataset, weight, patience=10):
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
         self.set_metrics(train_label)
@@ -340,6 +340,7 @@ class MLWrapper(object):
             self.model.set_params(class_weight=weight)
 
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
+            model_type = "lgbm"
             self.model.set_params(random_state=np.random.get_state()[1][0])
             self.model.fit(
                 train_rep,
@@ -351,7 +352,6 @@ class MLWrapper(object):
                 ],
             )
             val_loss = list(self.model.best_score_["valid_0"].values())[0]
-            model_type = "lgbm"
         else:
             model_type = "sklearn"
             self.model.fit(train_rep, train_label)
@@ -367,27 +367,23 @@ class MLWrapper(object):
         train_metric_results = {}
         train_string = ""
         train_values = []
-        val_string = "Val Results: " + "loss" + ":{:.4f}"
+        val_string = "Val Results: loss: {:.4f}"
         val_values = [val_loss]
         val_metric_results = {"loss": val_loss}
         for name, metric in metrics.items():
             train_metric_results[name] = metric(self.label_transform(train_label), self.output_transform(train_pred))
             val_metric_results[name] = metric(self.label_transform(val_label), self.output_transform(val_pred))
             train_string += "Train Results: " if len(train_string) == 0 else ", "
-            train_string += name + ":{:.4f}"
-            val_string += ", " + name + ":{:.4f}"
+            train_string += name + ": {:.4f}"
+            val_string += ", " + name + ": {:.4f}"
             train_values.append(train_metric_results[name])
             val_values.append(val_metric_results[name])
         logging.info(train_string.format(*train_values))
         logging.info(val_string.format(*val_values))
 
-        if save_weights:
-            if model_type == "lgbm":
-                self.save_weights(save_path=os.path.join(self.logdir, "model.txt"), model_type=model_type)
-            else:
-                self.save_weights(save_path=os.path.join(self.logdir, "model.joblib"), model_type=model_type)
-
-        with open(os.path.join(self.logdir, "val_metrics.pkl"), "wb") as f:
+        model_file = "model.txt" if model_type == "lgbm" else "model.joblib"
+        self.save_weights(save_path=(self.log_dir / model_file), model_type=model_type)
+        with open(self.log_dir / "val_metrics.pkl", "wb") as f:
             pickle.dump(val_metric_results, f)
 
     def test(self, dataset, weight):
@@ -397,6 +393,7 @@ class MLWrapper(object):
             test_pred = self.model.predict(test_rep)
         else:
             test_pred = self.model.predict_proba(test_rep)
+
         test_string = ""
         test_values = []
         test_metric_results = {}
@@ -407,8 +404,10 @@ class MLWrapper(object):
             test_values.append(test_metric_results[name])
 
         logging.info(test_string.format(*test_values))
-        with open(os.path.join(self.logdir, "test_metrics.pkl"), "wb") as f:
+        with open(self.log_dir / "test_metrics.pkl", "wb") as f:
             pickle.dump(test_metric_results, f)
+
+        return log_loss(test_label, test_pred)
 
     def save_weights(self, save_path, model_type="lgbm"):
         if model_type == "lgbm":
