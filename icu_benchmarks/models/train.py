@@ -64,7 +64,7 @@ def train_common(
     )
     val_loader = DataLoader(
         val_dataset,
-        batch_size=batch_size * 4,
+        batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
         pin_memory=True,

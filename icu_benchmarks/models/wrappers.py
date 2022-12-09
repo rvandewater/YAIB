@@ -1,3 +1,4 @@
+from typing import Dict, Any
 from torchmetrics import MeanSquaredError, MeanAbsoluteError, Accuracy
 from typing import List, Optional, Union
 from torch.nn import Module, MSELoss, CrossEntropyLoss
@@ -46,14 +47,65 @@ gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.
 # gin.config.external_configurable(LogisticRegression)
 
 
+@gin.configurable("BaseModule")
+class BaseModule(LightningModule):
+    
+    needs_training = False
+    needs_fit = False
+    
+    def set_logdir(self, logdir):
+        self.logdir = logdir
+
+    def set_scaler(self, scaler):
+        self.scaler = scaler
+    
+    def forward(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def step_fn(self, batch, step_prefix=""):
+        raise NotImplementedError()
+
+    def finalize_step(self, step_prefix=""):
+        pass
+    
+    def set_metrics(self, *args, **kwargs):
+        self.metrics = {}
+    
+    def set_weight(self, weight, *args, **kwargs):
+        pass
+    
+    def training_step(self, batch, batch_idx):
+        self.step_fn(batch, "train")
+
+    def validation_step(self, batch, batch_idx):
+        self.step_fn(batch, "val")
+
+    def test_step(self, batch, batch_idx):
+        self.step_fn(batch, "test")
+
+    def on_train_epoch_end(self) -> None:
+        self.finalize_step("train")
+
+    def on_validation_epoch_end(self) -> None:
+        self.finalize_step("val")
+
+    def on_test_epoch_end(self) -> None:
+        self.finalize_step("test")
+
+    def on_test_epoch_start(self) -> None:
+        self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
+        return super().on_test_epoch_start()
+
+
 @gin.configurable("DLWrapper")
-class DLWrapper(LightningModule):
+class DLWrapper(BaseModule):
     
     needs_training = True
     needs_fit = False
     
     def __init__(
-        self, loss=CrossEntropyLoss(),
+        self,
+        loss=CrossEntropyLoss(),
         optimizer=torch.optim.Adam,
         input_shape=None,
         lr: float = 0.002,
@@ -64,12 +116,34 @@ class DLWrapper(LightningModule):
         epochs: int = 100,
         input_size: torch.Tensor = None,
         initialization_method: str = "normal",
+        **kwargs,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer
         self.scaler = None
+ 
+    def finalize_step(self, step_prefix = ""):
+        self.log_dict({f"{step_prefix}/{name}": metric.compute() for name, metric in self.metrics.items()})
+        for metric in self.metrics.values():
+            metric.reset()
+
+    def configure_optimizers(self):
+        if isinstance(self.optimizer, str):
+            optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
+        else:
+            optimizer = self.optimizer(self.parameters())
+        scheduler = create_scheduler(
+            self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
+        )
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
+
+
+@gin.configurable("DLClassificationWrapper")
+class DLClassificationWrapper(DLWrapper):
+    
+    logit = None
     
     def set_weight(self, weight, dataset):
         if isinstance(weight, list):
@@ -77,15 +151,6 @@ class DLWrapper(LightningModule):
         elif weight == "balanced":
             weight = torch.FloatTensor(dataset.get_balance()).to(self.device)
         self.loss_weights = weight
-
-    def set_logdir(self, logdir):
-        self.logdir = logdir
-
-    def set_scaler(self, scaler):
-        self.scaler = scaler
-    
-    def forward(self, data):
-        raise NotImplementedError()
 
     def set_metrics(self, *args):
         def softmax_binary_output_transform(output):
@@ -161,58 +226,18 @@ class DLWrapper(LightningModule):
         for metric in self.metrics.values():
             metric.update(transformed_output)
         self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True)
-        
-    def metric_computation(self, step_prefix):
-        self.log_dict({f"{step_prefix}/{name}": metric.compute() for name, metric in self.metrics.items()})
-        for metric in self.metrics.values():
-            metric.reset()
 
-    def training_step(self, batch, batch_idx):
-        self.step_fn(batch, "train")
-
-    def validation_step(self, batch, batch_idx):
-        self.step_fn(batch, "val")
-
-    def test_step(self, batch, batch_idx):
-        self.step_fn(batch, "test")
-
-    def on_train_epoch_end(self) -> None:
-        self.metric_computation("train")
-
-    def on_validation_epoch_end(self) -> None:
-        self.metric_computation("val")
-
-    def on_test_epoch_end(self) -> None:
-        self.metric_computation("test")
-
-    def on_test_epoch_start(self) -> None:
-        self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
-        return super().on_test_epoch_start()
-
-    def configure_optimizers(self):
-        if isinstance(self.optimizer, str):
-            optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
-        else:
-            optimizer = self.optimizer(self.parameters())
-        scheduler = create_scheduler(
-            self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
-        )
-        return {"optimizer": optimizer, "lr_scheduler": scheduler}
-
-@gin.configurable("MLWrapper")
-class MLWrapper(LightningModule):
+@gin.configurable("MLClassificationWrapper")
+class MLClassificationWrapper(BaseModule):
     
     needs_training = False
     needs_fit = True
     
-    def __init__(self, *args, model=lightgbm.LGBMClassifier, patience=10, **kwargs):
+    def __init__(self, *args, model=None, patience=10, **kwargs):
         super().__init__()
         self.save_hyperparameters()
         self.model = model
         self.scaler = None
-
-    def set_logdir(self, logdir):
-        self.logdir = logdir
 
     def set_metrics(self, labels):
         if len(torch.unique(labels)) == 2:
@@ -237,22 +262,13 @@ class MLWrapper(LightningModule):
                 self.output_transform = lambda x: x
                 self.label_transform = lambda x: x
             self.metrics = {"MAE": mean_absolute_error}
-
-    def set_scaler(self, scaler):
-        self.scaler = scaler
-    
-    def set_weight(self, weight, dataset):
-        self.weight = weight
     
     def training_step(self, dataset):
         train_rep, train_label, val_rep, val_label = dataset
         train_rep, train_label = train_rep.squeeze().cpu(), train_label.squeeze().cpu()
         val_rep, val_label = val_rep.squeeze().cpu(), val_label.squeeze().cpu()
-        
-        print("SHAPES:")
-        print(train_rep.shape, train_label.shape)
-        
         self.set_metrics(train_label)
+        
         if "class_weight" in self.model.get_params().keys():  # Set class weights
             self.model.set_params(class_weight=self.weight)
 
@@ -285,41 +301,21 @@ class MLWrapper(LightningModule):
         })
 
     def validation_step(self, val_dataset, _):
-        print(val_dataset)
-        # print([i.shape for i in val_dataset])
-
-        # train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset
         val_rep, val_label = val_rep.squeeze().cpu(), val_label.squeeze().cpu()
+        self.set_metrics(val_label)
 
         if "MAE" in self.metrics.keys():
             val_pred = self.model.predict(val_rep)
         else:
             val_pred = self.model.predict_proba(val_rep)
 
-        # train_metric_results = {}
-        # train_string = ""
-        # train_values = []
-        # val_string = "Val Results: " + "loss" + ":{:.4f}"
-        # val_values = [val_loss]
-        # val_metric_results = {"loss": val_loss}
-        
         self.log_dict({
             f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
             for name, metric in self.metrics.items()
         })
-        # for name, metric in metrics.items():
-        #     train_metric_results[name] = metric(self.label_transform(train_label), self.output_transform(train_pred))
-        #     val_metric_results[name] = metric(self.label_transform(val_label), self.output_transform(val_pred))
-        #     train_string += "Train Results: " if len(train_string) == 0 else ", "
-        #     train_string += name + ":{:.4f}"
-        #     val_string += ", " + name + ":{:.4f}"
-        #     train_values.append(train_metric_results[name])
-        #     val_values.append(val_metric_results[name])
-        # logging.info(train_string.format(*train_values))
-        # logging.info(val_string.format(*val_values))
 
-    def test_step(self, dataset):
+    def test_step(self, dataset, _):
         test_rep, test_label = dataset
         test_rep, test_label = test_rep.squeeze().cpu(), test_label.squeeze().cpu()
         self.set_metrics(test_label)
@@ -336,35 +332,15 @@ class MLWrapper(LightningModule):
     
     def configure_optimizers(self):
         return None
-        # test_string = ""
-        # test_values = []
-        # test_metric_results = {}
-        # for name, metric in self.metrics.items():
-        #     test_metric_results[name] = metric(self.label_transform(test_label), self.output_transform(test_pred))
-        #     test_string += "Test Results: " if len(test_string) == 0 else ", "
-        #     test_string += name + ":{:.4f}"
-        #     test_values.append(test_metric_results[name])
 
-        # logging.info(test_string.format(*test_values))
-        # with open(os.path.join(self.logdir, "test_metrics.pkl"), "wb") as f:
-        #     pickle.dump(test_metric_results, f)
-
-    # def save_weights(self, save_path, model_type="lgbm"):
-    #     if model_type == "lgbm":
-    #         self.model.booster_.save_model(save_path)
-    #     else:
-    #         joblib.dump(self.model, save_path)
-
-    # def load_weights(self, load_path):
-    #     if load_path.suffix == ".txt":
-    #         self.model = lightgbm.Booster(model_file=load_path)
-    #     else:
-    #         with open(load_path, "rb") as f:
-    #             self.model = joblib.load(f)
-
+    def __getstate__(self) -> Dict[str, Any]:
+        state = self.__dict__.copy()
+        del state["label_transform"]
+        del state["output_transform"]
+        return state
 
 @gin.configurable("ImputationWrapper")
-class ImputationWrapper(LightningModule):
+class ImputationWrapper(DLWrapper):
 
     needs_training = True
     needs_fit = False
@@ -418,62 +394,14 @@ class ImputationWrapper(LightningModule):
         self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
         self.init_weights(self.hparams.initialization_method)
         return super().on_fit_start()
-
-    def fit(self, input_data) -> None:
-        raise NotImplementedError()
-
-    def forward(self, amputated, amputation_mask) -> torch.Tensor:
-        raise NotImplementedError()
-
-    def training_step(self, batch):
+    
+    def step_fn(self, batch, step_prefix=""):
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
 
         loss = self.loss(imputated, target)
-        self.log("train/loss", loss.item(), prog_bar=True)
+        self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
+        
+        for metric in self.metrics.values():
+            metric.update(imputated, target)
         return loss
-
-    def validation_step(self, batch, batch_idx):
-        amputated, amputation_mask, target = batch
-        imputated = self(amputated, amputation_mask)
-
-        loss = self.loss(imputated, target)
-        self.log("val/loss", loss.item(), prog_bar=True)
-
-        for metric in self.metrics.values():
-            metric.update(imputated, target)
-
-    def on_validation_epoch_end(self) -> None:
-        self.log_dict({f"val/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
-        for metric in self.metrics.values():
-            metric.reset()
-
-    def on_test_epoch_start(self) -> None:
-        self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
-        return super().on_test_epoch_start()
-
-    def test_step(self, batch, batch_idx):
-
-        amputated, amputation_mask, target = batch
-        imputated = self(amputated, amputation_mask)
-
-        loss = self.loss(imputated, target)
-        self.log("test/loss", loss.item())
-
-        for metric in self.metrics.values():
-            metric.update(imputated, target)
-
-    def on_test_epoch_end(self) -> None:
-        self.log_dict({f"test/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
-        for metric in self.metrics.values():
-            metric.reset()
-
-    def configure_optimizers(self):
-        if isinstance(self.optimizer, str):
-            optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
-        else:
-            optimizer = self.optimizer(self.parameters())
-        scheduler = create_scheduler(
-            self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
-        )
-        return {"optimizer": optimizer, "lr_scheduler": scheduler}

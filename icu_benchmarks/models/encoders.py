@@ -3,17 +3,15 @@ import numpy as np
 import torch
 import torch.nn as nn
 import lightgbm
+
+from sklearn.linear_model import LogisticRegression
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
-from icu_benchmarks.models.wrappers import DLWrapper, MLWrapper
+from icu_benchmarks.models.wrappers import DLClassificationWrapper, MLClassificationWrapper
 import inspect
 
 @gin.configurable
-class LGBMClassifier(MLWrapper):
-
+class LGBMClassifier(MLClassificationWrapper):
     def __init__(self, *args, **kwargs):
-        # lgbm_required_params = inspect.getargspec(lightgbm.LGBMClassifier).args
-        # lgbm_params = {key: value for key, value in kwargs.items() if key in lgbm_required_params}
-        # dl_wrapper_params = {key: value for key, value in kwargs.items() if key not in lgbm_required_params}
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
     
@@ -21,12 +19,29 @@ class LGBMClassifier(MLWrapper):
     def model_args(self, *args, **kwargs):
         return lightgbm.LGBMClassifier(*args, **kwargs)
 
-@gin.configurable
-class LGBMRegressor(lightgbm.LGBMRegressor, DLWrapper):
-    pass
 
 @gin.configurable
-class LSTMNet(DLWrapper):
+class LGBMRegressor(MLClassificationWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = self.model_args()
+    
+    @gin.configurable(module="LGBMRegressor")
+    def model_args(self, *args, **kwargs):
+        return lightgbm.LGBMRegressor(*args, **kwargs)
+    
+@gin.configurable
+class LogisticRegression(MLClassificationWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = self.model_args()
+    
+    @gin.configurable(module="LogisticRegression")
+    def model_args(self, *args, **kwargs):
+        return LogisticRegression(*args, **kwargs)
+
+@gin.configurable
+class LSTMNet(DLClassificationWrapper):
     
     def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, train_on_cpu=False):
         super().__init__()
@@ -48,7 +63,7 @@ class LSTMNet(DLWrapper):
 
 
 @gin.configurable
-class GRUNet(DLWrapper):
+class GRUNet(DLClassificationWrapper):
 
     def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, train_on_cpu=False):
         super().__init__()
@@ -70,7 +85,7 @@ class GRUNet(DLWrapper):
 
 
 @gin.configurable
-class Transformer(DLWrapper):
+class Transformer(DLClassificationWrapper):
 
     def __init__(
         self, emb, hidden, heads, ff_hidden_mult, depth, num_classes, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0
@@ -112,7 +127,7 @@ class Transformer(DLWrapper):
 
 
 @gin.configurable
-class LocalTransformer(DLWrapper):
+class LocalTransformer(DLClassificationWrapper):
 
     def __init__(
         self,
@@ -167,7 +182,7 @@ class LocalTransformer(DLWrapper):
 
 # From TCN original paper https://github.com/locuslab/TCN
 @gin.configurable
-class TemporalConvNet(DLWrapper):
+class TemporalConvNet(DLClassificationWrapper):
     
     needs_training = True
     needs_fit = False
