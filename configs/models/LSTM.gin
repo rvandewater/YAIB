@@ -21,13 +21,12 @@ optimizer/hyperparameter.lr = (3e-4, 1e-5)
 
 # Encoder params
 model/hyperparameter.class_to_tune = @LSTMNet
-model/hyperparameter.cast_to_int = ["hidden_dim", "layer_dim"]
 model/hyperparameter.input_dim = %EMB
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.hidden_dim = (32, 256)
 model/hyperparameter.layer_dim = (1, 3)
 
 tune_hyperparameters.scopes = ["model", "optimizer"]
-tune_hyperparameters.init_points = 5
-tune_hyperparameters.n_iter = 30
+tune_hyperparameters.n_initial_points = 5
+tune_hyperparameters.n_calls = 30
 tune_hyperparameters.folds_to_tune_on = 2

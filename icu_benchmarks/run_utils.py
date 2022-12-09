@@ -36,7 +36,8 @@ def build_parser() -> ArgumentParser:
     prep_and_train.add_argument("--reproducible", default=True, action=BooleanOptionalAction, help="Make torch reproducible.")
     prep_and_train.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train on CPU.")
     prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
-    prep_and_train.add_argument("--tune", action=BooleanOptionalAction, help="Find best hyperparameters.")
+    prep_and_train.add_argument("--tune", default=False, action=BooleanOptionalAction, help="Find best hyperparameters.")
+    prep_and_train.add_argument("--checkpoint", type=Path, help="Use previous checkpoint.")
 
     # EVALUATION PARSER
     evaluate = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])

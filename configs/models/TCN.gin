@@ -23,7 +23,6 @@ optimizer/hyperparameter.lr = (3e-4, 1e-5)
 
 # Encoder params
 model/hyperparameter.class_to_tune = @TemporalConvNet
-model/hyperparameter.cast_to_int = ["num_channels", "kernel_size"]
 model/hyperparameter.num_inputs = %EMB
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.max_seq_length = %HORIZON
@@ -32,6 +31,6 @@ model/hyperparameter.kernel_size = (2, 32)
 model/hyperparameter.dropout = (0.0, 0.4)
 
 tune_hyperparameters.scopes = ["model", "optimizer"]
-tune_hyperparameters.init_points = 5
-tune_hyperparameters.n_iter = 30
+tune_hyperparameters.n_initial_points = 5
+tune_hyperparameters.n_calls = 30
 tune_hyperparameters.folds_to_tune_on = 2

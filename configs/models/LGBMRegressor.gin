@@ -12,7 +12,6 @@ MLWrapper.model = @LGBMRegressor()
 MLWrapper.train.patience = 10
 
 model/hyperparameter.class_to_tune = @LGBMRegressor
-model/hyperparameter.cast_to_int = ["max_depth", "num_leaves", "depth"]
 model/hyperparameter.colsample_bytree = (0.33, 1.0)
 model/hyperparameter.max_depth = (3, 7)
 model/hyperparameter.min_child_samples = 1000
@@ -22,6 +21,6 @@ model/hyperparameter.subsample = (0.33, 1.0)
 model/hyperparameter.subsample_freq = 1
 
 tune_hyperparameters.scopes = ["model"]
-tune_hyperparameters.init_points = 10
-tune_hyperparameters.n_iter = 250
+tune_hyperparameters.n_initial_points = 10
+tune_hyperparameters.n_calls = 250
 tune_hyperparameters.folds_to_tune_on = 3

@@ -15,6 +15,9 @@ model/hyperparameter.class_to_tune = @LogisticRegression
 model/hyperparameter.solver = "saga"
 model/hyperparameter.max_iter = 100000
 model/hyperparameter.C = (0.001, 10)
-model/hyperparameter.penalty = "elasticnet"
+model/hyperparameter.penalty = ["l1", "l2", "elasticnet"]
 
 tune_hyperparameters.scopes = ["model"]
+tune_hyperparameters.n_initial_points = 10
+tune_hyperparameters.n_calls = 150
+tune_hyperparameters.folds_to_tune_on = 3
