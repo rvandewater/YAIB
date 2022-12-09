@@ -121,35 +121,35 @@ To understand how a parameter can be searched via random search, let's look at t
 ```
 ...
 # Optimizer params
-Adam.weight_decay = 1e-6
-optimizer/random_search.class_to_configure = @Adam
-optimizer/random_search.lr = [3e-4, 1e-4, 3e-5, 1e-5]
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.lr = (1e-5, 3e-4)
 
 # Encoder params
 LSTMNet.input_dim = %EMB
 LSTMNet.num_classes = %NUM_CLASSES
-model/random_search.class_to_configure = @LSTMNet
-model/random_search.hidden_dim = [32, 64, 128, 256]
-model/random_search.layer_dim = [1, 2, 3]
+model/hyperparameter.class_to_tune = @LSTMNet
+model/hyperparameter.hidden_dim = (32, 256)
+model/hyperparameter.layer_dim = (1, 3)
 
-run_random_searches.scopes = ["model", "optimizer"]
+tune_hyperparameters.scopes = ["model", "optimizer"]
 ```
 
-`run_random_searches.scopes` defines the scopes that the random search runs in (the strings in front of the slashes in the
+`tune_hyperparameters.scopes` defines the scopes that the random search runs in (the strings in front of the slashes in the
 lines above).
 Each scope represents a class which will get bindings with randomly searched parameters.
 In this example, we have the two scopes `model` and `optimizer`.
-For each scope a `class_to_configure` needs to be set to the class it represents, in this case `LSTMNet` and `Adam`
+For each scope a `class_to_tune` needs to be set to the class it represents, in this case `LSTMNet` and `Adam`
 respectively.
 We can add whichever parameter we want to the classes following this syntax:
 
 ```
-run_random_searches.scopes = ["<scope>", ...]
-<scope>/random_search.class_to_configure = @<SomeClass>
-<scope>/random_search.<param> = ['list', 'of', 'possible', 'values']
+tune_hyperparameters.scopes = ["<scope>", ...]
+<scope>/hyperparameter.class_to_tune = @<SomeClass>
+<scope>/hyperparameter.<param> = ['list', 'of', 'possible', 'values']
 ```
 
-The scopes take care of adding the parameters only to the pertinent classes, whereas the `random_search()` function actually
+The scopes take care of adding the parameters only to the pertinent classes, whereas the `hyperparameter()` function actually
 randomly choses a value
 and binds it to the gin configuration.
 
@@ -159,9 +159,9 @@ If we run `experiments` and want to overwrite the model configuration, this can 
 include "configs/tasks/Mortality_At24Hours.gin"
 include "configs/models/LSTM.gin"
 
-Adam.lr = 1e-4
+optimizer/hyperparameter.lr = 1e-4
 
-model/random_search.hidden_dim = [100, 200]
+model/hyperparameter.hidden_dim = [100, 200]
 ```
 
 This configuration for example overwrites the `lr` parameter of `Adam` with a concrete value,
@@ -171,8 +171,17 @@ The same holds true for the command line. Setting the following flag would achie
 spaces between parameters):
 
 ```
--hp Adam.lr=1e-4 model/random_search.hidden_dim='[100,200]'
+-hp optimizer/hyperparameter.lr=1e-4 model/hyperparameter.hidden_dim='[100,200]'
 ```
+
+
+There is an implicit hierarchy, independent of where the parameters are added (`model.gin`, `experiment.gin` or CLI `-hp`):
+```
+LSTM.hidden_dim = 8                         # always takes precedence
+model/hyperparameter.hidden_dim = 6         # second most important
+model/hyperparameter.hidden_dim = (4, 6)    # only evaluated if the others aren't found in gin configs and CLI
+```
+CLI `-hp` > `experiment.gin` > `model.gin` only is important for bindings on the same "level"
 
 ### Output Structure
 
