@@ -20,7 +20,7 @@ DLWrapper.train.min_delta = 1e-4
 # Optimizer params
 optimizer/hyperparameter.class_to_tune = @Adam
 optimizer/hyperparameter.weight_decay = 1e-6
-optimizer/hyperparameter.lr = (3e-4, 1e-5)
+optimizer/hyperparameter.lr = (1e-5, 3e-4)
 
 # Encoder params
 model/hyperparameter.class_to_tune = @Transformer
