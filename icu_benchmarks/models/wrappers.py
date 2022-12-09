@@ -14,6 +14,7 @@ from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
     mean_absolute_error,
+    log_loss,
 )
 
 import torch
@@ -269,12 +270,12 @@ class DLWrapper(object):
 
     def evaluate(self, eval_loader, metrics, weight):
         self.encoder.eval()
-        eval_loss = []
+        eval_loss = 0
 
         with torch.no_grad():
-            for v, elem in enumerate(eval_loader):
+            for elem in eval_loader:
                 loss, preds, target = self.step_fn(elem, weight)
-                eval_loss.append(loss)
+                eval_loss += loss
                 for name, metric in metrics.items():
                     metric.update(self.output_transform((preds, target)))
 
@@ -282,7 +283,7 @@ class DLWrapper(object):
             for name, metric in metrics.items():
                 eval_metric_results[name] = metric.compute()
                 metric.reset()
-        eval_loss = float(sum(eval_loss) / (v + 1))
+        eval_loss = float(eval_loss / len(eval_loader))
         return eval_loss, eval_metric_results
 
     def save_weights(self, epoch, save_path):
@@ -330,7 +331,6 @@ class MLWrapper(object):
 
     @gin.configurable(module="MLWrapper")
     def train(self, train_dataset, val_dataset, weight, patience=10):
-
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
         self.set_metrics(train_label)
@@ -340,6 +340,7 @@ class MLWrapper(object):
             self.model.set_params(class_weight=weight)
 
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
+            model_type = "lgbm"
             self.model.set_params(random_state=np.random.get_state()[1][0])
             self.model.fit(
                 train_rep,
@@ -351,7 +352,6 @@ class MLWrapper(object):
                 ],
             )
             val_loss = list(self.model.best_score_["valid_0"].values())[0]
-            model_type = "lgbm"
         else:
             model_type = "sklearn"
             self.model.fit(train_rep, train_label)
@@ -394,8 +394,6 @@ class MLWrapper(object):
         else:
             test_pred = self.model.predict_proba(test_rep)
 
-        test_loss = list(self.model.best_score_["valid_0"].values())[0]
-
         test_string = ""
         test_values = []
         test_metric_results = {}
@@ -409,7 +407,7 @@ class MLWrapper(object):
         with open(self.log_dir / "test_metrics.pkl", "wb") as f:
             pickle.dump(test_metric_results, f)
 
-        return test_loss
+        return log_loss(test_label, test_pred)
 
     def save_weights(self, save_path, model_type="lgbm"):
         if model_type == "lgbm":
