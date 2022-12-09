@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
-from icu_benchmarks.run_utils import build_parser, create_run_dir, preprocess_and_train_for_folds
+from icu_benchmarks.run_utils import build_parser, create_run_dir, preprocess_and_train_for_folds, aggregrate_results
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -52,6 +52,7 @@ def main(my_args=tuple(sys.argv[1:])):
         debug=args.debug,
         use_cache=args.cache,
     )
+    aggregrate_results(run_dir)
 
 
 """Main module."""

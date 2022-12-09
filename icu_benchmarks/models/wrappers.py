@@ -1,12 +1,16 @@
 import inspect
+import json
 import logging
 from pathlib import Path
-import pickle
 
 import gin
+import joblib
 import lightgbm
 import numpy as np
-
+import torch
+from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
+from ignite.metrics import MeanAbsoluteError, Accuracy
+from sklearn.calibration import calibration_curve
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     average_precision_score,
@@ -14,20 +18,17 @@ from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
     mean_absolute_error,
+    precision_recall_curve,
+    roc_curve,
     log_loss,
 )
-
-import torch
-from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-from ignite.metrics import MeanAbsoluteError, Accuracy
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-import joblib
 
-from icu_benchmarks.models.utils import save_model, load_model_state
-from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
 from icu_benchmarks.models.encoders import LSTMNet
+from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
+from icu_benchmarks.models.utils import save_model, load_model_state, JsonMetricsEncoder
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
@@ -165,6 +166,7 @@ class DLWrapper(object):
         train_dataset,
         val_dataset,
         weight,
+        seed,
         epochs=1000,
         batch_size=64,
         patience=10,
@@ -228,7 +230,7 @@ class DLWrapper(object):
             train_string = "Train Epoch:{}"
             train_values = [epoch + 1]
             for name, value in train_metric_results.items():
-                if name.split("_")[-1] != "Curve":
+                if isinstance(value, np.float):
                     train_string += ", " + name + ":{:.4f}"
                     train_values.append(value)
                     train_writer.add_scalar(name, value, epoch)
@@ -237,7 +239,7 @@ class DLWrapper(object):
             val_string = "Val Epoch:{}"
             val_values = [epoch + 1]
             for name, value in val_metric_results.items():
-                if name.split("_")[-1] != "Curve":
+                if isinstance(value, np.float):
                     val_string += ", " + name + ":{:.4f}"
                     val_values.append(value)
                     val_writer.add_scalar(name, value, epoch)
@@ -246,22 +248,24 @@ class DLWrapper(object):
             logging.info(train_string.format(*train_values))
             logging.info(val_string.format(*val_values))
 
-        with open(self.log_dir / "val_metrics.pkl", "wb") as f:
-            best_metrics["loss"] = best_loss
-            pickle.dump(best_metrics, f)
+        best_metrics["loss"] = best_loss
+
+        with open(self.log_dir / "best_metrics.json", "w") as f:
+            json.dump(best_metrics, f, cls=JsonMetricsEncoder)
 
         self.load_weights(self.log_dir / "model.torch")  # We load back the best iteration
 
-    def test(self, dataset, weight):
+    def test(self, dataset, weight, seed):
         self.set_metrics()
         test_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.n_worker, pin_memory=self.pin_memory)
         if isinstance(weight, list):
             weight = torch.FloatTensor(weight).to(self.device)
         test_loss, test_metrics = self.evaluate(test_loader, self.metrics, weight)
 
-        with open(self.log_dir / "test_metrics.pkl", "wb") as f:
-            test_metrics["loss"] = test_loss
-            pickle.dump(test_metrics, f)
+        test_metrics["loss"] = test_loss
+        with open(self.log_dir / "test_metrics.json", "w") as f:
+            json.dump(test_metrics, f, cls=JsonMetricsEncoder)
+
         for key, value in test_metrics.items():
             if isinstance(value, float):
                 logging.info("Test {} :  {}".format(key, value))
@@ -310,7 +314,13 @@ class MLWrapper(object):
                 self.output_transform = lambda x: x[:, 1]
             self.label_transform = lambda x: x
 
-            self.metrics = {"PR": average_precision_score, "AUC": roc_auc_score}
+            self.metrics = {
+                "PR": average_precision_score,
+                "AUC": roc_auc_score,
+                "ROC": roc_curve,
+                "PRC": precision_recall_curve,
+                "Calibration": calibration_curve,
+            }
 
         elif np.all(labels[:10].astype(int) == labels[:10]):
             self.output_transform = lambda x: np.argmax(x, axis=-1)
@@ -330,7 +340,7 @@ class MLWrapper(object):
         self.scaler = scaler
 
     @gin.configurable(module="MLWrapper")
-    def train(self, train_dataset, val_dataset, weight, patience=10):
+    def train(self, train_dataset, val_dataset, weight, seed, patience=10):
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
         self.set_metrics(train_label)
@@ -373,20 +383,21 @@ class MLWrapper(object):
         for name, metric in metrics.items():
             train_metric_results[name] = metric(self.label_transform(train_label), self.output_transform(train_pred))
             val_metric_results[name] = metric(self.label_transform(val_label), self.output_transform(val_pred))
-            train_string += "Train Results: " if len(train_string) == 0 else ", "
-            train_string += name + ": {:.4f}"
-            val_string += ", " + name + ": {:.4f}"
-            train_values.append(train_metric_results[name])
-            val_values.append(val_metric_results[name])
+            if isinstance(train_metric_results[name], np.float):
+                train_string += "Train Results: " if len(train_string) == 0 else ", "
+                train_string += name + ":{:.4f}"
+                val_string += ", " + name + ":{:.4f}"
+                train_values.append(train_metric_results[name])
+                val_values.append(val_metric_results[name])
         logging.info(train_string.format(*train_values))
         logging.info(val_string.format(*val_values))
 
         model_file = "model.txt" if model_type == "lgbm" else "model.joblib"
         self.save_weights(save_path=(self.log_dir / model_file), model_type=model_type)
-        with open(self.log_dir / "val_metrics.pkl", "wb") as f:
-            pickle.dump(val_metric_results, f)
+        with open(self.log_dir / "val_metrics.json", "w") as f:
+            json.dump(val_metric_results, f, cls=JsonMetricsEncoder)
 
-    def test(self, dataset, weight):
+    def test(self, dataset, weight, seed):
         test_rep, test_label = dataset.get_data_and_labels()
         self.set_metrics(test_label)
         if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
@@ -399,13 +410,15 @@ class MLWrapper(object):
         test_metric_results = {}
         for name, metric in self.metrics.items():
             test_metric_results[name] = metric(self.label_transform(test_label), self.output_transform(test_pred))
-            test_string += "Test Results: " if len(test_string) == 0 else ", "
-            test_string += name + ":{:.4f}"
-            test_values.append(test_metric_results[name])
+            # Only log float values
+            if isinstance(test_metric_results[name], np.float):
+                test_string += "Test Results: " if len(test_string) == 0 else ", "
+                test_string += name + ":{:.4f}"
+                test_values.append(test_metric_results[name])
 
         logging.info(test_string.format(*test_values))
-        with open(self.log_dir / "test_metrics.pkl", "wb") as f:
-            pickle.dump(test_metric_results, f)
+        with open(self.log_dir / "test_metrics.json", "w") as f:
+            json.dump(test_metric_results, f, cls=JsonMetricsEncoder)
 
         return log_loss(test_label, test_pred)
 

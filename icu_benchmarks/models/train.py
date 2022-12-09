@@ -66,11 +66,11 @@ def train_common(
 
     else:
         try:
-            model.train(dataset, val_dataset, weight)
+            model.train(dataset, val_dataset, weight, seed)
         except ValueError as e:
             logging.exception(e)
             sys.exit(1)
 
     test_dataset = RICUDataset(data, split=test_on)
     weight = dataset.get_balance()
-    return model.test(test_dataset, weight)
+    return model.test(test_dataset, weight, seed)
