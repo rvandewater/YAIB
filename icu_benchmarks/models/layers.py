@@ -80,14 +80,6 @@ class SelfAttention(nn.Module):
         self.mask = mask
         self.drop_att = nn.Dropout(dropout_att)
 
-        self.device = wrapper.device
-        # if torch.cuda.is_available():
-        #     self.device = torch.device("cuda:0")
-        # elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        #     self.device = torch.device("mps:0")
-        # else:
-        #     self.device = torch.device("cpu")
-
         # Sparse transformer specific params
         self.att_type = att_type
         self.local_context = local_context
@@ -144,7 +136,7 @@ class SelfAttention(nn.Module):
                             self.local_context,
                         )[0]
                     mask_tensor = torch.clamp(mask_tensor, 0, 1)
-                    dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(self.device)).view(bs * h, n, n)
+                    dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(dot.device)).view(bs * h, n, n)
 
                 elif self.mask_aggregation == "split":
 
@@ -158,7 +150,7 @@ class SelfAttention(nn.Module):
                         )[0]
 
                         dot_list[i] = torch.where(
-                            mask_tensor.bool(), dot_list[i], torch.tensor(float("-inf")).to(self.device)
+                            mask_tensor.bool(), dot_list[i], torch.tensor(float("-inf")).to(dot.device)
                         ).view(*dot_list[i].shape)
                     dot = torch.cat(dot_list, dim=0)
             else:  # Full causal masking
@@ -168,7 +160,7 @@ class SelfAttention(nn.Module):
                     self.att_type,
                     self.local_context,
                 )[0]
-                dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(self.device)).view(bs * h, n, n)
+                dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(dot.device)).view(bs * h, n, n)
 
         # dot now has row-wise self-attention probabilities
         dot = F.softmax(dot, dim=2)

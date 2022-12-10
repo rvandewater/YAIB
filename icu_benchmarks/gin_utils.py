@@ -62,13 +62,8 @@ def parse_gin_and_random_search(
     """
     gin.parse_config_files_and_bindings(gin_config_files, hyperparams_from_cli, finalize_config=False)
 
-    # if train_on_cpu:
-
-        # global cpu_train
-        # cpu_train = True
-        #gin.bind_parameter("DLWrapper.cpu_train", True)
-        # gin.bind_parameter("LSTMNet.cpu_train", True)
-        # gin.bind_parameter("GRUNet.cpu_train", True)
+    if train_on_cpu:
+        gin.bind_parameter("DLWrapper.device", "cpu")
 
     for _ in range(max_attempts):
         randomly_searched_params = run_random_searches()

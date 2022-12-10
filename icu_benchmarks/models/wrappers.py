@@ -36,44 +36,30 @@ gin.config.external_configurable(lightgbm.LGBMClassifier, module="lightgbm")
 gin.config.external_configurable(lightgbm.LGBMRegressor, module="lightgbm")
 gin.config.external_configurable(LogisticRegression)
 
-if torch.cuda.is_available():
-    device = torch.device("cuda:0")
-    pin_memory = True
-    n_worker = 1
-elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-    device = torch.device("mps")
-    pin_memory = True
-    n_worker = 1
-else:
-    device = torch.device("cpu")
-    pin_memory = False
-    n_worker = 8
+
+def pick_device_config(hint=None):
+    if (hint == "cuda" or hint is None) and torch.cuda.is_available():
+        device = torch.device("cuda:0")
+        pin_memory = True
+        n_worker = 1
+    elif (hint == "mps" or hint is None) and hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = torch.device("mps")
+        pin_memory = True
+        n_worker = 1
+    else:
+        device = torch.device("cpu")
+        pin_memory = False
+        n_worker = 8
+    return device, pin_memory, n_worker
 
 
 @gin.configurable("DLWrapper")
 class DLWrapper(object):
     def __init__(
-            self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam
+            self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, device=None
     ):
-        # global device
-        # if torch.cuda.is_available() and not cpu_train:
-        #     logging.info("Model will be trained using GPU Hardware")
-        #     # device = torch.device("cuda:0")
-        #     self.pin_memory = True
-        #     self.n_worker = 1
-        # elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available() and not cpu_train:
-        #     logging.info("Model will be trained using Apple’s MPS")
-        #     # device = torch.device("mps")
-        #     self.pin_memory = True
-        #     self.n_worker = 1
-        # else:
-        #     logging.info("Model will be trained using CPU Hardware. This should be considerably slower")
-        #     # device = torch.device("cpu")
-        #     self.pin_memory = False
-        #     self.n_worker = 8
-        # if(cpu_train):
-        #     global device
-        #     device = torch.device("cpu")
+        device, pin_memory, n_worker = pick_device_config(device)
+        
         self.device = device
         logging.info(f"Model will be trained using {device}")
         self.pin_memory = pin_memory
