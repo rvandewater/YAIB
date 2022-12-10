@@ -15,8 +15,8 @@ class LSTMNet(nn.Module):
         self.logit = nn.Linear(hidden_dim, num_classes)
 
     def init_hidden(self, x):
-        h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
-        c0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
+        h0 = x.new_zeros(self.layer_dim, x.size(0), self.hidden_dim)
+        c0 = x.new_zeros(self.layer_dim, x.size(0), self.hidden_dim)
         return [t for t in (h0, c0)]
 
     def forward(self, x):
@@ -36,7 +36,7 @@ class GRUNet(nn.Module):
         self.logit = nn.Linear(hidden_dim, num_classes)
 
     def init_hidden(self, x):
-        h0 = x.zeros(self.layer_dim, x.size(0), self.hidden_dim)
+        h0 = x.new_zeros(self.layer_dim, x.size(0), self.hidden_dim)
         return h0
 
     def forward(self, x):
