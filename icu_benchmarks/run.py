@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import argparse
-from argparse import BooleanOptionalAction
 from datetime import datetime
 import gin
 import logging
@@ -37,18 +36,18 @@ def build_parser() -> argparse.ArgumentParser:
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument("-l", "--log-dir", type=Path, help="Path to the log directory with model weights.")
     general_args.add_argument("-s", "--seed", default=SEEDS, nargs="+", type=int, help="Random seed at train and eval.")
-    general_args.add_argument("-db", "--debug", action=BooleanOptionalAction, help="Set to load less data.")
-    general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
+    general_args.add_argument("-db", "--debug", action="store_true", help="Set to load less data.")
+    general_args.add_argument("-c", "--cache", action="store_true", help="Set to cache and use preprocessed data.")
 
     # MODEL TRAINING ARGUMENTS
     parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
     parser_prep_and_train.add_argument(
-        "--reproducible", default=False, action=BooleanOptionalAction, help="Set torch to be reproducible."
+        "--reproducible", default=False, action="store_true", help="Set torch to be reproducible."
     )
     parser_prep_and_train.add_argument(
-        "--hyperparameter-search", default=False, action=BooleanOptionalAction, help="Train the model with an untried hyperparameter set."
+        "--hyperparameter-search", default=False, action="store_true", help="Train the model with an untried hyperparameter set."
     )
-    parser_prep_and_train.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train on CPU.")
+    parser_prep_and_train.add_argument("--cpu", default=False, action="store_true", help="Set to train on CPU.")
     parser_prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
 
     # EVALUATION PARSER
@@ -123,17 +122,11 @@ def main(my_args=tuple(sys.argv[1:])):
             model_path = Path("configs") / ("imputation_models" if mode == "Imputation" else "classification_models")
             model_path = model_path / f"{model}.gin"
             gin_config_files = [model_path, Path(f"configs/tasks/{task}.gin")]
-        if args.hyperparameter_search:
-            randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, args.cpu, log_dir)
-            run_dir = create_run_dir(log_dir, randomly_searched_params)
-        else:
-            gin.parse_config_files_and_bindings(gin_config_files, None)
-            # use the current time stamp as experiment directory
-            run_dir = create_run_dir(log_dir, datetime.now().isoformat())
+        randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, args.cpu, log_dir)
+        run_dir = create_run_dir(log_dir, randomly_searched_params)
 
     for seed in args.seed:
-        if reproducible:
-            seed_everything(seed)
+        seed_everything(seed)
         data = preprocess_data(args.data_dir, seed=seed, debug=debug, use_cache=cache, mode=mode)
         run_dir_seed = run_dir / f"seed_{str(seed)}"
         run_dir_seed.mkdir()

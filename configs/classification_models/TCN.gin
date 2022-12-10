@@ -9,16 +9,14 @@ RES_LAB = 1
 preprocess.use_features = False
 
 # Train params
-train_common.model = @DLWrapper()
+train_common.model = @TemporalConvNet
 train_common.do_test = True
+train_common.optimizer = @Adam
 
-DLWrapper.encoder = @TemporalConvNet()
-DLWrapper.optimizer_fn = @Adam
-
-DLWrapper.train.epochs = 1000
-DLWrapper.train.batch_size = 64
-DLWrapper.train.patience = 10
-DLWrapper.train.min_delta = 1e-4
+train_common.epochs = 1000
+train_common.batch_size = 64
+train_common.patience = 10
+train_common.min_delta = 1e-4
 
 # Optimizer params
 Adam.weight_decay = 1e-6

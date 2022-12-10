@@ -1,3 +1,5 @@
+import logging
+from datetime import datetime
 import gin
 import numpy as np
 from typing import Union, List, Dict
@@ -27,7 +29,7 @@ def random_search(class_to_configure: Union[type, str] = gin.REQUIRED, **kwargs:
 
 
 @gin.configurable
-def run_random_searches(scopes: List[str] = gin.REQUIRED) -> List[str]:
+def run_random_searches(scopes: List[str] = []) -> List[str]:
     """Executes random searches for the different scopes defined in gin configs.
 
     Args:
@@ -83,7 +85,9 @@ def parse_gin_and_random_search(
         if not hyperparams_already_tried:
             break  # unexplored set of hyperparameters found
     if hyperparams_already_tried:
-        raise RuntimeError(f"Could not find unexplored set of hyperparameters in {max_attempts} attempts.")
+        logging.info(f"Could not find unexplored set of hyperparameters in {max_attempts} attempts.")
+        logging.info(f"using time stemp as log dir...")
+        return datetime.now().isoformat()
     for param, value in randomly_searched_params:
         gin.bind_parameter(param, value)
     # parse gin again so overwriting parameters in experiments and CLI takes precedence

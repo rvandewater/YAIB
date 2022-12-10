@@ -9,7 +9,6 @@ preprocess.use_features = False
 
 # Train params
 train_common.model = @KNN
-train_common.wandb = True
 train_common.do_test = True
 
 KNN.n_neighbors = 10

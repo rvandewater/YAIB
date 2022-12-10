@@ -1,19 +1,14 @@
 from typing import Dict, Any
-from torchmetrics import MeanSquaredError, MeanAbsoluteError, Accuracy
 from typing import List, Optional, Union
 from torch.nn import Module, MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 import inspect
-import logging
-import os
-import pickle
 
 import gin
 import lightgbm
 import numpy as np
 
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     average_precision_score,
     roc_auc_score,
@@ -23,15 +18,8 @@ from sklearn.metrics import (
 )
 
 import torch
-# from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-
-from torchmetrics import AveragePrecision, AUROC, PrecisionRecallCurve, ROC
-
-# from ignite.metrics import MeanAbsoluteError, Accuracy
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
-import joblib
+from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
+from ignite.metrics import MeanAbsoluteError, Accuracy, RootMeanSquaredError
 
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
@@ -42,16 +30,19 @@ gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
 
-# gin.config.external_configurable(lightgbm.LGBMClassifier, module="lightgbm")
-# gin.config.external_configurable(lightgbm.LGBMRegressor, module="lightgbm")
-# gin.config.external_configurable(LogisticRegression)
-
-
 @gin.configurable("BaseModule")
 class BaseModule(LightningModule):
     
     needs_training = False
     needs_fit = False
+    
+    weight = None
+    logdir = None
+    metrics = {}
+    scaler = None
+
+    def get_seed(self):
+        return np.random.get_state()[1][0]
     
     def set_logdir(self, logdir):
         self.logdir = logdir
@@ -75,13 +66,13 @@ class BaseModule(LightningModule):
         pass
     
     def training_step(self, batch, batch_idx):
-        self.step_fn(batch, "train")
+        return self.step_fn(batch, "train")
 
     def validation_step(self, batch, batch_idx):
-        self.step_fn(batch, "val")
+        return self.step_fn(batch, "val")
 
     def test_step(self, batch, batch_idx):
-        self.step_fn(batch, "test")
+        return self.step_fn(batch, "test")
 
     def on_train_epoch_end(self) -> None:
         self.finalize_step("train")
@@ -92,17 +83,13 @@ class BaseModule(LightningModule):
     def on_test_epoch_end(self) -> None:
         self.finalize_step("test")
 
-    def on_test_epoch_start(self) -> None:
-        self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
-        return super().on_test_epoch_start()
-
 
 @gin.configurable("DLWrapper")
 class DLWrapper(BaseModule):
     
     needs_training = True
     needs_fit = False
-    
+
     def __init__(
         self,
         loss=CrossEntropyLoss(),
@@ -123,10 +110,14 @@ class DLWrapper(BaseModule):
         self.loss = loss
         self.optimizer = optimizer
         self.scaler = None
- 
+
+    def on_fit_start(self):
+        self.metrics = {step_name: self.set_metrics() for step_name in ["train", "val", "test"]}
+        return super().on_fit_start()
+
     def finalize_step(self, step_prefix = ""):
-        self.log_dict({f"{step_prefix}/{name}": metric.compute() for name, metric in self.metrics.items()})
-        for metric in self.metrics.values():
+        self.log_dict({f"{step_prefix}/{name}/{self.get_seed()}": metric.compute() for name, metric in self.metrics[step_prefix].items() if "_Curve" not in name})
+        for metric in self.metrics[step_prefix].values():
             metric.reset()
 
     def configure_optimizers(self):
@@ -134,16 +125,21 @@ class DLWrapper(BaseModule):
             optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
         else:
             optimizer = self.optimizer(self.parameters())
+        
+        if self.hparams.lr_scheduler is None:
+            return optimizer
         scheduler = create_scheduler(
             self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
         )
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
+    def on_test_epoch_start(self) -> None:
+        self.metrics["test"] = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics["test"].items() if hasattr(metric, "to")}
+        return super().on_test_epoch_start()
+
 
 @gin.configurable("DLClassificationWrapper")
 class DLClassificationWrapper(DLWrapper):
-    
-    logit = None
     
     def set_weight(self, weight, dataset):
         if isinstance(weight, list):
@@ -165,31 +161,30 @@ class DLClassificationWrapper(DLWrapper):
                 y_pred = torch.softmax(y_pred, dim=1)
                 return y_pred, y
 
+        metrics = {}
         # output transform is not applied for contrib metrics so we do our own.
         if self.logit.out_features == 2:
             self.output_transform = softmax_binary_output_transform
-            self.metrics = {
+            metrics = {
                 "PR": AveragePrecision(),
-                "AUC": AUROC(),
+                "AUC": ROC_AUC(),
                 "PR_Curve": PrecisionRecallCurve(),
-                "ROC_Curve": ROC(),
+                "ROC_Curve": RocCurve(),
                 "Calibration_Curve": CalibrationCurve(),
             }
 
         elif self.logit.out_features == 1:
             self.output_transform = lambda x: x
             if self.scaler is not None:
-                self.metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
+                metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
             else:
-                self.metrics = {"MAE": MeanAbsoluteError()}
+                metrics = {"MAE": MeanAbsoluteError()}
 
         else:
             self.output_transform = softmax_multi_output_transform
-            self.metrics = {"Accuracy": Accuracy(), "BalancedAccuracy": BalancedAccuracy()}
+            metrics = {"Accuracy": Accuracy(), "BalancedAccuracy": BalancedAccuracy()}
+        return metrics
 
-    def on_fit_start(self):
-        self.set_metrics()
-        return super().on_fit_start()
 
     def step_fn(self, element, step_prefix = ""):
         if len(element) == 2:
@@ -223,9 +218,10 @@ class DLClassificationWrapper(DLWrapper):
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss  # Regression task
         
         transformed_output = self.output_transform((prediction, target))
-        for metric in self.metrics.values():
+        for metric in self.metrics[step_prefix].values():
             metric.update(transformed_output)
-        self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True)
+        self.log(f"{step_prefix}/loss/{self.get_seed()}", loss, on_step=False, on_epoch=True)
+        return loss
 
 @gin.configurable("MLClassificationWrapper")
 class MLClassificationWrapper(BaseModule):
@@ -240,7 +236,7 @@ class MLClassificationWrapper(BaseModule):
         self.scaler = None
 
     def set_metrics(self, labels):
-        if len(torch.unique(labels)) == 2:
+        if len(np.unique(labels)) == 2:
             if isinstance(self.model, lightgbm.basic.Booster):
                 self.output_transform = lambda x: x
             else:
@@ -265,8 +261,8 @@ class MLClassificationWrapper(BaseModule):
     
     def training_step(self, dataset):
         train_rep, train_label, val_rep, val_label = dataset
-        train_rep, train_label = train_rep.squeeze().cpu(), train_label.squeeze().cpu()
-        val_rep, val_label = val_rep.squeeze().cpu(), val_label.squeeze().cpu()
+        train_rep, train_label = train_rep.squeeze().cpu().numpy(), train_label.squeeze().cpu().numpy()
+        val_rep, val_label = val_rep.squeeze().cpu().numpy(), val_label.squeeze().cpu().numpy()
         self.set_metrics(train_label)
         
         if "class_weight" in self.model.get_params().keys():  # Set class weights
@@ -274,6 +270,9 @@ class MLClassificationWrapper(BaseModule):
 
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
             self.model.set_params(random_state=np.random.get_state()[1][0])
+            print("SHAPES")
+            print(train_label.shape, val_label.shape)
+            
             self.model.fit(
                 train_rep,
                 train_label,
@@ -293,10 +292,10 @@ class MLClassificationWrapper(BaseModule):
         else:
             train_pred = self.model.predict_proba(train_rep)
         
-        self.log("train/loss", 0.0)
-        self.log("val/loss", val_loss)
+        self.log(f"train/loss/{self.get_seed()}", 0.0)
+        self.log(f"val/loss/{self.get_seed()}", val_loss)
         self.log_dict({
-            f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
+            f"train/{name}/{self.get_seed()}": metric(self.label_transform(train_label), self.output_transform(train_pred))
             for name, metric in self.metrics.items()
         })
 
@@ -311,7 +310,7 @@ class MLClassificationWrapper(BaseModule):
             val_pred = self.model.predict_proba(val_rep)
 
         self.log_dict({
-            f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
+            f"val/{name}/{self.get_seed()}": metric(self.label_transform(val_label), self.output_transform(val_pred))
             for name, metric in self.metrics.items()
         })
 
@@ -324,9 +323,9 @@ class MLClassificationWrapper(BaseModule):
         else:
             test_pred = self.model.predict_proba(test_rep)
 
-        self.log("test/loss", 0.0)
+        self.log(f"test/loss/{self.get_seed()}", 0.0)
         self.log_dict({
-            f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
+            f"test/{name}/{self.get_seed()}": metric(self.label_transform(test_label), self.output_transform(test_pred))
             for name, metric in self.metrics.items()
         })
     
@@ -363,9 +362,10 @@ class ImputationWrapper(DLWrapper):
         self.loss = loss
         self.optimizer = optimizer
 
-        self.metrics = {
-            "rmse": MeanSquaredError(squared=False),
-            "mae": MeanAbsoluteError(),
+    def set_metrics(self):
+        return {
+            "rmse": RootMeanSquaredError(),
+            "mae": MAE(),
         }
 
     def init_weights(self, init_type="normal", gain=0.02):
@@ -391,7 +391,6 @@ class ImputationWrapper(DLWrapper):
         self.apply(init_func)
 
     def on_fit_start(self) -> None:
-        self.metrics = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics.items()}
         self.init_weights(self.hparams.initialization_method)
         return super().on_fit_start()
     
@@ -400,8 +399,8 @@ class ImputationWrapper(DLWrapper):
         imputated = self(amputated, amputation_mask)
 
         loss = self.loss(imputated, target)
-        self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
+        self.log(f"{step_prefix}/loss/{self.get_seed()}", loss.item(), prog_bar=True)
         
-        for metric in self.metrics.values():
-            metric.update(imputated, target)
+        for metric in self.metrics[step_prefix].values():
+            metric.update((torch.flatten(imputated, start_dim=1), torch.flatten(target, start_dim=1)))
         return loss

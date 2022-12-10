@@ -7,10 +7,9 @@ preprocess.use_features = False
 
 # Train params
 train_common.model = @GRUNet
+
 train_common.do_test = True
-
-GRUNet.optimizer_fn = @Adam
-
+train_common.optimizer = @Adam
 train_common.epochs = 1000
 train_common.batch_size = 64
 train_common.patience = 10

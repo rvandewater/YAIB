@@ -9,13 +9,6 @@ import numpy as np
 from scipy import optimize
 
 
-# Random seed
-seed = 42
-np.random.seed(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
-
-
 def MCAR_mask(X, p):
     """
     Missing completely at random mechanism.

@@ -7,6 +7,7 @@ import logging
 import numpy as np
 import pandas as pd
 from typing import Dict
+from torch.optim import Adam
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
@@ -15,7 +16,6 @@ from torch.utils.data import DataLoader
 from pathlib import Path
 
 from icu_benchmarks.data.loader import RICUDataset, ImputationDataset
-from icu_benchmarks.models.wrappers import MLWrapper, DLWrapper, ImputationWrapper
 from icu_benchmarks.models.utils import save_config_file
 
 
@@ -29,8 +29,9 @@ def train_common(
     reproducible: bool = True,
     mode: str = "Classification",
     dataset_name: str = "",
-    model: object = MLWrapper,
+    model: object = gin.REQUIRED,
     weight: str = None,
+    optimizer: type = Adam,
     do_test: bool = False,
     batch_size=64,
     epochs=1000,
@@ -82,7 +83,7 @@ def train_common(
             raise Exception(f"No weights to load at path : {source_dir}")
         do_test = True
     else:
-        model = model(input_size=data_shape, epochs=epochs)
+        model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs)
         if mode == "Classification":
             model.set_weight(weight, train_dataset)
     
@@ -95,13 +96,14 @@ def train_common(
         trainer = Trainer(
             max_epochs=epochs if model.needs_training else 1,
             callbacks=[
-                EarlyStopping(monitor="train/loss", min_delta=min_delta, patience=patience),
+                EarlyStopping(monitor=f"val/loss/{model.get_seed()}", min_delta=min_delta, patience=patience, strict=False),
                 ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
             ],
             # precision=16,
             accelerator="auto",
             devices=max(torch.cuda.device_count(), 1),
             deterministic=reproducible,
+            benchmark=not reproducible,
             logger=loggers,
             num_sanity_val_steps=0,
         )

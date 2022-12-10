@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import lightgbm
 
-from sklearn.linear_model import LogisticRegression
+from sklearn import linear_model
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
 from icu_benchmarks.models.wrappers import DLClassificationWrapper, MLClassificationWrapper
 import inspect
@@ -38,17 +38,17 @@ class LogisticRegression(MLClassificationWrapper):
     
     @gin.configurable(module="LogisticRegression")
     def model_args(self, *args, **kwargs):
-        return LogisticRegression(*args, **kwargs)
+        return linear_model.LogisticRegression(*args, **kwargs)
 
 @gin.configurable
 class LSTMNet(DLClassificationWrapper):
     
-    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, train_on_cpu=False):
-        super().__init__()
+    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
         self.rnn = nn.LSTM(input_dim, hidden_dim, layer_dim, batch_first=True)
-        self.logit = nn.Linear(hidden_dim, num_classes)
+        self.logit = nn.Linear(hidden_dim, num_classes)        
 
     def init_hidden(self, x):
         h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
@@ -65,8 +65,8 @@ class LSTMNet(DLClassificationWrapper):
 @gin.configurable
 class GRUNet(DLClassificationWrapper):
 
-    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, train_on_cpu=False):
-        super().__init__()
+    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
         self.rnn = nn.GRU(input_dim, hidden_dim, layer_dim, batch_first=True)
@@ -88,9 +88,9 @@ class GRUNet(DLClassificationWrapper):
 class Transformer(DLClassificationWrapper):
 
     def __init__(
-        self, emb, hidden, heads, ff_hidden_mult, depth, num_classes, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0
+        self, emb, hidden, heads, ff_hidden_mult, depth, num_classes, *args, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0, **kwargs
     ):
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
         self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
@@ -137,13 +137,15 @@ class LocalTransformer(DLClassificationWrapper):
         ff_hidden_mult,
         depth,
         num_classes,
+        *args,
         dropout=0.0,
         l1_reg=0,
         pos_encoding=True,
         local_context=1,
         dropout_att=0.0,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
         self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
@@ -187,8 +189,8 @@ class TemporalConvNet(DLClassificationWrapper):
     needs_training = True
     needs_fit = False
     
-    def __init__(self, num_inputs, num_channels, num_classes, max_seq_length=0, kernel_size=2, dropout=0.0):
-        super(TemporalConvNet, self).__init__()
+    def __init__(self, num_inputs, num_channels, num_classes, *args, max_seq_length=0, kernel_size=2, dropout=0.0, **kwargs):
+        super().__init__(*args, **kwargs)
         layers = []
 
         # We compute automatically the depth based on the desired seq_length.

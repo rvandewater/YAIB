@@ -3,7 +3,7 @@ import icu_benchmarks.data.loader
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
-MODE = "Classificaiton"
+MODE = "Classification"
 
 Run.mode = %MODE
 
@@ -13,7 +13,7 @@ HORIZON = 24
 train_common.weight = None  #FIXME figure out when to use "balanced"
 
 # DL
-DLWrapper.loss = @cross_entropy
+DLClassificationWrapper.loss = @cross_entropy
 
 preprocess.file_names = {
     "DYNAMIC": "dyn.parquet",
@@ -36,6 +36,7 @@ vars = {
 
 preprocess.vars = %vars
 ClassificationDataset.vars = %vars
+ClassificationDataset.ram_cache = True
 
 preprocess.train_pct = 0.7
 preprocess.val_pct = 0.1
