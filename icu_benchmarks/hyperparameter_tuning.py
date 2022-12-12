@@ -101,8 +101,8 @@ def choose_and_bind_hyperparameters(
         n_calls -= len(x0)
         logging.info(f"Restarting hyperparameter tuning from {len(x0)} points.")
 
-    logging.disable(level=INFO)
     if hyperparams_bounds:
+        logging.disable(level=INFO)
         res = gp_minimize(
             bind_params_and_train,
             hyperparams_bounds,
@@ -118,6 +118,4 @@ def choose_and_bind_hyperparameters(
         logging.info("Training with these hyperparameters:")
         bind_params(res.x)
     elif do_tune:
-        logging.disable(level=NOTSET)
         logging.info("No hyperparameters to tune, skipping tuning.")
-
