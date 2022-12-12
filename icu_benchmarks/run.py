@@ -41,7 +41,9 @@ def main(my_args=tuple(sys.argv[1:])):
     checkpoint = None
     if args.checkpoint:
         checkpoint = log_dir / args.checkpoint
-    choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, args.seed, restart_from_checkpoint=checkpoint, debug=args.debug)
+    choose_and_bind_hyperparameters(
+        args.tune, args.data_dir, run_dir, args.seed, restart_from_checkpoint=checkpoint, debug=args.debug
+    )
     preprocess_and_train_for_folds(
         args.data_dir,
         run_dir,
