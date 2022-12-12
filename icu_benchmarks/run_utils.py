@@ -111,9 +111,10 @@ def preprocess_and_train_for_folds(
 def aggregrate_results(log_dir: Path):
     aggregated = {}
     for fold in log_dir.iterdir():
-        with open(fold / "test_metrics.json", "r") as f:
-            result = json.load(f)
-            aggregated[fold.name] = result
+        if fold.is_dir():
+            with open(fold / "test_metrics.json", "r") as f:
+                result = json.load(f)
+                aggregated[fold.name] = result
 
     # Aggregate results per metric
     list_scores = {}
