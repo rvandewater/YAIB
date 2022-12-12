@@ -1,5 +1,5 @@
 include LICENSE
-include requirements.txt
+include environment.yml
 
 recursive-include tests *
 recursive-exclude * __pycache__
