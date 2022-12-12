@@ -14,8 +14,9 @@ MLWrapper.train.patience = 10
 model/hyperparameter.class_to_tune = @LogisticRegression
 model/hyperparameter.solver = "saga"
 model/hyperparameter.max_iter = 100000
-model/hyperparameter.C = (0.001, 10)
+model/hyperparameter.C = (1e-3, 1e1, "log-uniform")
 model/hyperparameter.penalty = ["l1", "l2", "elasticnet"]
+model/hyperparameter.l1_ratio = (0.0, 1.0)
 
 tune_hyperparameters.scopes = ["model"]
 tune_hyperparameters.n_initial_points = 10
