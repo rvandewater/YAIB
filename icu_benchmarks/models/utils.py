@@ -1,6 +1,8 @@
 import logging
 import gin
+import numpy as np
 import torch
+import json
 
 
 def save_model(model, optimizer, epoch, save_file):
@@ -25,3 +27,31 @@ def save_config_file(log_dir):
     config_path = log_dir / "train_config.gin"
     with config_path.open("w") as f:
         f.write(gin.operative_config_str())
+
+
+def append_results(experiment_parent, results, seed):
+    try:
+        with open(experiment_parent) as f:
+            file = json.load(f)
+    except IOError:
+        file = {}
+    with open(experiment_parent, "w") as f:
+        file[seed] = results
+        json.dump(file, f, cls=JsonMetricsEncoder)
+
+
+class JsonMetricsEncoder(json.JSONEncoder):
+    # Serializes foreign datatypes
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, torch.Tensor):
+            return obj.tolist()
+        if isinstance(obj, tuple):
+            if isinstance(obj)[0] is torch.Tensor or isinstance(obj)[0] is np.ndarray:
+                return map(lambda item: item.tolist(), obj)
+        return super(JsonMetricsEncoder).default(self, obj)

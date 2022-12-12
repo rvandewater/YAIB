@@ -2,6 +2,7 @@ import gin
 import numpy as np
 from pathlib import Path
 
+
 @gin.configurable
 def random_search(class_to_configure: type = gin.REQUIRED, **kwargs: dict[str, list]) -> list[str]:
     """Randomly searches parameters for a class and sets gin bindings.
@@ -48,7 +49,7 @@ def parse_gin_and_random_search(
     Tries to find an unexplored set of hyperparameters a maximum of max_attempts by comparing filenames.
 
     Args:
-        gin_config_files: A list of all configuration files to parse.
+        gin_config_files: A list of all configuration files to pparse.
         hyperparams_from_cli: A list of all hyperparameters from the command line.
         train_on_cpu: Set to True to train models on CPU only.
         log_dir: Directory in which the runs are logged.
@@ -63,7 +64,9 @@ def parse_gin_and_random_search(
     gin.parse_config_files_and_bindings(gin_config_files, hyperparams_from_cli, finalize_config=False)
 
     if train_on_cpu:
-        gin.bind_parameter("DLWrapper.device", "cpu")
+        gin.bind_parameter("DLWrapper.train_on_cpu", True)
+        gin.bind_parameter("LSTMNet.train_on_cpu", True)
+        gin.bind_parameter("GRUNet.train_on_cpu", True)
 
     for _ in range(max_attempts):
         randomly_searched_params = run_random_searches()

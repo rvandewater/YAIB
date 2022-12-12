@@ -1,91 +1,190 @@
-# Yet Another ICU Benchmark
-This project aims to provide a unified interface for multiple common ICU prediction endpoints for common ICU datasets. 
-We support the following datasets: 
-- Amsterdam UMC Database
-- HiRID
-- MIMIC III/IV
-- eICU
+![YAIB logo](docs/figures/yaib_logo.png)
 
-We refer to the `PyICU` or `RICU` package for generating cohorts and labels in order to execute a task. 
+# Yet Another ICU Benchmark
+
+[![CI](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml)
+[![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+![Platform](https://img.shields.io/badge/platform-linux--64%20|%20win--64%20|%20osx--64-lightgrey)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+[//]: # (TODO: add coverage once we have some tests )
+
+Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on (ICU) EHR data.
+We support the following datasets out of the box:
+
+| Dataset                 | [MIMIC-III](https://physionet.org/content/mimiciii/) / [IV](https://physionet.org/content/mimiciv/) | [eICU-CRD](https://physionet.org/content/eicu-crd/) | [HiRID](https://physionet.org/content/hirid/1.1.1/) | [AUMCdb](https://doi.org/10.17026/dans-22u-f8vd) |
+|-------------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------|-----------------------------------------------------|--------------------------------------------------|
+| Admissions              | 40k / 50k                                                                                           | 200k                                                | 33k                                                 | 23k                                              |
+| Frequency (time-series) | 1 hour                                                                                              | 5 minutes                                           | 2 / 5 minutes                                       | up to 1 minute                                   |
+| Origin                  | USA                                                                                                 | USA                                                 | Switzerland                                         | Netherlands                                      |
+
+The benchmark is designed for operating on preprocessed parquet files. We refer to the PyICU (in development)
+or [ricu package](https://github.com/eth-mds/ricu) for generating these parquet files for particular cohorts and endpoints.
+
+We provide several common tasks for clinical prediction:
+
+| No  | Task Theme                | Temporality        | Type                                | 
+|-----|---------------------------|--------------------|-------------------------------------|
+| 1   | ICU Mortality             | Hourly (after 24H) | Sequential Classification           |
+| 2   | Acute Kidney Injury (AKI) | Hourly (within 6H) | Sequence to Sequence Classification |
+| 3   | Sepsis                    | Hourly (within 6H) | Sequence to Sequence Classification |
+
+[//]: # (| 4   | Circulatory Failure       | 5 Minutes          | Sequence to Sequence Classification |)
+
+[//]: # (| 5   | Length of Stay &#40;LoS&#41;      | Hourly             | Sequence to Sequence Regression     | )
+
+
+Please refer to [cohort definitions]() for further information.
+
+## Paper
+
+If you use this code in your research, please cite the following publication:
+
+```
+```
+
+This paper can also be found on arxiv: TBD
+
 # Installation
+
+YAIB currently requires an installation of Conda. Below you will find the three CLI commands to install YAIB.
+The
+
+The first command will install an environment based on Python 3.10 (currently).
 
 ```
 conda env update -f <environment.yml|environment_mps.yml>
-conda activate yaib
-pip install -e .
 ```
 
 > Use `environment.yml` on x86 hardware and `environment_mps.yml` on Macs with Metal Performance Shaders.
 
-> Note that the last command installs the package called `icu-benchmarks`.
+We then activate the enviornment and install a package called `icu-benchmarks`, after which YAIB should be operational.
+
+```
+conda activate yaib
+pip install -e .
+```
+
+# Usage
+
+## Getting the Datasets
+
+HiRID, eICU, and MIMIC IV can be accessed through [PhysioNet](https://physionet.org/). A guide to this process can be
+found [here](https://eicu-crd.mit.edu/gettingstarted/access/).
+AUMCdb can be accessed through a seperate access [procedure](https://github.com/AmsterdamUMC/AmsterdamUMCdb). We do not have
+involvement in the access procedure and can not answer to any requests for data access.
+
+## Data Conversion
+
+Since the datasets were created independently of each other, they do not share the same data structure or data identifiers. In
+order to make them interoperable, use the preprocessing utilities
+provided by the [ricu package](https://github.com/eth-mds/ricu). ricu pre-defines a large number of
+clinical concepts and how to load them from a given dataset, providing a common interface to the data, that is used in this
+benchmark.
+
+### Extracting cohorts
+
+TODO
+
+
+# Data
+YAIB expects data generated by [pyicu](https://github.com/prockenschaub/pyicu), a rewritten [ricu](https://github.com/prockenschaub/ricu-package).
+
+## Demo data
+In the folder `demo_data` we provide processed publicly available demo datasets from eICU and MIMIC with the necessary lables for `Akute Kidney Injury`, `Mortality at 24h` and `Sepsis`.
 
 # Use with CLI Commands
 ## Preprocess and Train
-The following command will start training on a prepared HiRID dataset for sequential Mortality prediction with an LGBM Classifier: 
+The following command will run training and evaluation on a demo dataset from MIMIC for Mortality prediction at 24h with LogisticRegression. Child samples are reduced due to the small amount of training data.
+
 ```
 icu-benchmarks train \
-    -d ../data/mortality_seq/hirid \
-    -n hirid \
-    -t Mortality_At24Hours \
+    -d demo_data/mortality24/mimic_demo \
+    -n mimic_demo \
+    -t Mortality_At24Hours_Demo \
     -m LGBMClassifier \
-    -hp LGBMClassifier.subsample=1.0 model/random_search.num_leaves=[20,40,60] \
+    -hp LGBMClassifier.min_child_samples=10 \
     -c \
-    -s 1111 2222 3333 4444 5555
+    -s 1111 2222 3333 4444 5555 \
+    -l ../yaib_logs/
 ```
-> Run with `PYTORCH_ENABLE_MPS_FALLBACK=1` on Macs with Metal Performance Shaders.
 
+> For a list of avaiable flags run `icu-benchmarks train -h`.
+> Run with `PYTORCH_ENABLE_MPS_FALLBACK=1` on Macs with Metal Performance Shaders.
 > Please note that, for Windows based systems, paths need to be formatted differently, e.g: ` r"\..\data\mortality_seq\hirid"`.
 > Additionally, the next line character (\\)  needs to be replaced by (^) (Command Prompt) or (`) (Powershell) respectively.
 
 ### Random Search in Configs
+
 To understand how a parameter can be searched via random search, let's look at the following example configuration:
+
 ```
 ...
 # Optimizer params
-Adam.weight_decay = 1e-6
-optimizer/random_search.class_to_configure = @Adam
-optimizer/random_search.lr = [3e-4, 1e-4, 3e-5, 1e-5]
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.lr = (1e-5, 3e-4)
 
 # Encoder params
 LSTMNet.input_dim = %EMB
 LSTMNet.num_classes = %NUM_CLASSES
-model/random_search.class_to_configure = @LSTMNet
-model/random_search.hidden_dim = [32, 64, 128, 256]
-model/random_search.layer_dim = [1, 2, 3]
+model/hyperparameter.class_to_tune = @LSTMNet
+model/hyperparameter.hidden_dim = (32, 256)
+model/hyperparameter.layer_dim = (1, 3)
 
-run_random_searches.scopes = ["model", "optimizer"]
+tune_hyperparameters.scopes = ["model", "optimizer"]
 ```
-`run_random_searches.scopes` defines the scopes that the random search runs in (the strings in front of the slashes in the lines above).
+
+`tune_hyperparameters.scopes` defines the scopes that the random search runs in (the strings in front of the slashes in the
+lines above).
 Each scope represents a class which will get bindings with randomly searched parameters.
 In this example, we have the two scopes `model` and `optimizer`.
-For each scope a `class_to_configure` needs to be set to the class it represents, in this case `LSTMNet` and `Adam` respectively.
-We can add whichever parameter we want to the classes following this syntax: 
+For each scope a `class_to_tune` needs to be set to the class it represents, in this case `LSTMNet` and `Adam`
+respectively.
+We can add whichever parameter we want to the classes following this syntax:
+
 ```
-run_random_searches.scopes = ["<scope>", ...]
-<scope>/random_search.class_to_configure = @<SomeClass>
-<scope>/random_search.<param> = ['list', 'of', 'possible', 'values']
+tune_hyperparameters.scopes = ["<scope>", ...]
+<scope>/hyperparameter.class_to_tune = @<SomeClass>
+<scope>/hyperparameter.<param> = ['list', 'of', 'possible', 'values']
 ```
-The scopes take care of adding the parameters only to the pertinent classes, whereas the `random_search()` function actually randomly choses a value
+
+The scopes take care of adding the parameters only to the pertinent classes, whereas the `hyperparameter()` function actually
+randomly choses a value
 and binds it to the gin configuration.
 
 If we run `experiments` and want to overwrite the model configuration, this can be done easily:
+
 ```
 include "configs/tasks/Mortality_At24Hours.gin"
 include "configs/models/LSTM.gin"
 
-Adam.lr = 1e-4
+optimizer/hyperparameter.lr = 1e-4
 
-model/random_search.hidden_dim = [100, 200]
+model/hyperparameter.hidden_dim = [100, 200]
 ```
+
 This configuration for example overwrites the `lr` parameter of `Adam` with a concrete value,
 while it only specifies a different search space for `hidden_dim` of `LSTMNet` to run the random search on.
 
-The same holds true for the command line. Setting the following flag would achieve the same result (make sure to only have spaces between parameters):
+The same holds true for the command line. Setting the following flag would achieve the same result (make sure to only have
+spaces between parameters):
+
 ```
--hp Adam.lr=1e-4 model/random_search.hidden_dim='[100,200]'
+-hp optimizer/hyperparameter.lr=1e-4 model/hyperparameter.hidden_dim='[100,200]'
 ```
 
+
+There is an implicit hierarchy, independent of where the parameters are added (`model.gin`, `experiment.gin` or CLI `-hp`):
+```
+LSTM.hidden_dim = 8                         # always takes precedence
+model/hyperparameter.hidden_dim = 6         # second most important
+model/hyperparameter.hidden_dim = (4, 6)    # only evaluated if the others aren't found in gin configs and CLI
+```
+CLI `-hp` > `experiment.gin` > `model.gin` only is important for bindings on the same "level"
+
 ### Output Structure
+
 ```
 log_dir/
 ├── dataset1/
@@ -110,21 +209,23 @@ log_dir/
 ```
 
 ## Evaluate
-It is possible to evaluate a model trained on another dataset. In this case, the source dataset is HiRID and the target is MIMIC-IV:
+It is possible to evaluate a model trained on another dataset. In this case, the source dataset is the demo data from MIMIC and the target is the eICU demo:
 ```
 icu-benchmarks evaluate \
-    -d ../data/mortality_seq/miiv \
-    -n miiv \
+    -d demo_data/mortality24/eicu_demo \
+    -n eicu_demo \
     -t Mortality_At24Hours \
     -m LGBMClassifier \
-    -sn hirid \
-    --source-dir ../data/mortality_seq/hirid/logs/hirid/Mortality_At24Hours/LGBMClassifier/2022-11-10T22-52-52/seed_1111 \
+    -hp LGBMClassifier.min_child_samples=10 \
+    -sn mimic \
+    --source-dir ../yaib_logs/mimic_demo/Mortality_At24Hours_Demo/LGBMClassifier/2022-12-02T18-39-34/seed_1111 \ 
     -c \
     -s 1111 2222 3333 4444 5555
 ```
 
 ### Output Structure
-The benchmark generates an output structure that takes into account multiple aspects of the training and evaluation 
+
+The benchmark generates an output structure that takes into account multiple aspects of the training and evaluation
 specifications:
 <pre>
 log_dir/
@@ -160,40 +261,56 @@ log_dir/
     └── ...
 </pre>
 
-# Development
-## Directories
-Note: redo this for the first release
+## Metrics
 
-A short description of the folders:
-- configs: this folder contains subdirectories with GIN configuration files, that specify details about the benchmark tasks
-- docs: legacy documents
-- files: folder with contents:
-  - dataset_stats: some sample data in parquet files (?)
-  - fake_data: generated data to demonstrate HiRID benchmark
-  - pretrained_weights: weights that have been pre-trained on HiRID data
-- icu_benchmarks: top-level package, contains the following:
-  - common: package that contains common constants, dataset class, processing code
-  - data: package that contains the main preprocessing code, also contains pytorch dataloader
-  - endpoints: package that contains detailed endpoint generation code
-  - imputation: imputation methods
-  - labels: label generation
-  - models: main package for the defined models
-  - preprocessing: preprocessing package code
-  - synthetic_data: package for generating synthetic data
-- preprocessing: (?)
-- run_scripts: lots of shell scripts for previous paper experiments (?)
-- tests: testing package
+Several metrics are defined for this benchmark:
+
+- Binary Classification: Because our tasks are all highly imbalanced, we use both ROC and PR Area Under the Curve
+  using [sklearn.metrics.roc_auc_score](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html)
+  and [sklearn.metrics.average_precision_score](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html#sklearn.metrics.average_precision_score)
+- Regression : The Mean Absolute Error (MAE) is used
+  with [sklearn.metrics.mean_absolute_error](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html)
+
+## Models
+
+We provide several existing machine learning models that are commonly used for multivariate time-series data.
+`pytorch` is used for the deep learning models, `lightgbm` for the boosted tree approaches, and `sklearn` for the logistic
+regression model and metrics.
+The benchmark provides the following built-in models:
+
+- [Logistic Regression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html?highlight=logistic+regression):
+  Standard regression approach.
+- [LightGBM](https://proceedings.neurips.cc/paper/2017/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf): Efficient gradient
+  boosting trees.
+- [Long Short-term Memory (LSTM)](https://ieeexplore.ieee.org/document/818041): The most commonly used type of Recurrent Neural
+  Networks for long sequences.
+- [Gated Recurrent Unit (GRU)](https://arxiv.org/abs/1406.1078) : A extension to LSTM which showed improvement over them in the
+  context of polyphonic music modeling and speech signal modeling ([paper](https://arxiv.org/abs/1412.3555)).
+- [Temporal Convolutional Networks (TCN)](https://arxiv.org/pdf/1803.01271 ): 1D convolution approach to sequence data. By
+  using dilated convolution to extend the receptive field of the network it has shown great performance on long-term
+  dependencies.
+- [Transformers](https://papers.nips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf): The most common Attention
+  based approach.
+
+# Development
+
+YAIB is in active development. The following sections could be relevant for adding new code to our repository
 
 ## Libraries
-We currently use the following libraries for development:
-- [Pytorch](https://pytorch.org/) 
-    - An open source machine learning framework for 
-- [Pytorch Ignite](https://github.com/pytorch/ignite)
-    - Library for training and evaluating neural networks in Pytorch
-- [GIN](https://github.com/google/gin-config)
-    - Gin provides a lightweight configuration framework for Python
+
+The following libraries are important to the operation of YAIB:
+
+- [Pandas](https://github.com/pandas-dev/pandas): Popular data structure framework.
+- [ReciPys](https://github.com/rvandewater/recipys): A modular preprocessing package for Pandas dataframes.
+- [Pytorch](https://pytorch.org/): An open source machine learning framework for deep learning applications.
+- [Pytorch Ignite](https://github.com/pytorch/ignite): Library for training and evaluating neural networks in Pytorch.
+- [Cuda Toolkit](https://developer.nvidia.com/cuda-toolkit): GPU acceleration used for deep learning models.
+- [Scikit-learn](https://github.com/scikit-learn/scikit-learn): Machine learning library.
+- [LightGBM](https://github.com/microsoft/LightGBM): Gradient boosting framework.
+- [GIN](https://github.com/google/gin-config): Provides a lightweight configuration framework for Python.
 
 ## Run Tests
+
 ```
 python -m pytest ./tests/recipes
 coverage run -m pytest ./tests/recipes
@@ -203,8 +320,19 @@ coverage html
 ```
 
 ## Autoformat and lint
+
 For development purposes, we use the `Black` package to autoformat our code and a `Flake8` Linting/CI check:
+
 ```
 black . -l 127
 flake8 . --count --max-complexity=14 --max-line-length=127 --statistics
 ```
+
+# Acknowledgements
+
+We do not own any of the datasets used in this benchmark. This project uses adapted components of
+the [HiRID benchmark](https://github.com/ratschlab/HIRID-ICU-Benchmark/).
+
+# License
+
+This source code is released under the MIT license, included [here](LICENSE)
