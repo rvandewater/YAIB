@@ -95,18 +95,21 @@ In the folder `demo_data` we provide processed publicly available demo datasets 
 
 # Use with CLI Commands
 ## Preprocess and Train
-The following command will run training and evaluation on a demo dataset from MIMIC for Mortality prediction at 24h with LogisticRegression. Child samples are reduced due to the small amount of training data.
+The following command will run training and evaluation on a demo dataset from MIMIC for Mortality prediction at 24h with LGBMClassifier.
+Child samples are reduced due to the small amount of training data.
 
 ```
 icu-benchmarks train \
     -d demo_data/mortality24/mimic_demo \
     -n mimic_demo \
-    -t Mortality_At24Hours_Demo \
+    -t BinaryClassification_Demo \
+    -tn Mortality24 \
     -m LGBMClassifier \
     -hp LGBMClassifier.min_child_samples=10 \
     -c \
-    -s 1111 2222 3333 4444 5555 \
-    -l ../yaib_logs/
+    -s 2222 \
+    -l ../yaib_logs/ \
+    --tune
 ```
 
 > For a list of avaiable flags run `icu-benchmarks train -h`.
@@ -116,29 +119,29 @@ icu-benchmarks train \
 
 ### Random Search in Configs
 
-To understand how a parameter can be searched via random search, let's look at the following example configuration:
+To understand how a parameter can be automaticly tuned via bayesian optimization, let's look at the following example configuration:
 
 ```
 ...
 # Optimizer params
-optimizer/hyperparameter.weight_decay = 1e-6
 optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
 optimizer/hyperparameter.lr = (1e-5, 3e-4)
 
 # Encoder params
-LSTMNet.input_dim = %EMB
-LSTMNet.num_classes = %NUM_CLASSES
 model/hyperparameter.class_to_tune = @LSTMNet
+model/hyperparameter.input_dim = %EMB
+model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.hidden_dim = (32, 256)
 model/hyperparameter.layer_dim = (1, 3)
 
-tune_hyperparameters.scopes = ["model", "optimizer"]
+tune_hyperparameters.scopes = ["model", "optimizer"]  # defines the scopes that the random search runs in
+tune_hyperparameters.n_initial_points = 5  # defines random points to initilaize gaussian process
+tune_hyperparameters.n_calls = 30  # numbe rof iterations to find best set of hyperparameters
+tune_hyperparameters.folds_to_tune_on = 2  # number of folds to use to evaluate set of hyperparameters
 ```
 
-`tune_hyperparameters.scopes` defines the scopes that the random search runs in (the strings in front of the slashes in the
-lines above).
-Each scope represents a class which will get bindings with randomly searched parameters.
-In this example, we have the two scopes `model` and `optimizer`.
+In this example, we have the two scopes `model` and `optimizer`, the scopes take care of adding the parameters only to the pertinent classes.
 For each scope a `class_to_tune` needs to be set to the class it represents, in this case `LSTMNet` and `Adam`
 respectively.
 We can add whichever parameter we want to the classes following this syntax:
@@ -148,10 +151,6 @@ tune_hyperparameters.scopes = ["<scope>", ...]
 <scope>/hyperparameter.class_to_tune = @<SomeClass>
 <scope>/hyperparameter.<param> = ['list', 'of', 'possible', 'values']
 ```
-
-The scopes take care of adding the parameters only to the pertinent classes, whereas the `hyperparameter()` function actually
-randomly choses a value
-and binds it to the gin configuration.
 
 If we run `experiments` and want to overwrite the model configuration, this can be done easily:
 
@@ -181,32 +180,7 @@ LSTM.hidden_dim = 8                         # always takes precedence
 model/hyperparameter.hidden_dim = 6         # second most important
 model/hyperparameter.hidden_dim = (4, 6)    # only evaluated if the others aren't found in gin configs and CLI
 ```
-CLI `-hp` > `experiment.gin` > `model.gin` only is important for bindings on the same "level"
-
-### Output Structure
-
-```
-log_dir/
-├── dataset1/
-│   ├── task1/
-│   │   ├── model1/
-│   │   │   ├── YYYY-MM-DDTHH-MM-SS (run1)/
-│   │   │   │   ├── HYPER_PARAMS
-│   │   │   │   ├── seed1/
-│   │   │   │   │   ├── model
-│   │   │   │   │   ├── train_config.gin
-│   │   │   │   │   └── metrics
-│   │   │   │   └── seed2/
-│   │   │   │       └── ...
-│   │   │   ├── YYYY-MM-DDTHH-MM-SS (run2)/
-│   │   │   │   └── ...
-│   │   └── model2/
-│   │       └── ...
-│   └── task2/
-│       └── ...
-└── dataset2/
-    └── ...
-```
+The hierarchy CLI `-hp` > `experiment.gin` > `model.gin` only is important for bindings on the same "level" from above.
 
 ## Evaluate
 It is possible to evaluate a model trained on another dataset. In this case, the source dataset is the demo data from MIMIC and the target is the eICU demo:
@@ -214,52 +188,15 @@ It is possible to evaluate a model trained on another dataset. In this case, the
 icu-benchmarks evaluate \
     -d demo_data/mortality24/eicu_demo \
     -n eicu_demo \
-    -t Mortality_At24Hours \
+    -t BinaryClassification \
+    -tn Mortality24 \
     -m LGBMClassifier \
-    -hp LGBMClassifier.min_child_samples=10 \
-    -sn mimic \
-    --source-dir ../yaib_logs/mimic_demo/Mortality_At24Hours_Demo/LGBMClassifier/2022-12-02T18-39-34/seed_1111 \ 
     -c \
-    -s 1111 2222 3333 4444 5555
+    -s 2222 \
+    -l ../yaib_logs \
+    -sn mimic \
+    --source-dir ../yaib_logs/mimic_demo/Mortality24/LGBMClassifier/2022-12-12T15-24-46/fold_0
 ```
-
-### Output Structure
-
-The benchmark generates an output structure that takes into account multiple aspects of the training and evaluation
-specifications:
-<pre>
-log_dir/
-├── dataset1/
-│   ├── task1/
-│   │   ├── model1/
-│   │   │   ├── YYYY-MM-DDTHH-MM-SS (run1)/
-│   │   │   │   ├── HYPER_PARAMS
-│   │   │   │   ├── seed1/
-│   │   │   │   │   ├── model
-│   │   │   │   │   ├── train_config.gin
-│   │   │   │   │   └── metrics
-│   │   │   │   └── seed2/
-│   │   │   │       └── ...
-│   │   │   ├── YYYY-MM-DDTHH-MM-SS (run2)/
-│   │   │   │   └── ...
-<b>│   │   │   ├── from_dataset2/
-│   │   │   │   ├── YYYY-MM-DDTHH-MM-SS (run1)/
-│   │   │   │   │   ├── seed1/
-│   │   │   │   │   │   ├── train_config.gin
-│   │   │   │   │   │   └── metrics
-│   │   │   │   │   └── seed2/
-│   │   │   │   │       └── ...
-│   │   │   │   └── YYYY-MM-DDTHH-MM-SS (run2)/
-│   │   │   │       └── ...
-│   │   │   └── from_dataset3/
-│   │   │       └── ...</b>
-│   │   └── model2/
-│   │       └── ...
-│   └── task2/
-│       └── ...
-└── dataset2/
-    └── ...
-</pre>
 
 ## Metrics
 
