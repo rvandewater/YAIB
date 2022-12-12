@@ -34,7 +34,7 @@ def choose_and_bind_hyperparameters(
     data_dir,
     log_dir,
     seed,
-    restart_from_checkpoint=None,
+    checkpoint=None,
     scopes=gin.REQUIRED,
     n_initial_points=3,
     n_calls=20,
@@ -92,11 +92,11 @@ def choose_and_bind_hyperparameters(
 
     x0, y0 = None, None
     checkpoint_file = "hyperparameter_tuning_logs.json"
-    if restart_from_checkpoint:
-        checkpoint = restart_from_checkpoint / checkpoint_file
-        if not checkpoint.exists():
-            raise ValueError(f"No checkpoint found in {checkpoint} to restart from.")
-        with open(checkpoint, "r") as f:
+    if checkpoint:
+        checkpoint_path = checkpoint / checkpoint_file
+        if not checkpoint_path.exists():
+            raise ValueError(f"No checkpoint found in {checkpoint_path} to restart from.")
+        with open(checkpoint_path, "r") as f:
             data = json.loads(f.read())
             x0 = data["x_iters"]
             y0 = data["func_vals"]
