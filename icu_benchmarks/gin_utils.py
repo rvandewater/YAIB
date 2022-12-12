@@ -63,11 +63,6 @@ def parse_gin_and_random_search(
     """
     gin.parse_config_files_and_bindings(gin_config_files, hyperparams_from_cli, finalize_config=False)
 
-    if train_on_cpu:
-        gin.bind_parameter("DLWrapper.train_on_cpu", True)
-        gin.bind_parameter("LSTMNet.train_on_cpu", True)
-        gin.bind_parameter("GRUNet.train_on_cpu", True)
-
     for _ in range(max_attempts):
         randomly_searched_params = run_random_searches()
         randomly_searched_params_str = ("-").join(

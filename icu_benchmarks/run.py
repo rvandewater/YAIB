@@ -22,7 +22,10 @@ def main(my_args=tuple(sys.argv[1:])):
     experiment = args.experiment
     log_dir_name = args.log_dir / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / args.task_name / model)
+    train_on_cpu = args.cpu
 
+    if train_on_cpu:
+        gin.bind_parameter("DLWrapper.device", "cpu")
     if load_weights:
         log_dir /= f"from_{args.source_name}"
         source_dir = args.source_dir
