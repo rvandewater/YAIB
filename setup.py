@@ -21,7 +21,7 @@ setup(
         "Programming Language :: Python :: 3.10",
     ],
     description="Yet Another ICU Benchmark is a holistic framework for the automation of clinical prediction models "
-                "on ICU data. Users can create custom datasets, cohorts, prediction tasks, endpoints, and models.",
+    "on ICU data. Users can create custom datasets, cohorts, prediction tasks, endpoints, and models.",
     entry_points={"console_scripts": ["icu-benchmarks = icu_benchmarks.run:main"]},
     install_requires=[],  # dependencies managed via conda for the moment
     license="MIT license",
