@@ -1,9 +1,8 @@
 import gin
 import numpy as np
-import torch
 import torch.nn as nn
+
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
-import icu_benchmarks.models.wrappers as wrapper
 
 
 @gin.configurable
