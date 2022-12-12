@@ -5,6 +5,7 @@ import torch.nn as nn
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
 import icu_benchmarks.models.wrappers as wrapper
 
+
 @gin.configurable
 class LSTMNet(nn.Module):
     def __init__(self, input_dim, hidden_dim, layer_dim, num_classes):

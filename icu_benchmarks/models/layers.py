@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch.nn.utils import weight_norm
 import icu_benchmarks.models.wrappers as wrapper
 
+
 @gin.configurable("masking")
 def parallel_recomb(q_t, kv_t, att_type="all", local_context=3, bin_size=None):
     """Return mask of attention matrix (ts_q, ts_kv)"""

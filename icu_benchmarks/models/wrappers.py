@@ -57,9 +57,7 @@ def pick_device_config(hint=None):
 
 @gin.configurable("DLWrapper")
 class DLWrapper(object):
-    def __init__(
-            self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, device=None
-    ):
+    def __init__(self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, device=None):
         device, pin_memory, n_worker = pick_device_config(device)
 
         self.device = device
