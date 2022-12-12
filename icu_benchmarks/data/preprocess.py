@@ -46,9 +46,9 @@ def make_single_split(
     test, val = np.array_split(test_and_val, 2)
 
     split = {
-        "train": stays.loc[train],
-        "val": stays.loc[test],
-        "test": stays.loc[val],
+        "train": stays.iloc[train],
+        "val": stays.iloc[test],
+        "test": stays.iloc[val],
     }
     data_split = {}
 

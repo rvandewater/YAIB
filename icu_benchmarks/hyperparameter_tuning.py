@@ -39,6 +39,7 @@ def choose_and_bind_hyperparameters(
     n_initial_points=3,
     n_calls=20,
     folds_to_tune_on=gin.REQUIRED,
+    debug=False,
 ):
     hyperparams = {}
     for scope in scopes:
@@ -75,6 +76,7 @@ def choose_and_bind_hyperparameters(
                 num_folds_to_train=folds_to_tune_on,
                 use_cache=True,
                 test_on="val",
+                debug=debug,
             )
 
     def tune_step_callback(res):
@@ -102,7 +104,8 @@ def choose_and_bind_hyperparameters(
         logging.info(f"Restarting hyperparameter tuning from {len(x0)} points.")
 
     if hyperparams_bounds:
-        logging.disable(level=INFO)
+        if not debug:
+            logging.disable(level=INFO)
         res = gp_minimize(
             bind_params_and_train,
             hyperparams_bounds,
