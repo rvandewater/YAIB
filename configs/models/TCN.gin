@@ -26,8 +26,8 @@ model/hyperparameter.class_to_tune = @TemporalConvNet
 model/hyperparameter.num_inputs = %EMB
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.max_seq_length = %HORIZON
-model/hyperparameter.num_channels = (32, 256)
-model/hyperparameter.kernel_size = (2, 32)
+model/hyperparameter.num_channels = (32, 256, "log-uniform", 2)
+model/hyperparameter.kernel_size = (2, 32, "log-uniform", 2)
 model/hyperparameter.dropout = (0.0, 0.4)
 
 tune_hyperparameters.scopes = ["model", "optimizer"]
