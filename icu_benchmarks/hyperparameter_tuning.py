@@ -13,7 +13,20 @@ TUNE = 25
 
 
 @gin.configurable("hyperparameter")
-def hyperparameters_to_tune(class_to_tune=gin.REQUIRED, **hyperparams):
+def hyperparameters_to_tune(class_to_tune: str = gin.REQUIRED, **hyperparams: dict) -> dict:
+    """Get hyperparameters to tune from gin config.
+
+    Hyperparameters that are alreay present in the gin config are ignored.
+    Hyperparameters that are not a list or tuple are bound directly to the class.
+    Hyperparameters that are a list or tuple are returned to be tuned.
+
+    Args:
+        class_to_tune: Name of the class to tune hyperparameters for.
+        **hyperparams: Dictionary of hyperparameters to potentially tune.
+
+    Returns:
+        Dictionary of hyperparameters to tune.
+    """
     hyperparams_to_tune = {}
     for param, values in hyperparams.items():
         name = f"{class_to_tune.__name__}.{param}"
@@ -30,17 +43,34 @@ def hyperparameters_to_tune(class_to_tune=gin.REQUIRED, **hyperparams):
 
 @gin.configurable("tune_hyperparameters")
 def choose_and_bind_hyperparameters(
-    do_tune,
-    data_dir,
-    log_dir,
-    seed,
-    checkpoint=None,
-    scopes=gin.REQUIRED,
-    n_initial_points=3,
-    n_calls=20,
-    folds_to_tune_on=gin.REQUIRED,
-    debug=False,
+    do_tune: bool,
+    data_dir: Path,
+    log_dir: Path,
+    seed: int,
+    checkpoint: str = None,
+    scopes: list[str] = gin.REQUIRED,
+    n_initial_points: int = 3,
+    n_calls: int = 20,
+    folds_to_tune_on: int = gin.REQUIRED,
+    debug: bool = False,
 ):
+    """Choose hyperparameters to tune and bind them to gin.
+
+    Args:
+        do_tune: Whether to tune hyperparameters or not.
+        data_dir: Path to the data directory.
+        log_dir: Path to the log directory.
+        seed: Random seed.
+        checkpoint: Name of the checkpoint run to load previously explored hyperparameters from.
+        scopes: List of gin scopes to search for hyperparameters to tune.
+        n_initial_points: Number of initial points to explore.
+        n_calls: Number of iterations to optimize the hyperparameters.
+        folds_to_tune_on: Number of folds to tune on.
+        debug: Whether to load less data and enable more logging.
+
+    Raises:
+        ValueError: If checkpoint is not None and the checkpoint does not exist.
+    """
     hyperparams = {}
     for scope in scopes:
         with gin.config_scope(scope):
@@ -49,7 +79,7 @@ def choose_and_bind_hyperparameters(
     hyperparams_names = list(hyperparams.keys())
     hyperparams_bounds = list(hyperparams.values())
 
-    def bind_params(hyperparams_values):
+    def bind_params(hyperparams_values: list):
         for param, value in zip(hyperparams_names, hyperparams_values):
             gin.bind_parameter(param, value)
             logging.info(f"{param}: {value}")

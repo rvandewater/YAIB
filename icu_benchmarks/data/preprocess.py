@@ -30,6 +30,7 @@ def make_single_split(
     Args:
         data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
         vars: Contains the names of columns in the data.
+        num_folds: Number of folds for cross validation.
         seed: Random seed.
         debug: Load less data if true.
 
@@ -101,6 +102,8 @@ def preprocess_data(
         seed: Random seed.
         debug: Load less data if true.
         use_cache: Cache and use cached preprocessed data if true.
+        num_folds: Number of folds to use for cross validation.
+        fold_index: Index of the fold to return.
 
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with data type (STATIC/DYNAMIC/OUTCOME)

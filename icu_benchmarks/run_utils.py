@@ -72,18 +72,36 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
 
 @gin.configurable
 def preprocess_and_train_for_folds(
-    data_dir,
-    log_dir,
-    seed,
-    load_weights=False,
-    source_dir=None,
-    num_folds=gin.REQUIRED,
-    num_folds_to_train=None,
-    reproducible=False,
-    debug=False,
-    use_cache=False,
-    test_on="test",
-):
+    data_dir: Path,
+    log_dir: Path,
+    seed: int,
+    load_weights: bool = False,
+    source_dir: Path = None,
+    num_folds: int = gin.REQUIRED,
+    num_folds_to_train: int = None,
+    reproducible: bool = False,
+    debug: bool = False,
+    use_cache: bool = False,
+    test_on: str = "test",
+) -> float:
+    """Preprocesses data and trains a model for each fold.
+
+    Args:
+        data_dir: Path to the data directory.
+        log_dir: Path to the log directory.
+        seed: Random seed.
+        load_weights: Whether to load weights from source_dir.
+        source_dir: Path to the source directory.
+        num_folds: Number of folds for preprocessing.
+        num_folds_to_train: Number of folds to train on. If None, all folds are trained on.
+        reproducible: Whether to make torch reproducible.
+        debug: Whether to load less data and enable more logging.
+        use_cache: Whether to cache and use cached data.
+        test_on: Dataset to test on.
+
+    Returns:
+        The average loss of all folds.
+    """
     if not num_folds_to_train:
         num_folds_to_train = num_folds
     agg_loss = 0
@@ -109,6 +127,11 @@ def preprocess_and_train_for_folds(
 
 
 def aggregate_results(log_dir: Path):
+    """Aggregates results from all folds and writes to JSON file.
+
+    Args:
+        log_dir: Path to the log directory.
+    """
     aggregated = {}
     for fold in log_dir.iterdir():
         if fold.is_dir():
