@@ -148,21 +148,22 @@ class DLWrapper(object):
 
     def _do_training(self, train_loader, weight, metrics):
         # Training epoch
-        train_loss = []
         self.encoder.train()
-        for t, elem in tqdm(enumerate(train_loader)):
+        train_loss = 0
+        for elem in tqdm(train_loader):
             loss, preds, target = self.step_fn(elem, weight)
             loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
-            train_loss.append(loss)
+            train_loss += loss
             for name, metric in metrics.items():
                 metric.update(self.output_transform((preds, target)))
+
         train_metric_results = {}
         for name, metric in metrics.items():
             train_metric_results[name] = metric.compute()
             metric.reset()
-        train_loss = float(sum(train_loss) / (t + 1))
+        train_loss = float(train_loss / len(train_loader))
         return train_loss, train_metric_results
 
     @gin.configurable(module="DLWrapper")
