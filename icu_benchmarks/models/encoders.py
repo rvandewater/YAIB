@@ -67,7 +67,7 @@ class Transformer(nn.Module):
         self, emb, hidden, heads, ff_hidden_mult, depth, num_classes, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0
     ):
         super().__init__()
-
+        hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
         self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
@@ -120,6 +120,7 @@ class LocalTransformer(nn.Module):
     ):
         super().__init__()
 
+        hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
         self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
