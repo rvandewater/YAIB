@@ -1,4 +1,5 @@
 import gin
+from numbers import Integral
 import numpy as np
 import torch.nn as nn
 
@@ -150,9 +151,9 @@ class TemporalConvNet(nn.Module):
         layers = []
 
         # We compute automatically the depth based on the desired seq_length.
-        if isinstance(num_channels, int) and max_seq_length:
+        if isinstance(num_channels, Integral) and max_seq_length:
             num_channels = [num_channels] * int(np.ceil(np.log(max_seq_length / 2) / np.log(kernel_size)))
-        elif isinstance(num_channels, int) and not max_seq_length:
+        elif isinstance(num_channels, Integral) and not max_seq_length:
             raise Exception("a maximum sequence length needs to be provided if num_channels is int")
 
         num_levels = len(num_channels)
