@@ -39,9 +39,15 @@ class PositionalEncoding(nn.Module):
 
     def __init__(self, emb, max_len=3000):
         super().__init__()
+        print(max_len, emb)
         pe = torch.zeros(max_len, emb)
+        print(pe.shape)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, emb, 2).float() * (-math.log(10000.0) / emb))
+        print(position.shape)
+        print(div_term.shape)
+        print(torch.sin(position * div_term).shape)
+        print(torch.cos(position * div_term).shape)
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)
