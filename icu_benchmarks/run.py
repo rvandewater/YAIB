@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
-from icu_benchmarks.run_utils import build_parser, create_run_dir, preprocess_and_train_for_folds, aggregrate_results
+from icu_benchmarks.run_utils import build_parser, create_run_dir, preprocess_and_train_for_folds, aggregate_results
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -22,7 +22,10 @@ def main(my_args=tuple(sys.argv[1:])):
     experiment = args.experiment
     log_dir_name = args.log_dir / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / args.task_name / model)
+    train_on_cpu = args.cpu
 
+    if train_on_cpu:
+        gin.bind_parameter("DLWrapper.device", "cpu")
     if load_weights:
         log_dir /= f"from_{args.source_name}"
         source_dir = args.source_dir
@@ -52,7 +55,7 @@ def main(my_args=tuple(sys.argv[1:])):
         debug=args.debug,
         use_cache=args.cache,
     )
-    aggregrate_results(run_dir)
+    aggregate_results(run_dir)
 
 
 """Main module."""

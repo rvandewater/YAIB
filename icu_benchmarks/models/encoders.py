@@ -1,30 +1,23 @@
 import gin
 import numpy as np
-import torch
 import torch.nn as nn
+
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
 
 
 @gin.configurable
 class LSTMNet(nn.Module):
-    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, train_on_cpu=False):
+    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
         self.rnn = nn.LSTM(input_dim, hidden_dim, layer_dim, batch_first=True)
         self.logit = nn.Linear(hidden_dim, num_classes)
 
-        if torch.cuda.is_available() and not train_on_cpu:
-            self.device = torch.device("cuda:0")
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available() and not train_on_cpu:
-            self.device = torch.device("mps:0")
-        else:
-            self.device = torch.device("cpu")
-
     def init_hidden(self, x):
-        h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
-        c0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
-        return [t.to(self.device) for t in (h0, c0)]
+        h0 = x.new_zeros(self.layer_dim, x.size(0), self.hidden_dim)
+        c0 = x.new_zeros(self.layer_dim, x.size(0), self.hidden_dim)
+        return [t for t in (h0, c0)]
 
     def forward(self, x):
         h0, c0 = self.init_hidden(x)
@@ -35,22 +28,15 @@ class LSTMNet(nn.Module):
 
 @gin.configurable
 class GRUNet(nn.Module):
-    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, train_on_cpu=False):
+    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
         self.rnn = nn.GRU(input_dim, hidden_dim, layer_dim, batch_first=True)
         self.logit = nn.Linear(hidden_dim, num_classes)
 
-        if torch.cuda.is_available() and not train_on_cpu:
-            self.device = torch.device("cuda:0")
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available() and not train_on_cpu:
-            self.device = torch.device("mps:0")
-        else:
-            self.device = torch.device("cpu")
-
     def init_hidden(self, x):
-        h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim).to(self.device)
+        h0 = x.new_zeros(self.layer_dim, x.size(0), self.hidden_dim)
         return h0
 
     def forward(self, x):
