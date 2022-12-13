@@ -108,7 +108,7 @@ def preprocess_and_train_for_folds(
     return agg_loss / num_folds
 
 
-def aggregrate_results(log_dir: Path):
+def aggregate_results(log_dir: Path):
     aggregated = {}
     for fold in log_dir.iterdir():
         if fold.is_dir():
