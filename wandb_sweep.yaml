@@ -1,0 +1,21 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/miiv"
+  - "-n"
+  - "miiv"
+  - "-t"
+  - "Dataset_Imputation"
+  - "-c"
+  - "--wandb-sweep"
+method: grid
+parameters:
+  model:
+    values: ["MLP"]
+  amputation.mechanism:
+    values: ["MCAR", "MAR", "MNAR"]
+  train_common.epochs:
+    values: [5, 10, 15]
