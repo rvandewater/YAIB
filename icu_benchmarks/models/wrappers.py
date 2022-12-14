@@ -30,7 +30,7 @@ from tqdm import tqdm
 import joblib
 
 from icu_benchmarks.models.utils import save_model, load_model_state, create_optimizer, create_scheduler
-from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
+from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve, JSD
 from icu_benchmarks.models.encoders import LSTMNet
 
 from pytorch_lightning import LightningModule
@@ -452,8 +452,9 @@ class ImputationWrapper(LightningModule):
         self.optimizer = optimizer
         
         self.metrics = {
-            "rmse": MeanSquaredError(squared=False),
-            "mae": MeanAbsoluteError(),
+            #"rmse": MeanSquaredError(squared=True),
+            #"mae": MeanAbsoluteError(),
+            "jsd": JSD()
         }
     
     def init_weights(self, init_type='normal', gain=0.02):
@@ -502,9 +503,12 @@ class ImputationWrapper(LightningModule):
         
         loss = self.loss(imputated, target)
         self.log("val/loss", loss.item(), prog_bar=True)
-    
+
+        #print(imputated.ndimension())
+        print(imputated)
+
         for metric in self.metrics.values():
-            metric.update(imputated, target)
+            metric.update((imputated[0], target))
     
     def on_validation_epoch_end(self) -> None:
         self.log_dict({f"val/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
@@ -524,7 +528,7 @@ class ImputationWrapper(LightningModule):
         self.log("test/loss", loss.item())
     
         for metric in self.metrics.values():
-            metric.update(imputated, target)
+            metric.update((imputated[0], target))
     
     
     def on_test_epoch_end(self) -> None:
