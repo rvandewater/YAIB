@@ -10,3 +10,4 @@ preprocess.use_features = False
 # Train params
 train_common.model = @Mean
 train_common.do_test = True
+ImputationDataset.ram_cache = False
