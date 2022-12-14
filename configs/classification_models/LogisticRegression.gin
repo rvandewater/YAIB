@@ -1,0 +1,18 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+
+preprocess.use_features = True
+
+# Train params
+train_common.model = @LogisticRegression
+train_common.do_test = True
+
+LogisticRegression.patience = 10
+
+LogisticRegression.model_args.solver = "saga"
+LogisticRegression.model_args.max_iter = 100000
+model/random_search.class_to_configure = "LogisticRegression.model_argsoha "
+model/random_search.C = [0.001, 0.01, 0.1, 1.0, 10]
+model/random_search.penalty = ["l1", "l2", "none"]

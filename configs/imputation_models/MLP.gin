@@ -1,0 +1,28 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+import icu_benchmarks.imputation.mlp
+import icu_benchmarks.data.preprocess
+
+preprocess.use_features = False
+
+# Train params
+train_common.model = @MLP
+train_common.do_test = True
+train_common.epochs = 5
+train_common.batch_size = 64
+train_common.patience = 10
+train_common.min_delta = 1e-4
+
+train_common.optimizer = @Adam
+ImputationWrapper.lr_scheduler = "cosine"
+
+# Optimizer params
+Adam.lr = 1e-2
+Adam.weight_decay = 1e-6
+
+# Encoder params
+
+MLP.num_hidden_layers = 5
+MLP.hidden_layer_size = 15

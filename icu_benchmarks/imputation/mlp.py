@@ -6,10 +6,10 @@ import gin
 
 @gin.configurable("MLP")
 class MLPImputation(ImputationWrapper):
-    
+
     needs_training = True
     needs_fit = False
-    
+
     def __init__(self, *args, input_size, num_hidden_layers=3, hidden_layer_size=10, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.model = [
@@ -23,12 +23,12 @@ class MLPImputation(ImputationWrapper):
         self.model += [Linear(hidden_layer_size, input_size[1] * input_size[2]), Sigmoid()]
 
         self.model = Sequential(*self.model)
-    
+
     def forward(self, amputated, amputation_mask):
         amputated = torch.nan_to_num(amputated, nan=0.0)
         model_input = torch.cat((amputated, amputation_mask), dim=1)
-        
+
         output = self.model(model_input)
         output = output.reshape(amputated.shape)
-        
+
         return output

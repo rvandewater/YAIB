@@ -1,0 +1,36 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+
+preprocess.use_features = False
+
+# Train params
+train_common.model = @LocalTransformer
+train_common.do_test = True
+
+train_common.optimizer = @Adam
+train_common.epochs = 1000
+train_common.batch_size = 64
+train_common.patience = 10
+train_common.min_delta = 1e-4
+
+# Optimizer params
+Adam.weight_decay = 1e-6
+optimizer/random_search.class_to_configure = @Adam
+optimizer/random_search.lr = [3e-4, 1e-4, 3e-5, 1e-5]
+
+# Encoder params
+LocalTransformer.emb = %EMB
+LocalTransformer.ff_hidden_mult = 2
+LocalTransformer.l1_reg = 0.0
+LocalTransformer.num_classes = %NUM_CLASSES
+LocalTransformer.local_context = %HORIZON
+model/random_search.class_to_configure = @LocalTransformer
+model/random_search.hidden = [32, 64, 128, 256]
+model/random_search.heads = [1, 2, 4, 8]
+model/random_search.depth = [1, 2, 3]
+model/random_search.dropout = [0.0, 0.1, 0.2, 0.3, 0.4]
+model/random_search.dropout_att = [0.0, 0.1, 0.2, 0.3, 0.4]
+
+run_random_searches.scopes = ["model", "optimizer"]

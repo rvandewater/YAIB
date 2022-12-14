@@ -1,0 +1,9 @@
+include "configs/tasks/Mortality_At24Hours.gin"
+include "configs/models/LSTM.gin"
+
+# Optimizer params
+Adam.lr = 1e-4
+
+# Encoder params
+LSTM.hidden_dim = 128
+LSTM.layer_dim = 1
