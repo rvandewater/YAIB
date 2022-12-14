@@ -163,7 +163,7 @@ class DLWrapper(object):
         for name, metric in metrics.items():
             train_metric_results[name] = metric.compute()
             metric.reset()
-        train_loss = agg_train_loss / len(train_loader)
+        train_loss = float(agg_train_loss / len(train_loader))
         return train_loss, train_metric_results
 
     @gin.configurable(module="DLWrapper")
@@ -293,7 +293,7 @@ class DLWrapper(object):
             for name, metric in metrics.items():
                 eval_metric_results[name] = metric.compute()
                 metric.reset()
-        eval_loss = agg_eval_loss / len(eval_loader)
+        eval_loss = float(agg_eval_loss / len(eval_loader))
         return eval_loss, eval_metric_results
 
     def save_weights(self, epoch, save_path):
