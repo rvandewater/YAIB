@@ -92,7 +92,7 @@ def main(my_args=tuple(sys.argv[1:])):
         args.__dict__.update(sweep_config)
         print("got sweep config: ", sweep_config)
         for key, value in sweep_config.items():
-            args.hyperparams.append(f"{key}=" + ('\'' + value + '\'') if isinstance(value, str) else str(value))
+            args.hyperparams.append(f"{key}=" + (('\'' + value + '\'') if isinstance(value, str) else str(value)))
         print("got hyperparams:", args.hyperparams)
 
     debug = args.debug
