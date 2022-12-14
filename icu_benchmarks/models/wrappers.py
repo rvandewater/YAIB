@@ -504,12 +504,9 @@ class ImputationWrapper(LightningModule):
         loss = self.loss(imputated, target)
         self.log("val/loss", loss.item(), prog_bar=True)
 
-        #print(imputated.ndimension())
-        print(imputated)
-
         for metric in self.metrics.values():
-            metric.update((imputated[0], target))
-    
+            metric.update((imputated, target))
+
     def on_validation_epoch_end(self) -> None:
         self.log_dict({f"val/{metric_name}": metric.compute() for metric_name, metric in self.metrics.items()})
         for metric in self.metrics.values():
@@ -528,7 +525,7 @@ class ImputationWrapper(LightningModule):
         self.log("test/loss", loss.item())
     
         for metric in self.metrics.values():
-            metric.update((imputated[0], target))
+            metric.update((imputated, target))
     
     
     def on_test_epoch_end(self) -> None:
