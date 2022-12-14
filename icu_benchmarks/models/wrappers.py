@@ -116,7 +116,7 @@ class DLWrapper(BaseModule):
         return super().on_fit_start()
 
     def finalize_step(self, step_prefix = ""):
-        self.log_dict({f"{step_prefix}/{name}/{self.get_seed()}": metric.compute() for name, metric in self.metrics[step_prefix].items() if "_Curve" not in name})
+        self.log_dict({f"{step_prefix}/{name}": metric.compute() for name, metric in self.metrics[step_prefix].items() if "_Curve" not in name})
         for metric in self.metrics[step_prefix].values():
             metric.reset()
 
@@ -399,7 +399,7 @@ class ImputationWrapper(DLWrapper):
         imputated = self(amputated, amputation_mask)
 
         loss = self.loss(imputated, target)
-        self.log(f"{step_prefix}/loss/{self.get_seed()}", loss.item(), prog_bar=True)
+        self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
         
         for metric in self.metrics[step_prefix].values():
             metric.update((torch.flatten(imputated, start_dim=1), torch.flatten(target, start_dim=1)))
