@@ -65,6 +65,7 @@ def parse_gin_and_random_search(
     Returns:
         A string representing the randomly searched hyperparameters.
     """
+    print("received before call:", gin_config_files, hyperparams_from_cli)
     gin.parse_config_files_and_bindings(gin_config_files, hyperparams_from_cli, finalize_config=False)
 
     if train_on_cpu:
