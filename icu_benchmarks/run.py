@@ -45,7 +45,7 @@ def main(my_args=tuple(sys.argv[1:])):
         run_dir = create_run_dir(log_dir)
         choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, args.seed, checkpoint=checkpoint, debug=args.debug)
 
-    logging.info(f"Logging to {run_dir}")
+    logging.info(f"Logging to {run_dir.resolve()}")
 
     preprocess_and_train_for_folds(
         args.data_dir,

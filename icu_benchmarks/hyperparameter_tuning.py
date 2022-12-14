@@ -16,7 +16,7 @@ TUNE = 25
 def hyperparameters_to_tune(class_to_tune: str = gin.REQUIRED, **hyperparams: dict) -> dict:
     """Get hyperparameters to tune from gin config.
 
-    Hyperparameters that are alreay present in the gin config are ignored.
+    Hyperparameters that are already present in the gin config are ignored.
     Hyperparameters that are not a list or tuple are bound directly to the class.
     Hyperparameters that are a list or tuple are returned to be tuned.
 
@@ -72,6 +72,7 @@ def choose_and_bind_hyperparameters(
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
     hyperparams = {}
+    # Collect hyperparameters.
     for scope in scopes:
         with gin.config_scope(scope):
             hyperparams.update(hyperparameters_to_tune())
