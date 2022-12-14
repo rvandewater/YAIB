@@ -79,7 +79,7 @@ def preprocess_and_train_for_folds(
     source_dir: Path = None,
     num_folds: int = gin.REQUIRED,
     num_folds_to_train: int = None,
-    reproducible: bool = False,
+    reproducible: bool = True,
     debug: bool = False,
     use_cache: bool = False,
     test_on: str = "test",
