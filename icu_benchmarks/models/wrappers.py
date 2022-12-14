@@ -134,7 +134,7 @@ class DLWrapper(BaseModule):
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     def on_test_epoch_start(self) -> None:
-        self.metrics["test"] = {metric_name: metric.to(self.device) for metric_name, metric in self.metrics["test"].items() if hasattr(metric, "to")}
+        self.metrics = {step_name: self.set_metrics() for step_name in ["train", "val", "test"]}
         return super().on_test_epoch_start()
 
 
