@@ -110,7 +110,6 @@ def choose_and_bind_hyperparameters(
             )
 
     def tune_step_callback(res):
-        logging.info(f"Best hyperparameters so far: {res.x}")
         with open(log_dir / checkpoint_file, "w") as f:
             data = {
                 "x_iters": res.x_iters,
