@@ -8,9 +8,8 @@ import icu_benchmarks.data.preprocess
 preprocess.use_features = False
 
 # Train params
-train_imputation_method.model = @MICE
-train_imputation_method.wandb = False
-train_imputation_method.do_test = True
+train_common.model = @MICE
+train_common.do_test = True
 
 MICE.max_iter = 10
 MICE.verbose = 2
