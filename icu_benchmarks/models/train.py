@@ -153,8 +153,8 @@ def train_imputation_method(
             ModelCheckpoint(log_dir, monitor="val/rmse", save_top_k=1, save_last=True),
         ],
         # precision=16,
-        accelerator="auto",
-        devices=torch.cuda.device_count(),
+        accelerator="cpu",
+        #devices=torch.cuda.device_count(),
         deterministic=reproducible,
         logger=loggers,
     )
