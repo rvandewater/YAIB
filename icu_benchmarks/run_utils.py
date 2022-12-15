@@ -3,6 +3,7 @@ from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime
 import gin
 from pathlib import Path
+import scipy.stats as stats
 from statistics import mean, stdev
 
 from icu_benchmarks.data.preprocess import preprocess_data
@@ -155,8 +156,12 @@ def aggregate_results(log_dir: Path):
     # Compute statistical metric over aggregated results
     averaged_scores = {metric: (mean(list)) for metric, list in list_scores.items()}
     std_scores = {metric: (stdev(list)) for metric, list in list_scores.items()}
+    confidence_interval = {
+        metric: (stats.t.interval(0.95, len(list) - 1, loc=mean(list), scale=stats.sem(list)))
+        for metric, list in list_scores.items()
+    }
 
-    accumulated_metrics = {"std": std_scores, "avg": averaged_scores}
+    accumulated_metrics = {"avg": averaged_scores, "std": std_scores, "CI_0.95": confidence_interval}
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
         json.dump(aggregated, f, cls=JsonMetricsEncoder)
