@@ -115,6 +115,7 @@ def choose_and_bind_hyperparameters(
             data = {
                 "x_iters": res.x_iters,
                 "func_vals": res.func_vals,
+                "best_hyperparams": res.x,
             }
             logging.log(TUNE, f"{res.x_iters[-1]} yielded a loss of {res.func_vals[-1]}")
             logging.log(TUNE, f"Best hyperparameters so far: {res.x}")
@@ -130,12 +131,18 @@ def choose_and_bind_hyperparameters(
             data = json.loads(f.read())
             x0 = data["x_iters"]
             y0 = data["func_vals"]
+            x = data["best_hyperparams"]
         n_calls -= len(x0)
         logging.info(f"Restarting hyperparameter tuning from {len(x0)} points.")
+        if n_calls <= 0:
+            logging.info("No more hyperparameter tuning iterations left, skipping tuning.")
+            bind_params(x)
+            return
 
     if hyperparams_bounds:
         if not debug:
             logging.disable(level=INFO)
+        # this functions is also called when tuning is disabled, to chose a random set of hyperparameters
         res = gp_minimize(
             bind_params_and_train,
             hyperparams_bounds,
@@ -146,7 +153,6 @@ def choose_and_bind_hyperparameters(
             random_state=seed,
             callback=tune_step_callback if do_tune else None,
         )
-
         logging.disable(level=NOTSET)
         logging.info("Training with these hyperparameters:")
         bind_params(res.x)
