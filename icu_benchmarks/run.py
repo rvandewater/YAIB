@@ -20,6 +20,8 @@ def main(my_args=tuple(sys.argv[1:])):
     task = args.task
     model = args.model
     experiment = args.experiment
+    source_dir = None
+    reproducible = False
     log_dir_name = args.log_dir / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / args.task_name / model)
     train_on_cpu = args.cpu
@@ -28,33 +30,36 @@ def main(my_args=tuple(sys.argv[1:])):
         gin.bind_parameter("DLWrapper.device", "cpu")
     if load_weights:
         log_dir /= f"from_{args.source_name}"
+        run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
-        reproducible = False
-        gin_config_files = [source_dir / "train_config.gin"]
+        gin.parse_config_file(source_dir / "train_config.gin")
     else:
-        source_dir = None
         reproducible = args.reproducible
-        if args.experiment:
-            gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
-        else:
-            gin_config_files = [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
+        checkpoint = log_dir / args.checkpoint if args.checkpoint else None
+        gin_config_files = (
+            [Path(f"configs/experiments/{args.experiment}.gin")]
+            if args.experiment
+            else [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
+        )
+        gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
+        run_dir = create_run_dir(log_dir)
+        choose_and_bind_hyperparameters(
+            args.tune, args.data_dir, run_dir, args.seeds[0], checkpoint=checkpoint, debug=args.debug
+        )
 
-    gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
-    run_dir = create_run_dir(log_dir)
-    checkpoint = None
-    if args.checkpoint:
-        checkpoint = log_dir / args.checkpoint
-    choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, args.seed, restart_from_checkpoint=checkpoint)
-    preprocess_and_train_for_folds(
-        args.data_dir,
-        run_dir,
-        args.seed,
-        load_weights=load_weights,
-        source_dir=source_dir,
-        reproducible=reproducible,
-        debug=args.debug,
-        use_cache=args.cache,
-    )
+    logging.info(f"Logging to {run_dir.resolve()}")
+
+    for seed in args.seeds:
+        preprocess_and_train_for_folds(
+            args.data_dir,
+            run_dir,
+            seed,
+            load_weights=load_weights,
+            source_dir=source_dir,
+            reproducible=reproducible,
+            debug=args.debug,
+            use_cache=args.cache,
+        )
     aggregate_results(run_dir)
 
 

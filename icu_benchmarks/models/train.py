@@ -73,4 +73,7 @@ def train_common(
 
     test_dataset = RICUDataset(data, split=test_on)
     weight = dataset.get_balance()
+
+    # save config file again to capture missing gin parameters
+    save_config_file(log_dir)
     return model.test(test_dataset, weight, seed)

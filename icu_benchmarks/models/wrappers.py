@@ -148,21 +148,22 @@ class DLWrapper(object):
 
     def _do_training(self, train_loader, weight, metrics):
         # Training epoch
-        train_loss = []
         self.encoder.train()
-        for t, elem in tqdm(enumerate(train_loader)):
+        agg_train_loss = 0
+        for elem in tqdm(train_loader):
             loss, preds, target = self.step_fn(elem, weight)
             loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
-            train_loss.append(loss)
+            agg_train_loss += loss
             for name, metric in metrics.items():
                 metric.update(self.output_transform((preds, target)))
+
         train_metric_results = {}
         for name, metric in metrics.items():
             train_metric_results[name] = metric.compute()
             metric.reset()
-        train_loss = float(sum(train_loss) / (t + 1))
+        train_loss = float(agg_train_loss / len(train_loader))
         return train_loss, train_metric_results
 
     @gin.configurable(module="DLWrapper")
@@ -279,12 +280,12 @@ class DLWrapper(object):
 
     def evaluate(self, eval_loader, metrics, weight):
         self.encoder.eval()
-        eval_loss = 0
+        agg_eval_loss = 0
 
         with torch.no_grad():
             for elem in eval_loader:
                 loss, preds, target = self.step_fn(elem, weight)
-                eval_loss += loss
+                agg_eval_loss += loss
                 for name, metric in metrics.items():
                     metric.update(self.output_transform((preds, target)))
 
@@ -292,7 +293,7 @@ class DLWrapper(object):
             for name, metric in metrics.items():
                 eval_metric_results[name] = metric.compute()
                 metric.reset()
-        eval_loss = float(eval_loss / len(eval_loader))
+        eval_loss = float(agg_eval_loss / len(eval_loader))
         return eval_loss, eval_metric_results
 
     def save_weights(self, epoch, save_path):

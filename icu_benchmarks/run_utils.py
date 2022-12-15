@@ -3,7 +3,8 @@ from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime
 import gin
 from pathlib import Path
-from statistics import stdev, mean
+import scipy.stats as stats
+from statistics import mean, stdev
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
@@ -30,7 +31,9 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument("-l", "--log-dir", required=True, type=Path, help="Log directory with model weights.")
-    general_args.add_argument("-s", "--seed", default=1111, type=int, help="Random seed for processing and train.")
+    general_args.add_argument(
+        "-s", "--seeds", default=[1111], nargs="+", type=int, help="Random seed for processing, tuning and training."
+    )
     general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
 
@@ -72,18 +75,36 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
 
 @gin.configurable
 def preprocess_and_train_for_folds(
-    data_dir,
-    log_dir,
-    seed,
-    load_weights=False,
-    source_dir=None,
-    num_folds=gin.REQUIRED,
-    num_folds_to_train=None,
-    reproducible=False,
-    debug=False,
-    use_cache=False,
-    test_on="test",
-):
+    data_dir: Path,
+    log_dir: Path,
+    seed: int,
+    load_weights: bool = False,
+    source_dir: Path = None,
+    num_folds: int = gin.REQUIRED,
+    num_folds_to_train: int = None,
+    reproducible: bool = True,
+    debug: bool = False,
+    use_cache: bool = False,
+    test_on: str = "test",
+) -> float:
+    """Preprocesses data and trains a model for each fold.
+
+    Args:
+        data_dir: Path to the data directory.
+        log_dir: Path to the log directory.
+        seed: Random seed.
+        load_weights: Whether to load weights from source_dir.
+        source_dir: Path to the source directory.
+        num_folds: Number of folds for preprocessing.
+        num_folds_to_train: Number of folds to train on. If None, all folds are trained on.
+        reproducible: Whether to make torch reproducible.
+        debug: Whether to load less data and enable more logging.
+        use_cache: Whether to cache and use cached data.
+        test_on: Dataset to test on.
+
+    Returns:
+        The average loss of all folds.
+    """
     if not num_folds_to_train:
         num_folds_to_train = num_folds
     agg_loss = 0
@@ -92,7 +113,7 @@ def preprocess_and_train_for_folds(
             data_dir, seed=seed, debug=debug, use_cache=use_cache, num_folds=num_folds, fold_index=fold_index
         )
 
-        run_dir_seed = log_dir / f"fold_{fold_index}"
+        run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
         run_dir_seed.mkdir(parents=True, exist_ok=True)
 
         agg_loss += train_common(
@@ -109,25 +130,38 @@ def preprocess_and_train_for_folds(
 
 
 def aggregate_results(log_dir: Path):
+    """Aggregates results from all folds and writes to JSON file.
+
+    Args:
+        log_dir: Path to the log directory.
+    """
     aggregated = {}
-    for fold in log_dir.iterdir():
-        with open(fold / "test_metrics.json", "r") as f:
-            result = json.load(f)
-            aggregated[fold.name] = result
+    for seed in log_dir.iterdir():
+        if seed.is_dir():
+            aggregated[seed.name] = {}
+            for fold in seed.iterdir():
+                with open(fold / "test_metrics.json", "r") as f:
+                    result = json.load(f)
+                    aggregated[seed.name][fold.name] = result
 
     # Aggregate results per metric
     list_scores = {}
-    for fold, result in aggregated.items():
-        for metric, score in result.items():
-            if isinstance(score, (float, int)):
-                list_scores[metric] = list_scores.setdefault(metric, [])
-                list_scores[metric].append(score)
+    for seed, folds in aggregated.items():
+        for fold, result in folds.items():
+            for metric, score in result.items():
+                if isinstance(score, (float, int)):
+                    list_scores[metric] = list_scores.setdefault(metric, [])
+                    list_scores[metric].append(score)
 
     # Compute statistical metric over aggregated results
     averaged_scores = {metric: (mean(list)) for metric, list in list_scores.items()}
     std_scores = {metric: (stdev(list)) for metric, list in list_scores.items()}
+    confidence_interval = {
+        metric: (stats.t.interval(0.95, len(list) - 1, loc=mean(list), scale=stats.sem(list)))
+        for metric, list in list_scores.items()
+    }
 
-    accumulated_metrics = {"std": std_scores, "avg": averaged_scores}
+    accumulated_metrics = {"avg": averaged_scores, "std": std_scores, "CI_0.95": confidence_interval}
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
         json.dump(aggregated, f, cls=JsonMetricsEncoder)

@@ -2,6 +2,7 @@ import json
 import gin
 import logging
 from logging import INFO, NOTSET
+import numpy as np
 from pathlib import Path
 from skopt import gp_minimize
 import tempfile
@@ -13,7 +14,20 @@ TUNE = 25
 
 
 @gin.configurable("hyperparameter")
-def hyperparameters_to_tune(class_to_tune=gin.REQUIRED, **hyperparams):
+def hyperparameters_to_tune(class_to_tune: str = gin.REQUIRED, **hyperparams: dict) -> dict:
+    """Get hyperparameters to tune from gin config.
+
+    Hyperparameters that are already present in the gin config are ignored.
+    Hyperparameters that are not a list or tuple are bound directly to the class.
+    Hyperparameters that are a list or tuple are returned to be tuned.
+
+    Args:
+        class_to_tune: Name of the class to tune hyperparameters for.
+        **hyperparams: Dictionary of hyperparameters to potentially tune.
+
+    Returns:
+        Dictionary of hyperparameters to tune.
+    """
     hyperparams_to_tune = {}
     for param, values in hyperparams.items():
         name = f"{class_to_tune.__name__}.{param}"
@@ -30,17 +44,36 @@ def hyperparameters_to_tune(class_to_tune=gin.REQUIRED, **hyperparams):
 
 @gin.configurable("tune_hyperparameters")
 def choose_and_bind_hyperparameters(
-    do_tune,
-    data_dir,
-    log_dir,
-    seed,
-    restart_from_checkpoint=None,
-    scopes=gin.REQUIRED,
-    n_initial_points=3,
-    n_calls=20,
-    folds_to_tune_on=gin.REQUIRED,
+    do_tune: bool,
+    data_dir: Path,
+    log_dir: Path,
+    seed: int,
+    checkpoint: str = None,
+    scopes: list[str] = gin.REQUIRED,
+    n_initial_points: int = 3,
+    n_calls: int = 20,
+    folds_to_tune_on: int = gin.REQUIRED,
+    debug: bool = False,
 ):
+    """Choose hyperparameters to tune and bind them to gin.
+
+    Args:
+        do_tune: Whether to tune hyperparameters or not.
+        data_dir: Path to the data directory.
+        log_dir: Path to the log directory.
+        seed: Random seed.
+        checkpoint: Name of the checkpoint run to load previously explored hyperparameters from.
+        scopes: List of gin scopes to search for hyperparameters to tune.
+        n_initial_points: Number of initial points to explore.
+        n_calls: Number of iterations to optimize the hyperparameters.
+        folds_to_tune_on: Number of folds to tune on.
+        debug: Whether to load less data and enable more logging.
+
+    Raises:
+        ValueError: If checkpoint is not None and the checkpoint does not exist.
+    """
     hyperparams = {}
+    # Collect hyperparameters.
     for scope in scopes:
         with gin.config_scope(scope):
             hyperparams.update(hyperparameters_to_tune())
@@ -48,7 +81,7 @@ def choose_and_bind_hyperparameters(
     hyperparams_names = list(hyperparams.keys())
     hyperparams_bounds = list(hyperparams.values())
 
-    def bind_params(hyperparams_values):
+    def bind_params(hyperparams_values: list):
         for param, value in zip(hyperparams_names, hyperparams_values):
             gin.bind_parameter(param, value)
             logging.info(f"{param}: {value}")
@@ -75,10 +108,10 @@ def choose_and_bind_hyperparameters(
                 num_folds_to_train=folds_to_tune_on,
                 use_cache=True,
                 test_on="val",
+                debug=debug,
             )
 
     def tune_step_callback(res):
-        logging.info(f"Best hyperparameters so far: {res.x}")
         with open(log_dir / checkpoint_file, "w") as f:
             data = {
                 "x_iters": res.x_iters,
@@ -90,19 +123,25 @@ def choose_and_bind_hyperparameters(
 
     x0, y0 = None, None
     checkpoint_file = "hyperparameter_tuning_logs.json"
-    if restart_from_checkpoint:
-        checkpoint = restart_from_checkpoint / checkpoint_file
-        if not checkpoint.exists():
-            raise ValueError(f"No checkpoint found in {checkpoint} to restart from.")
-        with open(checkpoint, "r") as f:
+    if checkpoint:
+        checkpoint_path = checkpoint / checkpoint_file
+        if not checkpoint_path.exists():
+            raise ValueError(f"No checkpoint found in {checkpoint_path} to restart from.")
+        with open(checkpoint_path, "r") as f:
             data = json.loads(f.read())
             x0 = data["x_iters"]
             y0 = data["func_vals"]
         n_calls -= len(x0)
         logging.info(f"Restarting hyperparameter tuning from {len(x0)} points.")
+        if n_calls <= 0:
+            logging.info("No more hyperparameter tuning iterations left, skipping tuning.")
+            bind_params(x0[np.argmin(y0)])  # bind best hyperparameters
+            return
 
     if hyperparams_bounds:
-        logging.disable(level=INFO)
+        if not debug:
+            logging.disable(level=INFO)
+        # this functions is also called when tuning is disabled, to chose a random set of hyperparameters
         res = gp_minimize(
             bind_params_and_train,
             hyperparams_bounds,
@@ -113,7 +152,6 @@ def choose_and_bind_hyperparameters(
             random_state=seed,
             callback=tune_step_callback if do_tune else None,
         )
-
         logging.disable(level=NOTSET)
         logging.info("Training with these hyperparameters:")
         bind_params(res.x)

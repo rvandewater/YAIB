@@ -1,4 +1,5 @@
 import gin
+from numbers import Integral
 import numpy as np
 import torch.nn as nn
 
@@ -53,7 +54,7 @@ class Transformer(nn.Module):
         self, emb, hidden, heads, ff_hidden_mult, depth, num_classes, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0
     ):
         super().__init__()
-
+        hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
         self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
@@ -106,6 +107,7 @@ class LocalTransformer(nn.Module):
     ):
         super().__init__()
 
+        hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
         self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
@@ -149,9 +151,9 @@ class TemporalConvNet(nn.Module):
         layers = []
 
         # We compute automatically the depth based on the desired seq_length.
-        if isinstance(num_channels, int) and max_seq_length:
+        if isinstance(num_channels, Integral) and max_seq_length:
             num_channels = [num_channels] * int(np.ceil(np.log(max_seq_length / 2) / np.log(kernel_size)))
-        elif isinstance(num_channels, int) and not max_seq_length:
+        elif isinstance(num_channels, Integral) and not max_seq_length:
             raise Exception("a maximum sequence length needs to be provided if num_channels is int")
 
         num_levels = len(num_channels)
