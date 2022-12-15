@@ -6,6 +6,7 @@ from pathlib import Path
 
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
 from icu_benchmarks.run_utils import build_parser, create_run_dir, preprocess_and_train_for_folds, aggregate_results
+from icu_benchmarks.scripts.plotting.plotting import plot_results
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -61,6 +62,7 @@ def main(my_args=tuple(sys.argv[1:])):
             use_cache=args.cache,
         )
     aggregate_results(run_dir)
+    plot_results(run_dir, "test_metrics")
 
 
 """Main module."""
