@@ -2,6 +2,7 @@ import json
 import gin
 import logging
 from logging import INFO, NOTSET
+import numpy as np
 from pathlib import Path
 from skopt import gp_minimize
 import tempfile
@@ -115,7 +116,6 @@ def choose_and_bind_hyperparameters(
             data = {
                 "x_iters": res.x_iters,
                 "func_vals": res.func_vals,
-                "best_hyperparams": res.x,
             }
             logging.log(TUNE, f"{res.x_iters[-1]} yielded a loss of {res.func_vals[-1]}")
             logging.log(TUNE, f"Best hyperparameters so far: {res.x}")
@@ -131,12 +131,11 @@ def choose_and_bind_hyperparameters(
             data = json.loads(f.read())
             x0 = data["x_iters"]
             y0 = data["func_vals"]
-            x = data["best_hyperparams"]
         n_calls -= len(x0)
         logging.info(f"Restarting hyperparameter tuning from {len(x0)} points.")
         if n_calls <= 0:
             logging.info("No more hyperparameter tuning iterations left, skipping tuning.")
-            bind_params(x)
+            bind_params(x0[np.argmin(y0)])  # bind best hyperparameters
             return
 
     if hyperparams_bounds:
