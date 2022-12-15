@@ -115,3 +115,6 @@ MH_DEBUG
 
 .vscode
 lightning_logs
+
+# Mac file system
+.DS_Store

@@ -36,7 +36,7 @@ setup(
     ],
     description="This project aim is to build a benchmark for ICU related tasks.",
     entry_points={"console_scripts": ["icu-benchmarks = icu_benchmarks.run:main"]},
-    install_requires=_get_requirements("requirements.txt"),
+    install_requires=[],
     license="MIT license",
     long_description=readme,
     include_package_data=True,

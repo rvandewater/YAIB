@@ -58,8 +58,8 @@ def JSD_fn (y_preds: torch.Tensor, y_targets: torch.Tensor):
         from scipy.spatial.distance import jensenshannon
     except ImportError:
         raise RuntimeError("This contrib module requires scipy to be installed.")
-
-    return jensenshannon(y_targets, y_preds)
+    
+    return jensenshannon(abs(y_preds.flatten()), abs(y_targets.flatten()))
     
 
 #def KLD_fn(output, targets) -> float:
