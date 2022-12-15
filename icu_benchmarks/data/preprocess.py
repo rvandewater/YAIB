@@ -8,12 +8,12 @@ import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 
-from sklearn.impute import MissingIndicator
+from sklearn.impute import MissingIndicator, SimpleImputer
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import LabelEncoder
 
 from recipys.recipe import Recipe
-from recipys.selector import all_of
+from recipys.selector import all_of, all_numeric_predictors, has_type
 from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepScale, StepSklearn
 
 
@@ -131,12 +131,9 @@ def preprocess_data(
     logging.info("Preprocessing static data.")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
     sta_rec.add_step(StepScale())
-    sta_rec.add_step(StepImputeFill(value=0))
-    sta_rec.add_step(
-        StepSklearn(
-            LabelEncoder(), sel=all_of(list(data["train"]["STATIC"].select_dtypes(include="O").columns)), columnwise=True
-        )
-    )
+    sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), value=0))
+    sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
+    sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
 
     data = apply_recipe_to_splits(sta_rec, data, "STATIC")
 
