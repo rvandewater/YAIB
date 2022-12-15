@@ -3,7 +3,7 @@ from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime
 import gin
 from pathlib import Path
-from statistics import stdev, mean
+from statistics import mean, stdev
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
@@ -30,7 +30,9 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument("-l", "--log-dir", required=True, type=Path, help="Log directory with model weights.")
-    general_args.add_argument("-s", "--seed", default=1111, type=int, help="Random seed for processing and train.")
+    general_args.add_argument(
+        "-s", "--seeds", default=[1111], nargs="+", type=int, help="Random seed for processing, tuning and training."
+    )
     general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
 
@@ -110,7 +112,7 @@ def preprocess_and_train_for_folds(
             data_dir, seed=seed, debug=debug, use_cache=use_cache, num_folds=num_folds, fold_index=fold_index
         )
 
-        run_dir_seed = log_dir / f"fold_{fold_index}"
+        run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
         run_dir_seed.mkdir(parents=True, exist_ok=True)
 
         agg_loss += train_common(
@@ -133,19 +135,22 @@ def aggregate_results(log_dir: Path):
         log_dir: Path to the log directory.
     """
     aggregated = {}
-    for fold in log_dir.iterdir():
-        if fold.is_dir():
-            with open(fold / "test_metrics.json", "r") as f:
-                result = json.load(f)
-                aggregated[fold.name] = result
+    for seed in log_dir.iterdir():
+        if seed.is_dir():
+            aggregated[seed.name] = {}
+            for fold in seed.iterdir():
+                with open(fold / "test_metrics.json", "r") as f:
+                    result = json.load(f)
+                    aggregated[seed.name][fold.name] = result
 
     # Aggregate results per metric
     list_scores = {}
-    for fold, result in aggregated.items():
-        for metric, score in result.items():
-            if isinstance(score, (float, int)):
-                list_scores[metric] = list_scores.setdefault(metric, [])
-                list_scores[metric].append(score)
+    for seed, folds in aggregated.items():
+        for fold, result in folds.items():
+            for metric, score in result.items():
+                if isinstance(score, (float, int)):
+                    list_scores[metric] = list_scores.setdefault(metric, [])
+                    list_scores[metric].append(score)
 
     # Compute statistical metric over aggregated results
     averaged_scores = {metric: (mean(list)) for metric, list in list_scores.items()}

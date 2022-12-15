@@ -43,20 +43,23 @@ def main(my_args=tuple(sys.argv[1:])):
         )
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         run_dir = create_run_dir(log_dir)
-        choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, args.seed, checkpoint=checkpoint, debug=args.debug)
+        choose_and_bind_hyperparameters(
+            args.tune, args.data_dir, run_dir, args.seeds[0], checkpoint=checkpoint, debug=args.debug
+        )
 
     logging.info(f"Logging to {run_dir.resolve()}")
 
-    preprocess_and_train_for_folds(
-        args.data_dir,
-        run_dir,
-        args.seed,
-        load_weights=load_weights,
-        source_dir=source_dir,
-        reproducible=reproducible,
-        debug=args.debug,
-        use_cache=args.cache,
-    )
+    for seed in args.seeds:
+        preprocess_and_train_for_folds(
+            args.data_dir,
+            run_dir,
+            seed,
+            load_weights=load_weights,
+            source_dir=source_dir,
+            reproducible=reproducible,
+            debug=args.debug,
+            use_cache=args.cache,
+        )
     aggregate_results(run_dir)
 
 
