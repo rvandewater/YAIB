@@ -150,7 +150,7 @@ class DLWrapper(object):
         # Training epoch
         self.encoder.train()
         agg_train_loss = 0
-        for elem in tqdm(train_loader):
+        for elem in tqdm(train_loader, disable=not logging.isEnabledFor(logging.INFO)):
             loss, preds, target = self.step_fn(elem, weight)
             loss.backward()
             self.optimizer.step()
