@@ -357,7 +357,7 @@ class MLWrapper(object):
 
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
             model_type = "lgbm"
-            self.model.set_params(random_state=np.random.get_state()[1][0])
+            self.model.set_params(random_state=seed)
             self.model.fit(
                 train_rep,
                 train_label,
