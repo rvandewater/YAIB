@@ -5,7 +5,13 @@ import sys
 from pathlib import Path
 
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
-from icu_benchmarks.run_utils import build_parser, create_run_dir, preprocess_and_train_for_folds, aggregate_results, log_full_line
+from icu_benchmarks.run_utils import (
+    build_parser,
+    create_run_dir,
+    preprocess_and_train_for_folds,
+    aggregate_results,
+    log_full_line,
+)
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -62,7 +68,7 @@ def main(my_args=tuple(sys.argv[1:])):
             use_cache=args.cache,
         )
         log_full_line(f"FINISHED SEED {seed}", level=logging.INFO, char="=", num_newlines=3)
-    
+
     log_full_line(f"FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
     aggregate_results(run_dir)
 
