@@ -151,7 +151,7 @@ class DLWrapper(object):
         self.encoder.train()
         agg_train_loss = 0
         disable_tqdm = not logging.getLogger().isEnabledFor(logging.INFO)
-        for elem in tqdm(train_loader, disable=disable_tqdm):
+        for elem in tqdm(train_loader, leave=False):
             loss, preds, target = self.step_fn(elem, weight)
             loss.backward()
             self.optimizer.step()
@@ -213,7 +213,7 @@ class DLWrapper(object):
         val_writer = SummaryWriter(self.log_dir / "tensorboard" / "val")
 
         disable_tqdm = logging.getLogger().isEnabledFor(logging.INFO)
-        for epoch in trange(epochs, disable=disable_tqdm):
+        for epoch in trange(epochs, leave=False, disable=disable_tqdm):
             # Train step
             train_loss, train_metric_results = self._do_training(train_loader, weight, metrics)
 
