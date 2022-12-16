@@ -1,8 +1,9 @@
-import logging
+from enum import Enum
+import json
 import gin
+import logging
 import numpy as np
 import torch
-import json
 
 
 def save_model(model, optimizer, epoch, save_file):
@@ -55,3 +56,35 @@ class JsonMetricsEncoder(json.JSONEncoder):
             if isinstance(obj)[0] is torch.Tensor or isinstance(obj)[0] is np.ndarray:
                 return map(lambda item: item.tolist(), obj)
         return super(JsonMetricsEncoder).default(self, obj)
+
+
+class Align(Enum):
+    LEFT = "<"
+    CENTER = "^"
+    RIGHT = ">"
+
+
+def log_table_row(
+    cells: list, level: int = logging.INFO, widths: list[int] = None, header: list[str] = None, align: Align = Align.LEFT, highlight: bool = False
+):
+    """Logs a table row.
+
+    Args:
+        cells: List of cells to log.
+        level: Logging level.
+        widths: List of widths for each cell.
+        header: List of headers to calculate widths if widths not supplied.
+        highlight: If set to true, highlight the row.
+    """
+    table_cells = cells
+    if not widths and header:
+        widths = [len(head) for head in header]
+    if widths:
+        table_cells = []
+        for cell, width in zip(cells, widths):
+            cell = str(cell)[:width]  # truncate cell if it is too long
+            table_cells.append("{: {align}{width}}".format(cell, align=align.value, width=width))
+    table_row = " | ".join([f"{cell}" for cell in table_cells])
+    if highlight:
+        table_row = f"\x1b[31;32m{table_row}\x1b[0m"
+    logging.log(level, table_row)

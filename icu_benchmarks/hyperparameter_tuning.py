@@ -7,7 +7,7 @@ from pathlib import Path
 from skopt import gp_minimize
 import tempfile
 
-from icu_benchmarks.models.utils import JsonMetricsEncoder
+from icu_benchmarks.models.utils import JsonMetricsEncoder, log_table_row, Align
 from icu_benchmarks.run_utils import log_full_line, preprocess_and_train_for_folds
 
 TUNE = 25
@@ -53,27 +53,6 @@ def bind_params(hyperparams_names: list[str], hyperparams_values: list):
     for param, value in zip(hyperparams_names, hyperparams_values):
         gin.bind_parameter(param, value)
         logging.info(f"{param} = {value}")
-
-
-def log_table_row(cells: list, header: list = None, highlight: bool = False):
-    """Logs a table row.
-
-    Args:
-        cells: List of cells to log.
-        header: List of header cells to align cells to.
-        highlight: If set to true, highlight the row.
-    """
-    table_cells = cells
-    if header:
-        table_cells = []
-        for cell, head in zip(cells, header):
-            cell = str(cell)[:len(str(head))]  # truncate cell if it is too long
-            num_spaces = len(head) - len(cell)
-            table_cells.append("{1}{0}".format(cell, " " * num_spaces))
-    table_row = " | ".join([f"{cell}" for cell in table_cells])
-    if highlight:
-        table_row = f"\x1b[31;32m{table_row}\x1b[0m"
-    logging.log(TUNE, table_row)
 
 
 @gin.configurable("tune_hyperparameters")
@@ -152,7 +131,7 @@ def choose_and_bind_hyperparameters(
                 debug=debug,
             )
 
-    header_cells = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
+    header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
     def tune_step_callback(res):
         with open(log_dir / checkpoint_file, "w") as f:
             data = {
@@ -162,19 +141,20 @@ def choose_and_bind_hyperparameters(
             f.write(json.dumps(data, cls=JsonMetricsEncoder))
             if do_tune:
                 table_cells = [len(res.x_iters)] + res.x_iters[-1] + [res.func_vals[-1]]
-                log_table_row(table_cells, header_cells, res.x_iters[-1] == res.x)  # highlight best hyperparameters
+                highlight = res.x_iters[-1] == res.x  # highlight if best so far
+                log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
 
     if do_tune:
         log_full_line("STARTING TUNING", level=TUNE, char="=")
         logging.log(TUNE, f"Tuning from {n_initial_points} points in {n_calls} iterations on {folds_to_tune_on} folds.")
-        log_table_row(header_cells)
+        log_table_row(header, TUNE)
     else:
         logging.log(TUNE, "Hyperparameter tuning disabled, choosing randomly from bounds.")
         n_initial_points = 1
         n_calls = 1
     if not debug:
         logging.disable(level=INFO)
-    
+
     res = gp_minimize(
         bind_params_and_train,
         hyperparams_bounds,
@@ -192,4 +172,4 @@ def choose_and_bind_hyperparameters(
         log_full_line("FINISHED TUNING", level=TUNE, char="=", num_newlines=4)
 
     logging.info("Training with these hyperparameters:")
-    bind_params(hyperparams_names, res.x)        
+    bind_params(hyperparams_names, res.x)
