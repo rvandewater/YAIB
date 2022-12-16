@@ -28,7 +28,7 @@ from tqdm import tqdm, trange
 
 from icu_benchmarks.models.encoders import LSTMNet
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
-from icu_benchmarks.models.utils import save_model, load_model_state, JsonMetricsEncoder
+from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonMetricsEncoder
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
@@ -150,7 +150,6 @@ class DLWrapper(object):
         # Training epoch
         self.encoder.train()
         agg_train_loss = 0
-        disable_tqdm = not logging.getLogger().isEnabledFor(logging.INFO)
         for elem in tqdm(train_loader, leave=False):
             loss, preds, target = self.step_fn(elem, weight)
             loss.backward()
@@ -212,6 +211,9 @@ class DLWrapper(object):
         train_writer = SummaryWriter(self.log_dir / "tensorboard" / "train")
         val_writer = SummaryWriter(self.log_dir / "tensorboard" / "val")
 
+        table_header = ["EPOCH", "SPLIT", "METRICS", "COMMENT"]
+        widths = [5, 5, 25, 50]
+        log_table_row(table_header, widths=widths)
         disable_tqdm = logging.getLogger().isEnabledFor(logging.INFO)
         for epoch in trange(epochs, leave=False, disable=disable_tqdm):
             # Train step
@@ -226,35 +228,31 @@ class DLWrapper(object):
                 epoch_no_improvement = 0
                 self.save_weights(epoch, self.log_dir / "model.torch")
                 best_loss = val_loss
-                logging.info("Validation loss improved to {:.4f} ".format(val_loss))
+                comment = "Validation loss improved to {:.4f} ".format(val_loss)
             else:
                 epoch_no_improvement += 1
-                logging.info("No improvement on loss for {} epochs".format(epoch_no_improvement))
+                comment = "No improvement on loss for {} epochs".format(epoch_no_improvement)
             if epoch_no_improvement >= patience:
                 logging.info("No improvement on loss for more than {} epochs. We stop training".format(patience))
                 break
 
             # Logging
-            train_string = "Train Epoch:{}"
-            train_values = [epoch + 1]
+            test_metric_strings = []
             for name, value in train_metric_results.items():
                 if isinstance(value, np.float):
-                    train_string += ", " + name + ":{:.4f}"
-                    train_values.append(value)
+                    test_metric_strings.append(f"{name}: {value:.4f}")
                     train_writer.add_scalar(name, value, epoch)
             train_writer.add_scalar("Loss", train_loss, epoch)
 
-            val_string = "Val Epoch:{}"
-            val_values = [epoch + 1]
+            val_metric_strings = []
             for name, value in val_metric_results.items():
                 if isinstance(value, np.float):
-                    val_string += ", " + name + ":{:.4f}"
-                    val_values.append(value)
+                    val_metric_strings.append(f"{name}: {value:.4f}")
                     val_writer.add_scalar(name, value, epoch)
             val_writer.add_scalar("Loss", val_loss, epoch)
 
-            logging.info(train_string.format(*train_values))
-            logging.info(val_string.format(*val_values))
+            log_table_row([epoch, "Train", ", ".join(test_metric_strings), ""], widths=widths)
+            log_table_row([epoch, "Val", ", ".join(val_metric_strings), comment], widths=widths)
 
         best_metrics["loss"] = best_loss
 
@@ -276,7 +274,7 @@ class DLWrapper(object):
 
         for key, value in test_metrics.items():
             if isinstance(value, float):
-                logging.info("Test {} :  {}".format(key, value))
+                logging.info("Test {}:  {}".format(key, value))
 
         return test_loss
 
