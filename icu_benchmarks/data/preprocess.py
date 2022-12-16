@@ -80,6 +80,54 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
     return data
 
 
+class Preprocessing:
+    def __init__(
+        self,
+        data,
+        seed: int,
+        vars: dict[str],
+        feature_generation: bool,
+    ):
+        self.data = data
+        self.seed = seed
+        self.vars = vars
+        self.feature_generation = feature_generation
+
+
+    def apply_processing(self):
+        logging.info("Preprocessing static data.")
+        self.data = self.process_static()
+        self.data = self.process_dynamic()
+        return self.data
+
+    def process_static(self):
+        sta_rec = Recipe(self.data["train"]["STATIC"], [], self.vars["STATIC"])
+        sta_rec.add_step(StepScale())
+        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), value=0))
+        sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
+        sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
+
+        data = apply_recipe_to_splits(sta_rec, self.data, "STATIC")
+
+        return data
+
+    def process_dynamic(self):
+        vars = self.vars
+        dyn_rec = Recipe(self.data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
+        dyn_rec.add_step(StepScale())
+        dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars["DYNAMIC"]), in_place=False))
+        if self.feature_generation:
+            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
+            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
+            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.COUNT, suffix="count_hist"))
+            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MEAN, suffix="mean_hist"))
+        dyn_rec.add_step(StepImputeFill(method="ffill"))
+        dyn_rec.add_step(StepImputeFill(value=0))
+
+        data = apply_recipe_to_splits(dyn_rec, self.data, "DYNAMIC")
+        return data
+
+
 @gin.configurable("preprocess")
 def preprocess_data(
     data_dir: Path,
@@ -115,6 +163,8 @@ def preprocess_data(
     config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{fold_index}{debug}".encode("utf-8")
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
+    use_cache = False
+
     if use_cache:
         if cache_file.exists():
             with open(cache_file, "rb") as f:
@@ -128,29 +178,17 @@ def preprocess_data(
     logging.info("Generating splits.")
     data = make_single_split(data, vars, num_folds, fold_index, seed=seed, debug=debug)
 
-    logging.info("Preprocessing static data.")
-    sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
-    sta_rec.add_step(StepScale())
-    sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), value=0))
-    sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
-    sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
+    preprocessing = Preprocessing(data, seed, vars, use_features)
+    data = preprocessing.apply_processing()
 
-    data = apply_recipe_to_splits(sta_rec, data, "STATIC")
+    caching(cache_dir, cache_file, data, use_cache)
 
-    logging.info("Preprocessing dynamic data.")
-    dyn_rec = Recipe(data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
-    dyn_rec.add_step(StepScale())
-    dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars["DYNAMIC"]), in_place=False))
-    if use_features:
-        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.COUNT, suffix="count_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MEAN, suffix="mean_hist"))
-    dyn_rec.add_step(StepImputeFill(method="ffill"))
-    dyn_rec.add_step(StepImputeFill(value=0))
+    logging.info("Finished preprocessing.")
 
-    data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")
+    return data
 
+
+def caching(cache_dir, cache_file, data, use_cache):
     if use_cache and not cache_file.exists():
         if not cache_dir.exists():
             cache_dir.mkdir()
@@ -158,7 +196,3 @@ def preprocess_data(
         with open(cache_file, "wb") as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
         logging.info(f"Cached data in {cache_file}.")
-
-    logging.info("Finished preprocessing.")
-
-    return data
