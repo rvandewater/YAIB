@@ -1,7 +1,7 @@
 import json
 import logging
 
-from icu_benchmarks.scripts.plotting.plotting import plot_calibration_curve, plot_prc, plot_roc
+from icu_benchmarks.scripts.plotting.plotting import Plotter
 
 
 def plot_fold(metrics, save_dir):
@@ -11,9 +11,10 @@ def plot_fold(metrics, save_dir):
         metrics: Metrics dictionary.
         save_dir: Directory to save the plots to.
     """
-    plot_calibration_curve({"fold": metrics}, save_dir)
-    plot_prc({"fold": metrics}, save_dir)
-    plot_roc({"fold": metrics}, save_dir)
+    plotter = Plotter({"fold": metrics},save_dir)
+    plotter.calibration_curve()
+    plotter.precision_recall_curve()
+    plotter.receiver_operator_curve()
 
 
 def plot_agg_results(log_dir, metrics_path):
@@ -26,10 +27,16 @@ def plot_agg_results(log_dir, metrics_path):
     with open(log_dir / f"{metrics_path}.json") as metrics_file:
         metrics = json.load(metrics_file)
         for seed in metrics:
-            if "ROC" and "AUC" in metrics[seed]:
-                plot_roc(metrics[seed], log_dir, seed)
-            if "PRC" and "PR" in metrics[seed]:
-                plot_prc(metrics[seed], log_dir, seed)
-            if "Calibration" in metrics[seed]:
-                plot_calibration_curve(metrics[seed], log_dir, seed)
+            plotter = Plotter(metrics[seed], log_dir, seed)
+            # Check if there are multiple folds
+            if len(metrics[seed]) > 1:
+                base = metrics[seed]["fold_0"]
+            else:
+                base = metrics[seed]
+            if "ROC" and "AUC" in base:
+                plotter.receiver_operator_curve()
+            if "PRC" and "PR" in base:
+                plotter.precision_recall_curve()
+            if "Calibration" in base:
+                plotter.calibration_curve()
     logging.info(f"Generated plots in {log_dir}")

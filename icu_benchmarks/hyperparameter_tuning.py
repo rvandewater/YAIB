@@ -141,7 +141,7 @@ def choose_and_bind_hyperparameters(
     if hyperparams_bounds:
         if not debug:
             logging.disable(level=INFO)
-        # this functions is also called when tuning is disabled, to chose a random set of hyperparameters
+        # This function is also called when tuning is disabled, to choose a random set of hyperparameters
         res = gp_minimize(
             bind_params_and_train,
             hyperparams_bounds,
