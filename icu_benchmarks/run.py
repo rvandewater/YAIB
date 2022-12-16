@@ -54,7 +54,7 @@ def main(my_args=tuple(sys.argv[1:])):
         )
 
     logging.info(f"Logging to {run_dir.resolve()}")
-    log_full_line(f"STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)
+    log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)
 
     for seed in args.seeds:
         preprocess_and_train_for_folds(
@@ -69,7 +69,7 @@ def main(my_args=tuple(sys.argv[1:])):
         )
         log_full_line(f"FINISHED SEED {seed}", level=logging.INFO, char="=", num_newlines=3)
 
-    log_full_line(f"FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
+    log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
     aggregate_results(run_dir)
 
 
