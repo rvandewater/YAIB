@@ -150,6 +150,7 @@ def choose_and_bind_hyperparameters(
             n_calls=n_calls,
             n_initial_points=n_initial_points,
             random_state=seed,
+            noise=1e-10,  # the models are deterministic, but noise is needed for the gp to work
             callback=tune_step_callback if do_tune else None,
         )
         logging.disable(level=NOTSET)
