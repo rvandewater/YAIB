@@ -175,7 +175,7 @@ def aggregate_results(log_dir: Path):
     logging.info(f"Accumulated results: {accumulated_metrics}")
 
 
-def log_full_line(msg: str, level: int=logging.INFO, char: str="-", num_newlines: int=0):
+def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
     """Logs a full line of a given character with a message centered.
 
     Args:
@@ -186,5 +186,4 @@ def log_full_line(msg: str, level: int=logging.INFO, char: str="-", num_newlines
     """
     terminal_size = shutil.get_terminal_size((80, 20))
     reserved_chars = len(logging.getLevelName(level)) + 28
-    logging.log(level, "{:{char}^{width}}".format(msg, char=char, width=terminal_size.columns - reserved_chars))
-    print("\n" * num_newlines)
+    logging.log(level, "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars))
