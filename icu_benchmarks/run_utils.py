@@ -186,4 +186,7 @@ def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newl
     """
     terminal_size = shutil.get_terminal_size((80, 20))
     reserved_chars = len(logging.getLevelName(level)) + 28
-    logging.log(level, "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars))
+    logging.log(
+        level,
+        "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars),
+    )

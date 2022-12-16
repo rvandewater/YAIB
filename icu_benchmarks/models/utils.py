@@ -65,7 +65,12 @@ class Align(Enum):
 
 
 def log_table_row(
-    cells: list, level: int = logging.INFO, widths: list[int] = None, header: list[str] = None, align: Align = Align.LEFT, highlight: bool = False
+    cells: list,
+    level: int = logging.INFO,
+    widths: list[int] = None,
+    header: list[str] = None,
+    align: Align = Align.LEFT,
+    highlight: bool = False,
 ):
     """Logs a table row.
 

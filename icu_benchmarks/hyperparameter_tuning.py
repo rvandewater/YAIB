@@ -132,6 +132,7 @@ def choose_and_bind_hyperparameters(
             )
 
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
+
     def tune_step_callback(res):
         with open(log_dir / checkpoint_file, "w") as f:
             data = {

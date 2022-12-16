@@ -274,7 +274,7 @@ class DLWrapper(object):
 
         for key, value in test_metrics.items():
             if isinstance(value, float):
-                logging.info("Test {}:  {}".format(key, value))
+                logging.info("Test {}: {}".format(key, value))
 
         return test_loss
 
@@ -411,18 +411,14 @@ class MLWrapper(object):
         else:
             test_pred = self.model.predict_proba(test_rep)
 
-        test_string = ""
-        test_values = []
         test_metric_results = {}
         for name, metric in self.metrics.items():
-            test_metric_results[name] = metric(self.label_transform(test_label), self.output_transform(test_pred))
+            value = metric(self.label_transform(test_label), self.output_transform(test_pred))
+            test_metric_results[name] = value
             # Only log float values
-            if isinstance(test_metric_results[name], np.float):
-                test_string += "Test Results: " if len(test_string) == 0 else ", "
-                test_string += name + ":{:.4f}"
-                test_values.append(test_metric_results[name])
+            if isinstance(value, np.float):
+                logging.info("Test {}: {}".format(name, value))
 
-        logging.info(test_string.format(*test_values))
         with open(self.log_dir / "test_metrics.json", "w") as f:
             json.dump(test_metric_results, f, cls=JsonMetricsEncoder)
 
