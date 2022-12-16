@@ -1,9 +1,11 @@
 import json
 from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime
+import logging
 import gin
 from pathlib import Path
 import scipy.stats as stats
+import shutil
 from statistics import mean, stdev
 
 from icu_benchmarks.data.preprocess import preprocess_data
@@ -125,6 +127,7 @@ def preprocess_and_train_for_folds(
             reproducible=reproducible,
             test_on=test_on,
         )
+        log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
 
     return agg_loss / num_folds
 
@@ -168,3 +171,12 @@ def aggregate_results(log_dir: Path):
 
     with open(log_dir / "accumulated_test_metrics.json", "w") as f:
         json.dump(accumulated_metrics, f, cls=JsonMetricsEncoder)
+
+    logging.info(f"Accumulated results: {accumulated_metrics}")
+
+
+def log_full_line(msg: str, level: int=logging.INFO, char: str="-", num_newlines: int=0):
+    terminal_size = shutil.get_terminal_size((80, 20))
+    reserved_chars = len(msg) + len(logging.getLevelName(level)) + 30
+    half_terminal_size = int((terminal_size.columns - reserved_chars) / 2)
+    logging.log(level, "{1} {0} {1}{2}".format(msg, char * half_terminal_size, "\n" * num_newlines))

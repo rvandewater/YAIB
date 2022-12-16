@@ -8,9 +8,10 @@ from skopt import gp_minimize
 import tempfile
 
 from icu_benchmarks.models.utils import JsonMetricsEncoder
-from icu_benchmarks.run_utils import preprocess_and_train_for_folds
+from icu_benchmarks.run_utils import log_full_line, preprocess_and_train_for_folds
 
 TUNE = 25
+logging.addLevelName(25, "TUNE")
 
 
 @gin.configurable("hyperparameter")
@@ -86,12 +87,11 @@ def choose_and_bind_hyperparameters(
             gin.bind_parameter(param, value)
             logging.info(f"{param}: {value}")
 
+    logging.log(TUNE, f"Hyperparameters to tune: {hyperparams_names}")
     if do_tune:
-        logging.info(
-            f"Tuning hyperparameters from {n_initial_points} points in {n_calls} iterations on {folds_to_tune_on} folds."
-        )
+        logging.log(TUNE, f"Tuning from {n_initial_points} points in {n_calls} iterations on {folds_to_tune_on} folds.")
     else:
-        logging.info("Hyperparameter tuning disabled, choosing randomly from bounds.")
+        logging.log(TUNE, "Hyperparameter tuning disabled, choosing randomly from bounds.")
         n_initial_points = 1
         n_calls = 1
 
@@ -132,9 +132,9 @@ def choose_and_bind_hyperparameters(
             x0 = data["x_iters"]
             y0 = data["func_vals"]
         n_calls -= len(x0)
-        logging.info(f"Restarting hyperparameter tuning from {len(x0)} points.")
+        logging.log(TUNE, f"Restarting hyperparameter tuning from {len(x0)} points.")
         if n_calls <= 0:
-            logging.info("No more hyperparameter tuning iterations left, skipping tuning.")
+            logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
             bind_params(x0[np.argmin(y0)])  # bind best hyperparameters
             return
 
@@ -153,6 +153,10 @@ def choose_and_bind_hyperparameters(
             callback=tune_step_callback if do_tune else None,
         )
         logging.disable(level=NOTSET)
+
+        if do_tune:
+            log_full_line("FINISHED TUNING", level=TUNE, char="=", num_newlines=4)
+
         logging.info("Training with these hyperparameters:")
         bind_params(res.x)
     elif do_tune:
