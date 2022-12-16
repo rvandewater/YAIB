@@ -24,7 +24,7 @@ from sklearn.metrics import (
 )
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 from icu_benchmarks.models.encoders import LSTMNet
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
@@ -212,7 +212,7 @@ class DLWrapper(object):
         train_writer = SummaryWriter(self.log_dir / "tensorboard" / "train")
         val_writer = SummaryWriter(self.log_dir / "tensorboard" / "val")
 
-        for epoch in range(epochs):
+        for epoch in trange(epochs):
             # Train step
             train_loss, train_metric_results = self._do_training(train_loader, weight, metrics)
 
