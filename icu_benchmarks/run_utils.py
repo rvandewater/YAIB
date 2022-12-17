@@ -10,7 +10,7 @@ from statistics import mean, stdev
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
-from icu_benchmarks.models.utils import JsonMetricsEncoder
+from icu_benchmarks.models.utils import JsonNumpyEncoder
 
 
 def build_parser() -> ArgumentParser:
@@ -167,10 +167,10 @@ def aggregate_results(log_dir: Path):
     accumulated_metrics = {"avg": averaged_scores, "std": std_scores, "CI_0.95": confidence_interval}
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
-        json.dump(aggregated, f, cls=JsonMetricsEncoder)
+        json.dump(aggregated, f, cls=JsonNumpyEncoder)
 
     with open(log_dir / "accumulated_test_metrics.json", "w") as f:
-        json.dump(accumulated_metrics, f, cls=JsonMetricsEncoder)
+        json.dump(accumulated_metrics, f, cls=JsonNumpyEncoder)
 
     logging.info(f"Accumulated results: {accumulated_metrics}")
 

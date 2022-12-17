@@ -38,10 +38,10 @@ def append_results(experiment_parent, results, seed):
         file = {}
     with open(experiment_parent, "w") as f:
         file[seed] = results
-        json.dump(file, f, cls=JsonMetricsEncoder)
+        json.dump(file, f, cls=JsonNumpyEncoder)
 
 
-class JsonMetricsEncoder(json.JSONEncoder):
+class JsonNumpyEncoder(json.JSONEncoder):
     # Serializes foreign datatypes
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -55,7 +55,7 @@ class JsonMetricsEncoder(json.JSONEncoder):
         if isinstance(obj, tuple):
             if isinstance(obj)[0] is torch.Tensor or isinstance(obj)[0] is np.ndarray:
                 return map(lambda item: item.tolist(), obj)
-        return super(JsonMetricsEncoder).default(self, obj)
+        return super(JsonNumpyEncoder).default(self, obj)
 
 
 class Align(Enum):
