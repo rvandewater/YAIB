@@ -115,3 +115,4 @@ MH_DEBUG
 
 # Cached data
 **/cache/
+.DS_Store
