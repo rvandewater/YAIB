@@ -109,7 +109,7 @@ Child samples are reduced due to the small amount of training data.
 icu-benchmarks train \
     -d demo_data/mortality24/mimic_demo \
     -n mimic_demo \
-    -t BinaryClassification_Demo \
+    -t BinaryClassification \
     -tn Mortality24 \
     -m LGBMClassifier \
     -hp LGBMClassifier.min_child_samples=10 \
