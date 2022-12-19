@@ -79,7 +79,6 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
     data["test"][type] = recipe.prep(data["test"][type])
     return data
 
-
 class Preprocessing:
     def __init__(
         self,
@@ -92,7 +91,6 @@ class Preprocessing:
         self.seed = seed
         self.vars = vars
         self.feature_generation = feature_generation
-
 
     def apply_processing(self):
         logging.info("Preprocessing static data.")
@@ -127,6 +125,19 @@ class Preprocessing:
         data = apply_recipe_to_splits(dyn_rec, self.data, "DYNAMIC")
         return data
 
+
+class NewMethod(Preprocessing):
+    def __init__(
+        self,
+        data,
+        seed: int,
+        vars: dict[str],
+        feature_generation: bool,
+    ):
+        super().__init__(data, seed, vars, feature_generation)
+
+    def process_dynamic(self):
+        return self.data
 
 @gin.configurable("preprocess")
 def preprocess_data(
