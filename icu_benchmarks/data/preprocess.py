@@ -76,7 +76,7 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
     """
     data["train"][type] = recipe.prep()
     data["val"][type] = recipe.bake(data["val"][type])
-    data["test"][type] = recipe.prep(data["test"][type])
+    data["test"][type] = recipe.bake(data["test"][type])
     return data
 
 
