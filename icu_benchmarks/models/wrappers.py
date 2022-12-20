@@ -8,26 +8,16 @@ import joblib
 import lightgbm
 import numpy as np
 import torch
-from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-from ignite.metrics import MeanAbsoluteError, Accuracy
-from sklearn.calibration import calibration_curve
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    average_precision_score,
-    roc_auc_score,
-    accuracy_score,
-    balanced_accuracy_score,
-    mean_absolute_error,
-    precision_recall_curve,
-    roc_curve,
-    log_loss,
-)
+from sklearn.metrics import log_loss
+
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm, trange
 
+from icu_benchmarks.models.metric_constants import MLMetrics, DLMetrics
 from icu_benchmarks.models.encoders import LSTMNet
-from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
+from icu_benchmarks.models.metrics import MAE
 from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonNumpyEncoder
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
@@ -90,27 +80,24 @@ class DLWrapper(object):
                 y_pred = torch.softmax(y_pred, dim=1)
                 return y_pred, y
 
+        # Binary classification
         # output transform is not applied for contrib metrics so we do our own.
         if self.encoder.logit.out_features == 2:
             self.output_transform = softmax_binary_output_transform
-            self.metrics = {
-                "PR": AveragePrecision(),
-                "AUC": ROC_AUC(),
-                "PR_Curve": PrecisionRecallCurve(),
-                "ROC_Curve": RocCurve(),
-                "Calibration_Curve": CalibrationCurve(),
-            }
+            self.metrics = DLMetrics.BINARY_CLASSIFICATION
 
+        # Regression
         elif self.encoder.logit.out_features == 1:
             self.output_transform = lambda x: x
             if self.scaler is not None:
                 self.metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
             else:
-                self.metrics = {"MAE": MeanAbsoluteError()}
+                self.metrics = DLMetrics.REGRESSION
 
+        # Multiclass classification
         else:
             self.output_transform = softmax_multi_output_transform
-            self.metrics = {"Accuracy": Accuracy(), "BalancedAccuracy": BalancedAccuracy()}
+            self.metrics = DLMetrics.MULTICLASS_CLASSIFICATION
 
     def step_fn(self, element, loss_weight=None):
 
@@ -168,15 +155,15 @@ class DLWrapper(object):
 
     @gin.configurable(module="DLWrapper")
     def train(
-        self,
-        train_dataset,
-        val_dataset,
-        weight,
-        seed,
-        epochs=1000,
-        batch_size=64,
-        patience=10,
-        min_delta=1e-4,
+            self,
+            train_dataset,
+            val_dataset,
+            weight,
+            seed,
+            epochs=1000,
+            batch_size=64,
+            patience=10,
+            min_delta=1e-4,
     ):
 
         self.set_metrics()
@@ -313,26 +300,24 @@ class MLWrapper(object):
         self.log_dir = log_dir
 
     def set_metrics(self, labels):
+
+        # Binary classification
         if len(np.unique(labels)) == 2:
             if isinstance(self.model, lightgbm.basic.Booster):
                 self.output_transform = lambda x: x
             else:
-                self.output_transform = lambda x: x[:, 1]
+                self.output_transform = lambda x: np.round(x[:, 1])
             self.label_transform = lambda x: x
 
-            self.metrics = {
-                "PR": average_precision_score,
-                "AUC": roc_auc_score,
-                "ROC": roc_curve,
-                "PRC": precision_recall_curve,
-                "Calibration": calibration_curve,
-            }
+            self.metrics = MLMetrics.BINARY_CLASSIFICATION
 
+        # Multiclass classification
         elif np.all(labels[:10].astype(int) == labels[:10]):
             self.output_transform = lambda x: np.argmax(x, axis=-1)
             self.label_transform = lambda x: x
-            self.metrics = {"Accuracy": accuracy_score, "BalancedAccuracy": balanced_accuracy_score}
+            self.metrics = MLMetrics.MULTICLASS_CLASSIFICATION
 
+        # Regression
         else:
             if self.scaler is not None:  # We invert transform the labels and predictions if they were scaled.
                 self.output_transform = lambda x: self.scaler.inverse_transform(x.reshape(-1, 1))
@@ -340,7 +325,7 @@ class MLWrapper(object):
             else:
                 self.output_transform = lambda x: x
                 self.label_transform = lambda x: x
-            self.metrics = {"MAE": mean_absolute_error}
+            self.metrics = MLMetrics.REGRESSION
 
     def set_scaler(self, scaler):
         self.scaler = scaler
