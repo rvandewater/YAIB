@@ -24,11 +24,11 @@ from sklearn.metrics import (
 )
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 from icu_benchmarks.models.encoders import LSTMNet
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
-from icu_benchmarks.models.utils import save_model, load_model_state, JsonMetricsEncoder
+from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonNumpyEncoder
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
@@ -150,7 +150,7 @@ class DLWrapper(object):
         # Training epoch
         self.encoder.train()
         agg_train_loss = 0
-        for elem in tqdm(train_loader):
+        for elem in tqdm(train_loader, leave=False):
             loss, preds, target = self.step_fn(elem, weight)
             loss.backward()
             self.optimizer.step()
@@ -211,7 +211,11 @@ class DLWrapper(object):
         train_writer = SummaryWriter(self.log_dir / "tensorboard" / "train")
         val_writer = SummaryWriter(self.log_dir / "tensorboard" / "val")
 
-        for epoch in range(epochs):
+        table_header = ["EPOCH", "SPLIT", "METRICS", "COMMENT"]
+        widths = [5, 5, 25, 50]
+        log_table_row(table_header, widths=widths)
+        disable_tqdm = logging.getLogger().isEnabledFor(logging.INFO)
+        for epoch in trange(epochs, leave=False, disable=disable_tqdm):
             # Train step
             train_loss, train_metric_results = self._do_training(train_loader, weight, metrics)
 
@@ -224,40 +228,36 @@ class DLWrapper(object):
                 epoch_no_improvement = 0
                 self.save_weights(epoch, self.log_dir / "model.torch")
                 best_loss = val_loss
-                logging.info("Validation loss improved to {:.4f} ".format(val_loss))
+                comment = "Validation loss improved to {:.4f} ".format(val_loss)
             else:
                 epoch_no_improvement += 1
-                logging.info("No improvement on loss for {} epochs".format(epoch_no_improvement))
+                comment = "No improvement on loss for {} epochs".format(epoch_no_improvement)
             if epoch_no_improvement >= patience:
                 logging.info("No improvement on loss for more than {} epochs. We stop training".format(patience))
                 break
 
             # Logging
-            train_string = "Train Epoch:{}"
-            train_values = [epoch + 1]
+            test_metric_strings = []
             for name, value in train_metric_results.items():
                 if isinstance(value, np.float):
-                    train_string += ", " + name + ":{:.4f}"
-                    train_values.append(value)
+                    test_metric_strings.append(f"{name}: {value:.4f}")
                     train_writer.add_scalar(name, value, epoch)
             train_writer.add_scalar("Loss", train_loss, epoch)
 
-            val_string = "Val Epoch:{}"
-            val_values = [epoch + 1]
+            val_metric_strings = []
             for name, value in val_metric_results.items():
                 if isinstance(value, np.float):
-                    val_string += ", " + name + ":{:.4f}"
-                    val_values.append(value)
+                    val_metric_strings.append(f"{name}: {value:.4f}")
                     val_writer.add_scalar(name, value, epoch)
             val_writer.add_scalar("Loss", val_loss, epoch)
 
-            logging.info(train_string.format(*train_values))
-            logging.info(val_string.format(*val_values))
+            log_table_row([epoch, "Train", ", ".join(test_metric_strings), ""], widths=widths)
+            log_table_row([epoch, "Val", ", ".join(val_metric_strings), comment], widths=widths)
 
         best_metrics["loss"] = best_loss
 
         with open(self.log_dir / "best_metrics.json", "w") as f:
-            json.dump(best_metrics, f, cls=JsonMetricsEncoder)
+            json.dump(best_metrics, f, cls=JsonNumpyEncoder)
 
         self.load_weights(self.log_dir / "model.torch")  # We load back the best iteration
 
@@ -270,11 +270,11 @@ class DLWrapper(object):
 
         test_metrics["loss"] = test_loss
         with open(self.log_dir / "test_metrics.json", "w") as f:
-            json.dump(test_metrics, f, cls=JsonMetricsEncoder)
+            json.dump(test_metrics, f, cls=JsonNumpyEncoder)
 
         for key, value in test_metrics.items():
             if isinstance(value, float):
-                logging.info("Test {} :  {}".format(key, value))
+                logging.info("Test {}: {}".format(key, value))
 
         return test_loss
 
@@ -401,7 +401,7 @@ class MLWrapper(object):
         model_file = "model.txt" if model_type == "lgbm" else "model.joblib"
         self.save_weights(save_path=(self.log_dir / model_file), model_type=model_type)
         with open(self.log_dir / "val_metrics.json", "w") as f:
-            json.dump(val_metric_results, f, cls=JsonMetricsEncoder)
+            json.dump(val_metric_results, f, cls=JsonNumpyEncoder)
 
     def test(self, dataset, weight, seed):
         test_rep, test_label = dataset.get_data_and_labels()
@@ -411,20 +411,16 @@ class MLWrapper(object):
         else:
             test_pred = self.model.predict_proba(test_rep)
 
-        test_string = ""
-        test_values = []
         test_metric_results = {}
         for name, metric in self.metrics.items():
-            test_metric_results[name] = metric(self.label_transform(test_label), self.output_transform(test_pred))
+            value = metric(self.label_transform(test_label), self.output_transform(test_pred))
+            test_metric_results[name] = value
             # Only log float values
-            if isinstance(test_metric_results[name], np.float):
-                test_string += "Test Results: " if len(test_string) == 0 else ", "
-                test_string += name + ":{:.4f}"
-                test_values.append(test_metric_results[name])
+            if isinstance(value, np.float):
+                logging.info("Test {}: {}".format(name, value))
 
-        logging.info(test_string.format(*test_values))
         with open(self.log_dir / "test_metrics.json", "w") as f:
-            json.dump(test_metric_results, f, cls=JsonMetricsEncoder)
+            json.dump(test_metric_results, f, cls=JsonNumpyEncoder)
 
         return log_loss(test_label, test_pred)
 

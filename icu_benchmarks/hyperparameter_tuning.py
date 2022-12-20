@@ -7,10 +7,11 @@ from pathlib import Path
 from skopt import gp_minimize
 import tempfile
 
-from icu_benchmarks.models.utils import JsonMetricsEncoder
-from icu_benchmarks.run_utils import preprocess_and_train_for_folds
+from icu_benchmarks.models.utils import JsonNumpyEncoder, log_table_row, Align
+from icu_benchmarks.run_utils import log_full_line, preprocess_and_train_for_folds
 
 TUNE = 25
+logging.addLevelName(25, "TUNE")
 
 
 @gin.configurable("hyperparameter")
@@ -40,6 +41,18 @@ def hyperparameters_to_tune(class_to_tune: str = gin.REQUIRED, **hyperparams: di
             continue
         hyperparams_to_tune[name] = values
     return hyperparams_to_tune
+
+
+def bind_params(hyperparams_names: list[str], hyperparams_values: list):
+    """Binds hyperparameters to gin config and logs them.
+
+    Args:
+        hyperparams_names: List of hyperparameter names.
+        hyperparams_values: List of hyperparameter values.
+    """
+    for param, value in zip(hyperparams_names, hyperparams_values):
+        gin.bind_parameter(param, value)
+        logging.info(f"{param} = {value}")
 
 
 @gin.configurable("tune_hyperparameters")
@@ -77,49 +90,12 @@ def choose_and_bind_hyperparameters(
     for scope in scopes:
         with gin.config_scope(scope):
             hyperparams.update(hyperparameters_to_tune())
-
     hyperparams_names = list(hyperparams.keys())
     hyperparams_bounds = list(hyperparams.values())
 
-    def bind_params(hyperparams_values: list):
-        for param, value in zip(hyperparams_names, hyperparams_values):
-            gin.bind_parameter(param, value)
-            logging.info(f"{param}: {value}")
-
-    if do_tune:
-        logging.info(
-            f"Tuning hyperparameters from {n_initial_points} points in {n_calls} iterations on {folds_to_tune_on} folds."
-        )
-    else:
-        logging.info("Hyperparameter tuning disabled, choosing randomly from bounds.")
-        n_initial_points = 1
-        n_calls = 1
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-
-        def bind_params_and_train(hyperparams):
-            bind_params(hyperparams)
-            if not do_tune:
-                return 0
-            return preprocess_and_train_for_folds(
-                data_dir,
-                Path(temp_dir),
-                seed,
-                num_folds_to_train=folds_to_tune_on,
-                use_cache=True,
-                test_on="val",
-                debug=debug,
-            )
-
-    def tune_step_callback(res):
-        with open(log_dir / checkpoint_file, "w") as f:
-            data = {
-                "x_iters": res.x_iters,
-                "func_vals": res.func_vals,
-            }
-            logging.log(TUNE, f"{res.x_iters[-1]} yielded a loss of {res.func_vals[-1]}")
-            logging.log(TUNE, f"Best hyperparameters so far: {res.x}")
-            f.write(json.dumps(data, cls=JsonMetricsEncoder))
+    if do_tune and not hyperparams_bounds:
+        logging.info("No hyperparameters to tune, skipping tuning.")
+        return
 
     x0, y0 = None, None
     checkpoint_file = "hyperparameter_tuning_logs.json"
@@ -132,28 +108,69 @@ def choose_and_bind_hyperparameters(
             x0 = data["x_iters"]
             y0 = data["func_vals"]
         n_calls -= len(x0)
-        logging.info(f"Restarting hyperparameter tuning from {len(x0)} points.")
+        logging.log(TUNE, f"Restarting hyperparameter tuning from {len(x0)} points.")
         if n_calls <= 0:
-            logging.info("No more hyperparameter tuning iterations left, skipping tuning.")
-            bind_params(x0[np.argmin(y0)])  # bind best hyperparameters
+            logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
+            logging.info("Training with these hyperparameters:")
+            bind_params(hyperparams_names, x0[np.argmin(y0)])  # bind best hyperparameters
             return
 
-    if hyperparams_bounds:
-        if not debug:
-            logging.disable(level=INFO)
-        # This function is also called when tuning is disabled, to choose a random set of hyperparameters
-        res = gp_minimize(
-            bind_params_and_train,
-            hyperparams_bounds,
-            x0=x0,
-            y0=y0,
-            n_calls=n_calls,
-            n_initial_points=n_initial_points,
-            random_state=seed,
-            callback=tune_step_callback if do_tune else None,
-        )
-        logging.disable(level=NOTSET)
-        logging.info("Training with these hyperparameters:")
-        bind_params(res.x)
-    elif do_tune:
-        logging.info("No hyperparameters to tune, skipping tuning.")
+    with tempfile.TemporaryDirectory() as temp_dir:
+
+        def bind_params_and_train(hyperparams):
+            bind_params(hyperparams_names, hyperparams)
+            if not do_tune:
+                return 0
+            return preprocess_and_train_for_folds(
+                data_dir,
+                Path(temp_dir),
+                seed,
+                num_folds_to_train=folds_to_tune_on,
+                use_cache=True,
+                test_on="val",
+                debug=debug,
+            )
+
+    header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
+
+    def tune_step_callback(res):
+        with open(log_dir / checkpoint_file, "w") as f:
+            data = {
+                "x_iters": res.x_iters,
+                "func_vals": res.func_vals,
+            }
+            f.write(json.dumps(data, cls=JsonNumpyEncoder))
+            if do_tune:
+                table_cells = [len(res.x_iters)] + res.x_iters[-1] + [res.func_vals[-1]]
+                highlight = res.x_iters[-1] == res.x  # highlight if best so far
+                log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
+
+    if do_tune:
+        log_full_line("STARTING TUNING", level=TUNE, char="=")
+        logging.log(TUNE, f"Tuning from {n_initial_points} points in {n_calls} iterations on {folds_to_tune_on} folds.")
+        log_table_row(header, TUNE)
+    else:
+        logging.log(TUNE, "Hyperparameter tuning disabled, choosing randomly from bounds.")
+        n_initial_points = 1
+        n_calls = 1
+    if not debug:
+        logging.disable(level=INFO)
+
+    res = gp_minimize(
+        bind_params_and_train,
+        hyperparams_bounds,
+        x0=x0,
+        y0=y0,
+        n_calls=n_calls,
+        n_initial_points=n_initial_points,
+        random_state=seed,
+        noise=1e-10,  # the models are deterministic, but noise is needed for the gp to work
+        callback=tune_step_callback if do_tune else None,
+    )  # to choose a random set of hyperparameters this functions is also called when tuning is disabled
+    logging.disable(level=NOTSET)
+
+    if do_tune:
+        log_full_line("FINISHED TUNING", level=TUNE, char="=", num_newlines=4)
+
+    logging.info("Training with these hyperparameters:")
+    bind_params(hyperparams_names, res.x)

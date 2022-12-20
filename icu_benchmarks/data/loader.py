@@ -1,5 +1,4 @@
 import gin
-import logging
 import numpy as np
 import torch
 from torch import Tensor
@@ -101,7 +100,6 @@ class RICUDataset(Dataset):
         Returns:
             A tuple containing data points and label for the split.
         """
-        logging.info("Gathering the samples for split " + self.split)
         labels = self.outc_df["label"].to_numpy().astype(float)
         rep = self.dyn_df
         if len(labels) == self.num_stays:
