@@ -9,15 +9,11 @@ from sklearn.metrics import (
     roc_curve,
     confusion_matrix,
     r2_score,
-    mean_squared_error, f1_score
+    mean_squared_error,
+    f1_score,
 )
 
-from ignite.contrib.metrics import (
-    AveragePrecision,
-    ROC_AUC,
-    PrecisionRecallCurve,
-    RocCurve
-)
+from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
 
 from ignite.metrics import MeanAbsoluteError, Accuracy, ConfusionMatrix
 
@@ -26,13 +22,13 @@ from icu_benchmarks.models.metrics import CalibrationCurve, BalancedAccuracy
 
 class MLMetrics:
     BINARY_CLASSIFICATION = {
-        "PR": average_precision_score,
         "AUC": roc_auc_score,
         "ROC": roc_curve,
-        "PR": precision_recall_curve,
+        "PR": average_precision_score,
+        "PRC": precision_recall_curve,
         "Calibration_Curve": calibration_curve,
         "Confusion_Matrix": confusion_matrix,
-        "F1": f1_score
+        "F1": f1_score,
     }
 
     MULTICLASS_CLASSIFICATION = {
@@ -44,11 +40,7 @@ class MLMetrics:
         "F1": f1_score,
     }
 
-    REGRESSION = {
-        "MAE": mean_absolute_error,
-        "R2": r2_score,
-        "RMSE": mean_squared_error
-    }
+    REGRESSION = {"MAE": mean_absolute_error, "R2": r2_score, "RMSE": mean_squared_error}
 
 
 class DLMetrics:
@@ -61,13 +53,6 @@ class DLMetrics:
         "Confusion_Matrix": ConfusionMatrix(num_classes=2),
     }
 
-    MULTICLASS_CLASSIFICATION = {
-        "Accuracy": Accuracy(),
-        "BalancedAccuracy": BalancedAccuracy()
-    }
+    MULTICLASS_CLASSIFICATION = {"Accuracy": Accuracy(), "BalancedAccuracy": BalancedAccuracy()}
 
-    REGRESSION = {
-        "MAE": MeanAbsoluteError()
-    }
-
-
+    REGRESSION = {"MAE": MeanAbsoluteError()}

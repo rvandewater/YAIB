@@ -11,7 +11,7 @@ def plot_fold(metrics, save_dir):
         metrics: Metrics dictionary.
         save_dir: Directory to save the plots to.
     """
-    plotter = Plotter({"fold": metrics},save_dir)
+    plotter = Plotter({"fold": metrics}, save_dir)
     plotter.calibration_curve()
     plotter.precision_recall_curve()
     plotter.receiver_operator_curve()
