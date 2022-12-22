@@ -8,13 +8,11 @@ import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 
-from sklearn.impute import MissingIndicator, SimpleImputer
 from sklearn.model_selection import KFold
-from sklearn.preprocessing import LabelEncoder
 
 from recipys.recipe import Recipe
-from recipys.selector import all_of, all_numeric_predictors, has_type
-from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepScale, StepSklearn
+
+from icu_benchmarks.data.preprocess_method import Preprocessing, BasePreprocessing, FeatureGenerationPreprocessing
 
 
 def make_single_split(
@@ -63,86 +61,15 @@ def make_single_split(
     return data_split
 
 
-def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
-    """Fits and transforms the training data, then transforms the validation and test data with the recipe.
-
-    Args:
-        recipe: Object containing info about the data and steps.
-        data: Dict containing 'train', 'val', and 'test' and types of data per split.
-        type: Whether to apply recipe to dynamic data, static data or outcomes.
-
-    Returns:
-        Transformed data divided into 'train', 'val', and 'test'.
-    """
-    data["train"][type] = recipe.prep()
-    data["val"][type] = recipe.bake(data["val"][type])
-    data["test"][type] = recipe.prep(data["test"][type])
-    return data
-
-class Preprocessing:
-    def __init__(
-        self,
-        data,
-        seed: int,
-        vars: dict[str],
-        feature_generation: bool,
-    ):
-        self.data = data
-        self.seed = seed
-        self.vars = vars
-        self.feature_generation = feature_generation
-
-    def apply_processing(self):
-        logging.info("Preprocessing static data.")
-        self.data = self.process_static()
-        self.data = self.process_dynamic()
-        return self.data
-
-    def process_static(self):
-        sta_rec = Recipe(self.data["train"]["STATIC"], [], self.vars["STATIC"])
-        sta_rec.add_step(StepScale())
-        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), value=0))
-        sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
-        sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
-
-        data = apply_recipe_to_splits(sta_rec, self.data, "STATIC")
-
-        return data
-
-    def process_dynamic(self):
-        vars = self.vars
-        dyn_rec = Recipe(self.data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
-        dyn_rec.add_step(StepScale())
-        dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars["DYNAMIC"]), in_place=False))
-        if self.feature_generation:
-            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
-            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
-            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.COUNT, suffix="count_hist"))
-            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MEAN, suffix="mean_hist"))
-        dyn_rec.add_step(StepImputeFill(method="ffill"))
-        dyn_rec.add_step(StepImputeFill(value=0))
-
-        data = apply_recipe_to_splits(dyn_rec, self.data, "DYNAMIC")
-        return data
 
 
-class NewMethod(Preprocessing):
-    def __init__(
-        self,
-        data,
-        seed: int,
-        vars: dict[str],
-        feature_generation: bool,
-    ):
-        super().__init__(data, seed, vars, feature_generation)
 
-    def process_dynamic(self):
-        return self.data
 
 @gin.configurable("preprocess")
 def preprocess_data(
     data_dir: Path,
     file_names: dict[str] = gin.REQUIRED,
+    preprocessing_method: Preprocessing = gin.REQUIRED,
     vars: dict[str] = gin.REQUIRED,
     use_features: bool = gin.REQUIRED,
     seed: int = 42,
@@ -168,6 +95,7 @@ def preprocess_data(
         Preprocessed data as DataFrame in a hierarchical dict with data type (STATIC/DYNAMIC/OUTCOME)
             nested within split (train/val/test).
     """
+    print(preprocessing_method)
     cache_dir = data_dir / "cache"
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
@@ -189,8 +117,12 @@ def preprocess_data(
     logging.info("Generating splits.")
     data = make_single_split(data, vars, num_folds, fold_index, seed=seed, debug=debug)
 
-    preprocessing = Preprocessing(data, seed, vars, use_features)
-    data = preprocessing.apply_processing()
+    # if(preprocess_data):
+    #     preprocessing = BasePreprocessing(data, seed, vars)
+    # else:
+    #     preprocessing = FeatureGenerationPreprocessing(data, seed, vars)
+    preprocessing = preprocessing_method(data, seed, vars)
+    data = preprocessing.apply()
 
     caching(cache_dir, cache_file, data, use_cache)
 

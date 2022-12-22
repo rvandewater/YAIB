@@ -30,6 +30,8 @@ vars = {
 }
 
 preprocess.vars = %vars
+preprocess.preprocessing_method = @base_preprocess_method
+
 Dataset.vars = %vars
 Dataset.use_static = True
 
