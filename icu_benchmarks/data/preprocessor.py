@@ -10,8 +10,8 @@ from sklearn.preprocessing import LabelEncoder
 
 import abc
 
-@gin.configurable("preprocess_method")
-class Preprocessing:
+
+class Preprocessor:
     def __init__(self, features, labels):
         self.features = features
         self.labels = labels
@@ -21,27 +21,36 @@ class Preprocessing:
         result = (self.features, self.labels)
         return result
 
-@gin.configurable("base_preprocess_method")
-class BasePreprocessing(Preprocessing):
+
+# TODO: Change to preprocessor with flags: scaling (whether or not), feature generation, weather to use static data or not
+#  (concatenate static data to dynamic data here),
+@gin.configurable("base_preprocessor")
+class DefaultPreprocessor(Preprocessor):
     def __init__(
-            self,
-            data,
-            seed: int,
-            vars: dict[str],
+        self,
+        data,
+        seed: int,
+        vars: dict[str],
+        generate_features: bool = True,
+        scaling: bool = True,
     ):
         self.data = data
         self.seed = seed
         self.vars = vars
+        self.generate_features = generate_features
+        self.scaling = scaling
 
     def apply(self):
-        logging.info("Preprocessing static data.")
+        logging.info("Preprocessor static data.")
         self.data = self.process_static()
         self.data = self.process_dynamic()
         return self.data
 
     def process_static(self):
         sta_rec = Recipe(self.data["train"]["STATIC"], [], self.vars["STATIC"])
-        sta_rec.add_step(StepScale())
+        if self.scaling:
+            sta_rec.add_step(StepScale())
+
         sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), value=0))
         sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
         sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
@@ -53,12 +62,22 @@ class BasePreprocessing(Preprocessing):
     def process_dynamic(self):
         vars = self.vars
         dyn_rec = Recipe(self.data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
-        dyn_rec.add_step(StepScale())
+        if self.scaling:
+            dyn_rec.add_step(StepScale())
         dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars["DYNAMIC"]), in_place=False))
         dyn_rec.add_step(StepImputeFill(method="ffill"))
         dyn_rec.add_step(StepImputeFill(value=0))
+        if self.generate_features:
+            dyn_rec = self.dynamic_feature_generation(dyn_rec)
 
         data = self.apply_recipe_to_splits(dyn_rec, self.data, "DYNAMIC")
+        return data
+
+    def dynamic_feature_generation(self,data):
+        data.add_step(StepHistorical(sel=all_of(self.vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
+        data.add_step(StepHistorical(sel=all_of(self.vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
+        data.add_step(StepHistorical(sel=all_of(self.vars["DYNAMIC"]), fun=Accumulator.COUNT, suffix="count_hist"))
+        data.add_step(StepHistorical(sel=all_of(self.vars["DYNAMIC"]), fun=Accumulator.MEAN, suffix="mean_hist"))
         return data
 
     @staticmethod
@@ -75,23 +94,5 @@ class BasePreprocessing(Preprocessing):
         """
         data["train"][type] = recipe.prep()
         data["val"][type] = recipe.bake(data["val"][type])
-        data["test"][type] = recipe.prep(data["test"][type])
-        return data
-
-@gin.configurable("featuregen_preprocess_method")
-class FeatureGenerationPreprocessing(BasePreprocessing):
-    def process_dynamic(self):
-        vars = self.vars
-        dyn_rec = Recipe(self.data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
-        dyn_rec.add_step(StepScale())
-        dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars["DYNAMIC"]), in_place=False))
-        dyn_rec.add_step(StepImputeFill(method="ffill"))
-        dyn_rec.add_step(StepImputeFill(value=0))
-
-        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.COUNT, suffix="count_hist"))
-        dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MEAN, suffix="mean_hist"))
-
-        data = super().apply_recipe_to_splits(dyn_rec, self.data, "DYNAMIC")
+        data["test"][type] = recipe.bake(data["test"][type])
         return data

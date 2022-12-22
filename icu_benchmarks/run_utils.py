@@ -1,14 +1,16 @@
 import json
 from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime
+import logging
 import gin
 from pathlib import Path
 import scipy.stats as stats
+import shutil
 from statistics import mean, stdev
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
-from icu_benchmarks.models.utils import JsonMetricsEncoder
+from icu_benchmarks.models.utils import JsonNumpyEncoder
 
 
 def build_parser() -> ArgumentParser:
@@ -125,6 +127,7 @@ def preprocess_and_train_for_folds(
             reproducible=reproducible,
             test_on=test_on,
         )
+        log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
 
     return agg_loss / num_folds
 
@@ -164,7 +167,26 @@ def aggregate_results(log_dir: Path):
     accumulated_metrics = {"avg": averaged_scores, "std": std_scores, "CI_0.95": confidence_interval}
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
-        json.dump(aggregated, f, cls=JsonMetricsEncoder)
+        json.dump(aggregated, f, cls=JsonNumpyEncoder)
 
     with open(log_dir / "accumulated_test_metrics.json", "w") as f:
-        json.dump(accumulated_metrics, f, cls=JsonMetricsEncoder)
+        json.dump(accumulated_metrics, f, cls=JsonNumpyEncoder)
+
+    logging.info(f"Accumulated results: {accumulated_metrics}")
+
+
+def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
+    """Logs a full line of a given character with a message centered.
+
+    Args:
+        msg: Message to log.
+        level: Logging level.
+        char: Character to use for the line.
+        num_newlines: Number of newlines to append.
+    """
+    terminal_size = shutil.get_terminal_size((80, 20))
+    reserved_chars = len(logging.getLevelName(level)) + 28
+    logging.log(
+        level,
+        "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars),
+    )

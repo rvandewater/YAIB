@@ -10,9 +10,7 @@ import pickle
 
 from sklearn.model_selection import KFold
 
-from recipys.recipe import Recipe
-
-from icu_benchmarks.data.preprocess_method import Preprocessing, BasePreprocessing, FeatureGenerationPreprocessing
+from icu_benchmarks.data.preprocessor import Preprocessor, DefaultPreprocessor
 
 
 def make_single_split(
@@ -69,9 +67,8 @@ def make_single_split(
 def preprocess_data(
     data_dir: Path,
     file_names: dict[str] = gin.REQUIRED,
-    preprocessing_method: Preprocessing = gin.REQUIRED,
+    preprocessor: Preprocessor = gin.REQUIRED,
     vars: dict[str] = gin.REQUIRED,
-    use_features: bool = gin.REQUIRED,
     seed: int = 42,
     debug: bool = False,
     use_cache: bool = False,
@@ -81,6 +78,8 @@ def preprocess_data(
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
+        scaling: Use scaling if true.
+        preprocessor: Define the preprocessor.
         data_dir: Path to the directory holding the data.
         file_names: Contains the parquet file names in data_dir.
         vars: Contains the names of columns in the data.
@@ -95,10 +94,12 @@ def preprocess_data(
         Preprocessed data as DataFrame in a hierarchical dict with data type (STATIC/DYNAMIC/OUTCOME)
             nested within split (train/val/test).
     """
-    print(preprocessing_method)
+    # print(preprocessor)
     cache_dir = data_dir / "cache"
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
+
+    use_features = True
     config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{fold_index}{debug}".encode("utf-8")
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
@@ -112,16 +113,12 @@ def preprocess_data(
         else:
             logging.info(f"No cached data found in {cache_file}, loading raw data.")
 
-    data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in ["STATIC", "DYNAMIC", "OUTCOME"]}
+    data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in file_names.keys()}
 
     logging.info("Generating splits.")
     data = make_single_split(data, vars, num_folds, fold_index, seed=seed, debug=debug)
 
-    # if(preprocess_data):
-    #     preprocessing = BasePreprocessing(data, seed, vars)
-    # else:
-    #     preprocessing = FeatureGenerationPreprocessing(data, seed, vars)
-    preprocessing = preprocessing_method(data, seed, vars)
+    preprocessing = preprocessor(data, seed, vars)
     data = preprocessing.apply()
 
     caching(cache_dir, cache_file, data, use_cache)
