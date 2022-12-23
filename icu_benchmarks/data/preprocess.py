@@ -67,7 +67,7 @@ def make_single_split(
 def preprocess_data(
     data_dir: Path,
     file_names: dict[str] = gin.REQUIRED,
-    preprocessor: Preprocessor = gin.REQUIRED,
+    preprocessor: Preprocessor = DefaultPreprocessor,
     vars: dict[str] = gin.REQUIRED,
     seed: int = 42,
     debug: bool = False,
