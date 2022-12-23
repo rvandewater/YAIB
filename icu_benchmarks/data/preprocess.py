@@ -59,10 +59,6 @@ def make_single_split(
     return data_split
 
 
-
-
-
-
 @gin.configurable("preprocess")
 def preprocess_data(
     data_dir: Path,
@@ -91,16 +87,19 @@ def preprocess_data(
         fold_index: Index of the fold to return.
 
     Returns:
-        Preprocessed data as DataFrame in a hierarchical dict with data type (STATIC/DYNAMIC/OUTCOME)
+        Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC/DYNAMIC/OUTCOME)
             nested within split (train/val/test).
     """
-    # print(preprocessor)
+    print(preprocessor)
+
     cache_dir = data_dir / "cache"
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 
     use_features = True
     config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{fold_index}{debug}".encode("utf-8")
+    # config_string = f"
+
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
     use_cache = False
@@ -111,15 +110,19 @@ def preprocess_data(
                 logging.info(f"Loading cached data from {cache_file}.")
                 return pickle.load(f)
         else:
-            logging.info(f"No cached data found in {cache_file}, loading raw data.")
+            logging.info(f"No cached data found in {cache_file}, loading raw features.")
 
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in file_names.keys()}
 
     logging.info("Generating splits.")
     data = make_single_split(data, vars, num_folds, fold_index, seed=seed, debug=debug)
 
-    preprocessing = preprocessor(data, seed, vars)
-    data = preprocessing.apply()
+    if preprocessor is not DefaultPreprocessor:
+        logging.log(logging.INFO, "Using user-supplied preprocessor.")
+
+    preprocessor = preprocessor(data, vars)
+
+    data = preprocessor.apply()
 
     caching(cache_dir, cache_file, data, use_cache)
 

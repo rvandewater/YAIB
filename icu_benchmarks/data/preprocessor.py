@@ -12,9 +12,9 @@ import abc
 
 
 class Preprocessor:
-    def __init__(self, features, labels):
+    def __init__(self, features, vars):
         self.features = features
-        self.labels = labels
+        self.vars = vars
 
     @abc.abstractmethod
     def apply(self):
@@ -22,26 +22,33 @@ class Preprocessor:
         return result
 
 
-# TODO: Change to preprocessor with flags: scaling (whether or not), feature generation, weather to use static data or not
-#  (concatenate static data to dynamic data here),
+# TODO: Change to preprocessor with flags: scaling (whether or not), feature generation, weather to use static features or not
+#  (concatenate static features to dynamic features here),
 @gin.configurable("base_preprocessor")
 class DefaultPreprocessor(Preprocessor):
     def __init__(
         self,
         data,
-        seed: int,
         vars: dict[str],
         generate_features: bool = True,
         scaling: bool = True,
     ):
+        """
+        Args:
+            data: Train, validation and test data dictionary. Further divided in static, dynamic, and outcome.
+            vars: Variables for static, dynamic, outcome.
+            generate_features: Generate features for static data.
+            scaling: Scaling of dynamic and static data.
+        Returns:
+            Preprocessed data.
+        """
         self.data = data
-        self.seed = seed
         self.vars = vars
         self.generate_features = generate_features
         self.scaling = scaling
 
     def apply(self):
-        logging.info("Preprocessor static data.")
+        logging.info("Preprocessor static features.")
         self.data = self.process_static()
         self.data = self.process_dynamic()
         return self.data
@@ -82,15 +89,15 @@ class DefaultPreprocessor(Preprocessor):
 
     @staticmethod
     def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
-        """Fits and transforms the training data, then transforms the validation and test data with the recipe.
+        """Fits and transforms the training features, then transforms the validation and test features with the recipe.
 
         Args:
-            recipe: Object containing info about the data and steps.
-            data: Dict containing 'train', 'val', and 'test' and types of data per split.
-            type: Whether to apply recipe to dynamic data, static data or outcomes.
+            recipe: Object containing info about the features and steps.
+            data: Dict containing 'train', 'val', and 'test' and types of features per split.
+            type: Whether to apply recipe to dynamic features, static features or outcomes.
 
         Returns:
-            Transformed data divided into 'train', 'val', and 'test'.
+            Transformed features divided into 'train', 'val', and 'test'.
         """
         data["train"][type] = recipe.prep()
         data["val"][type] = recipe.bake(data["val"][type])

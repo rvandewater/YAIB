@@ -3,6 +3,7 @@ import gin
 import logging
 import sys
 from pathlib import Path
+import importlib.util
 
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
 from icu_benchmarks.run_utils import (
@@ -31,6 +32,17 @@ def main(my_args=tuple(sys.argv[1:])):
     log_dir_name = args.log_dir / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / args.task_name / model)
     train_on_cpu = args.cpu
+
+    if args.preprocessor:
+        # Import custom supplied preprocessor
+        spec = importlib.util.spec_from_file_location("CustomPreprocessor", args.preprocessor)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["preprocessor"] = module
+        spec.loader.exec_module(module)
+        gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
+        # module.CustomPreprocessor()
+        # print(module)
+        # print(sys.modules["preprocessor"])
 
     if train_on_cpu:
         gin.bind_parameter("DLWrapper.device", "cpu")
