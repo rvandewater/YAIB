@@ -80,7 +80,7 @@ class DefaultPreprocessor(Preprocessor):
         data = self.apply_recipe_to_splits(dyn_rec, self.data, "DYNAMIC")
         return data
 
-    def dynamic_feature_generation(self,data):
+    def dynamic_feature_generation(self, data):
         data.add_step(StepHistorical(sel=all_of(self.vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
         data.add_step(StepHistorical(sel=all_of(self.vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
         data.add_step(StepHistorical(sel=all_of(self.vars["DYNAMIC"]), fun=Accumulator.COUNT, suffix="count_hist"))
