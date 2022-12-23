@@ -98,7 +98,7 @@ def preprocess_data(
 
     use_features = True
     config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{fold_index}{debug}".encode("utf-8")
-    # config_string = f"
+    # config_string = f"{preprocessor}{dumped_file_names}{dumped_vars}{use_features}{seed}{fold_index}{debug}".encode("utf-8")
 
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
