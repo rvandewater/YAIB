@@ -13,6 +13,7 @@ from icu_benchmarks.run_utils import (
     aggregate_results,
     log_full_line,
 )
+from icu_benchmarks.data.preprocess import preprocess_data
 
 
 def main(my_args=tuple(sys.argv[1:])):
@@ -40,9 +41,6 @@ def main(my_args=tuple(sys.argv[1:])):
         sys.modules["preprocessor"] = module
         spec.loader.exec_module(module)
         gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
-        # module.CustomPreprocessor()
-        # print(module)
-        # print(sys.modules["preprocessor"])
 
     if train_on_cpu:
         gin.bind_parameter("DLWrapper.device", "cpu")
