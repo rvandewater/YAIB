@@ -6,12 +6,12 @@ import torch
 import logging
 import numpy as np
 import pandas as pd
+import wandb
 from typing import Dict
 from torch.optim import Adam
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
-from typing import Type
 from torch.utils.data import DataLoader
 from pathlib import Path
 
@@ -37,7 +37,7 @@ def train_common(
     epochs=1000,
     patience=10,
     min_delta=1e-4,
-    wandb: bool = True,
+    use_wandb: bool = True,
     num_workers: int = os.cpu_count(),
 ):
     """Common wrapper to train all benchmarked models.
@@ -89,9 +89,12 @@ def train_common(
     
     if not only_evaluate:
         loggers = [TensorBoardLogger(log_dir)]
-        if wandb:
+        if use_wandb:
             run_name = f"{type(model).__name__}-{dataset_name}"
             loggers.append(WandbLogger(run_name, save_dir=log_dir, project="Data_Imputation"))
+            wandb.config.update({"run-name": run_name})
+            wandb.run.name = run_name
+            wandb.run.save()
 
         trainer = Trainer(
             max_epochs=epochs if model.needs_training else 1,
@@ -121,7 +124,10 @@ def train_common(
                     val_dataloaders=DataLoader([val_dataset.get_data_and_labels()], batch_size=1)
                 )
             if not model.needs_training:
-                torch.save(model, log_dir / "model.ckpt")
+                try:
+                    torch.save(model, log_dir / "model.ckpt")
+                except Exception as e:
+                    logging.error(f"cannot save model to path {str((log_dir / 'model.ckpt').resolve())}: {e}")
             logging.info("fitting complete!")
 
         if model.needs_training:

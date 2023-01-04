@@ -109,6 +109,8 @@ def main(my_args=tuple(sys.argv[1:])):
     name = args.name
     task = args.task
     model = args.model
+    if isinstance(args.seed, int):
+        args.seed = [args.seed]
 
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
@@ -133,9 +135,6 @@ def main(my_args=tuple(sys.argv[1:])):
             model_path = Path("configs") / ("imputation_models" if mode == "Imputation" else "classification_models")
             model_path = model_path / f"{model}.gin"
             gin_config_files = [model_path, Path(f"configs/tasks/{task}.gin")]
-
-        
-
         randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, args.cpu, log_dir)
         run_dir = create_run_dir(log_dir, randomly_searched_params)
 

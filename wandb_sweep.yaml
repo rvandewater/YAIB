@@ -11,11 +11,12 @@ command:
   - "Dataset_Imputation"
   - "-c"
   - "--wandb-sweep"
+  - "--wandb"
 method: grid
 parameters:
   model:
-    values: ["MLP"]
-  amputation.mechanism:
+    values: ["Mean", "Median", "Zero", "MostFrequent", "KNN", "MICE", "GAIN"]
+  ImputationDataset.mask_method:
     values: ["MCAR", "MAR", "MNAR"]
-  train_common.epochs:
-    values: [5, 10, 15]
+  seed:
+    values: [1111]
