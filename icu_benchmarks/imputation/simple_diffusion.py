@@ -101,7 +101,6 @@ class Simple_Diffusion_Model(ImputationWrapper):
         return sqrt_alphas_cumprod_t.to(device) * x_0.to(device) \
         + sqrt_one_minus_alphas_cumprod_t.to(device) * noise.to(device), noise.to(device)
 
-
     # Define beta schedule
     T = 300
     betas = linear_beta_schedule(timesteps=T)
@@ -129,12 +128,21 @@ class Simple_Diffusion_Model(ImputationWrapper):
 
     def validation_step(self, batch, batch_index):
 
-        t = torch.randint(0, self.T, (self.input_size[0],), device=self.device).long()
-        loss = self.get_loss(batch[0], t)
-        
-        return loss
+        t = torch.randint(0, self.T, (1,), device=self.device).long()
 
+        betas_t = self.get_index_from_list(self.betas, t, batch[0].shape)
+        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, batch[0].shape)
+        sqrt_recip_alphas_t = self.get_index_from_list(self.sqrt_recip_alphas, t, batch[0].shape)
 
+        model_mean = sqrt_recip_alphas_t * (batch[0] - betas_t * self(batch[0], t) / sqrt_one_minus_alphas_cumprod_t)
+
+        posterior_variance_t = self.get_index_from_list(self.posterior_variance, t, batch[0].shape)
+
+        if t == 0:
+            return model_mean
+        else:
+            noise = torch.randn_like(batch[0])
+            return model_mean + torch.sqrt(posterior_variance_t) * noise
 
 
 class Block(nn.Module):
