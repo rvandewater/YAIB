@@ -5,8 +5,8 @@ from icu_benchmarks.scripts.plotting.plotting import Plotter
 
 
 def plot_fold(metrics, save_dir):
-    """
-    Plots the results of a single fold.
+    """Plots the results of a single fold.
+
     Args:
         metrics: Metrics dictionary.
         save_dir: Directory to save the plots to.
