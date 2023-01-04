@@ -1,0 +1,17 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+import icu_benchmarks.imputation.baselines
+import icu_benchmarks.data.preprocess
+
+preprocess.use_features = False
+
+# Train params
+train_common.model = @MICE
+train_common.do_test = True
+
+MICE.max_iter = 10
+MICE.verbose = 2
+MICE.imputation_order = 'random' 
+MICE.random_state = 0
