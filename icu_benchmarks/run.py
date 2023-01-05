@@ -6,6 +6,7 @@ from pathlib import Path
 import importlib.util
 
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
+from utils.plotting import plot_agg_results
 from icu_benchmarks.run_utils import (
     build_parser,
     create_run_dir,
@@ -83,6 +84,8 @@ def main(my_args=tuple(sys.argv[1:])):
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
     aggregate_results(run_dir)
+    if args.plot:
+        plot_agg_results(run_dir, "aggregated_test_metrics")
 
 
 """Main module."""
