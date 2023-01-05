@@ -38,6 +38,7 @@ def build_parser() -> ArgumentParser:
     )
     general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
+    general_args.add_argument("-pl", "--plot", action=BooleanOptionalAction, help="Generate common plots.")
 
     # MODEL TRAINING ARGUMENTS
     prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
