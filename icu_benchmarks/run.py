@@ -36,11 +36,14 @@ def main(my_args=tuple(sys.argv[1:])):
 
     if args.preprocessor:
         # Import custom supplied preprocessor
-        spec = importlib.util.spec_from_file_location("CustomPreprocessor", args.preprocessor)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules["preprocessor"] = module
-        spec.loader.exec_module(module)
-        gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
+        try:
+            spec = importlib.util.spec_from_file_location("CustomPreprocessor", args.preprocessor)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["preprocessor"] = module
+            spec.loader.exec_module(module)
+            gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
+        except Exception as e:
+            logging.error(f"Could not import custom preprocessor from {args.preprocessor}: {e}")
 
     if train_on_cpu:
         gin.bind_parameter("DLWrapper.device", "cpu")
