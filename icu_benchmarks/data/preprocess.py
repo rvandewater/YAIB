@@ -67,22 +67,22 @@ def preprocess_data(
     vars: dict[str] = gin.REQUIRED,
     seed: int = 42,
     debug: bool = False,
-    use_cache: bool = False,
+    load_cache: bool = False,
+    generate_cache: bool = False,
     num_folds: int = 5,
     fold_index: int = 0,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
-        scaling: Use scaling if true.
         preprocessor: Define the preprocessor.
         data_dir: Path to the directory holding the data.
         file_names: Contains the parquet file names in data_dir.
         vars: Contains the names of columns in the data.
-        use_features: Whether to generate features on the dynamic data.
         seed: Random seed.
         debug: Load less data if true.
-        use_cache: Cache and use cached preprocessed data if true.
+        load_cache: Use cached preprocessed data if true.
+        generate_cache: Generate cached preprocessed data if true.
         num_folds: Number of folds to use for cross validation.
         fold_index: Index of the fold to return.
 
@@ -91,21 +91,15 @@ def preprocess_data(
             nested within split (train/val/test).
     """
 
-    print(preprocessor)
-
     cache_dir = data_dir / "cache"
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 
-    use_features = True
-    config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{fold_index}{debug}".encode("utf-8")
-    # config_string = f"{preprocessor}{dumped_file_names}{dumped_vars}{use_features}{seed}{fold_index}{debug}".encode("utf-8")
+    config_string = f"{preprocessor}{dumped_file_names}{dumped_vars}{seed}{fold_index}{debug}".encode("utf-8")
 
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
-    use_cache = False
-
-    if use_cache:
+    if load_cache:
         if cache_file.exists():
             with open(cache_file, "rb") as f:
                 logging.info(f"Loading cached data from {cache_file}.")
@@ -125,7 +119,10 @@ def preprocess_data(
 
     data = preprocessor.apply()
 
-    caching(cache_dir, cache_file, data, use_cache)
+    if generate_cache:
+        caching(cache_dir, cache_file, data, load_cache)
+    else:
+        logging.info("Cache will not be saved.")
 
     logging.info("Finished preprocessing.")
 

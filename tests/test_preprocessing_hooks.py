@@ -68,4 +68,3 @@ def test_preprocessing_hooks():
         num_folds=2,
         fold_index=0,
     )
-
