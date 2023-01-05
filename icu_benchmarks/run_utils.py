@@ -112,7 +112,7 @@ def preprocess_and_train_for_folds(
     agg_loss = 0
     for fold_index in range(num_folds_to_train):
         data = preprocess_data(
-            data_dir, seed=seed, debug=debug, use_cache=use_cache, num_folds=num_folds, fold_index=fold_index
+            data_dir, seed=seed, debug=debug, load_cache=use_cache, num_folds=num_folds, fold_index=fold_index
         )
 
         run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
