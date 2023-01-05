@@ -127,7 +127,7 @@ icu-benchmarks train \
 > For Windows based systems, the next line character (\\)  needs to be replaced by (^) (Command Prompt) or (`) (Powershell)
 > respectively.
 
-### Random Search in Configs
+### Hyperparameter Tuning
 
 To understand how a parameter can be automatically tuned via bayesian optimization, let's look at the following example
 configuration:
