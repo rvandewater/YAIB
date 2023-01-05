@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
-from icu_benchmarks.scripts.plotting.utils import plot_agg_results
+from utils.plotting import plot_agg_results
 from icu_benchmarks.run_utils import (
     build_parser,
     create_run_dir,
