@@ -1,6 +1,5 @@
 import logging
 
-import gin
 import pandas as pd
 from recipys.recipe import Recipe
 from recipys.selector import all_numeric_predictors, has_type, all_of

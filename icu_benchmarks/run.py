@@ -13,7 +13,6 @@ from icu_benchmarks.run_utils import (
     aggregate_results,
     log_full_line,
 )
-from icu_benchmarks.data.preprocess import preprocess_data
 
 
 def main(my_args=tuple(sys.argv[1:])):
