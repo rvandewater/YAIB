@@ -9,7 +9,7 @@ from pathlib import Path
 import pickle
 
 from sklearn.impute import MissingIndicator, SimpleImputer
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, LeavePOut, StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 
 from recipys.recipe import Recipe
@@ -50,6 +50,55 @@ def make_single_split(
         "train": stays.iloc[train],
         "val": stays.iloc[test],
         "test": stays.iloc[val],
+    }
+    data_split = {}
+
+    for fold in split.keys():  # Loop through train / val / test
+        # Loop through DYNAMIC / STATIC / OUTCOME
+        # set sort to true to make sure that IDs are reordered after scrambling earlier
+        data_split[fold] = {
+            data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
+        }
+
+    return data_split
+
+
+def make_target_split(
+    data: dict[pd.DataFrame],
+    vars: dict[str],
+    num_folds: int,
+    fold_index: int,
+    seed: int = 42,
+    debug: bool = False,
+    target_size = 100,
+) -> dict[dict[pd.DataFrame]]:
+    """Randomly split the data into training, validation, and test set.
+
+    Args:
+        data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
+        vars: Contains the names of columns in the data.
+        num_folds: Number of folds for cross validation.
+        seed: Random seed.
+        debug: Load less data if true.
+
+    Returns:
+        Input data divided into 'train', 'val', and 'test'.
+    """
+    id = vars["GROUP"]
+    fraction_to_load = 1 if not debug else 0.01
+    stays = data["STATIC"][[id]].sample(frac=fraction_to_load, random_state=seed)
+
+    train_and_val = stays.sample(target_size, random_state=seed)
+    test = stays.drop(train_and_val.index).index
+    train_and_val_labels = data["OUTCOME"].label.loc[train_and_val.index]
+
+    target_folds = StratifiedKFold(num_folds, shuffle=True, random_state=seed)
+    train, val = list(target_folds.split(train_and_val, train_and_val_labels))[fold_index]
+
+    split = {
+        "train": stays.iloc[train],
+        "val": stays.iloc[val],
+        "test": stays.iloc[test],
     }
     data_split = {}
 
@@ -115,18 +164,18 @@ def preprocess_data(
     config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{fold_index}{debug}".encode("utf-8")
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
-    if use_cache:
-        if cache_file.exists():
-            with open(cache_file, "rb") as f:
-                logging.info(f"Loading cached data from {cache_file}.")
-                return pickle.load(f)
-        else:
-            logging.info(f"No cached data found in {cache_file}, loading raw data.")
+    # if use_cache:
+    #     if cache_file.exists():
+    #         with open(cache_file, "rb") as f:
+    #             logging.info(f"Loading cached data from {cache_file}.")
+    #             return pickle.load(f)
+    #     else:
+    #         logging.info(f"No cached data found in {cache_file}, loading raw data.")
 
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in ["STATIC", "DYNAMIC", "OUTCOME"]}
 
     logging.info("Generating splits.")
-    data = make_single_split(data, vars, num_folds, fold_index, seed=seed, debug=debug)
+    data = make_target_split(data, vars, num_folds, fold_index, seed=seed, debug=debug)
 
     logging.info("Preprocessing static data.")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
