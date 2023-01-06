@@ -1,15 +1,18 @@
 # The following code is largerly (stolen) copied from: 
 # https://github.com/EmilienDupont/neural-processes/
 
+import math
+
 import torch
 import gin
 import logging
 
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.distributions.kl import kl_divergence
 
-from numpy.random import choice
+from numpy.random import permutation
 
 from icu_benchmarks.models.wrappers import ImputationWrapper
 
@@ -35,123 +38,93 @@ class NPImputation(ImputationWrapper):
         ) -> None:
         super().__init__(*args, **kwargs)
         
-        # TODO: make dynamic
-        self.x_dim = 6
-        self.y_dim = 6
+        # NOTE: set the manual optimization (as we need an optimizer for each model)
+        self.automatic_optimization = False
 
+        self.x_dim = 1
+        self.y_dim = 1
         self.z_dim = z_dim
 
-        # TODO: test whether this works? it seems to not need all points during training - which is weird?
-        #   see https://github.com/EmilienDupont/neural-processes/blob/master/example-1d.ipynb
-        self.num_context = 10
-        self.num_extra_target = 10
+        self.model = []
+        # NOTE: For each variable, initialize a separate Neural Process
+        for _ in range(input_size[2]):
+            self.model.append(
+                NeuralProcess(
+                    self.x_dim, 
+                    self.y_dim, 
+                    encoder_layers, 
+                    encoder_h_dim, 
+                    decoder_layers, 
+                    decoder_h_dim, 
+                    r_dim, 
+                    z_dim
+                    )
+                )        
 
-        # Initialize the actual model
-        self.model = NeuralProcess(
-            self.x_dim, 
-            self.y_dim, 
-            encoder_layers, 
-            encoder_h_dim, 
-            decoder_layers, 
-            decoder_h_dim, 
-            r_dim, 
-            z_dim
-            )
-
-    def forward(self, x_context, y_context, x_target, y_target):
-        return self.model(x_context, y_context, x_target, y_target)
+    # NOTE: index is required to specify which variable is being processed
+    def forward(self, index, x_context, y_context, x_target, y_target = None):
+        return self.model[index](x_context, y_context, x_target, y_target)
 
     # Override the training step - needed for the custom loss calculation
     def training_step(self, batch, _):
-        """
-        TODO: make this work better - right now, the NaN values are 0s and 
-        the model might not perform well. Need to figure out a way to only feed the model
-        the data that is complete (i.e. so that it can construct a correct regression)
-        """
-        # NOTE: checking if the batch is passed as list 
-        if isinstance(batch, list):
-            logging.warning('The batch is passed as list of size {}'.format(len(batch)))
-            batch = batch[0]
-        # NOTE: check the batch is of correct shape    
-        # The expected input is of shape (batch size, number of timesteps, number of observed variables)
-        assert batch.shape == torch.Size([64, 25, 6])
-        batch_size, num_timesteps, num_obs_var = batch.shape
+        raise NotImplementedError()
 
-        # Define x as timesteps and make it of shape [batch size, number of timesteps, number of observed variables]
-        # TODO: figure out how to make input to be just timesteps
+    @torch.no_grad()
+    def validation_step(self, batch, _):
+        amputated, amputation_mask, target = batch 
+        batch_size, num_timesteps, num_obs_var = amputated.shape
+
+        # Define total loss over all variables
+        losses = .0
+
+        # Split batch across the last dimension (i.e., have 6 tensors of shape [batch size, number of timesteps, 1])       
+        amputated = torch.split(amputated, split_size_or_sections = 1, dim = 2)
+
+        # Create and rearrange x to be the same shape as variables (x is timesteps)
         x = torch.arange(0, num_timesteps)
-        x = x.repeat(num_obs_var)
         x = x.repeat(batch_size)
-        x = x.reshape(batch_size * num_timesteps, num_obs_var)
-        # NOTE: right now, the y is the shape of [batch size, number of timesteps, number of observed variables]
-        y = torch.nan_to_num(batch, nan=0.0)
+        x = x.reshape(batch_size, num_timesteps, 1)
 
-        # Make a split for context and target (needed by the neural processes architecture)
-        x_context, y_context, x_target, y_target =\
-            self._context_target_split(x, y)
+        optimizers = self.optimizers()
 
-        # Get the predicted probability distribution
-        p_y_pred, q_context, q_target =\
-            self(x_context, y_context, x_target, y_target) 
+        for pt_id in range(batch_size):
+            current_pt = amputated[pt_id]
+            current_x = x[pt_id]
+            for index in range(num_obs_var):
+                # Set optimizer zero_grad for the model
+                optimizers[index].zero_grad()
+                y = current_pt[index]
+                # Make a split for context and target (needed by the neural processes architecture)
+                x_context, y_context, x_target, y_target =\
+                    self._context_target_split(current_x, y)
 
-        # Calculate loss
-        loss = self._loss(p_y_pred, y_target, q_context, q_target)
-        return loss
+                # Get the predicted probability distribution
+                p_y_pred, q_context, q_target =\
+                    self(index, x_context, y_context, x_target, y_target) 
+
+                # Calculate loss
+                # TODO: calculate loss on imputed vs original
+                loss = self._loss(p_y_pred, y_target, q_context, q_target)
+
+                self.manual_backward(loss)
+                losses += loss
+                optimizers[index].step()
+
+        self.log("train/loss", losses, prog_bar=True)
+        return losses / num_obs_var
+
+    def test_step(self, batch, _):
+        raise NotImplementedError()
 
     def predict_step(self, batch, _):
-        # NOTE: checking if the batch is passed as list 
-        if isinstance(batch, list):
-            logging.warning('The batch is passed as list of size {}'.format(len(batch)))
-            batch = batch[0]
-        # The expected input is of shape (batch size, number of timesteps, number of observed variables)
-        batch_size, num_timesteps, num_obs_var = batch.shape
+        raise NotImplementedError()
 
-        # Define x as timesteps and make it of shape [batch size, number of timesteps, number of observed variables]
-        # TODO: figure out how to make input to be just timesteps
-        x = torch.arange(0, num_timesteps)
-        x = x.repeat(num_obs_var)
-        x = x.repeat(batch_size)
-        x = x.reshape(batch_size * num_timesteps, num_obs_var)
-        # NOTE: right now, the y is the shape of [batch size, number of timesteps, number of observed variables]
-        y = torch.nan_to_num(batch, nan=0.0)
-
-        # NOTE: set x_target as x
-        x_target = x
-
-        x_context, y_context, _, _ = self._context_target_split(x, y)
-
-        p_y_pred = self.model(x_context, y_context, x_target)
-
-        return p_y_pred.sample(x_target.shape)
-
-    def validation_step(self, batch, _):
-         # NOTE: checking if the batch is passed as list 
-        if isinstance(batch, list):
-            logging.warning('The batch is passed as list of size {}'.format(len(batch)))
-            batch = batch[0]
-        # The expected input is of shape (batch size, number of timesteps, number of observed variables)
-        batch_size, num_timesteps, num_obs_var = batch.shape
-
-        # Define x as timesteps and make it of shape [batch size, number of timesteps, number of observed variables]
-        # TODO: figure out how to make input to be just timesteps
-        x = torch.arange(0, num_timesteps)
-        x = x.repeat(num_obs_var)
-        x = x.repeat(batch_size)
-        x = x.reshape(batch_size * num_timesteps, num_obs_var)
-        # NOTE: right now, the y is the shape of [batch size, number of timesteps, number of observed variables]
-        y = torch.nan_to_num(batch, nan=0.0)
-
-        # Make a split for context and target (needed by the neural processes architecture)
-        x_context, y_context, x_target, y_target =\
-            self._context_target_split(x, y)
-
-        # Get the predicted probability distribution
-        p_y_pred, q_context, q_target =\
-            self(x_context, y_context, x_target, y_target) 
-
-        # Calculate loss
-        loss = self._loss(p_y_pred, y_target, q_context, q_target)
-        return loss
+    # Override the configuration (separate optimizer is required for each model) 
+    def configure_optimizers(self):
+        optimizer = []
+        for i in range(len(self.model)):
+            optimizer.append(self.optimizer(self.model[i].parameters()))
+        return optimizer
 
     # Loss function - with KL divergence
     def _loss(self, p_y_pred, y_target, q_context, q_target):
@@ -160,16 +133,44 @@ class NPImputation(ImputationWrapper):
         kl = kl_divergence(q_target, q_context).mean(dim = 0).sum()
         return -log_likelihood + kl
 
+    # TODO: think of a better way to do this split
+    # Right now: 
+    #   * instead of taking a batch of patients and processing it as a batch, we forloop over the entire batch
+    #   * then, we take each variable separately (of 6 variables, there are 6 neural processes)
+    #   * for each patient's variable, there are 25 observations but some of them are NaN, so we remove them from x and y
+    #   * with the remaining x and y we do the context/target split 
     def _context_target_split(self, x, y):
+        logging.info('in method _context_target_split: the shapes of x and y are {0} and {1}'.format(x.shape, y.shape))
+        # We expect the size to be [25, 1]
+        x = torch.flatten(x)
+        y = torch.flatten(y)
+
+        # As both x and y are one-dimensional, we can look at positions where there is missingness 
+        idx = x.isfinite() & y.isfinite()
+        # Then take only those points from both x and y
+        x = x[idx]
+        y = y[idx]
+
+        # Return them into shapes of [1, number of timesteps, 1] for less code changes
+        x = torch.unflatten(x, 0, (1, x.shape[0], 1))
+        y = torch.unflatten(y, 0, (1, y.shape[0], 1))
+
+        # Calculate how many points we can have for context/target split
         num_points = x.shape[1]
+        # If the number of points is not enough for a context/target split (at least 2 points), then pass None
+        #   (this would skip the batch)
+        if num_points < 2:
+            return None, None, None, None
+        num_context = math.floor(num_points / 2)
+        # Randomly rearrange the indexes (so that the split is not on the same locations every time)
+        locations = permutation(num_points)
         # Sample locations of context and target points
-        locations = choice(num_points,
-                            size=self.num_context + self.num_extra_target,
-                            replace=False)
-        x_context = x[:, locations[:self.num_context], :]
-        y_context = y[:, locations[:self.num_context], :]
+        x_context = x[:, locations[:num_context], :]
+        y_context = y[:, locations[:num_context], :]
         x_target = x[:, locations, :]
         y_target = y[:, locations, :]
+
+        logging.info('In method _context_target_split: number of points is: {0}, and sizes of context and target are {1} and {2}'.format(num_points, x_context.shape, x_target.shape))
         return x_context, y_context, x_target, y_target
 
 # Actual class that implements neural processes
@@ -242,15 +243,7 @@ class NeuralProcess(nn.Module):
             return p_y_pred
 
     def _aggregate(self, r_i):
-        """
-        Aggregates representations for every (x_i, y_i) pair into a single
-        representation.
-        Parameters
-        ----------
-        r_i : torch.Tensor
-            Shape (batch_size, num_points, r_dim)
-        """
-        return torch.mean(r_i)
+        return torch.mean(r_i, dim = 1)
 
     def _encode(self, x, y):
         # Encode each point into a representation r_i
@@ -288,7 +281,7 @@ class MLPEncoder(nn.Module):
         self.model = nn.Sequential(*layers)
 
     def forward(self, x, y):
-        input_pairs = torch.cat((x, y))
+        input_pairs = torch.cat((x, y), dim = 2)
         return self.model(input_pairs)
 
 # This class describes the latent encoder 
@@ -300,27 +293,17 @@ class MuEncoder(nn.Module):
         z_dim
     ):
         super().__init__()
-        
-        # Note - models were changed to sequential (the original code was using torch.F namespace)
-        layers_hidden = [
-            nn.Linear(r_dim, r_dim),
-            nn.ReLU(inplace = True)
-            ]
-        self.model_hidden = nn.Sequential(*layers_hidden)
 
+        self.model_hidden = nn.Linear(r_dim, r_dim)
         self.model_mu = nn.Linear(r_dim, z_dim)
-        layers_sigma = [
-            nn.Linear(r_dim, z_dim),
-            nn.Sigmoid()
-        ]
-        self.model_sigma = nn.Sequential(*layers_sigma)
-        
+        self.model_sigma = nn.Linear(r_dim, z_dim)
+
     def forward(self, r):
-        hidden = self.model_hidden(r)
-
+        hidden = torch.relu(self.model_hidden(r))
         mu = self.model_mu(hidden)
-        sigma = 0.1 + 0.9 * self.model_sigma(hidden)
-
+        # Define sigma following convention in "Empirical Evaluation of Neural
+        # Process Objectives" and "Attentive Neural Processes"
+        sigma = 0.1 + 0.9 * torch.sigmoid(self.model_sigma(hidden))
         return mu, sigma
 
 # This class describes the decoder
@@ -348,33 +331,28 @@ class Decoder(nn.Module):
         for _ in range(h_layers):
             layers.append(nn.Linear(h_dim, h_dim))
             layers.append(nn.ReLU(inplace = True))
-
         self.model_hidden = nn.Sequential(*layers)
         
         self.model_mu = nn.Linear(h_dim, y_dim)
-
-        layers_sigma = [
-            nn.Linear(h_dim, y_dim),
-            nn.Softplus()
-        ]
-        self.model_sigma = nn.Sequential(*layers_sigma)
+        self.model_sigma = nn.Linear(h_dim, y_dim)
 
     def forward(self, x, z):
         batch_size, num_points, _ = x.size()
+        # Repeat z, so it can be concatenated with every x. This changes shape
+        # from (batch_size, z_dim) to (batch_size, num_points, z_dim)
         z = z.unsqueeze(1).repeat(1, num_points, 1)
-
+        # Flatten x and z to fit with linear layer
         x_flat = x.view(batch_size * num_points, self.x_dim)
         z_flat = z.view(batch_size * num_points, self.z_dim)
-
+        # Input is concatenation of z with every row of x
         input_pairs = torch.cat((x_flat, z_flat), dim=1)
         hidden = self.model_hidden(input_pairs)
-
         mu = self.model_mu(hidden)
         pre_sigma = self.model_sigma(hidden)
-
+        # Reshape output into expected shape
         mu = mu.view(batch_size, num_points, self.y_dim)
         pre_sigma = pre_sigma.view(batch_size, num_points, self.y_dim)
-
-        sigma = 0.1 + 0.9 * pre_sigma
-
+        # Define sigma following convention in "Empirical Evaluation of Neural
+        # Process Objectives" and "Attentive Neural Processes"
+        sigma = 0.1 + 0.9 * F.softplus(pre_sigma)
         return mu, sigma
