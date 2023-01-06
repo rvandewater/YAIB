@@ -1,4 +1,3 @@
-import pytest
 import icu_benchmarks.data.preprocess as preprocess
 from tests.resources.custom_preprocessor import CustomPreprocessor
 import gin
