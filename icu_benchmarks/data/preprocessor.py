@@ -12,15 +12,17 @@ import abc
 
 
 class Preprocessor:
-    def __init__(self, features, vars):
-        self.features = features
-        self.vars = vars
+    def __init__(self):
+        pass
 
     @abc.abstractmethod
-    def apply(self):
-        result = (self.features, self.labels)
+    def apply(self, data, vars):
+        result = (data, vars)
         return result
 
+    @abc.abstractmethod
+    def to_cache_string(self):
+        return f"{self.__class__.__name__}_{self.features}_{self.vars}"
 
 # TODO: Change to preprocessor with flags: scaling (whether or not), feature generation, weather to use static features or not
 #  (concatenate static features to dynamic features here),
@@ -47,6 +49,7 @@ class DefaultPreprocessor(Preprocessor):
         self.generate_features = generate_features
         self.scaling = scaling
 
+    #TODO: pass data and vars as arguments
     def apply(self):
         logging.info("Preprocessor static features.")
         self.data = self.process_static()
