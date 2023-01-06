@@ -1,0 +1,710 @@
+	metavariableid	category	variablename	variableid	lowerbound	upperbound	normalvalue	type	group	metavariablename	metavariableunit	subgroup	variableunit	conversionsource	unitconversionfactor	pharmaactingperiod	mean	standard_deviation	description
+0	1	organ function parameters circulation	HR	200.0	0.0	300.0	70	monitored	heart rate	HR	/min		/min				85.01802062988281	17.89280891418457	Heart rate
+1	2	organ function parameters circulation	Temp Axil�r	400.0	25.0	45.0	37	monitored	body temperature	T Central	�C		�C				37.03755187988281	0.8414003252983093	Axillary temperature
+2	2	organ function parameters circulation	Temp Kern	410.0	25.0	45.0	37	monitored	body temperature	T Central	�C		�C				37.21808242797852	0.9191955327987672	Core body temperature
+3	2	organ function parameters circulation	Rectal	7100.0	25.0	45.0	37	monitored	body temperature	T Central	�C		�C				37.07783889770508	1.3912609815597534	Rectal temperature
+4	3	organ function parameters circulation	ABPs	100.0	10.0	300.0	125	monitored	Invasive blood pressure	ABPs	mmHg		mmHg				120.3931884765625	27.47987365722656	Invasive systolic arterial pressure
+5	4	organ function parameters circulation	ABPd	120.0	10.0	175.0	75	monitored	Invasive blood pressure	ABPd	mmHg		mmHg				57.87686157226562	13.141512870788574	Invasive diastolic arterial pressure
+6	5	organ function parameters circulation	ABPm	110.0	10.0	200.0	90	monitored	Invasive blood pressure	ABPm	mmHg		mmHg				78.89067840576172	17.079132080078125	Invasive mean arterial pressure
+7	6	organ function parameters circulation	NIBPs	600.0	10.0	300.0	125	monitored	Non invasive blood pressure	NIBPs	mmHg		mmHg				121.26859283447266	26.902013778686523	Non-invasive systolic arterial pressure
+8	7	organ function parameters circulation	NIBPd	620.0	10.0	175.0	75	monitored	Non invasive blood pressure	NIBPd	mmHg		mmHg				64.93867492675781	14.665623664855955	Non-invasive diastolic arterial pressure
+9	8	organ function parameters circulation	NIBPm	610.0	10.0	200.0	90	monitored	Non invasive blood pressure	NIBPm	mmHg		mmHg				85.3026123046875	18.194467544555664	Non-invasive mean arterial pressure
+10	9	organ function parameters circulation	PAPm	160.0	10.0	90.0	10	monitored	Pulmonary blood pressure	PAPm	mmHg		mmHg				26.25965881347656	7.254786968231201	Pulmonary artery mean pressure
+11	10	organ function parameters circulation	PAPs	150.0	10.0	150.0	22	monitored	Pulmonary blood pressure	PAPs	mmHg		mmHg				38.697662353515625	11.896966934204102	Pulmonary artery systolic pressure
+12	11	organ function parameters circulation	PAPd	170.0	10.0	70.0	11	monitored	Pulmonary blood pressure	PAPd	mmHg		mmHg				18.61419677734375	5.419703483581543	Pulmonary artery diastolic pressure
+13	12	organ function parameters circulation	PCWP	800.0	10.0	50.0	8	monitored	pulmonary artery occlusion pressure	PCWP	mmHg		mmHg				14.877408027648926	4.008997440338135	Pulmonary artery wedge pressure
+14	13	organ function parameters circulation	CO	1000.0	1.0	20.0	3.5 * 0.007184 * weihgt^0.425 * height^0.725	monitored	cardiac output	CO	l/min		l/min				5.526371955871582	1.825565218925476	Cardiac output
+15	14	organ function parameters circulation	SvO2(m)	4200.0	0.0	85.0	70	monitored	mixed venous oxygen saturation	SvO2(m)	%		%				63.33121109008789	8.45482063293457	Mixed venous oxygen saturation
+16	15	organ function parameters circulation	ZVDm	700.0	0.0	50.0	7	monitored	ZVD	ZVD	mmHg		mmHg				8.305636405944824	5.020284175872803	Central venous pressure
+17	15	organ function parameters circulation	RAPm	960.0	0.0	50.0	7	monitored	ZVD	ZVD	mmHg		mmHg				10.554179191589355	7.790663242340088	Central venous pressure
+18	15	organ function parameters circulation	M_ZVD	15001441.0	0.0	50.0	7	observed	ZVD	ZVD	mmHg		mmHg				8.137045860290527	4.3785037994384775	Central venous pressure
+19	16	organ function parameters circulation	ST1	210.0	-20.0	20.0	0	monitored	ECG ST	ST1	mm		mm				0.0680074244737625	0.6028744578361511	ST elevation
+20	17	organ function parameters circulation	ST2	211.0	-20.0	20.0	0	monitored	ECG ST	ST2	mm		mm				0.1323535442352295	0.6209329962730408	ST elevation
+21	18	organ function parameters circulation	ST3	212.0	-20.0	20.0	0	monitored	ECG ST	ST3	mm		mm				0.0657849907875061	0.5810014009475708	ST elevation
+22	19	organ function parameters circulation	Rhythmus	15001166.0			Sinus rhythm	observed	Heart rhythm	Rhythmus	Categorical		Categorical		binary encoding		2.585581064224243	3.041062355041504	Circadian rhythm
+23	20	organ function parameters pulmonary	SpO2	4000.0	10.0	100.0	98	monitored	pulse oximetry oxygen saturation	SpO2	%		%				96.46571350097656	3.4102628231048584	Peripheral oxygen saturation
+24	20	organ function parameters pulmonary	SpO2(2)	8280.0	10.0	100.0	98	monitored	pulse oximetry oxygen saturation	SpO2	%		%				96.5625457763672	1.535964012145996	Peripheral oxygen saturation
+25	21	organ function parameters pulmonary	ETCO2	2200.0	10.0	100.0	40	monitored	end tidal CO2 concentration	ETCO2	mmHg		mmHg				28.38000679016113	6.559512138366699	End tidal carbon dioxide concentration
+26	21	organ function parameters pulmonary	ETCO2	8290.0	10.0	100.0	40	monitored	end tidal CO2 concentration	ETCO2	mmHg		mmHg				30.25475311279297	6.021620273590088	End tidal carbon dioxide concentration
+27	21	organ function parameters pulmonary	ETCO2	30010009.0	10.0	100.0	40	derived	end tidal CO2 concentration	ETCO2	mmHg		mmHg				29.853107452392567	6.230958461761475	End tidal carbon dioxide concentration
+28	22	organ function parameters pulmonary	Atemfrequenz	300.0	0.0	45.0	12	monitored	respiratory rate	RR	/min		/min				18.614574432373047	6.676054000854492	Respiratory rate
+29	22	organ function parameters pulmonary	RRsp(m)	310.0	0.0	45.0	12	monitored	respiratory rate	RR	/min		/min				15.595069885253904	9.815896034240724	Respiratory rate
+30	22	organ function parameters pulmonary	RR Caresc	5685.0	0.0	45.0	12	monitored	respiratory rate	RR	/min		/min				20.010677337646484	12.609663963317873	Respiratory rate
+31	23	organ function parameters pulmonary	supplemental oxygen	15001525.0	0.0	18.0	0	observed	respiratory rate	supplemental oxygen	l/min						5.500096321105957	4.9648613929748535	Oxygen administration by nasal cannula
+32	23	organ function parameters pulmonary	supplemental oxygen	15001555.0	0.0	18.0	0	observed	respiratory rate	supplemental oxygen	l/min		l/min				5.366934776306152	3.529874086380005	Oxygen administration by mask
+33	24	organ function parameters renal	OUTurine/h	10020000.0	0.0	1000.0	kg weight	derived	hourly urinary output	OUTurine/h	ml/h		ml/h				139.24476623535156	138.07832336425778	Hourly urine volume
+34	25	organ function parameters cns	GCS Antwort	10000100.0	1.0	5.0	5	observed	GCS score	GCS Antwort	Ordinal Score		Ordinal Score				3.710131883621216	1.5587090253829956	Glasgow Coma Score verbal response subscore
+35	26	organ function parameters cns	GCS Motorik	10000200.0	1.0	6.0	6	observed	GCS score	GCS Motorik	Ordinal Score		Ordinal Score				5.528571605682373	1.1294704675674438	Glasgow Coma Score motor response subscore
+36	27	organ function parameters cns	GCS Augen�ffnen	10000300.0	1.0	4.0	4	observed	GCS score	GCS Augen�ffnen	Ordinal Score		Ordinal Score				3.37270188331604	0.9123262166976928	Glasgow Coma Score eye opening subscore
+37	28	organ function parameters cns	RASS	15001565.0	-5.0	4.0	0	observed	RASS score	RASS	Ordinal Score		Ordinal Score				-1.141086220741272	2.086812257766724	Richmond agitation-sedation scale
+38	29	organ function parameters cns	ICP(m)	510.0	0.0	150.0	10	monitored	ICP	ICP	mmHg		mmHg				11.02012062072754	7.702193737030027	Intracranial pressure
+39	29	organ function parameters cns	ICP Manuell li	15001597.0	0.0	150.0	10	observed	ICP	ICP	mmHg		mmHg				12.469317436218262	7.703691482543945	Intracranial pressure
+40	29	organ function parameters cns	ICP Manuell re	15004303.0	0.0	150.0	10	observed	ICP	ICP	mmHg		mmHg				11.891107559204102	6.8331661224365225	Intracranial pressure
+41	30	organ function parameters cns	Trainof four	7887.0	0.0	4.0	4	monitored	TOF	TOF	Ordinal Score		Ordinal Score				1.4458738565444946	1.5913370847702026	Train of four count
+42	31	treatment parameters circulation	IN/c	30005010.0	0.0	15000.0	kg weight	derived	Hours Fluid Balace	IN	Flow rate		cummulative				1819.521240234375	1835.1273193359373	Fluid balance
+43	32	treatment parameters circulation	OUT/c	30005110.0	0.0	15000.0	kg weight	derived	Hours Fluid Balace	OUT	Flow rate		cummulative				1878.640625	1517.169189453125	Fluid balance
+44	33	treatment parameters circulation	INcrys/c	30005075.0	0.0	15000.0	0	derived	infusion of cristalloids	Incrys	Flow rate		cummulative				931.0543823242188	1399.149658203125	Infusion of saline solution
+45	34	treatment parameters circulation	INcolloid/c	30005080.0	0.0	5000.0	0	derived	infusion of colloids	Incolloid	Flow rate		cummulative				93.51168823242188	347.12890625	Intravenous fluid colloid administration
+46	35	treatment parameters circulation	EK	1000100.0			0	pharma	infusion of blood products	packed red blood cells	Flow rate					short			Intravenous blood transfusion of packed cells
+47	35	treatment parameters circulation	EK Pflege	1000743.0			0	pharma	infusion of blood products	packed red blood cells	Flow rate					short			Intravenous blood transfusion of packed cells
+48	36	treatment parameters circulation	Fresh Frozen Plasma	1000050.0			0	pharma	infusion of blood products	FFP	Flow rate					short			Transfusion of plasma (FFP)
+49	36	treatment parameters circulation	FFP Pflege	1000744.0			0	pharma	infusion of blood products	FFP	Flow rate					short			Transfusion of plasma (FFP)
+50	37	treatment parameters circulation	Trmbcs conc	1000201.0			0	pharma	infusion of blood products	platelets	Flow rate					short			Platelet transfusion
+51	37	treatment parameters circulation	platelets	1000245.0			0	pharma	infusion of blood products	platelets	Flow rate					short			Platelet transfusion
+52	38	treatment parameters circulation	VIII: Haemete HS	1000701.0			no	pharma	infusion of blood products	coagulation factors	Binary	Others				4h			VIII: Haemete HS
+53	38	treatment parameters circulation	II,VII,IX,X,C,S: Beriplex P/N 500 TS Inj Lsg	1000755.0			no	pharma	infusion of blood products	coagulation factors	Binary	Others				4h			II;VII;IX;X;C;S: Beriplex P/N 500 TS Inj Lsg
+54	38	treatment parameters circulation	II,VII,IX,X,C,S: Beriplex P/N 500 TS Inj Lsg	1000798.0			no	pharma	infusion of blood products	coagulation factors	Binary	Others				4h			II;VII;IX;X;C;S: Beriplex P/N 500 TS Inj Lsg
+55	38	treatment parameters circulation	Haemocomplettan	1000799.0			no	pharma	infusion of blood products	coagulation factors	Binary	Fibrinogen				4h			Haemocomplettan
+56	38	treatment parameters circulation	Haemocomplettan P 1g	1001152.0			no	pharma	infusion of blood products	coagulation factors	Binary	Fibrinogen				4h			Haemocomplettan P 1g
+57	38	treatment parameters circulation	Haemocomplettan P 2g	1001153.0			no	pharma	infusion of blood products	coagulation factors	Binary	Fibrinogen				4h			Haemocomplettan P 2g
+58	38	treatment parameters circulation	II,VII,IX,X,C,S: Beriplex P/N 500 TS Inj Lsg	1001187.0			no	pharma	infusion of blood products	coagulation factors	Binary	Others				4h			II;VII;IX;X;C;S: Beriplex P/N 500 TS Inj Lsg
+59	39	treatment parameters circulation	Noradrenalin 1mg/ml	1000462.0			0	pharma	rates of vaspressor/inotropes	norepinephrine	Flow rate					very short			Noradrenalin 1mg/ml
+60	39	treatment parameters circulation	Noradrenalin 100 �g/ml Perfusor	1000656.0			0	pharma	rates of vaspressor/inotropes	norepinephrine	Flow rate					very short			Noradrenalin 100 µg/ml Perfusor
+61	39	treatment parameters circulation	Noradrenalin 20 �g/ml Perfusor	1000657.0			0	pharma	rates of vaspressor/inotropes	norepinephrine	Flow rate					very short			Noradrenalin 20 µg/ml Perfusor
+62	39	treatment parameters circulation	Noradrenalin 10 �g/ml Bolus	1000658.0			0	pharma	rates of vaspressor/inotropes	norepinephrine	Flow rate					very short			Noradrenalin 10 µg/ml Bolus
+63	40	treatment parameters circulation	Adrenalin  1mg/ml	71.0			0	pharma	rates of vaspressor/inotropes	epinephrine	Flow rate					very short			Adrenalin  1mg/ml
+64	40	treatment parameters circulation	Adrenalin 20 �g/ml Perfusor	1000649.0			0	pharma	rates of vaspressor/inotropes	epinephrine	Flow rate					very short			Adrenalin 20 µg/ml Perfusor
+65	40	treatment parameters circulation	Adrenalin 100 �g/ml Perfusor	1000650.0			0	pharma	rates of vaspressor/inotropes	epinephrine	Flow rate					very short			Adrenalin 100 µg/ml Perfusor
+66	40	treatment parameters circulation	Adrenalin 10 �g/ml Bolus	1000655.0			0	pharma	rates of vaspressor/inotropes	epinephrine	Flow rate					very short			Adrenalin 10 µg/ml Bolus
+67	40	treatment parameters circulation	Adrenalin 100 �g/ml Bolus	1000750.0			0	pharma	rates of vaspressor/inotropes	epinephrine	Flow rate					very short			Adrenalin 100 µg/ml Bolus
+68	41	treatment parameters circulation	Dobutrex 250 mg/20ml	426.0			0	pharma	rates of vaspressor/inotropes	dobutamine	Flow rate					very short			Dobutrex 250 mg/20ml
+69	42	treatment parameters circulation	Corotrop Inj Lsg 1mg/ml 10 ml	1000441.0			0	pharma	rates of vaspressor/inotropes	milrinone	Flow rate					very short			Corotrop Inj Lsg 1mg/ml 10 ml
+70	43	treatment parameters circulation	Simdax inf	1000606.0			0	pharma	rates of vaspressor/inotropes	levosimendan	Flow rate					12h			Simdax inf
+71	44	treatment parameters circulation	Aminophyllin 240 mg	1000267.0			0	pharma	rates of vaspressor/inotropes	theophyllin	Flow rate					short			Aminophyllin 240 mg
+72	44	treatment parameters circulation	Aminophyllin BOLUS	1000698.0			0	pharma	rates of vaspressor/inotropes	theophyllin	Flow rate					short			Aminophyllin BOLUS
+73	44	treatment parameters circulation	Euphyllin N Perfusor	1000706.0			0	pharma	rates of vaspressor/inotropes	theophyllin	Flow rate					short			Euphyllin N Perfusor
+74	44	treatment parameters circulation	Euphyllin N Bolus	1000707.0			0	pharma	rates of vaspressor/inotropes	theophyllin	Flow rate					short			Euphyllin N Bolus
+75	45	treatment parameters circulation	Vasopressin inj 20 U/ml	112.0			0	pharma	rates of vaspressor/inotropes	vasopressin	Flow rate					very short			Vasopressin inj 20 U/ml
+76	45	treatment parameters circulation	Vasopressin inf 0.4 U/ml	113.0			0	pharma	rates of vaspressor/inotropes	vasopressin	Flow rate					very short			Vasopressin inf 0.4 U/ml
+77	46	treatment parameters circulation	Minirin inj	142.0			0	pharma	rates of vaspressor/inotropes	desmopressin	Flow rate					very short			Minirin inj
+78	47	treatment parameters circulation	Nitroglycerin Kps 0,8mg	117.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Nitroglycerin Kps 0.8mg
+79	47	treatment parameters circulation	Perlinganit mg/ml inf	1000243.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Perlinganit mg/ml inf
+80	47	treatment parameters circulation	Sodium nitro	1000252.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Sodium nitro
+81	47	treatment parameters circulation	Nitroderm TTS 5	1000458.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					3d			Nitroderm TTS 5
+82	47	treatment parameters circulation	Nitroderm TTS 10	1000459.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					3d			Nitroderm TTS 10
+83	47	treatment parameters circulation	Nipruss 1mg/ml	1000695.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Nipruss 1mg/ml
+84	47	treatment parameters circulation	Perlinganit Perfusor	1000734.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Perlinganit Perfusor
+85	47	treatment parameters circulation	Isoket Dosieraerosol	1000795.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Isoket Dosieraerosol
+86	47	treatment parameters circulation	Nitriate 0.5mg/ml	1000867.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Nitriate 0.5mg/ml
+87	47	treatment parameters circulation	Nitriate 1mg/ml	1000868.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Nitriate 1mg/ml
+88	47	treatment parameters circulation	Sorbidilat Kps 40mg	1000993.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Sorbidilat Kps 40mg
+89	47	treatment parameters circulation	Nitroprussiat Fides 0.5mg/ml	1001047.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Nitroprussiat Fides 0.5mg/ml
+90	47	treatment parameters circulation	Nitroprussiat Fides 1mg/ml	1001048.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Nitroprussiat Fides 1mg/ml
+91	47	treatment parameters circulation	Nitroprusside DBL 0.5 mg/ml	1001141.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Nitroprusside DBL 0.5 mg/ml
+92	47	treatment parameters circulation	Nitroprusside DBL 1mg/ml	1001142.0			0	pharma	rates of vasodilatators	vasodilatators	Binary					short			Nitroprusside DBL 1mg/ml
+93	48	treatment parameters circulation	Lopirin Tabl 12.5 mg	1000293.0			0	pharma	administration of antihypertensive agents	ACE Inhibitors	Flow rate	Captopril		https://www.ncbi.nlm.nih.gov/pubmed/8773158	1/5	24h			Lopirin Tabl 12.5 mg
+94	48	treatment parameters circulation	Lopirin Tbl 25 mg	1000294.0			0	pharma	administration of antihypertensive agents	ACE Inhibitors	Flow rate	Captopril		https://www.ncbi.nlm.nih.gov/pubmed/8773158	1/5	24h			Lopirin Tbl 25 mg
+95	48	treatment parameters circulation	Enatec Tbl 10 mg	1000341.0			0	pharma	administration of antihypertensive agents	ACE Inhibitors	Flow rate	Enalapril		vhpharmsci.com	1/2	24h			Enatec Tbl 10 mg
+96	48	treatment parameters circulation	Enatec Tbl 20 mg	1000342.0			0	pharma	administration of antihypertensive agents	ACE Inhibitors	Flow rate	Enalapril		vhpharmsci.com	1/2	24h			Enatec Tbl 20 mg
+97	48	treatment parameters circulation	Enatec Tbl 5 mg	1000343.0			0	pharma	administration of antihypertensive agents	ACE Inhibitors	Flow rate	Enalapril		vhpharmsci.com	1/2	24h			Enatec Tbl 5 mg
+98	48	treatment parameters circulation	Lisinopril Tbl 20mg	1000414.0			0	pharma	administration of antihypertensive agents	ACE Inhibitors	Flow rate	Lisinopril			1	24h			Lisinopril Tbl 20mg
+99	48	treatment parameters circulation	Zestril Tbl 5 mg	1000415.0			0	pharma	administration of antihypertensive agents	ACE Inhibitors	Flow rate	Lisinopril			1	24h			Zestril Tbl 5 mg
+100	48	treatment parameters circulation	Captopril Tabl 25 mg	1000813.0			0	pharma	administration of antihypertensive agents	ACE Inhibitors	Flow rate	Captopril		https://www.ncbi.nlm.nih.gov/pubmed/8773158	1/5	24h			Captopril Tabl 25 mg
+101	49	treatment parameters circulation	Cosaar Tbl 50 mg	1000419.0			0	pharma	administration of antihypertensive agents	Sartane	Flow rate	Losartan			1	24h			Cosaar Tbl 50 mg
+102	49	treatment parameters circulation	CoAprovel	1000720.0			0	pharma	administration of antihypertensive agents	Sartane	Flow rate	Irbesartan		spitalpharmazie basel	3	24h			CoAprovel
+103	49	treatment parameters circulation	Losartan Tabl 50 mg	1001080.0			0	pharma	administration of antihypertensive agents	Sartane	Flow rate	Losartan			1	24h			Losartan Tabl 50 mg
+104	50	treatment parameters circulation	Isoptin inj 2.5 mg/ml	94.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Verapamil		compendium	1/48	12h			Isoptin inj 2.5 mg/ml
+105	50	treatment parameters circulation	Diltiazem tabl 30 mg	121.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Diltiazem			1/24	12h			Diltiazem tabl 30 mg
+106	50	treatment parameters circulation	Norvasc Tabl 10 mg	1000270.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Amlodipin			1	24h			Norvasc Tabl 10 mg
+107	50	treatment parameters circulation	Norvasc Tabl 5 mg	1000271.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Amlodipin			1	24h			Norvasc Tabl 5 mg
+108	50	treatment parameters circulation	Dilzem retard Filmtbl 120 mg	1000331.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Diltiazem			1/24	12h			Dilzem retard Filmtbl 120 mg
+109	50	treatment parameters circulation	Adalat retard CR Tbl 30 mg	1000457.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Nifedipin		http://www.vhpharmsci.com	6	24h			Adalat retard CR Tbl 30 mg
+110	50	treatment parameters circulation	Isoptin Tbl 80 mg	1000536.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Verapamil			1/48	12h			Isoptin Tbl 80 mg
+111	50	treatment parameters circulation	Amlodipin Tbl 5mg	1000719.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Amlodipin			1	24h			Amlodipin Tbl 5mg
+112	50	treatment parameters circulation	Amlodipin Tbl 5 mg	1000872.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Amlodipin			1	24h			Amlodipin Tbl 5 mg
+113	50	treatment parameters circulation	Amlodipin Tbl 10 mg	1000873.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Amlodipin			1	24h			Amlodipin Tbl 10 mg
+114	50	treatment parameters circulation	Adalat retard Tbl 20 mg	1000876.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Nifedipin			6	24h			Adalat retard Tbl 20 mg
+115	50	treatment parameters circulation	Diltiazem Tbl 60 mg	1001071.0			0	pharma	administration of antihypertensive agents	Ca Antagonists	Flow rate	Diltiazem		https://www.medscape.com/content/2000/00/40/96/409617/409617_tab.html	1/24	12h			Diltiazem Tbl 60 mg
+116	51	treatment parameters circulation	Sotalex Tabl 80 mg	138.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Sotalol		compendium	5/8	24h			Sotalex Tabl 80 mg
+117	51	treatment parameters circulation	Tenormin submite tabl 25 mg	141.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Atenolol			1	24h			Tenormin submite tabl 25 mg
+118	51	treatment parameters circulation	Trandate inj	386.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	labetalol			1/3	4h			Trandate inj
+119	51	treatment parameters circulation	Tenormin mite Tabl 50 mg	1000278.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Atenolol			1	24h			Tenormin mite Tabl 50 mg
+120	51	treatment parameters circulation	Dilatrend Tabl 12.5 mg	1000297.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Carvedilol		spitalpharmazie basel	3/2	24h			Dilatrend Tabl 12.5 mg
+121	51	treatment parameters circulation	Dilatrend Tabl 6.25 mg	1000298.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Carvedilol			3/2	24h			Dilatrend Tabl 6.25 mg
+122	51	treatment parameters circulation	Esmolol Inj Lsg 100 mg /10 ml	1000346.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Esmolol		compendium.ch	1/30	short			Esmolol Inj Lsg 100 mg /10 ml
+123	51	treatment parameters circulation	Brevibloc 2 5g/10ml	1000347.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Esmolol			1/30	short			Brevibloc 2 5g/10ml
+124	51	treatment parameters circulation	Beloc Inj Lsg	1000436.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Metoprolol			1/2	24h			Beloc Inj Lsg
+125	51	treatment parameters circulation	Beloc zok ret. Tbl 100 mg	1000438.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Metoprolol			1/2	24h			Beloc zok ret. Tbl 100 mg
+126	51	treatment parameters circulation	Beloc ZOK ret Tbl 50 mg	1000439.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Metoprolol			1/2	24h			Beloc ZOK ret Tbl 50 mg
+127	51	treatment parameters circulation	Beloc ZOK ret Tbl 25 mg	1000440.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Metoprolol			1/2	24h			Beloc ZOK ret Tbl 25 mg
+128	51	treatment parameters circulation	Inderal Tbl 10 mg	1000492.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Propranolol		spitalpharmazie basel	1/3	12h			Inderal Tbl 10 mg
+129	51	treatment parameters circulation	Inderal Tbl 40 mg	1000493.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Propranolol			1/3	12h			Inderal Tbl 40 mg
+130	51	treatment parameters circulation	Metoprolol Tartrat Tbl 10 mg	1000596.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Metoprolol			1/2	24h			Metoprolol Tartrat Tbl 10 mg
+131	51	treatment parameters circulation	Bilol 5 mg Tbl.	1000721.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Bisoprolol		spitalpharmazie basel	10	24h			Bilol 5 mg Tbl.
+132	51	treatment parameters circulation	Beloc Perfusor	1000758.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Metoprolol		spitalpharmazie basel	1/2	24h			Beloc Perfusor
+133	51	treatment parameters circulation	Trandate Perfusor	1000828.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	labetalol		spitalpharmazie basel	1/3	4h			Trandate Perfusor
+134	51	treatment parameters circulation	Concor Tbl 5 mg	1000898.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Bisoprolol			10	24h			Concor Tbl 5 mg
+135	51	treatment parameters circulation	Nebilet Tbl � 5 mg	1000950.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Nebivolol			10	24h			Nebilet Tbl à 5 mg
+136	51	treatment parameters circulation	Tenormin  Tabl 100mg	1000987.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Atenolol		spitalpharmazie basel	1	24h			Tenormin  Tabl 100mg
+137	51	treatment parameters circulation	Carvedilol Tabl 12.5 mg	1001082.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Carvedilol			3/2	24h			Carvedilol Tabl 12.5 mg
+138	51	treatment parameters circulation	Nebivolol Tabl 5 mg	1001087.0			0	pharma	administration of antihypertensive agents	B-Blocker	Flow rate	Nebivolol		spitalpharmazie basel	10	24h			Nebivolol Tabl 5 mg
+139	52	treatment parameters circulation	Nepresol inj 12.5 mg/ml	85.0			no	pharma	administration of antihypertensive agents	Andere	Binary	dihydralazine				short			Nepresol inj 12.5 mg/ml
+140	52	treatment parameters circulation	Cardura CR Tbl 4 mg	1000334.0			no	pharma	administration of antihypertensive agents	Andere	Binary	Doxazosin				24h			Cardura CR Tbl 4 mg
+141	52	treatment parameters circulation	Loniten Tbl 10 mg	1000442.0			no	pharma	administration of antihypertensive agents	Andere	Binary	Minoxidil				24h			Loniten Tbl 10 mg
+142	52	treatment parameters circulation	Loniten Tbl 2.5 mg	1000443.0			no	pharma	administration of antihypertensive agents	Andere	Binary	Minoxidil				24h			Loniten Tbl 2.5 mg
+143	52	treatment parameters circulation	Regitin Inj Lsg 10 mg/ml	1000477.0			no	pharma	administration of antihypertensive agents	Andere	Binary	Phentolamin				short			Regitin Inj Lsg 10 mg/ml
+144	52	treatment parameters circulation	Ebrantil Inj Lsg	1000763.0			no	pharma	administration of antihypertensive agents	Andere	Binary	Urapidil				short			Ebrantil Inj Lsg
+145	53	treatment parameters circulation	Krenosin Inj Lsg	1000258.0			no	pharma	Antiarrhythmica	Adenosin	Binary					very short			Krenosin Inj Lsg
+146	54	treatment parameters circulation	Digoxin inj 0.25 mg/ml	1.0			no	pharma	Antiarrhythmica	Digoxin	Binary					24h			Digoxin inj 0.25 mg/ml
+147	54	treatment parameters circulation	Digoxin Tabl 0,25 mg	348.0			no	pharma	Antiarrhythmica	Digoxin	Binary					24h			Digoxin Tabl 0.25 mg
+148	54	treatment parameters circulation	Digoxin Tabl 0.125 mg	1000901.0			no	pharma	Antiarrhythmica	Digoxin	Binary					24h			Digoxin Tabl 0.125 mg
+149	55	treatment parameters circulation	Cordarone inj 50 mg/ml	431.0			no	pharma	Antiarrhythmica	Amiodaron	Binary					3d			Cordarone inj 50 mg/ml
+150	55	treatment parameters circulation	Cordarone Tbl 200 mg	1000268.0			no	pharma	Antiarrhythmica	Amiodaron	Binary					3d			Cordarone Tbl 200 mg
+151	55	treatment parameters circulation	Cordarone Perfusor	1000821.0			no	pharma	Antiarrhythmica	Amiodaron	Binary					3d			Cordarone Perfusor
+152	56	treatment parameters circulation	Atropine Sulfat Sintetica inj 0.5 mg/ml	11.0			no	pharma	Antiarrhythmica	Atropin	Binary					short			Atropine Sulfat Sintetica inj 0.5 mg/ml
+153	58	treatment parameters pulmonary	FIO2	2010.0	21.0	100.0	21	monitored	Respirator Settings	FIO2	%		%				45.45207595825195	14.496068000793455	Inspired oxygen concentration
+154	59	treatment parameters pulmonary	peep (s)	2600.0	0.0	25.0	0	monitored	Respirator Settings	Peep	cmH2O		cmH2O				6.606934547424316	2.2759380340576167	Positive end expiratory pressure setting
+155	59	treatment parameters pulmonary	peep (m)	2610.0	0.0	25.0	0	monitored	Respirator Settings	Peep	cmH2O		cmH2O				6.5103607177734375	2.288776397705078	Positive end expiratory pressure
+156	60	treatment parameters pulmonary	Servoi Mode	3845.0			none	monitored	Respirator Settings	Ventilator mode	Categorical		Categorical				2.972632884979248	3.0781567096710205	Ventilator mode
+157	61	treatment parameters pulmonary	TV(s)	2400.0	50.0	1500.0	0	monitored	Respirator Settings	TV	ml		ml				513.0453491210939	93.39828491210938	Tidal volume setting
+158	61	treatment parameters pulmonary	TV(m)	2410.0	50.0	1500.0	0	monitored	Respirator Settings	TV	ml		ml				546.2384033203125	142.08941650390625	Expiratory tidal volume
+159	62	treatment parameters pulmonary	Spitzendruck	3110.0	5.0	100.0	0	monitored	Respirator Settings	Spitzendruck	cmH2O		cmH2O				24.58681488037109	8.855355262756348	Peak inspiratory pressure
+160	63	treatment parameters pulmonary	Plateaudruck	3200.0	5.0	50.0	0	monitored	Respirator Settings	Plateaudruck	cmH2O		cmH2O				20.78603744506836	6.252392292022705	Plateau pressure
+161	64	treatment parameters pulmonary	AWPmean	3000.0	5.0	50.0	0	monitored	Respirator Settings	AWPmean	cmH2O		cmH2O				11.464394569396973	3.4490671157836914	Mean inspiratory airway pressure
+162	65	treatment parameters pulmonary	RR set	320.0	0.0	45.0	0	monitored	Respirator Settings	RR set	/min		/min				15.43478012084961	5.355329990386963	Ventilator rate
+163	66	treatment parameters pulmonary	AirwayCode	15001552.0			none	observed	Respirator Settings	AiwayCode	Categorical		Categorical				1.3731505870819092	0.6539900898933411	Ventilator Airway Code
+164	67	treatment parameters renal	Dyrenium comp. Kps	1000524.0			0	pharma	administration of diuretics	K-sparend	Binary	Triamterene				24h			Dyrenium comp. Kps
+165	67	treatment parameters renal	Moduretic mite Tabl 50/2.5	1000787.0			0	pharma	administration of diuretics	K-sparend	Binary	Amilorid				24h			Moduretic mite Tabl 50/2.5
+166	67	treatment parameters renal	Moduretic mite Tabl 2.5 mg/25 mg	1001083.0			0	pharma	administration of diuretics	K-sparend	Binary	Amilorid				24h			Moduretic mite Tabl 2.5 mg/25 mg
+167	68	treatment parameters renal	Aldactone Filmtbl 100 mg	1000505.0			0	pharma	administration of diuretics	Aldosteron Antagonist	Binary	Spironolacton				24h			Aldactone Filmtbl 100 mg
+168	68	treatment parameters renal	Aldactone Filmtbl 25 mg	1000506.0			0	pharma	administration of diuretics	Aldosteron Antagonist	Binary	Spironolacton				24h			Aldactone Filmtbl 25 mg
+169	68	treatment parameters renal	Soldactone Amp.	1000636.0			0	pharma	administration of diuretics	Aldosteron Antagonist	Binary	Spironolacton				24h			Soldactone Amp.
+170	68	treatment parameters renal	Aldactone Filmtbl 50	1000877.0			0	pharma	administration of diuretics	Aldosteron Antagonist	Binary	Spironolacton				24h			Aldactone Filmtbl 50
+171	69	treatment parameters renal	Lasix 40 mg tabl	4.0			0	pharma	administration of diuretics	Loop diuretics	Flow rate	Furosemide			1	6h			Lasix 40 mg tabl
+172	69	treatment parameters renal	Lasix Perfusor 250 mg Amp.	482.0			0	pharma	administration of diuretics	Loop diuretics	Flow rate	Furosemide			1	6h			Lasix Perfusor 250 mg Amp.
+173	69	treatment parameters renal	Furosemide 10 mg/ml inj	1000232.0			0	pharma	administration of diuretics	Loop diuretics	Flow rate	Furosemide			1	6h			Furosemide 10 mg/ml inj
+174	69	treatment parameters renal	Torem Inj Lsg 10 mg/2 ml	1000520.0			0	pharma	administration of diuretics	Loop diuretics	Flow rate	Torasemid			2	12h			Torem Inj Lsg 10 mg/2 ml
+175	69	treatment parameters renal	Torem Tbl 10 mg	1000521.0			0	pharma	administration of diuretics	Loop diuretics	Flow rate	Torasemid			2	12h			Torem Tbl 10 mg
+176	69	treatment parameters renal	Torem Tbl 5 mg	1000522.0			0	pharma	administration of diuretics	Loop diuretics	Flow rate	Torasemid			2	12h			Torem Tbl 5 mg
+177	69	treatment parameters renal	Lasix Bolus 20mg  Amp.	1000747.0			0	pharma	administration of diuretics	Loop diuretics	Flow rate	Furosemide			1	6h			Lasix Bolus 20mg  Amp.
+178	69	treatment parameters renal	Torem Tbl 200 mg	1000986.0			0	pharma	administration of diuretics	Loop diuretics	Flow rate	Torasemid			2	12h			Torem Tbl 200 mg
+179	70	treatment parameters renal	Metolazon Tbl 5 mg	1000428.0			0	pharma	administration of diuretics	Thiazide	Binary	Metolazon				12h			Metolazon Tbl 5 mg
+180	71	treatment parameters renal	Diamox inj 500 mg/5ml	438.0			no	pharma	administration of diuretics	Acetazolamide	Binary	Acetazolamide				6h			Diamox inj 500 mg/5ml
+181	71	treatment parameters renal	Diamox Tbl 250 mg	1000254.0			no	pharma	administration of diuretics	Acetazolamide	Binary	Acetazolamide				6h			Diamox Tbl 250 mg
+182	72	treatment parameters renal	Haemofiltration	10002508.0			no	observed	prisma	Haemofiltration	Binary						0.0787061229348182	0.2692795097827911	Haemofiltration/CRRT
+183	73	treatment paramters infection	Fortam Stechamp 2g	163.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Ceftazidim				24h			Fortam Stechamp 2g
+184	73	treatment paramters infection	Ciproxin 200 mg/100ml	176.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Ciprofloxacin				24h			Ciproxin 200 mg/100ml
+185	73	treatment paramters infection	Metronidazole inf 500 mg/100ml	181.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Metronidazol				24h			Metronidazole inf 500 mg/100ml
+186	73	treatment paramters infection	Rimactan inf 300 mg	186.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Rifampicin				24h			Rimactan inf 300 mg
+187	73	treatment paramters infection	Vancocin  Amp 500 mg	189.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	vancomycin				24h			Vancocin  Amp 500 mg
+188	73	treatment paramters infection	Metronidazole tabl 200 mg	300.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Metronidazol				24h			Metronidazole tabl 200 mg
+189	73	treatment paramters infection	Noroxin tabl 400 mg	326.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Norfloxacin				24h			Noroxin tabl 400 mg
+190	73	treatment paramters infection	Vancocin oral Kps 250 mg	331.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	vancomycin				24h			Vancocin oral Kps 250 mg
+191	73	treatment paramters infection	Rimactan Kps 600 mg	351.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Rifampicin				24h			Rimactan Kps 600 mg
+192	73	treatment paramters infection	Tazobac 2 g inf	405.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Piperacillin/Tazobactam				24h			Tazobac 2 g inf
+193	73	treatment paramters infection	Penicillin 50 000 U/ml	1000233.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Penicillin				24h			Penicillin 50 000 U/ml
+194	73	treatment paramters infection	Zinacef inj 100 mg/ml	1000234.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Cefuroxim				24h			Zinacef inj 100 mg/ml
+195	73	treatment paramters infection	Augmentin Tabl 625 mg	1000272.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Amoxicillin-Clavulans�ure				24h			Augmentin Tabl 625 mg
+196	73	treatment paramters infection	Clamoxyl Inj Lsg	1000273.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Amoxicillin				24h			Clamoxyl Inj Lsg
+197	73	treatment paramters infection	Augmentin 1.2 Inj Lsg	1000274.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Amoxicillin-Clavulans�ure				24h			Augmentin 1.2 Inj Lsg
+198	73	treatment paramters infection	Penicillin G 1 Mio	1000284.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Benzylpenicillin-Na				24h			Penicillin G 1 Mio
+199	73	treatment paramters infection	Kefzol Inj Lsg	1000299.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Cefazolin				24h			Kefzol Inj Lsg
+200	73	treatment paramters infection	Cepimex	1000300.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Cefepim				24h			Cepimex
+201	73	treatment paramters infection	Fortam 1 g Inj Lsg	1000302.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Ceftazidim				24h			Fortam 1 g Inj Lsg
+202	73	treatment paramters infection	Rocephin 2g	1000304.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Ceftriaxon				24h			Rocephin 2g
+203	73	treatment paramters infection	Zinacef Amp 1.5 g	1000305.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Cefuroxim				24h			Zinacef Amp 1.5 g
+204	73	treatment paramters infection	Zinat Tabl 500 mg	1000306.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Cefuroxim				24h			Zinat Tabl 500 mg
+205	73	treatment paramters infection	Ciproxin Tbl 250 mg	1000315.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Ciprofloxacin				24h			Ciproxin Tbl 250 mg
+206	73	treatment paramters infection	Klacid Tbl 500 mg	1000317.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Clarithromycin				24h			Klacid Tbl 500 mg
+207	73	treatment paramters infection	Klacid Amp 500 mg	1000318.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Clarithromycin				24h			Klacid Amp 500 mg
+208	73	treatment paramters infection	Dalacin C Kps 300 mg	1000320.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Clindamycin				24h			Dalacin C Kps 300 mg
+209	73	treatment paramters infection	Dalacin C Phosphat Inj Lsg 300 mg	1000321.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Clindamycin				24h			Dalacin C Phosphat Inj Lsg 300 mg
+210	73	treatment paramters infection	Dalacin Phosphat Inj Lsg 600 mg	1000322.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Clindamycin				24h			Dalacin Phosphat Inj Lsg 600 mg
+211	73	treatment paramters infection	Vibraven�s Inj Lsg 100 mg 5 ml	1000335.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Doxycyclin				24h			Vibravenös Inj Lsg 100 mg 5 ml
+212	73	treatment paramters infection	Myambutol 400 mg/4ml	1000348.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Ethambutol				24h			Myambutol 400 mg/4ml
+213	73	treatment paramters infection	Floxapen Inj Lsg	1000352.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Flucloxacillin				24h			Floxapen Inj Lsg
+214	73	treatment paramters infection	Garamycin	1000363.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Gentamycin				24h			Garamycin
+215	73	treatment paramters infection	SDD Gentamycin/Polymyxin Kps	1000365.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Gentamycin				24h			SDD Gentamycin/Polymyxin Kps
+216	73	treatment paramters infection	Rifater Drg 50 mg	1000390.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Isoniazid				24h			Rifater Drg 50 mg
+217	73	treatment paramters infection	Tavanic Tbl 500 mg	1000407.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Levofloxacin				24h			Tavanic Tbl 500 mg
+218	73	treatment paramters infection	Tavanic Inf Lsg 500 mg 100 ml	1000408.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Levofloxacin				24h			Tavanic Inf Lsg 500 mg 100 ml
+219	73	treatment paramters infection	Meronem 1g	1000424.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Meropenem				24h			Meronem 1g
+220	73	treatment paramters infection	Meronem 500 mg	1000425.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Meropenem				24h			Meronem 500 mg
+221	73	treatment paramters infection	Salofalk Tbl 500 mg	1000426.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Meropenem				24h			Salofalk Tbl 500 mg
+222	73	treatment paramters infection	Flagyl Tbl 500 mg	1000437.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Metronidazol				24h			Flagyl Tbl 500 mg
+223	73	treatment paramters infection	Tazobac Inf 4g	1000483.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Piperacillin/Tazobactam				24h			Tazobac Inf 4g
+224	73	treatment paramters infection	Bactrim forte Lacktbl	1000507.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Sulfamethoxazol/Trimethoprim				24h			Bactrim forte Lacktbl
+225	73	treatment paramters infection	Bactrim Inf Lsg	1000508.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Sulfamethoxazol/Trimethoprim				24h			Bactrim Inf Lsg
+226	73	treatment paramters infection	Tienam 500 mg	1000518.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Imipenem				24h			Tienam 500 mg
+227	73	treatment paramters infection	Obracin 80 mg	1000519.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Tobramycin				24h			Obracin 80 mg
+228	73	treatment paramters infection	Augmentin Inj 2.2g	1000549.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Amoxicillin-Clavulans�ure				24h			Augmentin Inj 2.2g
+229	73	treatment paramters infection	Clamoxyl Inj Lsg 2g	1000601.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Amoxicillin				24h			Clamoxyl Inj Lsg 2g
+230	73	treatment paramters infection	Rocephin 1 g Inf Lsg	1000648.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Ceftriaxon				24h			Rocephin 1 g Inf Lsg
+231	73	treatment paramters infection	Cepimex Amp 1g	1000666.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Cefepim				24h			Cepimex Amp 1g
+232	73	treatment paramters infection	Floxapen Inj Lsg 2g	1000670.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Flucloxacillin				24h			Floxapen Inj Lsg 2g
+233	73	treatment paramters infection	Kefzol Stechamp 2g	1000671.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Cefazolin				24h			Kefzol Stechamp 2g
+234	73	treatment paramters infection	Topamax Tbl 50 mg	1000760.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Tobramycin				24h			Topamax Tbl 50 mg
+235	73	treatment paramters infection	Augmentin AD Tbl 1 g	1000781.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Amoxicillin-Clavulans�ure				24h			Augmentin AD Tbl 1 g
+236	73	treatment paramters infection	Erythrocin Inf Lsg	1000791.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Erythromycin				24h			Erythrocin Inf Lsg
+237	73	treatment paramters infection	Rimactan Kps 300 mg	1000797.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Rifampicin				24h			Rimactan Kps 300 mg
+238	73	treatment paramters infection	Augmentin 2.2 Inf Lsg	1000812.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Amoxicillin-Clavulans�ure				24h			Augmentin 2.2 Inf Lsg
+239	73	treatment paramters infection	Cefepime 2g Amp.	1000825.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Cefepim				24h			Cefepime 2g Amp.
+240	73	treatment paramters infection	Dalacin C 600 Phosphat Amp.	1000829.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Clindamycin				24h			Dalacin C 600 Phosphat Amp.
+241	73	treatment paramters infection	Fortam 2g Inj Lsg	1000830.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Ceftazidim				24h			Fortam 2g Inj Lsg
+242	73	treatment paramters infection	Piperacillin-Tazobactam 2.25 Inj Lsg	1000837.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Piperacillin/Tazobactam				24h			Piperacillin-Tazobactam 2.25 Inj Lsg
+243	73	treatment paramters infection	Rocephin 2 g Inf Lsg	1000838.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Ceftriaxon				24h			Rocephin 2 g Inf Lsg
+244	73	treatment paramters infection	Avalox Filmtbl 400 mg	1000854.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Moxifloxacin				24h			Avalox Filmtbl 400 mg
+245	73	treatment paramters infection	Avalox Inf Lsg 400 mg	1000855.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Moxifloxacin				24h			Avalox Inf Lsg 400 mg
+246	73	treatment paramters infection	Ciproxin Tbl 500 mg	1000893.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Ciprofloxacin				24h			Ciproxin Tbl 500 mg
+247	73	treatment paramters infection	Ciproxin Infusion 400 mg	1000894.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Ciprofloxacin				24h			Ciproxin Infusion 400 mg
+248	73	treatment paramters infection	Colidimin Tbl 200 mg	1001005.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Rifaximin				24h			Colidimin Tbl 200 mg
+249	73	treatment paramters infection	Rifampicin Filmtbl 600 mg	1001068.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Rifampicin				24h			Rifampicin Filmtbl 600 mg
+250	73	treatment paramters infection	Doxyclin Tbl 100 mg	1001075.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Doxycyclin				24h			Doxyclin Tbl 100 mg
+251	73	treatment paramters infection	Xifaxan Tabl 550 mg	1001079.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Rifaximin				24h			Xifaxan Tabl 550 mg
+252	73	treatment paramters infection	Meropenem 500 mg	1001084.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Meropenem				24h			Meropenem 500 mg
+253	73	treatment paramters infection	Meropenem 1g	1001086.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Meropenem				24h			Meropenem 1g
+254	73	treatment paramters infection	Co-Amoxi Tbl 625 mg	1001095.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Amoxicillin-Clavulans�ure				24h			Co-Amoxi Tbl 625 mg
+255	73	treatment paramters infection	Co-Amoxi Tbl 1g	1001096.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Amoxicillin-Clavulans�ure				24h			Co-Amoxi Tbl 1g
+256	73	treatment paramters infection	Co-Amoxi 1.2 g Inj Lsg	1001097.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Amoxicillin-Clavulans�ure				24h			Co-Amoxi 1.2 g Inj Lsg
+257	73	treatment paramters infection	Co-Amoxi 2.2g Inf Lsg	1001098.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Amoxicillin-Clavulans�ure				24h			Co-Amoxi 2.2g Inf Lsg
+258	73	treatment paramters infection	Clindamycin Posphat 300	1001168.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Clindamycin				24h			Clindamycin Posphat 300
+259	73	treatment paramters infection	Clindamycin Posphat 600	1001169.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Clindamycin				24h			Clindamycin Posphat 600
+260	73	treatment paramters infection	Clindamycin Kps 300 mg	1001170.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Clindamycin				24h			Clindamycin Kps 300 mg
+261	73	treatment paramters infection	Norfloxacin Filmtbl 400 mg	1001171.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Norfloxacin				24h			Norfloxacin Filmtbl 400 mg
+262	73	treatment paramters infection	Rifampicin Inf Lsg	1001173.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Rifampicin				24h			Rifampicin Inf Lsg
+263	73	treatment paramters infection	Bactrim Amp 400/80 mg Inf Lsg	1001193.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Sulfamethoxazol/Trimethoprim				24h			Bactrim Amp 400/80 mg Inf Lsg
+264	73	treatment paramters infection	Bactrim Amp. 400/80 mg Inf Lsg	1001198.0			no	pharma	administriation of antibiotics	Administriation of antibiotics	Binary	Sulfamethoxazol/Trimethoprim				24h			Bactrim Amp. 400/80 mg Inf Lsg
+265	74	treatment paramters infection	Fungizone Amp	308.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Amphotericin B				24h			Fungizone Amp
+266	74	treatment paramters infection	Diflucan Kps 200 mg	1000353.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Fluconazol				24h			Diflucan Kps 200 mg
+267	74	treatment paramters infection	Diflucan Kps 50 mg	1000354.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Fluconazol				24h			Diflucan Kps 50 mg
+268	74	treatment paramters infection	Diflucan Inf Lsg 200 mg	1000355.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Fluconazol				24h			Diflucan Inf Lsg 200 mg
+269	74	treatment paramters infection	Mycostatin Susp	1000551.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Nystatin				24h			Mycostatin Susp
+270	74	treatment paramters infection	Cancidas 70 mg	1000617.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Caspofungin				24h			Cancidas 70 mg
+271	74	treatment paramters infection	Cancidas 50 mg	1000618.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Caspofungin				24h			Cancidas 50 mg
+272	74	treatment paramters infection	Ampho-Moronal Susp	1000622.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Amphotericin B				24h			Ampho-Moronal Susp
+273	74	treatment paramters infection	Dequonal Gurgell�sung	1000644.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Dequalinium				24h			Dequonal Gurgellösung
+274	74	treatment paramters infection	Vfend Filmtbl 200 mg	1000661.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Voriconazol				24h			Vfend Filmtbl 200 mg
+275	74	treatment paramters infection	Vfend Filmtbl 50 mg	1000662.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Voriconazol				24h			Vfend Filmtbl 50 mg
+276	74	treatment paramters infection	Vfend Amp	1000663.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Voriconazol				24h			Vfend Amp
+277	74	treatment paramters infection	AmBisome Inf Lsg	1000669.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Amphotericin B				24h			AmBisome Inf Lsg
+278	74	treatment paramters infection	Diflucan Susp Forte	1000675.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Fluconazol				24h			Diflucan Susp Forte
+279	74	treatment paramters infection	Ampho-Moronal Lutschtabletten	1000878.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Amphotericin B				24h			Ampho-Moronal Lutschtabletten
+280	74	treatment paramters infection	Ecalta Amp 100 mg	1001013.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Anidulafungin				24h			Ecalta Amp 100 mg
+281	74	treatment paramters infection	Noxafil Susp	1001027.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Posaconazol				24h			Noxafil Susp
+282	74	treatment paramters infection	Noxafil Tabl 100 mg	1001078.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Posaconazol				24h			Noxafil Tabl 100 mg
+283	74	treatment paramters infection	Voriconazol Filmtbl 50 mg	1001138.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Voriconazol				24h			Voriconazol Filmtbl 50 mg
+284	74	treatment paramters infection	Voriconazol Inf Lsg 200 mg/ 20 ml	1001140.0			no	pharma	administriation of antibiotics	Administation of antimycotic	Binary	Voriconazol				24h			Voriconazol Inf Lsg 200 mg/ 20 ml
+285	75	treatment paramters infection	Zovirax inf 250 mg	190.0			no	pharma	administriation of antibiotics	administration of antiviral	Binary	aciclovir				24h			Zovirax inf 250 mg
+286	75	treatment paramters infection	Cymevene 500 mg	1000362.0			no	pharma	administriation of antibiotics	administration of antiviral	Binary	Ganciclovir				24h			Cymevene 500 mg
+287	75	treatment paramters infection	Valtrex Tbl 500 mg	1000530.0			no	pharma	administriation of antibiotics	administration of antiviral	Binary	Valacyclovir				24h			Valtrex Tbl 500 mg
+288	75	treatment paramters infection	Tamiflu Kps 75 mg	1000765.0			no	pharma	administriation of antibiotics	administration of antiviral	Binary	Oseltamivir				24h			Tamiflu Kps 75 mg
+289	75	treatment paramters infection	Valcyte Filmtabl. 450mg	1000979.0			no	pharma	administriation of antibiotics	administration of antiviral	Binary	Valganciclovir				24h			Valcyte Filmtabl. 450mg
+290	75	treatment paramters infection	Tamiflu Kps 30 mg	1001099.0			no	pharma	administriation of antibiotics	administration of antiviral	Binary	Oseltamivir				24h			Tamiflu Kps 30 mg
+291	75	treatment paramters infection	Tamiflu Suspension	1001100.0			no	pharma	administriation of antibiotics	administration of antiviral	Binary	Oseltamivir				24h			Tamiflu Suspension
+292	75	treatment paramters infection	Foscavir Inf Lsg 6000mg/250ml	1001126.0			no	pharma	administriation of antibiotics	administration of antiviral	Binary	Foscarnet				24h			Foscavir Inf Lsg 6000mg/250ml
+293	76	treatment paramters infection	Zentel Tbl 400 mg	1000260.0			no	pharma	administriation of antibiotics	Antihelmenticum	Binary	Albendazol				24h			Zentel Tbl 400 mg
+294	77	treatment parameters neuro	Valium inj 5 mg/ml	245.0			0	pharma	Sedation	Benzodiacepine	Flow rate	diazepam			1/4	12h			Valium inj 5 mg/ml
+295	77	treatment parameters neuro	Diazepam tabl 5 mg	246.0			0	pharma	Sedation	Benzodiacepine	Flow rate	diazepam			1/4	12h			Diazepam tabl 5 mg
+296	77	treatment parameters neuro	Dormicum inj 1 mg/ml	251.0			0	pharma	Sedation	Benzodiacepine	Flow rate	Midazolam			1	4h			Dormicum inj 1 mg/ml
+297	77	treatment parameters neuro	Dormicum Perfusor 5 mg/ml	252.0			0	pharma	Sedation	Benzodiacepine	Flow rate	Midazolam			1	4h			Dormicum Perfusor 5 mg/ml
+298	77	treatment parameters neuro	Rivotril 0.5 mg/ml	442.0			0	pharma	Sedation	Benzodiacepine	Flow rate	clonazepam		http://clincalc.com/benzodiazepine/	4	12h			Rivotril 0.5 mg/ml
+299	77	treatment parameters neuro	Temesta inj Amp 4mg/ml	1000239.0			0	pharma	Sedation	Benzodiacepine	Flow rate	Lorazepam			2	6h			Temesta inj Amp 4mg/ml
+300	77	treatment parameters neuro	Temesta Expidet 1mg	1000418.0			0	pharma	Sedation	Benzodiacepine	Flow rate	Lorazepam			2	6h			Temesta Expidet 1mg
+301	77	treatment parameters neuro	Dormicum 5mg/ml BOLUS	1000700.0			0	pharma	Sedation	Benzodiacepine	Flow rate	Midazolam		http://clincalc.com/benzodiazepine/	1	4h			Dormicum 5mg/ml BOLUS
+302	77	treatment parameters neuro	Dormicum Tbl 7.5 mg	1000902.0			0	pharma	Sedation	Benzodiacepine	Flow rate	Midazolam			1	4h			Dormicum Tbl 7.5 mg
+303	77	treatment parameters neuro	Seresta 15 mg	1000976.0			0	pharma	Sedation	Benzodiacepine	Flow rate	Oxazepam		http://clincalc.com/benzodiazepine/	1/4	6h			Seresta 15 mg
+304	77	treatment parameters neuro	Valium Tbl. 5 mg	1000977.0			0	pharma	Sedation	Benzodiacepine	Flow rate	diazepam		http://clincalc.com/benzodiazepine/	1/4	12h			Valium Tbl. 5 mg
+305	77	treatment parameters neuro	Valium Tbl. 10 mg	1000978.0			0	pharma	Sedation	Benzodiacepine	Flow rate	diazepam			1/4	12h			Valium Tbl. 10 mg
+306	77	treatment parameters neuro	Temesta Expidet 2.5 mg	1000988.0			0	pharma	Sedation	Benzodiacepine	Flow rate	Lorazepam		http://clincalc.com/benzodiazepine/	2	6h			Temesta Expidet 2.5 mg
+307	77	treatment parameters neuro	Stilnox Tbl 10mg	1000991.0			0	pharma	Sedation	Benzodiacepine	Flow rate	Zolpidem tartrat		http://clincalc.com/benzodiazepine/	1/2	4h			Stilnox Tbl 10mg
+308	77	treatment parameters neuro	SPICE_Dormicum Perfusor 5mg/ml	1001051.0			0	pharma	Sedation	Benzodiacepine	Flow rate	Midazolam			1	4h			Dormicum Perfusor 5mg/ml
+309	77	treatment parameters neuro	SPICE_Dormicum Bolus 1mg/ml	1001054.0			0	pharma	Sedation	Benzodiacepine	Flow rate	Midazolam			1	4h			Dormicum Bolus 1mg/ml
+310	77	treatment parameters neuro	Rivotril Perfusor	1001215.0			0	pharma	Sedation	Benzodiacepine	Flow rate	clonazepam			4	12h			Rivotril Perfusor
+311	78	treatment parameters neuro	Dexdor Inf. Lsg	1000847.0			0	pharma	Sedation	Alpha 2 Agonisten	Flow rate	Dexmedetomidine				very short			Dexdor Inf. Lsg
+312	78	treatment parameters neuro	SPICE_Dexdor Inf. Lsg	1001049.0			0	pharma	Sedation	Alpha 2 Agonisten	Flow rate	Dexmedetomidine				very short			Dexdor Inf. Lsg
+313	79	treatment parameters neuro	Pentothal 1g Inf Lsg	202.0			0	pharma	Sedation	Barbiturate	Binary	Thiopental				short			Pentothal 1g Inf Lsg
+314	79	treatment parameters neuro	Phenobarbital 200 mg/2ml	1000475.0			0	pharma	Sedation	Barbiturate	Binary	Phenobarbital				short			Phenobarbital 200 mg/2ml
+315	79	treatment parameters neuro	Pentothal inj 0.5g	1000607.0			0	pharma	Sedation	Barbiturate	Binary	Thiopental				short			Pentothal inj 0.5g
+316	80	treatment parameters neuro	Disoprivan 2%	208.0			0	pharma	Sedation	Propofol	Flow rate	Propofol				very short			Disoprivan 2%
+317	80	treatment parameters neuro	Disoprivan 1%	1000491.0			0	pharma	Sedation	Propofol	Flow rate	Propofol				very short			Disoprivan 1%
+318	80	treatment parameters neuro	Disoprivan  BOLUS 2% 20mg/ml	1000691.0			0	pharma	Sedation	Propofol	Flow rate	Propofol				very short			Disoprivan  BOLUS 2% 20mg/ml
+319	80	treatment parameters neuro	Disoprivan 2% BOLUS	1000699.0			0	pharma	Sedation	Propofol	Flow rate	Propofol				very short			Disoprivan 2% BOLUS
+320	80	treatment parameters neuro	SPICE_Disoprivan 2%	1001050.0			0	pharma	Sedation	Propofol	Flow rate	Propofol				very short			Disoprivan 2%
+321	80	treatment parameters neuro	SPICE_Disoprivan 2% BOLUS	1001052.0			0	pharma	Sedation	Propofol	Flow rate	Propofol				very short			Disoprivan 2% BOLUS
+322	80	treatment parameters neuro	SPICE_Disoprivan 1%	1001053.0			0	pharma	Sedation	Propofol	Flow rate	Propofol				very short			Disoprivan 1%
+323	81	Gneral Pharma	Glucose 10%	1000022.0			0	pharma	Glucose administration	Glucose Administration	Flow rate					short			Glucose 10%
+324	81	Gneral Pharma	Glucose 30%	1000060.0			0	pharma	Glucose administration	Glucose Administration	Flow rate					short			Glucose 30%
+325	81	Gneral Pharma	Glucose 20% /100ml	1000544.0			0	pharma	Glucose administration	Glucose Administration	Flow rate					short			Glucose 20% /100ml
+326	81	Gneral Pharma	Glucose 40%	1000545.0			0	pharma	Glucose administration	Glucose Administration	Flow rate					short			Glucose 40%
+327	81	Gneral Pharma	Glucose 50%	1000567.0			0	pharma	Glucose administration	Glucose Administration	Flow rate					short			Glucose 50%
+328	81	Gneral Pharma	Glucose 20%	1000689.0			0	pharma	Glucose administration	Glucose Administration	Flow rate					short			Glucose 20%
+329	81	Gneral Pharma	Glucose 10%	1000690.0			0	pharma	Glucose administration	Glucose Administration	Flow rate					short			Glucose 10%
+330	81	Gneral Pharma	Glucose 20%/100ml Pflege	1000746.0			0	pharma	Glucose administration	Glucose Administration	Flow rate					short			Glucose 20%/100ml Pflege
+331	81	Gneral Pharma	Glucose 20% /500ml	1000835.0			0	pharma	Glucose administration	Glucose Administration	Flow rate					short			Glucose 20% /500ml
+332	82	Gneral Pharma	Insulin Mixtard 30 HM	1000379.0			0	pharma	Insulin	Insuling Langwirksam	Flow rate					24h			Insulin Mixtard 30 HM
+333	82	Gneral Pharma	Insulin Insulatard HM	1000381.0			0	pharma	Insulin	Insuling Langwirksam	Flow rate					24h			Insulin Insulatard HM
+334	82	Gneral Pharma	Insulin Lantus	1000963.0			0	pharma	Insulin	Insuling Langwirksam	Flow rate					24h			Insulin Lantus
+335	83	Gneral Pharma	Insulin Actrapid inj 100 U/ml	15.0			0	pharma	Insulin	Insulin Kurzwirksam	Flow rate					short			Insulin Actrapid inj 100 U/ml
+336	83	Gneral Pharma	Insulin NovoRapid	1000724.0			0	pharma	Insulin	Insulin Kurzwirksam	Flow rate					short			Insulin NovoRapid
+337	84	Gneral Pharma	Liquor	10010020.0	0.0	100.0	0	observed	hourly CSF drainage	Liquor/h	ml/h		ml				9.70727825164795	7.184371471405027	Measurement of output from drain
+338	84	Gneral Pharma	Liquor Rechts	10010070.0	0.0	100.0	0	observed	hourly CSF drainage	Liquor/h	ml/h		ml				7.512356758117676	6.1812520027160645	Measurement of output from drain
+339	84	Gneral Pharma	Liquor Links	10010071.0	0.0	100.0	0	observed	hourly CSF drainage	Liquor/h	ml/h		ml				7.228347301483152	5.890616416931152	Measurement of output from drain
+340	84	Gneral Pharma	Liquor Spinal	10010072.0	0.0	100.0	0	observed	hourly CSF drainage	Liquor/h	ml/h		ml				7.593171119689941	4.09458065032959	Measurement of output from drain
+341	85	Gneral Pharma	Nimotop inf 0.2 mg/ml	124.0			no	pharma	Vaso antispasm	Nimodipin	Binary					4h			Nimotop inf 0.2 mg/ml
+342	85	Gneral Pharma	Nimotop Tabl 30 mg	125.0			no	pharma	Vaso antispasm	Nimodipin	Binary					4h			Nimotop Tabl 30 mg
+343	86	Gneral Pharma	Rapifen inj 0.5 mg/ml	204.0			0	pharma	Pain killers	Opiate	Flow rate	Hydrocodon			1/4	very short			Rapifen inj 0.5 mg/ml
+344	86	Gneral Pharma	Pethidine inj 50 mg/ml	214.0			0	pharma	Pain killers	Opiate	Flow rate	Pethidine		http://www.ains.med.uni-goettingen.de/sites/default/files/Opioid-Umrechnungstabelle.pdf	1/8	6h			Pethidine inj 50 mg/ml
+345	86	Gneral Pharma	Methadon inj 10 mg/ml	215.0			0	pharma	Pain killers	Opiate	Flow rate	Methadon		spitalpharmazie basel	5/2	24h			Methadon inj 10 mg/ml
+346	86	Gneral Pharma	Fentanyl inj 50 �g/ml	1000251.0			0	pharma	Pain killers	Opiate	Flow rate	Fentanyl		spitalpharmazie basel	100	short			Fentanyl inj 50 µg/ml
+347	86	Gneral Pharma	Durogesic TTS 25 ug	1000350.0			0	pharma	Pain killers	Opiate	Flow rate	Fentanyl			100	3d			Durogesic TTS 25 ug
+348	86	Gneral Pharma	Durogesic TTS 50 ug	1000351.0			0	pharma	Pain killers	Opiate	Flow rate	Fentanyl			100	3d			Durogesic TTS 50 ug
+349	86	Gneral Pharma	Hydrocodon  Inj Lsg 15mg/ ml	1000382.0			0	pharma	Pain killers	Opiate	Flow rate	Hydrocodon			1/4	6h			Hydrocodon  Inj Lsg 15mg/ ml
+350	86	Gneral Pharma	Methadon oral 0.5% 5mg/ml	1000427.0			0	pharma	Pain killers	Opiate	Flow rate	Methadon			5/2	24h			Methadon oral 0.5% 5mg/ml
+351	86	Gneral Pharma	Morphin Trpf 1% 10mg/ml	1000444.0			0	pharma	Pain killers	Opiate	Flow rate	Morphin		spitalpharmazie basel	1	4h			Morphin Trpf 1% 10mg/ml
+352	86	Gneral Pharma	MST Continus ret Tbl 30	1000445.0			0	pharma	Pain killers	Opiate	Flow rate	Morphin			1	12h			MST Continus ret Tbl 30
+353	86	Gneral Pharma	MST Continus ret. Tbl 60	1000446.0			0	pharma	Pain killers	Opiate	Flow rate	Morphin			1	12h			MST Continus ret. Tbl 60
+354	86	Gneral Pharma	Tramal Trpf 100 mg/ml	1000523.0			0	pharma	Pain killers	Opiate	Flow rate	Tramal			1/20	6h			Tramal Trpf 100 mg/ml
+355	86	Gneral Pharma	Durogesic TTS Matrix 100 ug	1000627.0			0	pharma	Pain killers	Opiate	Flow rate	Fentanyl			100	3d			Durogesic TTS Matrix 100 ug
+356	86	Gneral Pharma	Morphin HCL Perfusor	1000659.0			0	pharma	Pain killers	Opiate	Flow rate	Morphin			1	4h			Morphin HCL Perfusor
+357	86	Gneral Pharma	Fentanyl Bolus inj 50 �g/ml	1000692.0			0	pharma	Pain killers	Opiate	Flow rate	Fentanyl			100	short			Fentanyl Bolus inj 50 µg/ml
+358	86	Gneral Pharma	Ultiva Inj Lsg	1000705.0			0	pharma	Pain killers	Opiate	Flow rate	Remifentanyl		https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3969975/	100	very short			Ultiva Inj Lsg
+359	86	Gneral Pharma	Durogesic Matrix 12 ug/h	1000768.0			0	pharma	Pain killers	Opiate	Flow rate	Fentanyl			100	3d			Durogesic Matrix 12 ug/h
+360	86	Gneral Pharma	Sufentanyl Perfusor	1000771.0			0	pharma	Pain killers	Opiate	Flow rate	Sufentanyl		american pain society	500	short			Sufentanyl Perfusor
+361	86	Gneral Pharma	Hydrocodon Inj Lsg	1000794.0			0	pharma	Pain killers	Opiate	Flow rate	Hydrocodon		american pain society	1/4	6h			Hydrocodon Inj Lsg
+362	86	Gneral Pharma	Morphine Inj � 10mg	1000862.0			0	pharma	Pain killers	Opiate	Flow rate	Morphin			1	4h			Morphine Inj à 10mg
+363	86	Gneral Pharma	Morphin HCl Lsg � 20mg/ml	1000932.0			0	pharma	Pain killers	Opiate	Flow rate	Morphin			1	4h			Morphin HCl Lsg à 20mg/ml
+364	86	Gneral Pharma	MST Continus ret Tbl 10 mg	1000933.0			0	pharma	Pain killers	Opiate	Flow rate	Morphin			1	12h			MST Continus ret Tbl 10 mg
+365	86	Gneral Pharma	Oxycontin Ret Tbl � 10mg	1000935.0			0	pharma	Pain killers	Opiate	Flow rate	Oxycodone		spitalpharmazie basel	1/2	4h			Oxycontin Ret Tbl à 10mg
+366	86	Gneral Pharma	Oxycontin Ret Tbl � 20mg	1000936.0			0	pharma	Pain killers	Opiate	Flow rate	Oxycodone			1/2	4h			Oxycontin Ret Tbl à 20mg
+367	86	Gneral Pharma	Oxynorm Trpf 10mg/ml	1000937.0			0	pharma	Pain killers	Opiate	Flow rate	Oxynorm			1/2	4h			Oxynorm Trpf 10mg/ml
+368	86	Gneral Pharma	Tramal Kps 50 mg	1000984.0			0	pharma	Pain killers	Opiate	Flow rate	Tramal		spitalpharmazie basel	1/20	6h			Tramal Kps 50 mg
+369	86	Gneral Pharma	Tramal Retard  Tbl. 100 mg	1000985.0			0	pharma	Pain killers	Opiate	Flow rate	Tramal			1/20	12h			Tramal Retard  Tbl. 100 mg
+370	86	Gneral Pharma	Targin Retard Tbl 10/5mg	1000989.0			0	pharma	Pain killers	Opiate	Flow rate	Oxynorm			1/2	12h			Targin Retard Tbl 10/5mg
+371	86	Gneral Pharma	Targin Retard Tbl 20/10mg	1000990.0			0	pharma	Pain killers	Opiate	Flow rate	Oxynorm			1/2	12h			Targin Retard Tbl 20/10mg
+372	86	Gneral Pharma	Tramal Amp. 100 mg	1001046.0			0	pharma	Pain killers	Opiate	Flow rate	Tramal			1/20	6h			Tramal Amp. 100 mg
+373	87	Gneral Pharma	Benuron supp 1000 mg	225.0			no	pharma	Pain killers	Non-opioide	Binary	Paracetamol				6h			Benuron supp 1000 mg
+374	87	Gneral Pharma	Dafalgan tabl 500 mg	275.0			no	pharma	Pain killers	Non-opioide	Binary	Paracetamol				6h			Dafalgan tabl 500 mg
+375	87	Gneral Pharma	Dafalgan Brausetbl 1g	1000471.0			no	pharma	Pain killers	Non-opioide	Binary	Paracetamol				6h			Dafalgan Brausetbl 1g
+376	87	Gneral Pharma	Dafalgan Brausetbl 500 mg	1000472.0			no	pharma	Pain killers	Non-opioide	Binary	Paracetamol				6h			Dafalgan Brausetbl 500 mg
+377	87	Gneral Pharma	Dafalgan Supp 600 mg	1000473.0			no	pharma	Pain killers	Non-opioide	Binary	Paracetamol				6h			Dafalgan Supp 600 mg
+378	87	Gneral Pharma	Perfalgan 1g	1000489.0			no	pharma	Pain killers	Non-opioide	Binary	Paracetamol				6h			Perfalgan 1g
+379	87	Gneral Pharma	Perfalgan 500 mg	1000490.0			no	pharma	Pain killers	Non-opioide	Binary	Paracetamol				6h			Perfalgan 500 mg
+380	87	Gneral Pharma	Novalgin inj l�s 50% 2 ml	1000605.0			no	pharma	Pain killers	Non-opioide	Binary	Metronidazol				6h			Novalgin inj lös 50% 2 ml
+381	87	Gneral Pharma	Novalgin Trpf	1000632.0			no	pharma	Pain killers	Non-opioide	Binary	Metronidazol				6h			Novalgin Trpf
+382	87	Gneral Pharma	Dafalgan Tabl 1g	1000683.0			no	pharma	Pain killers	Non-opioide	Binary	Paracetamol				6h			Dafalgan Tabl 1g
+383	87	Gneral Pharma	Novalgin Tbl. � 500mg	1000858.0			no	pharma	Pain killers	Non-opioide	Binary	Metronidazol				6h			Novalgin Tbl. à 500mg
+384	87	Gneral Pharma	Dafalgan ODIS Schmelz Tabl 500 mg	1000900.0			no	pharma	Pain killers	Non-opioide	Binary	Paracetamol				6h			Dafalgan ODIS Schmelz Tabl 500 mg
+385	88	Gneral Pharma	Voltaren Drg 50	1000329.0			no	pharma	Pain killers	NSAR	Binary	Diclofenac				6h			Voltaren Drg 50
+386	88	Gneral Pharma	Tora-dol Inj Lsg 30 mg	1000401.0			no	pharma	Pain killers	NSAR	Binary	Ketorolac				6h			Tora-dol Inj Lsg 30 mg
+387	88	Gneral Pharma	Voltaren Inf Lsg	1000809.0			no	pharma	Pain killers	NSAR	Binary	Diclofenac				6h			Voltaren Inf Lsg
+388	88	Gneral Pharma	Voltaren Tbl. � 75mg	1000859.0			no	pharma	Pain killers	NSAR	Binary	Diclofenac				6h			Voltaren Tbl. à 75mg
+389	88	Gneral Pharma	Brufen Filmtbl. 200 mg	1000883.0			no	pharma	Pain killers	NSAR	Binary	Ibuprofen				6h			Brufen Filmtbl. 200 mg
+390	88	Gneral Pharma	Brufen Filmtbl. 400 mg	1000884.0			no	pharma	Pain killers	NSAR	Binary	Ibuprofen				6h			Brufen Filmtbl. 400 mg
+391	88	Gneral Pharma	Brufen Filmtbl. 600 mg	1000885.0			no	pharma	Pain killers	NSAR	Binary	Ibuprofen				6h			Brufen Filmtbl. 600 mg
+392	89	Gneral Pharma	Ketalar Inj Lsg 500 mg/10 ml	1000400.0			0	pharma	Pain killers	Ketalar	Flow rate	Ketalar				short			Ketalar Inj Lsg 500 mg/10 ml
+393	89	Gneral Pharma	Ketalar 5mg/ml Perfusor Schmerzdienst	1001194.0			0	pharma	Pain killers	Ketalar	Flow rate	Ketalar				short			Ketalar 5mg/ml Perfusor Schmerzdienst
+394	90	Gneral Pharma	Fentanyl-PCA-L�sung	1000621.0			no	pharma	Pain killers	Peripherial Anesthesia	Binary					short			Fentanyl-PCA-Lösung
+395	90	Gneral Pharma	Morphin als PCA Pumpe	1000684.0			no	pharma	Pain killers	Peripherial Anesthesia	Binary					short			Morphin als PCA Pumpe
+396	90	Gneral Pharma	Paravertebralblock-L�sung	1000688.0			no	pharma	Pain killers	Peripherial Anesthesia	Binary					short			Paravertebralblock-Lösung
+397	90	Gneral Pharma	PCA-Morphin	1000716.0			no	pharma	Pain killers	Peripherial Anesthesia	Binary					short			PCA-Morphin
+398	90	Gneral Pharma	PDA-Forte	1000717.0			no	pharma	Pain killers	Peripherial Anesthesia	Binary					short			PDA-Forte
+399	90	Gneral Pharma	Fentanyl Perf	1000741.0			no	pharma	Pain killers	Peripherial Anesthesia	Binary					short			Fentanyl Perf
+400	90	Gneral Pharma	PDA-Forte Bolus	1000761.0			no	pharma	Pain killers	Peripherial Anesthesia	Binary					short			PDA-Forte Bolus
+401	90	Gneral Pharma	PDA-Standard Bolus	1000762.0			no	pharma	Pain killers	Peripherial Anesthesia	Binary					short			PDA-Standard Bolus
+402	90	Gneral Pharma	PDA-Bupivacain 0.125% ohne Fentanyl	1000843.0			no	pharma	Pain killers	Peripherial Anesthesia	Binary					short			PDA-Bupivacain 0.125% ohne Fentanyl
+403	91	Gneral Pharma	Betamethasone inj 4 mg/ml	146.0			0	pharma	Steroids	Steroids	Flow rate	Betamethason		spitalpharmazie basel	4	3d			Betamethasone inj 4 mg/ml
+404	91	Gneral Pharma	Prednisolone tabl 20 mg	151.0			0	pharma	Steroids	Steroids	Flow rate	Prednison			5	24h			Prednisolone tabl 20 mg
+405	91	Gneral Pharma	Mephameson 4mg/ml	1000325.0			0	pharma	Steroids	Steroids	Flow rate	Dexamethason			10	24h			Mephameson 4mg/ml
+406	91	Gneral Pharma	Solu Cortef Inj Lsg 100 mg/ 2 ml	1000383.0			0	pharma	Steroids	Steroids	Flow rate	Hydrocortison		spitalpharmazie basel	1	12h			Solu Cortef Inj Lsg 100 mg/ 2 ml
+407	91	Gneral Pharma	Solu Medrol Stechamp 1g	1000431.0			0	pharma	Steroids	Steroids	Flow rate	Methylprednisolon		spitalpharmazie basel	4	24h			Solu Medrol Stechamp 1g
+408	91	Gneral Pharma	Solu Medrol Stechampullen 2g	1000432.0			0	pharma	Steroids	Steroids	Flow rate	Methylprednisolon			4	24h			Solu Medrol Stechampullen 2g
+409	91	Gneral Pharma	Solu Medrol 125 mg	1000433.0			0	pharma	Steroids	Steroids	Flow rate	Methylprednisolon			4	24h			Solu Medrol 125 mg
+410	91	Gneral Pharma	Solumedrol 500 mg	1000434.0			0	pharma	Steroids	Steroids	Flow rate	Methylprednisolon			4	24h			Solumedrol 500 mg
+411	91	Gneral Pharma	Solumedrol 40 mg	1000435.0			0	pharma	Steroids	Steroids	Flow rate	Methylprednisolon			4	24h			Solumedrol 40 mg
+412	91	Gneral Pharma	Prednison Tbl 20 mg	1000486.0			0	pharma	Steroids	Steroids	Flow rate	Prednison		spitalpharmazie basel	5	24h			Prednison Tbl 20 mg
+413	91	Gneral Pharma	Prednison Tbl 5 mg	1000487.0			0	pharma	Steroids	Steroids	Flow rate	Prednison			5	24h			Prednison Tbl 5 mg
+414	91	Gneral Pharma	Prednison Tbl 50 mg	1000488.0			0	pharma	Steroids	Steroids	Flow rate	Prednison			5	24h			Prednison Tbl 50 mg
+415	91	Gneral Pharma	Fortecortin Tbl 4 mg	1000769.0			0	pharma	Steroids	Steroids	Flow rate	Dexamethason			10	24h			Fortecortin Tbl 4 mg
+416	91	Gneral Pharma	Hydrocortone Tbl 10 mg	1000770.0			0	pharma	Steroids	Steroids	Flow rate	Hydrocortison			1	12h			Hydrocortone Tbl 10 mg
+417	91	Gneral Pharma	Mephameson Inj Lsg 8mg/ml	1000929.0			0	pharma	Steroids	Steroids	Flow rate	Dexamethason		spitalpharmazie basel	10	24h			Mephameson Inj Lsg 8mg/ml
+418	92	Gneral Pharma	Asp�gic Inj Lsg 500 mg/5ml	1000253.0			no	pharma	Thrombozytenhemmer	Thrombozytenhemmer	Binary	ASS				3d			Aspégic Inj Lsg 500 mg/5ml
+419	92	Gneral Pharma	Aspirin cardio Tbl 300 mg	1000255.0			no	pharma	Thrombozytenhemmer	Thrombozytenhemmer	Binary	ASS				3d			Aspirin cardio Tbl 300 mg
+420	92	Gneral Pharma	Aspirin Tbl 100 mg	1000256.0			no	pharma	Thrombozytenhemmer	Thrombozytenhemmer	Binary	ASS				3d			Aspirin Tbl 100 mg
+421	92	Gneral Pharma	Aspirin Tbl 500 mg	1000257.0			no	pharma	Thrombozytenhemmer	Thrombozytenhemmer	Binary	ASS				3d			Aspirin Tbl 500 mg
+422	92	Gneral Pharma	Plavix Tbl 75 mg	1000324.0			no	pharma	Thrombozytenhemmer	Thrombozytenhemmer	Binary	Plavix				3d			Plavix Tbl 75 mg
+423	92	Gneral Pharma	ReoPro	1000614.0			no	pharma	Thrombozytenhemmer	Thrombozytenhemmer	Binary	Abciximab				3d			ReoPro
+424	92	Gneral Pharma	Efient Tbl 5 mg	1000789.0			no	pharma	Thrombozytenhemmer	Thrombozytenhemmer	Binary	Prasugrel				3d			Efient Tbl 5 mg
+425	92	Gneral Pharma	Efient Tbl 10 mg	1000790.0			no	pharma	Thrombozytenhemmer	Thrombozytenhemmer	Binary	Prasugrel				3d			Efient Tbl 10 mg
+426	92	Gneral Pharma	Brilique Tbl 90 mg	1000839.0			no	pharma	Thrombozytenhemmer	Thrombozytenhemmer	Binary	Brilique				3d			Brilique Tbl 90 mg
+427	92	Gneral Pharma	Aggrastat Inf Lsg	1001102.0			no	pharma	Thrombozytenhemmer	Thrombozytenhemmer	Binary	Tirofiban				3d			Aggrastat Inf Lsg
+428	93	Gneral Pharma	Isosource Standard	1000216.0			no	pharma	Feeding	Enteral Feeding	Binary					12h			Isosource Standard
+429	93	Gneral Pharma	Survimed OPD	1000573.0			no	pharma	Feeding	Enteral Feeding	Binary					12h			Survimed OPD
+430	93	Gneral Pharma	Nepro	1000665.0			no	pharma	Feeding	Enteral Feeding	Binary					12h			Nepro
+431	93	Gneral Pharma	Freka MIx 2000 ml	1000714.0			no	pharma	Feeding	Enteral Feeding	Binary					12h			Freka MIx 2000 ml
+432	93	Gneral Pharma	Novasource	1000731.0			no	pharma	Feeding	Enteral Feeding	Binary					12h			Novasource
+433	93	Gneral Pharma	Novasource GI Forte + Fasern	1000785.0			no	pharma	Feeding	Enteral Feeding	Binary					12h			Novasource GI Forte + Fasern
+434	93	Gneral Pharma	Promote Fibres Plus	1000804.0			no	pharma	Feeding	Enteral Feeding	Binary					12h			Promote Fibres Plus
+435	93	Gneral Pharma	Isosource Protein	1001029.0			no	pharma	Feeding	Enteral Feeding	Binary					12h			Isosource Protein
+436	93	Gneral Pharma	Survimed OPD HN	1001066.0			no	pharma	Feeding	Enteral Feeding	Binary					12h			Survimed OPD HN
+437	94	Gneral Pharma	Nutriflex lipid spez 1250ml	1000558.0			no	pharma	Feeding	Parenteral Feeding	Binary					12h			Nutriflex lipid spez 1250ml
+438	94	Gneral Pharma	Nutriflex lipid spez 1875ml	1000559.0			no	pharma	Feeding	Parenteral Feeding	Binary					12h			Nutriflex lipid spez 1875ml
+439	94	Gneral Pharma	Nutriflex spez 1000ml -F, - E	1000560.0			no	pharma	Feeding	Parenteral Feeding	Binary					12h			Nutriflex spez 1000ml -F; - E
+440	94	Gneral Pharma	Nutriflex spez 1000 ml, ohne Fett	1000561.0			no	pharma	Feeding	Parenteral Feeding	Binary					12h			Nutriflex spez 1000 ml; ohne Fett
+441	94	Gneral Pharma	Nutriflex lipid spezial oE	1000694.0			no	pharma	Feeding	Parenteral Feeding	Binary					12h			Nutriflex lipid spezial oE
+442	94	Gneral Pharma	SmofKabiven NL 1500 ml +F,+E	1000805.0			no	pharma	Feeding	Parenteral Feeding	Binary					12h			SmofKabiven NL 1500 ml +F;+E
+443	94	Gneral Pharma	SmofKabiven NL 2000 ml +F,+E	1000806.0			no	pharma	Feeding	Parenteral Feeding	Binary					12h			SmofKabiven NL 2000 ml +F;+E
+444	94	Gneral Pharma	StructoKabiven NL 1500 ml +F, - E	1000807.0			no	pharma	Feeding	Parenteral Feeding	Binary					12h			StructoKabiven NL 1500 ml +F; - E
+445	94	Gneral Pharma	SmofKabiven NL1970 ml +F,-E	1000852.0			no	pharma	Feeding	Parenteral Feeding	Binary					12h			SmofKabiven NL1970 ml +F;-E
+446	95	Gneral Pharma	Liquemin 5000 U/ml	107.0			0	pharma	Anti Coagulation	Heparin	Flow rate					short			Liquemin 5000 U/ml
+447	95	Gneral Pharma	Heparin Bichsel 500 E/ 5 ml	1000373.0			0	pharma	Anti Coagulation	Heparin	Flow rate					short			Heparin Bichsel 500 E/ 5 ml
+448	96	Gneral Pharma	Fraxiparine	1000451.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Fraxiparine
+449	96	Gneral Pharma	Calciparine	1000597.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Calciparine
+450	96	Gneral Pharma	Fraxiparine 0.3 ml s/c	1000831.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Fraxiparine 0.3 ml s/c
+451	96	Gneral Pharma	Fraxiparine 0.4 ml s/c	1000832.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Fraxiparine 0.4 ml s/c
+452	96	Gneral Pharma	Fraxiparine 0.6 ml s/c	1000833.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Fraxiparine 0.6 ml s/c
+453	96	Gneral Pharma	Fraxiparine 0.8 ml s/c	1000834.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Fraxiparine 0.8 ml s/c
+454	96	Gneral Pharma	Clexane 0.2 ml s/c	1000863.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Clexane 0.2 ml s/c
+455	96	Gneral Pharma	Clexane 0.4 ml s/c	1000864.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Clexane 0.4 ml s/c
+456	96	Gneral Pharma	Clexane 0.8 ml s/c	1000865.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Clexane 0.8 ml s/c
+457	96	Gneral Pharma	Calciparine 12500 E/ 0.5ml	1000889.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Calciparine 12500 E/ 0.5ml
+458	96	Gneral Pharma	Clexane 0.6 ml s/c	1000895.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Clexane 0.6 ml s/c
+459	96	Gneral Pharma	Clexane 1.0 ml s/c	1001016.0			no	pharma	Anti Coagulation	NMH	Binary					24h			Clexane 1.0 ml s/c
+460	97	Gneral Pharma	Refludan Trockensubst 50 mg	1000404.0			no	pharma	Anti Coagulation	Others in Case of HIT	Binary					short			Refludan Trockensubst 50 mg
+461	97	Gneral Pharma	Argatra Inf Lsg	1000841.0			no	pharma	Anti Coagulation	Others in Case of HIT	Binary					short			Argatra Inf Lsg
+462	98	Gneral Pharma	Marcoumar Tbl	1000476.0			no	pharma	Anti Coagulation	Marcoumar	Binary					24h			Marcoumar Tbl
+463	99	Gneral Pharma	Protamin 1000 Inj Lsg	1000494.0			no	pharma	Anti Coagulation	Protamin	Binary					short			Protamin 1000 Inj Lsg
+464	100	Gneral Pharma	Cyklokapron inj 100 mg/ml	27.0			no	pharma	Anti Coagulation	Anti Fibrinolyticum	Binary					short			Cyklokapron inj 100 mg/ml
+465	100	Gneral Pharma	Cyklokapron Infusion	1001010.0			no	pharma	Anti Coagulation	Anti Fibrinolyticum	Binary					short			Cyklokapron Infusion
+466	101	Gneral Pharma	K-Cl conc	1000080.0			0	pharma	Elektrolytes	Kalium	Binary					24h			K-Cl conc
+467	101	Gneral Pharma	Kalium Effervetten	1000393.0			0	pharma	Elektrolytes	Kalium	Binary					24h			Kalium Effervetten
+468	101	Gneral Pharma	Kalium Chlorid 15% 10 ml	1000396.0			0	pharma	Elektrolytes	Kalium	Binary					24h			Kalium Chlorid 15% 10 ml
+469	101	Gneral Pharma	KCL Retard Zyma Drag	1000398.0			0	pharma	Elektrolytes	Kalium	Binary					24h			KCL Retard Zyma Drag
+470	101	Gneral Pharma	K-Cl-Perfusor	1000568.0			0	pharma	Elektrolytes	Kalium	Binary					24h			K-Cl-Perfusor
+471	101	Gneral Pharma	K-Phosphat Perfusor	1000569.0			0	pharma	Elektrolytes	Kalium	Binary					24h			K-Phosphat Perfusor
+472	101	Gneral Pharma	Kalium-Chlorid Sirup	1000612.0			0	pharma	Elektrolytes	Kalium	Binary					24h			Kalium-Chlorid Sirup
+473	101	Gneral Pharma	KCL ret. Hausmann Drg 10mmol (745mg)	1001063.0			0	pharma	Elektrolytes	Kalium	Binary					24h			KCL ret. Hausmann Drg 10mmol (745mg)
+474	102	Gneral Pharma	K-Pi conc	1000082.0			no	pharma	Elektrolytes	Phosphat	Binary					24h			K-Pi conc
+475	102	Gneral Pharma	Phoscap Phosphat-Kps	1000394.0			no	pharma	Elektrolytes	Phosphat	Binary					24h			Phoscap Phosphat-Kps
+476	102	Gneral Pharma	Kalium Phosphat	1000395.0			no	pharma	Elektrolytes	Phosphat	Binary					24h			Kalium Phosphat
+477	102	Gneral Pharma	Na-Posph conc	1000729.0			no	pharma	Elektrolytes	Phosphat	Binary					24h			Na-Posph conc
+478	102	Gneral Pharma	Kalium Phosphat f�r Perfusor	1000836.0			no	pharma	Elektrolytes	Phosphat	Binary					24h			Kalium Phosphat für Perfusor
+479	103	Gneral Pharma	NaCl conc Amp 14.5%	1000090.0			no	pharma	Elektrolytes	Na	Binary					24h			NaCl conc Amp 14.5%
+480	103	Gneral Pharma	NaCl 2.5%	1000546.0			no	pharma	Elektrolytes	Na	Binary					24h			NaCl 2.5%
+481	103	Gneral Pharma	Kochsalz Tbl 1g	1001055.0			no	pharma	Elektrolytes	Na	Binary					24h			Kochsalz Tbl 1g
+482	104	Gneral Pharma	Mg-Sulfat conc	1000070.0			no	pharma	Elektrolytes	Mg	Binary					24h			Mg-Sulfat conc
+483	104	Gneral Pharma	Magnesiocard 5 mmol sachet	1000420.0			no	pharma	Elektrolytes	Mg	Binary					24h			Magnesiocard 5 mmol sachet
+484	104	Gneral Pharma	Magnesium Sulfat 50% 10 ml	1000421.0			no	pharma	Elektrolytes	Mg	Binary					24h			Magnesium Sulfat 50% 10 ml
+485	105	Gneral Pharma	Ca-Acetat-Phopshatbinder 400 mg	1000290.0			no	pharma	Elektrolytes	Ca	Binary					24h			Ca-Acetat-Phopshatbinder 400 mg
+486	105	Gneral Pharma	Calcium Sandoz FF Brausetabl 1000 mg	1000291.0			no	pharma	Elektrolytes	Ca	Binary					24h			Calcium Sandoz FF Brausetabl 1000 mg
+487	105	Gneral Pharma	Calcium Sandoz Lsg 10% 10 ml	1000292.0			no	pharma	Elektrolytes	Ca	Binary					24h			Calcium Sandoz Lsg 10% 10 ml
+488	105	Gneral Pharma	Calciumchlorid 5%	1000687.0			no	pharma	Elektrolytes	Ca	Binary					24h			Calciumchlorid 5%
+489	106	Gneral Pharma	Trace elements	1000170.0			no	pharma	Elektrolytes	Trace elements	Binary					24h			Trace elements
+490	106	Gneral Pharma	$  name session	1000540.0			no	pharma	Elektrolytes	Trace elements	Binary					24h			$  name session
+491	107	Gneral Pharma	Na- Bicarbonat 8.4%	1000193.0			no	pharma	Elektrolytes	Bicarbonate	Binary					24h			Na- Bicarbonat 8.4%
+492	107	Gneral Pharma	Na-Bicarbonat Inf Lsg 8.4%	1000453.0			no	pharma	Elektrolytes	Bicarbonate	Binary					24h			Na-Bicarbonat Inf Lsg 8.4%
+493	107	Gneral Pharma	Na-Bicarbonat 1.4%	1000571.0			no	pharma	Elektrolytes	Bicarbonate	Binary					24h			Na-Bicarbonat 1.4%
+494	108	Gneral Pharma	Phenhydan inj 50 mg/ml 5 ml	230.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Phenhydan inj 50 mg/ml 5 ml
+495	108	Gneral Pharma	Phenhydan tabl 100 mg	304.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Phenhydan tabl 100 mg
+496	108	Gneral Pharma	Saroten ret Kps 25 mg	1000269.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Saroten ret Kps 25 mg
+497	108	Gneral Pharma	Phenhydan Inf Lsg 750 mg	1000478.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Phenhydan Inf Lsg 750 mg
+498	108	Gneral Pharma	Zoloft Tbl 50 mg	1000502.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Zoloft Tbl 50 mg
+499	108	Gneral Pharma	Orfiril long Ret Kps 150 mg	1000531.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Orfiril long Ret Kps 150 mg
+500	108	Gneral Pharma	Orfiril Sirup	1000533.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Orfiril Sirup
+501	108	Gneral Pharma	Orfiril Inj L�sung	1000534.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Orfiril Inj Lösung
+502	108	Gneral Pharma	Keppra	1000676.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Keppra
+503	108	Gneral Pharma	Keppra 500 mg Amp. i.v	1000756.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Keppra 500 mg Amp. i.v
+504	108	Gneral Pharma	Trileptal Tbl 300 mg	1000774.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Trileptal Tbl 300 mg
+505	108	Gneral Pharma	Trileptal Tbl 600 mg	1000775.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Trileptal Tbl 600 mg
+506	108	Gneral Pharma	Lamictal Tbl 25 mg	1000778.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Lamictal Tbl 25 mg
+507	108	Gneral Pharma	Lamictal Tbl 100 mg	1000779.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Lamictal Tbl 100 mg
+508	108	Gneral Pharma	Lamotrigin Tbl 100 mg	1000850.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Lamotrigin Tbl 100 mg
+509	108	Gneral Pharma	Lamotrigin Tbl 25 mg	1000851.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Lamotrigin Tbl 25 mg
+510	108	Gneral Pharma	Ketalar Perfusor	1000857.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Ketalar Perfusor
+511	108	Gneral Pharma	Vimpat Tbl. 50 mg	1001056.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Vimpat Tbl. 50 mg
+512	108	Gneral Pharma	Levetiracetam Inf Lsg	1001175.0			0	pharma	Antiepileptika	Antiepileptica	count of drugs					24h			Levetiracetam Inf Lsg
+513	109	Gneral Pharma	Haloperidol inj 2.5 mg/ml	239.0			no	pharma	Psychopharma	Anti delirant medi	Binary					4h			Haloperidol inj 2.5 mg/ml
+514	109	Gneral Pharma	Catapresan Tabl 150 mikrogr	380.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Catapresan Tabl 150 mikrogr
+515	109	Gneral Pharma	Distraneurin Mixt 500 mg/10 ml	1000323.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Distraneurin Mixt 500 mg/10 ml
+516	109	Gneral Pharma	Haldol Inj Lsg 5 mg/ml	1000370.0			no	pharma	Psychopharma	Anti delirant medi	Binary					4h			Haldol Inj Lsg 5 mg/ml
+517	109	Gneral Pharma	Haldol Trpf 2mg/ml	1000371.0			no	pharma	Psychopharma	Anti delirant medi	Binary					4h			Haldol Trpf 2mg/ml
+518	109	Gneral Pharma	Nozinan Tbl 25 mg	1000409.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Nozinan Tbl 25 mg
+519	109	Gneral Pharma	Nozinan Inj Lsg	1000410.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Nozinan Inj Lsg
+520	109	Gneral Pharma	Dipiperon Tbl 40 mg	1000482.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Dipiperon Tbl 40 mg
+521	109	Gneral Pharma	Remeron Tbl 30 mg	1000600.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Remeron Tbl 30 mg
+522	109	Gneral Pharma	Catapresan 25�g /ml Perfusor	1000728.0			no	pharma	Psychopharma	Anti delirant medi	Binary					short			Catapresan 25µg /ml Perfusor
+523	109	Gneral Pharma	Risperdal Tbl 1 mg	1000780.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Risperdal Tbl 1 mg
+524	109	Gneral Pharma	Seroquel Tbl 25mg	1000874.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Seroquel Tbl 25mg
+525	109	Gneral Pharma	Seroquel Tbl 100 mg	1000875.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Seroquel Tbl 100 mg
+526	109	Gneral Pharma	Remeron subligual 15 mg	1000945.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Remeron subligual 15 mg
+527	109	Gneral Pharma	Quetiapin Tbl 25 mg	1001074.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Quetiapin Tbl 25 mg
+528	109	Gneral Pharma	Quetiapin Tbl 100 mg	1001094.0			no	pharma	Psychopharma	Anti delirant medi	Binary					12h			Quetiapin Tbl 100 mg
+529	110	Gneral Pharma	Seropram Tbl 20 mg	1000316.0			no	pharma	Psychopharma	Psychopharma	Binary					24h			Seropram Tbl 20 mg
+530	110	Gneral Pharma	Zyprexa Filmtbl. 5 mg	1000595.0			no	pharma	Psychopharma	Psychopharma	Binary					24h			Zyprexa Filmtbl. 5 mg
+531	110	Gneral Pharma	Tegretol CR Tbl 200 mg	1000776.0			no	pharma	Psychopharma	Psychopharma	Binary					24h			Tegretol CR Tbl 200 mg
+532	110	Gneral Pharma	Tegretol CR Tbl 400 mg	1000777.0			no	pharma	Psychopharma	Psychopharma	Binary					24h			Tegretol CR Tbl 400 mg
+533	110	Gneral Pharma	Efexor Kps 75 mg	1000782.0			no	pharma	Psychopharma	Psychopharma	Binary					24h			Efexor Kps 75 mg
+534	110	Gneral Pharma	Lyrica Kps 75 mg	1000796.0			no	pharma	Psychopharma	Psychopharma	Binary					24h			Lyrica Kps 75 mg
+535	110	Gneral Pharma	Lyrica Kps 25 mg	1000846.0			no	pharma	Psychopharma	Psychopharma	Binary					24h			Lyrica Kps 25 mg
+536	110	Gneral Pharma	Trittico Tbl 50 mg	1000982.0			no	pharma	Psychopharma	Psychopharma	Binary					24h			Trittico Tbl 50 mg
+537	110	Gneral Pharma	Trittico Tbl 100 mg	1000983.0			no	pharma	Psychopharma	Psychopharma	Binary					24h			Trittico Tbl 100 mg
+538	110	Gneral Pharma	Citalopram Tbl 20mg	1001002.0			no	pharma	Psychopharma	Psychopharma	Binary					24h			Citalopram Tbl 20mg
+539	110	Gneral Pharma	Surmontil Trpf 4%	1001006.0			no	pharma	Psychopharma	Psychopharma	Binary					24h			Surmontil Trpf 4%
+540	111	Gneral Pharma	Pulmicort Dosieraerosol 0.2mg	1000286.0			no	pharma	inhalation	steroids	Binary					24h			Pulmicort Dosieraerosol 0.2mg
+541	111	Gneral Pharma	Pulmicort Inhal Lsg 0.25 mg/ml	1000287.0			no	pharma	inhalation	steroids	Binary					24h			Pulmicort Inhal Lsg 0.25 mg/ml
+542	111	Gneral Pharma	Seretide 250 Disk	1000974.0			no	pharma	inhalation	steroids	Binary					24h			Seretide 250 Disk
+543	111	Gneral Pharma	Symbicort 100/60	1000996.0			no	pharma	inhalation	steroids	Binary					24h			Symbicort 100/60
+544	111	Gneral Pharma	Symbicort 200/60	1000997.0			no	pharma	inhalation	steroids	Binary					24h			Symbicort 200/60
+545	112	Gneral Pharma	Ventolin inhal 0.5% 5 mg/ml	260.0			no	pharma	inhalation	non-steroids	Binary					6h			Ventolin inhal 0.5% 5 mg/ml
+546	112	Gneral Pharma	Atrovent Inhal Lsg 0.25 mg/2ml	1000388.0			no	pharma	inhalation	non-steroids	Binary					6h			Atrovent Inhal Lsg 0.25 mg/2ml
+547	112	Gneral Pharma	Atrovent N Dosieraerosol	1000389.0			no	pharma	inhalation	non-steroids	Binary					6h			Atrovent N Dosieraerosol
+548	112	Gneral Pharma	Ventolin Dosieraerosol 0.1 mg	1000499.0			no	pharma	inhalation	non-steroids	Binary					6h			Ventolin Dosieraerosol 0.1 mg
+549	112	Gneral Pharma	Ventolin Inhal Lsg 0.05%	1001060.0			no	pharma	inhalation	non-steroids	Binary					6h			Ventolin Inhal Lsg 0.05%
+550	113	Gneral Pharma	Thyrotardin 100 ug	1000416.0			no	pharma	Hermones	Thyrotardin	Binary					short			Thyrotardin 100 ug
+551	114	Gneral Pharma	Euthyrox tabl 0.1 mg	153.0			no	pharma	Hermones	Thyroxin	Binary					24h			Euthyrox tabl 0.1 mg
+552	114	Gneral Pharma	Euthyrox Tabl 50 �g	1000914.0			no	pharma	Hermones	Thyroxin	Binary					24h			Euthyrox Tabl 50 µg
+553	114	Gneral Pharma	Eltroxin Tbl 0.05mg	1001003.0			no	pharma	Hermones	Thyroxin	Binary					24h			Eltroxin Tbl 0.05mg
+554	114	Gneral Pharma	Eltroxin Tbl 0.10mg	1001004.0			no	pharma	Hermones	Thyroxin	Binary					24h			Eltroxin Tbl 0.10mg
+555	114	Gneral Pharma	Thyroxin TS Amp 500 ug/5ml	1001059.0			no	pharma	Hermones	Thyroxin	Binary					24h			Thyroxin TS Amp 500 ug/5ml
+556	115	Gneral Pharma	Neo-Mercazole Tabl 5 mg	1000296.0			no	pharma	Hermones	Thyreostatikum	Binary					12h			Neo-Mercazole Tabl 5 mg
+557	116	Gneral Pharma	Florinef Tbl 0.1mg	1000599.0			no	pharma	Hermones	Mineralokortikoid	Binary					24h			Florinef Tbl 0.1mg
+558	117	Gneral Pharma	Tavegyl Inj Lsg 2mg/2ml	1000319.0			no	pharma	Antihistaminka	Antihistaminka	Binary					4h			Tavegyl Inj Lsg 2mg/2ml
+559	117	Gneral Pharma	Xyzal Tbl. 5 mg	1000615.0			no	pharma	Antihistaminka	Antihistaminka	Binary					4h			Xyzal Tbl. 5 mg
+560	118	Gneral Pharma	Chemotherapie	1000680.0			no	pharma	Chemotherapie	Chemotherapie	Binary					24h			Chemotherapie
+561	119	Gneral Pharma	Actilyse	1000263.0			no	pharma	Lysetherapie	Lysetherapie	Binary					short			Actilyse
+562	119	Gneral Pharma	Urokinase 100000 U	1000528.0			no	pharma	Lysetherapie	Lysetherapie	Binary					short			Urokinase 100000 U
+563	119	Gneral Pharma	Urokinase 500000	1000529.0			no	pharma	Lysetherapie	Lysetherapie	Binary					short			Urokinase 500000
+564	119	Gneral Pharma	Actilyse Amp.50mg Lsg	1000823.0			no	pharma	Lysetherapie	Lysetherapie	Binary					short			Actilyse Amp.50mg Lsg
+565	119	Gneral Pharma	Actilyse Amp.20mg  Lsg.	1000840.0			no	pharma	Lysetherapie	Lysetherapie	Binary					short			Actilyse Amp.20mg  Lsg.
+566	120	Gneral Pharma	Pavulon inj 2 mg/ml	197.0			no	pharma	Muskelrelaxans	Muskelrelaxans	Binary					short			Pavulon inj 2 mg/ml
+567	120	Gneral Pharma	Norcuron inj 4mg/ml	198.0			no	pharma	Muskelrelaxans	Muskelrelaxans	Binary					short			Norcuron inj 4mg/ml
+568	120	Gneral Pharma	Tracrium inj 10 mg/ml	199.0			no	pharma	Muskelrelaxans	Muskelrelaxans	Binary					short			Tracrium inj 10 mg/ml
+569	120	Gneral Pharma	Esmeron Inj Lsg 50 mg	1000498.0			no	pharma	Muskelrelaxans	Muskelrelaxans	Binary					short			Esmeron Inj Lsg 50 mg
+570	120	Gneral Pharma	Succinolin 100mg/ 2ml	1000509.0			no	pharma	Muskelrelaxans	Muskelrelaxans	Binary					short			Succinolin 100mg/ 2ml
+571	120	Gneral Pharma	Tracrium Perfusor	1000822.0			no	pharma	Muskelrelaxans	Muskelrelaxans	Binary					short			Tracrium Perfusor
+572	121	Gneral Pharma	Anexate 0.5mg/ 5 ml	1000356.0			no	pharma	Antidots	Anexate	Binary					short			Anexate 0.5mg/ 5 ml
+573	122	Gneral Pharma	Narcan Inj Lsg	1000452.0			no	pharma	Antidots	Naloxon	Binary					short			Narcan Inj Lsg
+574	123	Gneral Pharma	Ilomedin Inj Lsg 50ug/2,5 ml	1000386.0			no	pharma	Pulmonale Hypertonie	Beh. Pulm. Hypertonie	Binary					24h			Ilomedin Inj Lsg 50ug/2.5 ml
+575	123	Gneral Pharma	Viagra Tbl. 50 mg	1000610.0			no	pharma	Pulmonale Hypertonie	Beh. Pulm. Hypertonie	Binary					24h			Viagra Tbl. 50 mg
+576	123	Gneral Pharma	Ventavis Inhal Lsg	1000808.0			no	pharma	Pulmonale Hypertonie	Beh. Pulm. Hypertonie	Binary					24h			Ventavis Inhal Lsg
+577	123	Gneral Pharma	Revatio Filmtbl 20 mg	1001058.0			no	pharma	Pulmonale Hypertonie	Beh. Pulm. Hypertonie	Binary					24h			Revatio Filmtbl 20 mg
+578	123	Gneral Pharma	Tracleer Tabl 62.5 mg	1001089.0			no	pharma	Pulmonale Hypertonie	Beh. Pulm. Hypertonie	Binary					24h			Tracleer Tabl 62.5 mg
+579	123	Gneral Pharma	Ilomedin 20 ug/ml Inf Lsg	1001101.0			no	pharma	Pulmonale Hypertonie	Beh. Pulm. Hypertonie	Binary					24h			Ilomedin 20 ug/ml Inf Lsg
+580	124	Gneral Pharma	Creon forte Kps	1000470.0			no	pharma	Pankreas Enzym Ersatz	Pankreas Enzyme	Binary					24h			Creon forte Kps
+581	124	Gneral Pharma	Creon Kps	1000899.0			no	pharma	Pankreas Enzym Ersatz	Pankreas Enzyme	Binary					24h			Creon Kps
+582	125	Gneral Pharma	Glypressin Inj Lsg	1000793.0			no	pharma	Pankreas Enzym Ersatz	Terlipressin	Binary					12h			Glypressin Inj Lsg
+583	125	Gneral Pharma	Haemopressin TS Inj Lsg	1001061.0			no	pharma	Pankreas Enzym Ersatz	Terlipressin	Binary					12h			Haemopressin TS Inj Lsg
+584	126	Gneral Pharma	Octagam Inf Lsg	1000376.0			no	pharma	Immunmodulation	Immunoglobulin	Binary					24h			Octagam Inf Lsg
+585	126	Gneral Pharma	Simulect Inj Lsg	1000757.0			no	pharma	Immunmodulation	Immunoglobulin	Binary					24h			Simulect Inj Lsg
+586	126	Gneral Pharma	Intratect 10g Inf Lsg	1000814.0			no	pharma	Immunmodulation	Immunoglobulin	Binary					24h			Intratect 10g Inf Lsg
+587	126	Gneral Pharma	Privigen 5g Inf Lsg	1001024.0			no	pharma	Immunmodulation	Immunoglobulin	Binary					24h			Privigen 5g Inf Lsg
+588	126	Gneral Pharma	Privigen 10g Inf Lsg	1001025.0			no	pharma	Immunmodulation	Immunoglobulin	Binary					24h			Privigen 10g Inf Lsg
+589	126	Gneral Pharma	Privigen 20g Inf Lsg	1001026.0			no	pharma	Immunmodulation	Immunoglobulin	Binary					24h			Privigen 20g Inf Lsg
+590	126	Gneral Pharma	Intratect10% Inf Lsg  5 g/50 ml	1001041.0			no	pharma	Immunmodulation	Immunoglobulin	Binary					24h			Intratect10% Inf Lsg  5 g/50 ml
+591	126	Gneral Pharma	Intratect10% Inf Lsg 10 g/100ml	1001042.0			no	pharma	Immunmodulation	Immunoglobulin	Binary					24h			Intratect10% Inf Lsg 10 g/100ml
+592	126	Gneral Pharma	Intratect10% Inf Lsg 20 g/200ml	1001043.0			no	pharma	Immunmodulation	Immunoglobulin	Binary					24h			Intratect10% Inf Lsg 20 g/200ml
+593	127	Gneral Pharma	ATG Fresenius 100mg/5 ml	1000276.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			ATG Fresenius 100mg/5 ml
+594	127	Gneral Pharma	Imurek Stechamp. 50 mg	1000280.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Imurek Stechamp. 50 mg
+595	127	Gneral Pharma	Imurek Tabl 50 mg	1000281.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Imurek Tabl 50 mg
+596	127	Gneral Pharma	Sandimmun 50 mg/ml	1000310.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Sandimmun 50 mg/ml
+597	127	Gneral Pharma	Sandimmun Neoral Kps 100 mg	1000311.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Sandimmun Neoral Kps 100 mg
+598	127	Gneral Pharma	Sandimmun Neoral Kps 50 mg	1000312.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Sandimmun Neoral Kps 50 mg
+599	127	Gneral Pharma	Sandimmun Neoral Kps 25 mg	1000313.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Sandimmun Neoral Kps 25 mg
+600	127	Gneral Pharma	Sandimmun Neoral Trinklsg 100 mg	1000314.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Sandimmun Neoral Trinklsg 100 mg
+601	127	Gneral Pharma	CellCept Tbl 500 mg	1000448.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			CellCept Tbl 500 mg
+602	127	Gneral Pharma	Rapamune Tbl 1mg	1000504.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Rapamune Tbl 1mg
+603	127	Gneral Pharma	Prograf Kps 1mg	1000510.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Prograf Kps 1mg
+604	127	Gneral Pharma	Prograf Kps 5 mg	1000511.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Prograf Kps 5 mg
+605	127	Gneral Pharma	CellCept Susp	1000730.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			CellCept Susp
+606	127	Gneral Pharma	CellCept Kps 250 mg	1000786.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			CellCept Kps 250 mg
+607	127	Gneral Pharma	CellCept Amp 500 mg	1000892.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			CellCept Amp 500 mg
+608	127	Gneral Pharma	Prograf Kps 0.5mg	1000942.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Prograf Kps 0.5mg
+609	127	Gneral Pharma	Sandimmun Neoral Kps 10 mg	1001031.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Sandimmun Neoral Kps 10 mg
+610	127	Gneral Pharma	Certican Tbl.� 0.25 mg	1001035.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Certican Tbl.à 0.25 mg
+611	127	Gneral Pharma	Grafalon Inf Lsg	1001070.0			no	pharma	Immunmodulation	Immunsuppression	Binary					24h			Grafalon Inf Lsg
+612	128	Gneral Pharma	Benerva Tbl 300 mg	1000515.0			no	pharma	Substitution	VitB Substitution	Binary					24h			Benerva Tbl 300 mg
+613	128	Gneral Pharma	Benerva Inj Lsg 100mg/1 ml	1000516.0			no	pharma	Substitution	VitB Substitution	Binary					24h			Benerva Inj Lsg 100mg/1 ml
+614	128	Gneral Pharma	Beco 5 Inj Lsg	1000537.0			no	pharma	Substitution	VitB Substitution	Binary					24h			Beco 5 Inj Lsg
+615	128	Gneral Pharma	Becozym forte Drag	1000538.0			no	pharma	Substitution	VitB Substitution	Binary					24h			Becozym forte Drag
+616	128	Gneral Pharma	Becotal Inj Lsg	1000740.0			no	pharma	Substitution	VitB Substitution	Binary					24h			Becotal Inj Lsg
+617	128	Gneral Pharma	Benerva Tbl 100 mg	1000882.0			no	pharma	Substitution	VitB Substitution	Binary					24h			Benerva Tbl 100 mg
+618	129	Gneral Pharma	PK-Merz 500 ml	1000266.0			no	pharma	Spezific	Parkinson Medikaiton	Binary					24h			PK-Merz 500 ml
+619	129	Gneral Pharma	Akineton Inj Lsg 5 mg/ml	1000285.0			no	pharma	Spezific	Parkinson Medikaiton	Binary					24h			Akineton Inj Lsg 5 mg/ml
+620	129	Gneral Pharma	Madopar LIQ 125 mg Tbl	1000406.0			no	pharma	Spezific	Parkinson Medikaiton	Binary					24h			Madopar LIQ 125 mg Tbl
+621	129	Gneral Pharma	Madopar DR Tbl 200 mg	1000772.0			no	pharma	Spezific	Parkinson Medikaiton	Binary					24h			Madopar DR Tbl 200 mg
+622	129	Gneral Pharma	Madopar LIQ Tbl 62.5	1000926.0			no	pharma	Spezific	Parkinson Medikaiton	Binary					24h			Madopar LIQ Tbl 62.5
+623	129	Gneral Pharma	Madopar Tbl 125 mg	1001045.0			no	pharma	Spezific	Parkinson Medikaiton	Binary					24h			Madopar Tbl 125 mg
+624	130	Gneral Pharma	Neupogen 30 Mio U	1000619.0			no	pharma	Spezific	GCSF	Binary					24h			Neupogen 30 Mio U
+625	130	Gneral Pharma	Neupogen 48 Mio U	1000620.0			no	pharma	Spezific	GCSF	Binary					24h			Neupogen 48 Mio U
+626	131	Gneral Pharma	Weight	10000400.0	0.0	500.0	no	observed	Spezific	Weight	kg						77.00321960449219	15.36617946624756	Body weight
+627	132		a-BE	20001300.0	-30.0	30.0	0.0	lab		a-BE							0.01619503647089	4.558305263519287	Base excess in Arterial blood by calculation
+628	133		a_COHb	24000526.0	0.0	20.0	1.0	lab		a_COHb							1.4078097343444824	0.553137481212616	Carboxyhemoglobin/Hemoglobin.total in Arterial blood
+629	134		a_Hb	24000548.0	20.0	200.0	137.0	lab		a_Hb							102.28285217285156	18.29543876647949	Hemoglobin [Mass/volume] in Arterial blood
+630	135		a_HCO3-	20004200.0	0.0	50.0	24.0	lab		a_HCO3-							24.230043411254893	4.197129249572754	Bicarbonate [Moles/volume] in Arterial blood
+631	136		a_Lac	24000524.0	0.0	15.0	1.0	lab		a_Lac							1.8378175497055047	1.6795562505722046	Lactate [Mass/volume] in Arterial blood
+632	137		a_MetHb	24000549.0	0.0	20.0	0.7	lab		a_MetHb							0.956563115119934	0.4762325286865234	Methemoglobin/Hemoglobin.total in Arterial blood
+633	138		a_pH	20000300.0	6.5	7.8	7.4	lab		a_pH							7.422115325927732	0.0722053870558738	pH of Arterial blood
+634	139		a_pCO2	20001200.0	3.0	100.0	40.0	lab		a_pCO2							37.0433349609375	7.904681205749513	Carbon dioxide [Partial pressure] in Arterial blood
+635	140		a_PO2	20000200.0	20.0	500.0	87.0	lab		a_PO2							103.6815185546875	44.71850204467773	Oxygen [Partial pressure] in Arterial blood
+636	141		a_SO2	20000800.0	10.0	100.0	96.0	lab		a_SO2							96.47383880615234	4.283083438873291	Oxygen saturation in Arterial blood
+637	142		Zentral venöse sättigung	20001000.0	0.0	85.0	65.0	lab		Zentral venöse sättigung							61.14662551879883	8.710883140563965	Central venous oxygenation saturation
+638	142		Zentral venöse sättigung	24000737.0	0.0	85.0		lab		Zentral venöse sättigung							64.26692199707031	10.430347442626951	Central venous oxygenation saturation
+639	143		Troponin-T	24000538.0	0.0	15000.0	200.0	lab		Troponin-T							1.329077124595642	6.937524795532228	Troponin T.cardiac [Mass/volume] in Serum or Plasma
+640	143		Troponin-T	24000806.0	0.0	15000.0		lab		Troponin-T							22.68962287902832	312.8905334472656	Troponin T.cardiac [Mass/volume] in Serum or Plasma by High sensitivity method
+641	144		creatine kinase	24000210.0	0.0	300000.0	50.0	lab		creatine kinase							1324.669189453125	7028.47119140625	Creatine kinase panel - Serum or Plasma
+642	145		creatine kinase-MB	24000220.0	0.0	2000.0	50.0	lab		creatine kinase-MB							33.440540313720696	85.57936096191406	Creatine kinase.MB [Mass/volume] in Serum or Plasma
+643	146		v-Lac	24000485.0	0.0	15.0	1.0	lab		v-Lac							2.0648934841156006	1.6240026950836182	Lactate [Moles/volume] in Venous blood
+644	146		v-Lac	24000732.0	0.0	15.0	1.0	lab		v-Lac							2.3325214385986333	1.8347578048706048	Lactate [Moles/volume] in Venous blood
+645	147		BNP	24000569.0	0.0	100000.0	50.0	lab		BNP							6505.73583984375	12679.42578125	Natriuretic peptide.B prohormone N-Terminal [Mass/volume] in Serum or Plasma
+646	148	Lab values renal	K+	20000500.0	2.0	12.0	3.9	lab		K+							4.1236934661865225	0.560732364654541	Potassium [Moles/volume] in Blood
+647	148	Lab values renal	K+	24000520.0	2.0	12.0		lab		K+									Potassium [Moles/volume] in Blood
+648	148	Lab values renal	K+	24000833.0	2.0	12.0		lab		K+							4.3450260162353525	0.7047410607337952	Potassium [Moles/volume] in Blood
+649	148	Lab values renal	K+	24000867.0	2.0	12.0		lab		K+							4.214245796203613	0.6194639801979065	Potassium [Moles/volume] in Blood
+650	149	Lab values renal	Na+	20000400.0	105.0	170.0	140.0	lab		Na+							137.60939025878906	5.211446762084961	Sodium [Moles/volume] in Blood
+651	149	Lab values renal	Na+	24000519.0	105.0	170.0		lab		Na+									Sodium [Moles/volume] in Blood
+652	149	Lab values renal	Na+	24000658.0	105.0	170.0		lab		Na+									Sodium [Moles/volume] in Blood
+653	149	Lab values renal	Na+	24000835.0	105.0	170.0		lab		Na+							136.91604614257812	5.503730773925781	Sodium [Moles/volume] in Blood
+654	149	Lab values renal	Na+	24000866.0	105.0	170.0		lab		Na+							138.43984985351562	5.598161220550537	Sodium [Moles/volume] in Blood
+655	150	Lab values renal	Cl-	24000439.0	60.0	140.0	103.0	lab		Cl-							106.778076171875	5.499035835266113	Chloride [Moles/volume] in Blood
+656	150	Lab values renal	Cl-	24000521.0	60.0	140.0		lab		Cl-							108.0068130493164	5.460532188415527	Chloride [Moles/volume] in Blood
+657	151	Lab values renal	Ca2+ ionizied	24000522.0	0.0	3.0	1.2	lab		Ca2+ ionizied							1.1503580808639526	0.0839259624481201	Calcium.ionized [Moles/volume] in Blood
+658	152	Lab values renal	Ca2+ total	20005100.0	0.0	4.0	2.4	lab		Ca2+ total							2.0377454757690434	0.2309053689241409	Calcium [Moles/volume] in Blood
+659	153	Lab values renal	phosphate	20002500.0	0.0	5.0	1.13	lab		phosphate							1.138041615486145	0.4335152506828308	Phosphate [Moles/volume] in Blood
+660	154	Lab values renal	Mg_lab	24000230.0	0.0	5.0	0.78	lab		Mg_lab							0.8998064398765564	0.2104595452547073	Magnesium [Moles/volume] in Blood
+661	155	Lab values renal	Urea	20004100.0	0.0	60.0	4.6	lab		Urea							10.705706596374512	7.751443386077881	Urea [Moles/volume] in Venous blood
+662	156	Lab values renal	creatinine	20000600.0	0.0	1500.0	65.0	lab		creatinine							115.31616973876952	97.04822540283205	Creatinine [Moles/volume] in Blood
+663	157	Lab values urine	urinary creatinin	24000572.0	0.0	25000.0	300.0	lab		urinary creatinin							6023.0224609375	4472.1943359375	Creatinine [Moles/volume] in Urine
+664	157	Lab values urine	urinary creatinin	24000573.0	0.0	25000.0		lab		urinary creatinin									Creatinine [Moles/volume] in Urine
+665	158	Lab values urine	urinary Na+	20003200.0	0.0	300.0	20.0	lab		urinary Na+							89.29061126708984	58.77850341796875	Sodium [Moles/volume] in Urine
+666	159	Lab values urine	urinary urea	24000754.0	0.0	600.0	40.0	lab		urinary urea							153.65542602539062	101.35659790039062	Urea [Moles/volume] in Urine
+667	160	Lab values liver	ASAT	24000330.0	0.0	30000.0	25.0	lab		ASAT							303.32745361328125	1102.4818115234375	Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma
+668	161	Lab values liver	ALAT	20002600.0	0.0	12000.0	25.0	lab		ALAT							186.8866729736328	576.5324096679688	Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma
+669	162	Lab values liver	bilirubine, total	20004300.0	0.0	1000.0	2.0	lab		bilirubine, total							37.9253044128418	75.4288330078125	Bilirubin.total [Moles/volume] in Serum or Plasma
+670	163	Lab values liver	Bilirubin, direct	24000560.0	0.0	800.0	2.0	lab		Bilirubin, direct							44.92268371582031	84.94019317626953	Bilirubin.direct [Mass/volume] in Serum or Plasma
+671	164	Lab values liver	alkaline phosphatase	20002700.0	0.0	3000.0	85.0	lab		alkaline phosphatase							134.88949584960938	153.05178833007812	Alkaline phosphatase [Enzymatic activity/volume] in Blood
+672	165	Lab values liver	gamma-GT	24000370.0	0.0	2500.0	30.0	lab		gamma-GT							194.15692138671875	256.63351440429693	Gamma glutamyl transferase [Enzymatic activity/volume] in Serum or Plasma
+673	166	Gerinnung	aPTT	20004410.0	0.0	300.0	30.0	lab		aPTT							49.53365707397461	25.019271850585927	aPTT in Blood by Coagulation assay
+674	167	Gerinnung	Fibrinogen	24000536.0	0.0	12.0	2.9	lab		Fibrinogen							2.974105834960937	1.6533250808715818	Fibrinogen [Mass/volume] in Platelet poor plasma by Coagulation assay
+675	168	Gerinnung	FII	24000666.0	0.0	200.0	108.0	lab		FII							52.82763671875	25.43686485290528	Prothrombin activity actual/normal in Platelet poor plasma by Coagulation assay
+676	169	Gerinnung	Factor V	24000637.0	0.0	250.0	117.0	lab		Factor V							63.79856872558594	37.77093124389648	Coagulation factor V activity actual/normal in Platelet poor plasma by Coagulation assay
+677	170	Gerinnung	Factor VII	24000552.0	0.0	500.0	104.0	lab		Factor VII							47.34986114501953	32.76102066040039	Coagulation factor VII activity actual/normal in Platelet poor plasma by Coagulation assay
+678	171	Gerinnung	factor X	24000667.0	0.0	170.0	110.0	lab		factor X							58.47433853149414	27.714120864868164	Coagulation factor X activity actual/normal in Platelet poor plasma by Coagulation assay
+679	172	Gerinnung	INR	24000567.0	0.0	8.0	0.95	lab		INR							1.2703009843826294	0.4524286389350891	INR in Blood by Coagulation assay
+680	173	Gerinnung	albumin	24000605.0	0.0	70.0	38.0	lab		albumin							21.018573760986328	6.348940372467041	Albumin [Mass/volume] in Serum or Plasma
+681	174	Gerinnung	glucose	20005110.0	0.0	60.0	5.0	lab		glucose							8.584769248962402	5.397733688354492	Glucose [Moles/volume] in Serum or Plasma
+682	174	Gerinnung	glucose	24000523.0	0.0	60.0		lab		glucose							7.849233150482178	5.292049884796144	Glucose [Moles/volume] in Serum or Plasma
+683	174	Gerinnung	glucose	24000585.0	0.0	60.0		lab		glucose							8.369206428527832	2.680570125579834	Glucose [Moles/volume] in Serum or Plasma
+684	175	Gerinnung	'Ammoniak'	24000568.0	0.0	600.0	37.0	lab		Ammoniak							55.37329483032226	40.30131530761719	Ammonia [Moles/volume] in Blood
+685	176	infection/inflamation	C-reactive protein	20002200.0	0.0	600.0	4.0	lab		C-reactive protein							109.18293762207033	95.06414794921876	C reactive protein [Mass/volume] in Serum or Plasma
+686	177	infection/inflamation	procalcitonin	24000570.0	0.0	200.0	0.0	lab		procalcitonin							7.883863925933838	20.02514839172364	Procalcitonin [Mass/volume] in Serum or Plasma
+687	178	infection/inflamation	lymphocyte	24000480.0	0.0	100.0	2.3	lab		lymphocyte							0.020983051508665	0.0791349336504936	Lymphocytes [#/volume] in Blood
+688	179	infection/inflamation	Neutr	24000550.0	0.0	100.0	4.5	lab		Neutr							10.501338958740234	6.565185070037843	Neutrophils/100 leukocytes in Blood
+689	180	infection/inflamation	Segm. Neut.	24000556.0	0.0	100.0	55.0	lab		Segm. Neut.							59.15296936035156	19.788724899291992	Segmented neutrophils/100 leukocytes in Blood
+690	181	infection/inflamation	Stabk. Neut.	24000557.0	0.0	100.0	10.0	lab		Stabk. Neut.							25.02562522888184	17.973979949951172	Band form neutrophils/100 leukocytes in Blood
+691	182	infection/inflamation	BSR	24000668.0	0.0	150.0	10.0	lab		BSR							43.16666793823242	40.50512313842773	Erythrocyte sedimentation rate
+692	183	hematology general	Hb	20000900.0	20.0	200.0	135.0	lab		Hb							100.42654418945312	17.521608352661133	Hemoglobin [Mass/volume] in Blood
+693	183	hematology general	Hb	24000836.0	20.0	200.0		lab		Hb							101.0370864868164	19.08333778381348	Hemoglobin [Mass/volume] in Blood
+694	184	hematology general	total white blood cell count	20000700.0	0.0	300.0	7.0	lab		total white blood cell count							12.04562282562256	8.093655586242676	Leukocytes [#/volume] in Blood
+695	185	hematology general	platelet count	20000110.0	0.0	1500.0	300.0	lab		platelet count							194.85861206054688	137.53358459472656	Platelets [#/volume] in Blood
+696	186	hematology general	MCH	24000160.0	15.0	45.0	30.0	lab		MCH							30.70273780822754	2.0862131118774414	MCH [Entitic mass]
+697	187	hematology general	MCHC	24000170.0	260.0	400.0	340.0	lab		MCHC							336.9023742675781	11.223838806152344	MCHC [Mass/volume] in Cord blood
+698	188	hematology general	MCV	24000150.0	60.0	130.0	99.0	lab		MCV							91.16155242919922	5.698768138885497	MCV [Entitic volume]
+699	189	hematology general	'Ferritin'	24000678.0	0.0	150000.0	135.0	lab		Ferritin							15182.783203125	28437.92578125	Ferritin [Mass/volume] in Blood
+700	190	Others	TSH	24000664.0	0.0	60.0	2.3	lab		TSH							3.2150914669036865	5.334761142730713	Thyrotropin [Units/volume] in Serum or Plasma
+701	191	Others	'AMYL-S'	24000427.0	0.0	2000.0	33.0	lab		AMYL-S							87.92683410644531	145.093017578125	Amylase [Enzymatic activity/volume] in Serum or Plasma
+702	192	Others	Lipase	24000555.0	0.0	4000.0	37.0	lab		Lipase							117.0255355834961	257.9710693359375	Lipase [Enzymatic activity/volume] in Serum or Plasma
+703	193	Others	'Cortisol'	24000665.0	0.0	6000.0	300.0	lab		Cortisol							791.2116088867188	601.4407958984375	Cortisol [Moles/volume] in Serum or Plasma
+704	194	Liquor	pH Liquor	24000608.0	7.5	8.5	7.35	lab		pH Liquor							8.116403579711914	0.1737932413816452	pH of Cerebral spinal fluid
+705	195	Liquor	Laktat Liquor	24000564.0	0.0	20.0	1.65	lab		Laktat Liquor							3.684723854064941	2.2151710987091064	Lactate [Moles/volume] in Cerebral spinal fluid
+706	196	Liquor	Glucose Liquor	24000400.0	5.0	15.0	3.0	lab		Glucose Liquor							6.013579368591309	1.160659670829773	Glucose [Moles/volume] in Cerebral spinal fluid
+707	197	Drain	'pH Drain'	24000741.0	6.5	8.5	7.4	lab		pH Drain							7.70576810836792	0.3130844533443451	pH of Body fluid
+708	198	Drain	'AMYL-Drainag'	24000587.0	0.0	60000.0	0.0	lab		AMYL-Drainag							1670.5946044921875	5975.6640625	Amylase [Enzymatic activity/volume] in Body fluid
