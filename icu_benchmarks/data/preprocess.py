@@ -44,12 +44,12 @@ def make_single_split(
     outer = KFold(num_folds, shuffle=True, random_state=seed)
 
     train, test_and_val = list(outer.split(stays))[fold_index]
-    test, val = np.array_split(test_and_val, 2)
+    val, test = np.array_split(test_and_val, 2)
 
     split = {
         "train": stays.iloc[train],
-        "val": stays.iloc[test],
-        "test": stays.iloc[val],
+        "val": stays.iloc[val],
+        "test": stays.iloc[test],
     }
     data_split = {}
 
