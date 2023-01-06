@@ -23,7 +23,7 @@ def train_common(
     reproducible: bool = True,
     model: object = MLWrapper,
     weight: str = None,
-    test_on: str = "Test",
+    test_on: str = "test",
 ):
     """Common wrapper to train all benchmarked models.
 
