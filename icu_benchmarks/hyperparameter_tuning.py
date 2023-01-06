@@ -126,7 +126,8 @@ def choose_and_bind_hyperparameters(
                 Path(temp_dir),
                 seed,
                 num_folds_to_train=folds_to_tune_on,
-                use_cache=True,
+                load_cache=True,
+                generate_cache=True,
                 test_on="val",
                 debug=debug,
             )

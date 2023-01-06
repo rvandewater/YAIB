@@ -88,7 +88,8 @@ def preprocess_and_train_for_folds(
     num_folds_to_train: int = None,
     reproducible: bool = True,
     debug: bool = False,
-    use_cache: bool = False,
+    load_cache: bool = False,
+    generate_cache: bool = False,
     test_on: str = "test",
 ) -> float:
     """Preprocesses data and trains a model for each fold.
@@ -103,7 +104,8 @@ def preprocess_and_train_for_folds(
         num_folds_to_train: Number of folds to train on. If None, all folds are trained on.
         reproducible: Whether to make torch reproducible.
         debug: Whether to load less data and enable more logging.
-        use_cache: Whether to cache and use cached data.
+        load_cache: Whether to use cached data.
+        generate_cache: Whether to cache data.
         test_on: Dataset to test on.
 
     Returns:
@@ -114,7 +116,13 @@ def preprocess_and_train_for_folds(
     agg_loss = 0
     for fold_index in range(num_folds_to_train):
         data = preprocess_data(
-            data_dir, seed=seed, debug=debug, use_cache=use_cache, num_folds=num_folds, fold_index=fold_index
+            data_dir,
+            seed=seed,
+            debug=debug,
+            load_cache=load_cache,
+            generate_cache=generate_cache,
+            num_folds=num_folds,
+            fold_index=fold_index,
         )
 
         run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
