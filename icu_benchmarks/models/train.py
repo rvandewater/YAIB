@@ -63,7 +63,6 @@ def train_common(
             model.load_weights(source_dir / "model.joblib")
         else:
             raise Exception("No weights to load at path : {}".format(source_dir / "model.*"))
-
     else:
         try:
             model.train(dataset, val_dataset, weight, seed)
