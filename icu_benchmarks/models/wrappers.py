@@ -289,6 +289,22 @@ class DLWrapper(object):
     def load_weights(self, load_path):
         load_model_state(load_path, self.encoder, optimizer=self.optimizer)
 
+    def predict(self, dataset, weight, seed):
+        self.set_metrics()
+        test_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.n_worker, pin_memory=self.pin_memory)
+        if isinstance(weight, list):
+            weight = torch.FloatTensor(weight).to(self.device)
+        test_loss, test_metrics = self.evaluate(test_loader, self.metrics, weight)
+
+        self.encoder.eval()
+        all_preds = []
+        with torch.no_grad():
+            for elem in test_loader:
+                _, preds, _ = self.step_fn(elem, weight)
+                all_preds += preds
+
+        return all_preds
+
 
 @gin.configurable("MLWrapper")
 class MLWrapper(object):
@@ -421,3 +437,7 @@ class MLWrapper(object):
         else:
             with open(load_path, "rb") as f:
                 self.model = joblib.load(f)
+
+    def predict(self, dataset, weight, seed):
+        test_rep, _ = dataset.get_data_and_labels()
+        return self.model.predict_proba(test_rep)
