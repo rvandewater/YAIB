@@ -66,7 +66,6 @@ def make_single_split(
             "val": stays.iloc[val],
             "test": stays.iloc[test],
         }
-    
 
     data_split = {}
     for fold_name, fold in split.items():  # Loop through train / val / test
