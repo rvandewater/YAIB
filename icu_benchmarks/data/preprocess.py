@@ -24,6 +24,7 @@ def make_single_split(
     fold_index: int,
     seed: int = 42,
     debug: bool = False,
+    fold_size: int = None,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
@@ -41,72 +42,38 @@ def make_single_split(
     fraction_to_load = 1 if not debug else 0.01
     stays = data["STATIC"][[id]].sample(frac=fraction_to_load, random_state=seed)
 
-    outer = KFold(num_folds, shuffle=True, random_state=seed)
+    if fold_size:
+        train_and_val = stays.sample(fold_size, random_state=seed)
+        test = stays.drop(train_and_val.index)
+        train_and_val_labels = data["OUTCOME"].label.loc[train_and_val.index]
 
-    train, test_and_val = list(outer.split(stays))[fold_index]
-    val, test = np.array_split(test_and_val, 2)
+        target_folds = StratifiedKFold(num_folds, shuffle=True, random_state=seed)
+        train, val = list(target_folds.split(train_and_val, train_and_val_labels))[fold_index]
 
-    split = {
-        "train": stays.iloc[train],
-        "val": stays.iloc[val],
-        "test": stays.iloc[test],
-    }
-    data_split = {}
-
-    for fold in split.keys():  # Loop through train / val / test
-        # Loop through DYNAMIC / STATIC / OUTCOME
-        # set sort to true to make sure that IDs are reordered after scrambling earlier
-        data_split[fold] = {
-            data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
+        split = {
+            "train": train_and_val.iloc[train],
+            "val": train_and_val.iloc[val],
+            "test": test,
         }
+    else:
+        outer = KFold(num_folds, shuffle=True, random_state=seed)
 
-    return data_split
+        train, test_and_val = list(outer.split(stays))[fold_index]
+        val, test = np.array_split(test_and_val, 2)
 
+        split = {
+            "train": stays.iloc[train],
+            "val": stays.iloc[val],
+            "test": stays.iloc[test],
+        }
+    
 
-def make_target_split(
-    data: dict[pd.DataFrame],
-    vars: dict[str],
-    num_folds: int,
-    fold_index: int,
-    seed: int = 42,
-    debug: bool = False,
-    target_size = 100,
-) -> dict[dict[pd.DataFrame]]:
-    """Randomly split the data into training, validation, and test set.
-
-    Args:
-        data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
-        vars: Contains the names of columns in the data.
-        num_folds: Number of folds for cross validation.
-        seed: Random seed.
-        debug: Load less data if true.
-
-    Returns:
-        Input data divided into 'train', 'val', and 'test'.
-    """
-    id = vars["GROUP"]
-    fraction_to_load = 1 if not debug else 0.01
-    stays = data["STATIC"][[id]].sample(frac=fraction_to_load, random_state=seed)
-
-    train_and_val = stays.sample(target_size, random_state=seed)
-    test = stays.drop(train_and_val.index).index
-    train_and_val_labels = data["OUTCOME"].label.loc[train_and_val.index]
-
-    target_folds = StratifiedKFold(num_folds, shuffle=True, random_state=seed)
-    train, val = list(target_folds.split(train_and_val, train_and_val_labels))[fold_index]
-
-    split = {
-        "train": stays.iloc[train],
-        "val": stays.iloc[val],
-        "test": stays.iloc[test],
-    }
     data_split = {}
-
-    for fold in split.keys():  # Loop through train / val / test
+    for fold_name, fold in split.items():  # Loop through train / val / test
         # Loop through DYNAMIC / STATIC / OUTCOME
         # set sort to true to make sure that IDs are reordered after scrambling earlier
-        data_split[fold] = {
-            data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
+        data_split[fold_name] = {
+            data_type: data[data_type].merge(fold, on=id, how="right", sort=True) for data_type in data.keys()
         }
 
     return data_split
@@ -139,6 +106,7 @@ def preprocess_data(
     debug: bool = False,
     use_cache: bool = False,
     num_folds: int = 5,
+    fold_size: int = None,
     fold_index: int = 0,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
@@ -159,23 +127,25 @@ def preprocess_data(
             nested within split (train/val/test).
     """
     cache_dir = data_dir / "cache"
+    if fold_size:
+        cache_dir = cache_dir / f"T{fold_size}"
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
     config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{fold_index}{debug}".encode("utf-8")
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
-    # if use_cache:
-    #     if cache_file.exists():
-    #         with open(cache_file, "rb") as f:
-    #             logging.info(f"Loading cached data from {cache_file}.")
-    #             return pickle.load(f)
-    #     else:
-    #         logging.info(f"No cached data found in {cache_file}, loading raw data.")
+    if use_cache:
+        if cache_file.exists():
+            with open(cache_file, "rb") as f:
+                logging.info(f"Loading cached data from {cache_file}.")
+                return pickle.load(f)
+        else:
+            logging.info(f"No cached data found in {cache_file}, loading raw data.")
 
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in ["STATIC", "DYNAMIC", "OUTCOME"]}
 
     logging.info("Generating splits.")
-    data = make_target_split(data, vars, num_folds, fold_index, seed=seed, debug=debug)
+    data = make_single_split(data, vars, num_folds, fold_index, seed=seed, debug=debug, fold_size=fold_size)
 
     logging.info("Preprocessing static data.")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
