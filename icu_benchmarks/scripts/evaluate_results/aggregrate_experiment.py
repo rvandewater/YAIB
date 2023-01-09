@@ -3,6 +3,7 @@ from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime
 import logging
 import gin
+import math
 from pathlib import Path
 
 import pandas as pd
@@ -40,6 +41,7 @@ aggregated["Avg"] = pd.to_numeric(aggregated["Avg"], errors="coerce")
 aggregated["Std"] = pd.to_numeric(aggregated["Std"], errors="coerce")
 aggregated["95% CI"] = aggregated["95% CI"].apply(lambda x: (pd.to_numeric(x[1])*100, pd.to_numeric(x[0])*100))
 aggregated[["Avg", "Std"]] = aggregated[["Avg", "Std"]].apply(lambda x: x*100)
+aggregated["Std"] = aggregated["Std"].apply(lambda x: x/math.sqrt(seeds))
 # aggregated[""] = aggregated.apply(pd.to_numeric, columns= ["Avg", "Std"], errors='coerce')
 aggregated = aggregated.round(2)
 aggregated["95% CI"] = aggregated["95% CI"].apply(lambda x: tuple(map(lambda y: round(y,2),x)))
