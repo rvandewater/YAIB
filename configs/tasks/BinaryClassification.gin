@@ -19,6 +19,7 @@ preprocess.file_names = {
 
 vars = {
     "GROUP": "stay_id",
+    "LABEL": "label",
     "SEQUENCE": "time",
     "DYNAMIC": ["alb", "alp", "alt", "ast", "be", "bicar", "bili",
        "bili_dir", "bnd", "bun", "ca", "cai", "ck", "ckmb", "cl", "crea",

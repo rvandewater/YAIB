@@ -8,7 +8,7 @@ from pathlib import Path
 import pickle
 
 from sklearn.impute import MissingIndicator, SimpleImputer
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 
 from recipys.recipe import Recipe
@@ -44,13 +44,15 @@ def make_single_split(
     id = vars["GROUP"]
     fraction_to_load = 1 if not debug else 0.01
     stays = data["STATIC"][id].sample(frac=fraction_to_load, random_state=seed)
+    labels = data["OUTCOME"][vars["LABEL"]]
 
-    outer_CV = KFold(cv_repetitions, shuffle=True, random_state=seed)
-    inner_CV = KFold(cv_folds, shuffle=True, random_state=seed)
+    outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
+    inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
 
-    dev, test = list(outer_CV.split(stays))[repetition_index]
+    dev, test = list(outer_CV.split(stays, labels))[repetition_index]
     dev_stays = stays.iloc[dev]
-    train, val = list(inner_CV.split(dev_stays))[fold_index]
+    dev_labels = labels.iloc[dev]
+    train, val = list(inner_CV.split(dev_stays, dev_labels))[fold_index]
 
     split = {
         "train": dev_stays.iloc[train],
