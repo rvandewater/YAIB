@@ -33,6 +33,7 @@ preprocess.vars = %vars
 Dataset.vars = %vars
 Dataset.use_static = True
 
-preprocess_and_train_for_folds.num_folds = 5
+execute_repeated_cv.cv_repetitions = 5
+execute_repeated_cv.cv_folds = 5
 
 EMB = 100
