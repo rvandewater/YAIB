@@ -161,6 +161,10 @@ def aggregate_results(log_dir: Path):
                 with open(fold / "test_metrics.json", "r") as f:
                     result = json.load(f)
                     aggregated[seed.name][fold.name] = result
+                # Add durations to metrics
+                with open(fold / "duration.json", "r") as f:
+                    result = json.load(f)
+                    aggregated[seed.name][fold.name].update(result)
 
     # Aggregate results per metric
     list_scores = {}
