@@ -50,14 +50,14 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr htmlcov/
 
 setup-env:
-	conda env update
-	source activate icu-benchmark && pip install -e .
+	conda env update -f environment.yml
+	source activate yaib
 
 test: ## run tests quickly with the default Python
 	pytest
 
 coverage: ## check code coverage quickly with the default Python
-	coverage run --source icu_benchmarks -m pytest
+	coverage run --source icu-benchmarks -m pytest
 	coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html

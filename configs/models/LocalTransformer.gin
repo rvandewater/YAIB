@@ -1,0 +1,39 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+
+preprocess.use_features = False
+
+# Train params
+train_common.model = @DLWrapper()
+
+DLWrapper.encoder = @LocalTransformer()
+DLWrapper.optimizer_fn = @Adam
+DLWrapper.train.epochs = 1000
+DLWrapper.train.batch_size = 64
+DLWrapper.train.patience = 10
+DLWrapper.train.min_delta = 1e-4
+
+# Optimizer params
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = (1e-5, 3e-4)
+
+# Encoder params
+model/hyperparameter.class_to_tune = @LocalTransformer
+model/hyperparameter.emb = %EMB
+model/hyperparameter.ff_hidden_mult = 2
+model/hyperparameter.l1_reg = 0.0
+model/hyperparameter.num_classes = %NUM_CLASSES
+model/hyperparameter.local_context = %HORIZON
+model/hyperparameter.hidden = (32, 256, "log-uniform", 2)
+model/hyperparameter.heads = (1, 8, "log-uniform", 2)
+model/hyperparameter.depth = (1, 3)
+model/hyperparameter.dropout = (0.0, 0.4)
+model/hyperparameter.dropout_att = (0.0, 0.4)
+
+tune_hyperparameters.scopes = ["model", "optimizer"]
+tune_hyperparameters.n_initial_points = 5
+tune_hyperparameters.n_calls = 30
+tune_hyperparameters.folds_to_tune_on = 2

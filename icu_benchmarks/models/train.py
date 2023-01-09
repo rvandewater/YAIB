@@ -1,105 +1,79 @@
 import os
 import random
-import shutil
 import sys
 import gin
+import torch
+import logging
+import numpy as np
+import pandas as pd
+from pathlib import Path
 
-from icu_benchmarks.data.loader import *
+from icu_benchmarks.data.loader import RICUDataset
+from icu_benchmarks.models.wrappers import MLWrapper
 from icu_benchmarks.models.utils import save_config_file
 
 
-def train_with_gin(model_dir=None,
-                   overwrite=False,
-                   load_weights=False,
-                   gin_config_files=None,
-                   gin_bindings=None,
-                   seed=1234,
-                   reproducible=True):
-    """Trains a model based on the provided gin configuration.
-    This function will set the provided gin bindings, call the train() function
-    and clear the gin config. Please see train() for required gin bindings.
+@gin.configurable("train_common")
+def train_common(
+    data: dict[str, pd.DataFrame],
+    log_dir: Path,
+    load_weights: bool = False,
+    source_dir: Path = None,
+    seed: int = 1234,
+    reproducible: bool = True,
+    model: object = MLWrapper,
+    weight: str = None,
+    test_on: str = "test",
+):
+    """Common wrapper to train all benchmarked models.
+
     Args:
-        model_dir: String with path to directory where model output should be saved.
-        overwrite: Boolean indicating whether to overwrite output directory.
-        gin_config_files: List of gin config files to load.
-        gin_bindings: List of gin bindings to use.
-        seed: Integer corresponding to the common seed used for any random operation.
+        data: Dict containing data to be trained on.
+        log_dir: Path to directory where model output should be saved.
+        load_weights: If set to true, skip training and load weights from source_dir instead.
+        source_dir: If set to load weights, path to directory containing trained weights.
+        seed: Common seed used for any random operation.
+        reproducible: If set to true, set torch to run reproducibly.
     """
 
     # Setting the seed before gin parsing
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
 
     if reproducible:
-        os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
         torch.use_deterministic_algorithms(True)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    if gin_config_files is None:
-        gin_config_files = []
-    if gin_bindings is None:
-        gin_bindings = []
-    gin.parse_config_files_and_bindings(gin_config_files, gin_bindings)
-    train_common(model_dir, overwrite, load_weights)
-    gin.clear_config()
+    model.set_log_dir(log_dir)
+    save_config_file(log_dir)
 
+    dataset = RICUDataset(data, split="train")
+    val_dataset = RICUDataset(data, split="val")
 
-
-@gin.configurable('train_common')
-def train_common(log_dir, overwrite=False, load_weights=False, model=gin.REQUIRED, dataset_fn=gin.REQUIRED,
-                 data_path=gin.REQUIRED, weight=None, do_test=False):
-    """
-    Common wrapper to train all benchmarked models.
-    """
-    if os.path.isdir(log_dir) and not load_weights:
-        if overwrite or (not os.path.isfile(os.path.join(log_dir, 'test_metrics.pkl'))):
-            shutil.rmtree(log_dir)
-        else:
-            raise ValueError("Directory already exists and overwrite is False.")
-    
-    if not load_weights:
-        os.makedirs(log_dir)
-    dataset = dataset_fn(data_path, split='train')
-    val_dataset = dataset_fn(data_path, split='val')
-
-    # We set the label scaler
-    val_dataset.set_scaler(dataset.scaler)
-    model.set_scaler(dataset.scaler)
-
-    model.set_logdir(log_dir)
-    save_config_file(log_dir)  # We save the operative config before and also after training
-    
     if load_weights:
-        if os.path.isfile(os.path.join(log_dir, 'model.torch')):
-            model.load_weights(os.path.join(log_dir, 'model.torch'))
-        elif os.path.isfile(os.path.join(log_dir, 'model.txt')):
-            model.load_weights(os.path.join(log_dir, 'model.txt'))
-        elif os.path.isfile(os.path.join(log_dir, 'model.joblib')):
-            model.load_weights(os.path.join(log_dir, 'model.joblib'))
+        if (source_dir / "model.torch").is_file():
+            model.load_weights(source_dir / "model.torch")
+        elif (source_dir / "model.txt").is_file():
+            model.load_weights(source_dir / "model.txt")
+        elif (source_dir / "model.joblib").is_file():
+            model.load_weights(source_dir / "model.joblib")
         else:
-            raise Exception("No weights to load at path : {}".format(os.path.join(log_dir, 'model.torch')))
-        do_test = True
+            raise Exception("No weights to load at path : {}".format(source_dir / "model.*"))
 
     else:
         try:
-            model.train(dataset, val_dataset, weight)
+            model.train(dataset, val_dataset, weight, seed)
         except ValueError as e:
             logging.exception(e)
-            if 'Only one class present' in str(e):
-                logging.error("There seems to be a problem with the evaluation metric. In case you are attempting "
-                              "to train with the synthetic data, this is expected behaviour")
             sys.exit(1)
 
-    del dataset.h5_loader.lookup_table
-    del val_dataset.h5_loader.lookup_table
+    test_dataset = RICUDataset(data, split=test_on)
+    weight = dataset.get_balance()
 
-    if do_test:
-        test_dataset = dataset_fn(data_path, split='test')
-        test_dataset.set_scaler(dataset.scaler)
-        weight = dataset.get_balance()
-        model.test(test_dataset, weight)
-        del test_dataset.h5_loader.lookup_table
+    # save config file again to capture missing gin parameters
     save_config_file(log_dir)
+    return model.test(test_dataset, weight, seed)
