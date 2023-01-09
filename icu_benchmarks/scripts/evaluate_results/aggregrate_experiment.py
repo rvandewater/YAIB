@@ -10,11 +10,12 @@ import pandas as pd
 
 
 
-log_parent = Path(r"C:\Users\Robin\Downloads\yaib_experiments")
+log_parent = Path(r"C:\Users\Robin\Downloads\yaib_experiments_aki")
 aggregated = pd.DataFrame(columns=["Dataset","Model", "Avg", "Std", "95% CI"])
 # pd.MultiIndex.from_tuples(aggregated, names=[("Dataset","Model")])
 metric_type = "PR"
 accumulation = "avg"
+seeds = 5
 for dataset in log_parent.iterdir():
     for task in dataset.iterdir():
         for model in task.iterdir():
