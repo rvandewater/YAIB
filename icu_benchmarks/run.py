@@ -50,9 +50,7 @@ def main(my_args=tuple(sys.argv[1:])):
         )
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         run_dir = create_run_dir(log_dir)
-        choose_and_bind_hyperparameters(
-            args.tune, args.data_dir, run_dir, args.seed, checkpoint=checkpoint, debug=args.debug
-        )
+        choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, args.seed, checkpoint=checkpoint, debug=args.debug)
 
     logging.info(f"Logging to {run_dir.resolve()}")
     log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)

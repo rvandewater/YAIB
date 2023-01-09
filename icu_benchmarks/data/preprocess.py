@@ -123,7 +123,9 @@ def preprocess_data(
     cache_dir = data_dir / "cache"
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
-    config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{fold_index}{debug}".encode("utf-8")
+    config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{repetition_index}{fold_index}{debug}".encode(
+        "utf-8"
+    )
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
     if use_cache:
