@@ -3,7 +3,6 @@ import gin
 import json
 import hashlib
 import pandas as pd
-import numpy as np
 import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
