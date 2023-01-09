@@ -95,8 +95,11 @@ def preprocess_data(
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 
-    #TODO: Generate
-    config_string = f"{preprocessor}{dumped_file_names}{dumped_vars}{seed}{fold_index}{debug}".encode("utf-8")
+    if preprocessor is not DefaultPreprocessor:
+        logging.log(logging.INFO, "Using user-supplied preprocessor.")
+    preprocessor = preprocessor()
+
+    config_string = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{seed}{fold_index}{debug}".encode("utf-8")
 
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
@@ -113,12 +116,7 @@ def preprocess_data(
     logging.info("Generating splits.")
     data = make_single_split(data, vars, num_folds, fold_index, seed=seed, debug=debug)
 
-    if preprocessor is not DefaultPreprocessor:
-        logging.log(logging.INFO, "Using user-supplied preprocessor.")
-
-    preprocessor = preprocessor(data, vars)
-
-    data = preprocessor.apply()
+    data = preprocessor.apply(data, vars)
 
     if generate_cache:
         caching(cache_dir, cache_file, data, load_cache)
