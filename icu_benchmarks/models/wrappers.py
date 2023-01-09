@@ -47,7 +47,8 @@ def pick_device_config(hint=None):
 
 @gin.configurable("DLWrapper")
 class DLWrapper(object):
-    def __init__(self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, device=None):
+    def __init__(self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, device=None,
+                 verbose_logging=True):
         device, pin_memory, n_worker = pick_device_config(device)
 
         self.device = device
@@ -60,6 +61,7 @@ class DLWrapper(object):
         self.loss = loss
         self.optimizer = optimizer_fn(self.encoder.parameters())
         self.scaler = None
+        self.verbose_logging = verbose_logging
 
     def set_log_dir(self, log_dir: Path):
         self.log_dir = log_dir
@@ -137,7 +139,7 @@ class DLWrapper(object):
         # Training epoch
         self.encoder.train()
         agg_train_loss = 0
-        for elem in tqdm(train_loader, leave=False):
+        for elem in tqdm(train_loader, leave=False, disable=not self.verbose_logging):
             loss, preds, target = self.step_fn(elem, weight)
             loss.backward()
             self.optimizer.step()
@@ -155,15 +157,15 @@ class DLWrapper(object):
 
     @gin.configurable(module="DLWrapper")
     def train(
-        self,
-        train_dataset,
-        val_dataset,
-        weight,
-        seed,
-        epochs=1000,
-        batch_size=64,
-        patience=10,
-        min_delta=1e-4,
+            self,
+            train_dataset,
+            val_dataset,
+            weight,
+            seed,
+            epochs=1000,
+            batch_size=64,
+            patience=10,
+            min_delta=1e-4,
     ):
 
         self.set_metrics()
@@ -201,8 +203,8 @@ class DLWrapper(object):
         table_header = ["EPOCH", "SPLIT", "METRICS", "COMMENT"]
         widths = [5, 5, 25, 50]
         log_table_row(table_header, widths=widths)
-        disable_tqdm = logging.getLogger().isEnabledFor(logging.INFO)
-        for epoch in trange(epochs, leave=False, disable=disable_tqdm):
+
+        for epoch in trange(epochs, leave=False, disable=not self.verbose_logging):
             # Train step
             train_loss, train_metric_results = self._do_training(train_loader, weight, metrics)
 
