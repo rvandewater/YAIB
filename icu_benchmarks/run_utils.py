@@ -115,23 +115,34 @@ def preprocess_and_train_for_folds(
         num_folds_to_train = num_folds
     agg_loss = 0
     for fold_index in range(num_folds_to_train):
+        start_time = datetime.now()
         data = preprocess_data(
             data_dir, seed=seed, debug=debug, use_cache=use_cache, num_folds=num_folds, fold_index=fold_index
         )
+        preprocess_time = start_time - datetime.now()
+        run_dir_seed_fold = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
+        run_dir_seed_fold.mkdir(parents=True, exist_ok=True)
 
-        run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
-        run_dir_seed.mkdir(parents=True, exist_ok=True)
+        start_time = datetime.now()
 
         agg_loss += train_common(
             data,
-            log_dir=run_dir_seed,
+            log_dir=run_dir_seed_fold,
             load_weights=load_weights,
             source_dir=source_dir,
             seed=seed,
             reproducible=reproducible,
             test_on=test_on,
         )
-        log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
+        train_time = start_time - datetime.now()
+        log_full_line(
+            f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| TRAINING DURATION {train_time}",
+            level=logging.INFO,
+        )
+        durations = {"preprocessing_duration": preprocess_time, "train_duration": train_time}
+
+        with open(run_dir_seed_fold / "durations.json", "w") as f:
+            json.dump(durations, f, cls=JsonNumpyEncoder)
 
     return agg_loss / num_folds
 
