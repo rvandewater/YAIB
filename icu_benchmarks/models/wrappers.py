@@ -165,7 +165,6 @@ class DLWrapper(object):
         patience=10,
         min_delta=1e-4,
     ):
-
         self.set_metrics()
         metrics = self.metrics
 
@@ -306,7 +305,7 @@ class MLWrapper(object):
             if isinstance(self.model, lightgbm.basic.Booster):
                 self.output_transform = lambda x: x
             else:
-                self.output_transform = lambda x: np.round(x[:, 1])
+                self.output_transform = lambda x: x[:, 1]
             self.label_transform = lambda x: x
 
             self.metrics = MLMetrics.BINARY_CLASSIFICATION
