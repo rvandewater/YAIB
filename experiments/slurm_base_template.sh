@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=4 # -c
 #SBATCH --mem=48gb
 #SBATCH --gpus=1
-#SBATCH --output=[INSERT:TASK_NAME,MODEL_NAME]_%a_%j.log # %j is job id, %a is array id
+#SBATCH --output=%x_%a_%j.log # %x is job-name, %j is job id, %a is array id
 #SBATCH --array=0-3
 
 # Basic experiment variables, please exchange [INSERT] for your experiment parameters
