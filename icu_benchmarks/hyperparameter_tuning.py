@@ -87,7 +87,7 @@ def choose_and_bind_hyperparameters(
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
     hyperparams = {}
-    # Collect hyperparameters.
+    # Collect hyperparameters
     for scope in scopes:
         with gin.config_scope(scope):
             hyperparams.update(hyperparameters_to_tune())
