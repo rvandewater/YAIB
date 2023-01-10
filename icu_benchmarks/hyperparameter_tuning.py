@@ -8,7 +8,8 @@ from skopt import gp_minimize
 import tempfile
 
 from icu_benchmarks.models.utils import JsonNumpyEncoder, log_table_row, Align
-from icu_benchmarks.run_utils import log_full_line, execute_repeated_cv
+from icu_benchmarks.cross_validation import execute_repeated_cv
+from icu_benchmarks.run_utils import log_full_line
 
 TUNE = 25
 logging.addLevelName(25, "TUNE")
