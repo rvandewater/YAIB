@@ -103,7 +103,7 @@ def execute_repeated_cv(
         reproducible: Whether to make torch reproducible.
         debug: Whether to load less data and enable more logging.
         use_cache: Whether to cache and use cached data.
-        test_on: Dataset to test on.
+        test_on: Dataset to test on. Can be "test" or "val" (e.g. for hyperparameter tuning).
 
     Returns:
         The average loss of all folds.
