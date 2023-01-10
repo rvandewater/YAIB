@@ -10,11 +10,11 @@ preprocess.use_features = False
 # Train params
 train_imputation_method.model = @NP
 train_imputation_method.do_test = True
-train_imputation_method.epochs = 1
+train_imputation_method.epochs = 100
 train_imputation_method.batch_size = 64
 train_imputation_method.patience = 10
 train_imputation_method.min_delta = 1e-4
-train_imputation_method.wandb = False
+train_imputation_method.wandb = True
 
 ImputationWrapper.optimizer = @Adam
 
@@ -23,11 +23,11 @@ Adam.lr = 1e-2
 Adam.weight_decay = 1e-6
 
 # Deterministic encoder params
-NP.encoder_layers = 1
+NP.encoder_layers = 3
 NP.encoder_h_dim = 50
 
 # Decoder params
-NP.decoder_layers = 1
+NP.decoder_layers = 3
 NP.decoder_h_dim = 50
 
 # Additional params
