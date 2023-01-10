@@ -22,5 +22,5 @@ model/hyperparameter.subsample_freq = 1
 
 tune_hyperparameters.scopes = ["model"]
 tune_hyperparameters.n_initial_points = 10
-tune_hyperparameters.n_calls = 25
+tune_hyperparameters.n_calls = 250
 tune_hyperparameters.folds_to_tune_on = 3
