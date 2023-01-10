@@ -1,0 +1,66 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "HiRID Mortality LGBM",
+            "type": "python",
+            "request": "launch",
+            "module": "icu_benchmarks.run",
+            "justMyCode": true,
+            "args": [
+                "train",
+                "-d", "../data/mortality24/hirid",
+                "-n", "hirid",
+                "-t", "BinaryClassification",
+                "-tn", "Mortality24",
+                "-m", "LGBMClassifier",
+                "-s", "1111",
+                "-l", "../yaib_logs/",
+                "--tune"
+            ]
+        },
+        {
+            "name": "HiRID Mortality LGBM T100",
+            "type": "python",
+            "request": "launch",
+            "module": "icu_benchmarks.run",
+            "justMyCode": true,
+            "args": [
+                "train",
+                "-d", "../data/mortality24/hirid",
+                "-n", "hirid",
+                "-t", "BinaryClassification",
+                "-tn", "Mortality24",
+                "-m", "LGBMClassifier",
+                "-c",
+                "-s", "2222",
+                "-l", "../yaib_logs/",
+                "--tune",
+                "-gb", "preprocess.fold_size=100"
+            ]
+        },
+        {
+            "name": "HiRID Mortality LR T100",
+            "type": "python",
+            "request": "launch",
+            "module": "icu_benchmarks.run",
+            "justMyCode": true,
+            "args": [
+                "train",
+                "-d", "../data/mortality24/hirid",
+                "-n", "hirid",
+                "-t", "BinaryClassification",
+                "-tn", "Mortality24",
+                "-m", "LogisticRegression",
+                "-c",
+                "-s", "2222",
+                "-l", "../yaib_logs/",
+                "--tune",
+                "-gb", "preprocess.fold_size=100"
+            ]
+        }
+    ]
+}
