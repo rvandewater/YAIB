@@ -203,8 +203,8 @@ class DLWrapper(object):
         table_header = ["EPOCH", "SPLIT", "METRICS", "COMMENT"]
         widths = [5, 5, 25, 50]
         log_table_row(table_header, widths=widths)
-
-        for epoch in trange(epochs, leave=False, disable=not self.verbose_logging):
+        disable_tqdm = logging.getLogger().isEnabledFor(logging.INFO)
+        for epoch in trange(epochs, leave=False, disable=not self.verbose_logging or disable_tqdm):
             # Train step
             train_loss, train_metric_results = self._do_training(train_loader, weight, metrics)
 
