@@ -2,13 +2,14 @@ import logging
 import gin
 import json
 import hashlib
+import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 
 from sklearn.impute import MissingIndicator, SimpleImputer
-from sklearn.model_selection import LeavePOut, StratifiedKFold
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 
 from recipys.recipe import Recipe
@@ -47,33 +48,25 @@ def make_single_split(
     stays = data["STATIC"][id].sample(frac=fraction_to_load, random_state=seed)
     labels = data["OUTCOME"][vars["LABEL"]]
 
+
+    outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
+    dev, test = list(outer_CV.split(stays, labels))[repetition_index]
+
     if fold_size:
-        train_and_val = stays.sample(fold_size, random_state=seed)
-        test = stays.drop(train_and_val.index)
-        train_and_val_labels = data["OUTCOME"].label.loc[train_and_val.index]
+        test = np.append(test, dev[fold_size:])
+        dev = dev[:fold_size]
 
-        target_folds = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
-        train, val = list(target_folds.split(train_and_val, train_and_val_labels))[fold_index]
+    dev_stays = stays.iloc[dev]
+    dev_labels = labels.iloc[dev]
 
-        split = {
-            "train": train_and_val.iloc[train],
-            "val": train_and_val.iloc[val],
-            "test": test,
-        }
-    else:
-        outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
-        inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
+    inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
+    train, val = list(inner_CV.split(dev_stays, dev_labels))[fold_index]
 
-        dev, test = list(outer_CV.split(stays, labels))[repetition_index]
-        dev_stays = stays.iloc[dev]
-        dev_labels = labels.iloc[dev]
-        train, val = list(inner_CV.split(dev_stays, dev_labels))[fold_index]
-
-        split = {
-            "train": dev_stays.iloc[train],
-            "val": dev_stays.iloc[val],
-            "test": stays.iloc[test],
-        }
+    split = {
+        "train": dev_stays.iloc[train],
+        "val": dev_stays.iloc[val],
+        "test": stays.iloc[test],
+    }
 
     data_split = {}
     for fold_name, fold in split.items():  # Loop through train / val / test
