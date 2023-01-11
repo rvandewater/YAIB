@@ -52,7 +52,7 @@ def main(my_args=tuple(sys.argv[1:])):
         )
         return
     if args.command == "da":
-        run_dir = create_run_dir(log_dir)
+        run_dir = create_run_dir(args.log_dir)
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]
             if args.experiment

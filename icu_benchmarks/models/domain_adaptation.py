@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import gin
@@ -6,14 +7,14 @@ import logging
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from skopt import gp_minimize
-from sklearn.metrics import log_loss
+import scipy.stats as stats
 
 from icu_benchmarks.data.loader import RICUDataset
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.wrappers import MLWrapper
+from icu_benchmarks.models.utils import JsonNumpyEncoder
 from icu_benchmarks.run_utils import log_full_line
 
 
@@ -128,9 +129,9 @@ def domain_adaptation(
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
     cv_repetitions = 5
-    cv_repetitions_to_train = 3
+    cv_repetitions_to_train = 2
     cv_folds = 5
-    cv_folds_to_train = 5
+    cv_folds_to_train = 2
     target_sizes = [500, 1000, 2000]
     datasets = ["hirid", "aumc", "miiv"]
     weights = [1] * (len(datasets) - 1) + [1]
@@ -145,9 +146,15 @@ def domain_adaptation(
         for target_size in target_sizes:
             log_full_line(f"STARTING TARGET SIZE {target_size}", char="*", num_newlines=1)
             gin.bind_parameter("preprocess.fold_size", target_size)
-            choose_and_bind_hyperparameters(True, data_dir, run_dir, seed, debug=debug)
+            log_dir = run_dir / task / dataset / f"target_{target_size}"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            choose_and_bind_hyperparameters(True, data_dir, log_dir, seed, debug=debug)
+            results = {}
             for repetition in range(cv_repetitions_to_train):
                 for fold_index in range(cv_folds_to_train):
+                    results[f"{repetition}_{fold_index}"] = {}
+                    fold_results = results[f"{repetition}_{fold_index}"]
+
                     data = preprocess_data(
                         data_dir,
                         seed=seed,
@@ -159,16 +166,16 @@ def domain_adaptation(
                         fold_index=fold_index,
                     )
 
-                    run_dir_seed = run_dir / f"cv_rep_{repetition}" / f"fold_{fold_index}"
-                    run_dir_seed.mkdir(parents=True, exist_ok=True)
+                    log_dir_fold = log_dir / f"cv_rep_{repetition}" / f"fold_{fold_index}"
+                    log_dir_fold.mkdir(parents=True, exist_ok=True)
 
                     # evaluate target baselines
-                    target_model = train_common(data, log_dir=run_dir_seed, seed=seed, return_model=True)
+                    target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
                     
                     test_predictions, test_labels = get_predictions_for_all_models(
                         target_model,
                         data,
-                        run_dir,
+                        log_dir_fold,
                         source_dir=model_path / task / model,
                         seed=seed,
                         source_datasets=source_datasets,
@@ -177,7 +184,8 @@ def domain_adaptation(
                     # evaluate source baselines
                     for baseline, predictions in test_predictions.items():
                         logging.info("Evaluating model: {}".format(baseline))
-                        get_model_metrics(target_model, predictions, test_labels)
+                        fold_results[baseline] = get_model_metrics(target_model, predictions, test_labels)
+
 
                     # evaluate convex combination of models
                     test_predictions_list = list(test_predictions.values())
@@ -189,12 +197,36 @@ def domain_adaptation(
                         w = weights + [t * sum(weights)]
                         logging.info(f"Evaluating target weight: {t}")
                         test_pred = np.average(test_predictions_list, axis=0, weights=w)
-                        get_model_metrics(target_model, test_pred, test_labels)
+                        fold_results[f"convex_combination_{t}"] = get_model_metrics(target_model, test_pred, test_labels)
 
                     log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
                 log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
             log_full_line(f"EVALUATED TARGET SIZE {target_size}", char="*", num_newlines=5)
-        log_full_line(f"EVALUATED {dataset}", char="#", num_newlines=10)
 
-    return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)
+            source_metrics = {}
+            for result in results.values():
+                for source, source_stats in result.items():
+                    for metric, score in source_stats.items():
+                        if isinstance(score, (float, int)):
+                            source_metrics.setdefault(source, {}).setdefault(metric, []).append(score)
+
+            # Compute statistical metric over aggregated results
+            averaged_metrics = {}
+            for source, source_stats in source_metrics.items():
+                for metric, scores in source_stats.items():
+                    averaged_metrics.setdefault(source, {}).setdefault(metric, []).append({
+                        "avg": np.mean(scores),
+                        "std": np.std(scores),
+                        "CI_0.95": stats.t.interval(0.95, len(scores) - 1, loc=np.mean(scores), scale=stats.sem(scores)),
+                    })
+
+            with open(log_dir / "aggregated_source_metrics.json", "w") as f:
+                json.dump(results, f, cls=JsonNumpyEncoder)
+
+            with open(log_dir / "averaged_source_metrics.json", "w") as f:
+                json.dump(averaged_metrics, f, cls=JsonNumpyEncoder)
+
+            logging.info(f"Averaged results: {averaged_metrics}")
+
+        log_full_line(f"EVALUATED {dataset}", char="#", num_newlines=10)
  
