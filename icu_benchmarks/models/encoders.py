@@ -2,24 +2,53 @@ import gin
 import numpy as np
 import torch
 import torch.nn as nn
-from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, SparseBlock, PositionalEncoding
+import lightgbm
+
+from sklearn import linear_model
+from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
+from icu_benchmarks.models.wrappers import DLClassificationWrapper, MLClassificationWrapper
+import inspect
+
+@gin.configurable
+class LGBMClassifier(MLClassificationWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = self.model_args()
+    
+    @gin.configurable(module="LGBMClassifier")
+    def model_args(self, *args, **kwargs):
+        return lightgbm.LGBMClassifier(*args, **kwargs)
 
 
-@gin.configurable("LSTM")
-class LSTMNet(nn.Module):
-    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes):
-        super().__init__()
+@gin.configurable
+class LGBMRegressor(MLClassificationWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = self.model_args()
+    
+    @gin.configurable(module="LGBMRegressor")
+    def model_args(self, *args, **kwargs):
+        return lightgbm.LGBMRegressor(*args, **kwargs)
+    
+@gin.configurable
+class LogisticRegression(MLClassificationWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = self.model_args()
+    
+    @gin.configurable(module="LogisticRegression")
+    def model_args(self, *args, **kwargs):
+        return linear_model.LogisticRegression(*args, **kwargs)
+
+@gin.configurable
+class LSTMNet(DLClassificationWrapper):
+    
+    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
         self.rnn = nn.LSTM(input_dim, hidden_dim, layer_dim, batch_first=True)
-        self.logit = nn.Linear(hidden_dim, num_classes)
-
-        if torch.cuda.is_available():
-            self.device = torch.device("cuda:0")
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            self.device = torch.device("mps:0")
-        else:
-            self.device = torch.device("cpu")
+        self.logit = nn.Linear(hidden_dim, num_classes)        
 
     def init_hidden(self, x):
         h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
@@ -33,21 +62,15 @@ class LSTMNet(nn.Module):
         return pred
 
 
-@gin.configurable("GRU")
-class GRUNet(nn.Module):
-    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes):
-        super().__init__()
+@gin.configurable
+class GRUNet(DLClassificationWrapper):
+
+    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
         self.rnn = nn.GRU(input_dim, hidden_dim, layer_dim, batch_first=True)
         self.logit = nn.Linear(hidden_dim, num_classes)
-
-        if torch.cuda.is_available():
-            self.device = torch.device("cuda:0")
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            self.device = torch.device("mps:0")
-        else:
-            self.device = torch.device("cpu")
 
     def init_hidden(self, x):
         h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim).to(self.device)
@@ -61,12 +84,13 @@ class GRUNet(nn.Module):
         return pred
 
 
-@gin.configurable("Transformer")
-class Transformer(nn.Module):
+@gin.configurable
+class Transformer(DLClassificationWrapper):
+
     def __init__(
-        self, emb, hidden, heads, ff_hidden_mult, depth, num_classes, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0
+        self, emb, hidden, heads, ff_hidden_mult, depth, num_classes, *args, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0, **kwargs
     ):
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
         self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
@@ -102,8 +126,9 @@ class Transformer(nn.Module):
         return pred
 
 
-@gin.configurable("LocalTransformer")
-class LocalTransformer(nn.Module):
+@gin.configurable
+class LocalTransformer(DLClassificationWrapper):
+
     def __init__(
         self,
         emb,
@@ -112,13 +137,15 @@ class LocalTransformer(nn.Module):
         ff_hidden_mult,
         depth,
         num_classes,
+        *args,
         dropout=0.0,
         l1_reg=0,
         pos_encoding=True,
         local_context=1,
         dropout_att=0.0,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
         self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
@@ -155,67 +182,15 @@ class LocalTransformer(nn.Module):
         return pred
 
 
-@gin.configurable("NaiveSparseTransformer")
-class NaiveSparseTransformer(nn.Module):
-    def __init__(
-        self,
-        emb,
-        hidden,
-        heads,
-        ff_hidden_mult,
-        depth,
-        num_classes,
-        dropout=0.0,
-        l1_reg=0,
-        mask_aggregation="union",
-        local_context=3,
-        pos_encoding=True,
-        dropout_att=0.0,
-    ):
-        super().__init__()
-        self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
-
-        tblocks = []
-        for i in range(depth):
-            tblocks.append(
-                SparseBlock(
-                    emb=hidden,
-                    hidden=hidden,
-                    heads=heads,
-                    mask=True,
-                    ff_hidden_mult=ff_hidden_mult,
-                    dropout=dropout,
-                    mask_aggregation=mask_aggregation,
-                    local_context=local_context,
-                    dropout_att=dropout_att,
-                )
-            )
-        if pos_encoding:
-            self.pos_encoder = PositionalEncoding(hidden)
-        else:
-            self.pos_encoder = None
-
-        self.tblocks = nn.Sequential(*tblocks)
-        self.logit = nn.Linear(hidden, num_classes)
-        self.l1_reg = l1_reg
-
-    def forward(self, x):
-        x = self.input_embedding(x)
-        if self.pos_encoder is not None:
-            x = self.pos_encoder(x)
-        x = self.tblocks(x)
-        pred = self.logit(x)
-        w_input = list(self.input_embedding.parameters())[0]
-        l1_norm_input = torch.torch.norm(w_input, 1)
-
-        return pred, l1_norm_input * self.l1_reg
-
-
 # From TCN original paper https://github.com/locuslab/TCN
-@gin.configurable("TCN")
-class TemporalConvNet(nn.Module):
-    def __init__(self, num_inputs, num_channels, num_classes, max_seq_length=0, kernel_size=2, dropout=0.0):
-        super(TemporalConvNet, self).__init__()
+@gin.configurable
+class TemporalConvNet(DLClassificationWrapper):
+    
+    needs_training = True
+    needs_fit = False
+    
+    def __init__(self, num_inputs, num_channels, num_classes, *args, max_seq_length=0, kernel_size=2, dropout=0.0, **kwargs):
+        super().__init__(*args, **kwargs)
         layers = []
 
         # We compute automatically the depth based on the desired seq_length.

@@ -1,0 +1,22 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/miiv"
+  - "-n"
+  - "miiv"
+  - "-t"
+  - "Dataset_Imputation"
+  - "-c"
+  - "--wandb-sweep"
+  - "--wandb"
+method: grid
+parameters:
+  model:
+    values: ["Mean", "Median", "Zero", "MostFrequent", "KNN", "MICE", "GAIN"]
+  ImputationDataset.mask_method:
+    values: ["MCAR", "MAR", "MNAR"]
+  seed:
+    values: [1111]
