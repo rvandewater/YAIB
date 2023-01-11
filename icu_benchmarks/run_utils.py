@@ -89,7 +89,7 @@ def aggregate_results(log_dir: Path):
                     result = json.load(f)
                     aggregated[seed.name][fold.name] = result
                 # Add durations to metrics
-                with open(fold / "duration.json", "r") as f:
+                with open(fold / "durations.json", "r") as f:
                     result = json.load(f)
                     aggregated[seed.name][fold.name].update(result)
 

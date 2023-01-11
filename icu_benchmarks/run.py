@@ -71,7 +71,7 @@ def main(my_args=tuple(sys.argv[1:])):
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
-    execution_time = start_time - datetime.now()
+    execution_time = datetime.now() - start_time
     log_full_line(f"DURATION: {execution_time}", level=logging.INFO, char="")
     aggregate_results(run_dir)
     if args.plot:
