@@ -26,4 +26,4 @@ dependencies:
   - mypy
   - pip=22.3.1
   - pip:
-      - git+https://github.com/rvandewater/recipys.git
+      - git+https://github.com/Snagnar/recipys.git
