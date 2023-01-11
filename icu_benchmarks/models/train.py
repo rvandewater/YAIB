@@ -62,6 +62,7 @@ def train_common(
         shuffle=True,
         num_workers=num_workers,
         pin_memory=True,
+        drop_last=True,
     )
     val_loader = DataLoader(
         val_dataset,
@@ -69,6 +70,7 @@ def train_common(
         shuffle=False,
         num_workers=num_workers,
         pin_memory=True,
+        drop_last=True,
     )
 
     data_shape = next(iter(train_loader))[0].shape
