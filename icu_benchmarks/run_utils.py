@@ -1,6 +1,6 @@
 import json
 from argparse import ArgumentParser, BooleanOptionalAction
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from pathlib import Path
 import scipy.stats as stats
@@ -74,7 +74,7 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     return log_dir_run
 
 
-def aggregate_results(log_dir: Path):
+def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
     """Aggregates results from all folds and writes to JSON file.
 
     Args:
@@ -110,7 +110,12 @@ def aggregate_results(log_dir: Path):
         for metric, list in list_scores.items()
     }
 
-    accumulated_metrics = {"avg": averaged_scores, "std": std_scores, "CI_0.95": confidence_interval}
+    accumulated_metrics = {
+        "avg": averaged_scores,
+        "std": std_scores,
+        "CI_0.95": confidence_interval,
+        "execution_time": execution_time,
+    }
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
         json.dump(aggregated, f, cls=JsonResultLoggingEncoder)
