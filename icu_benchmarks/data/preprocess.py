@@ -44,9 +44,11 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
-    fraction_to_load = 1 if not debug else 0.01
-    stays = data["STATIC"][id].sample(frac=fraction_to_load, random_state=seed)
-    labels = data["OUTCOME"][vars["LABEL"]]
+    stays = data["STATIC"][id]
+    if debug:
+        # Only use 1% of the data
+        stays = stays.sample(frac=0.01, random_state=seed)
+    labels = data["OUTCOME"][vars["LABEL"]].loc[stays.index]
 
 
     outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
