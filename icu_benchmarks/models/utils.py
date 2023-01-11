@@ -1,5 +1,7 @@
+from datetime import timedelta
 from enum import Enum
 import json
+from json import JSONEncoder
 import gin
 import logging
 import numpy as np
@@ -41,7 +43,7 @@ def append_results(experiment_parent, results, seed):
         json.dump(file, f, cls=JsonNumpyEncoder)
 
 
-class JsonNumpyEncoder(json.JSONEncoder):
+class JsonNumpyEncoder(JSONEncoder):
     # Serializes foreign datatypes
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -55,7 +57,9 @@ class JsonNumpyEncoder(json.JSONEncoder):
         if isinstance(obj, tuple):
             if isinstance(obj)[0] is torch.Tensor or isinstance(obj)[0] is np.ndarray:
                 return map(lambda item: item.tolist(), obj)
-        return super(JsonNumpyEncoder).default(self, obj)
+        if isinstance(obj,timedelta):
+            return str(obj)
+        return JSONEncoder.default(self, obj)
 
 
 class Align(Enum):

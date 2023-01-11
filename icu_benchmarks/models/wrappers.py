@@ -47,8 +47,14 @@ def pick_device_config(hint=None):
 
 @gin.configurable("DLWrapper")
 class DLWrapper(object):
-    def __init__(self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, device=None,
-                 verbose_logging=True):
+    def __init__(
+        self,
+        encoder=LSTMNet,
+        loss=torch.nn.functional.cross_entropy,
+        optimizer_fn=torch.optim.Adam,
+        device=None,
+        verbose_logging=True,
+    ):
         device, pin_memory, n_worker = pick_device_config(device)
 
         self.device = device
@@ -157,15 +163,15 @@ class DLWrapper(object):
 
     @gin.configurable(module="DLWrapper")
     def train(
-            self,
-            train_dataset,
-            val_dataset,
-            weight,
-            seed,
-            epochs=1000,
-            batch_size=64,
-            patience=10,
-            min_delta=1e-4,
+        self,
+        train_dataset,
+        val_dataset,
+        weight,
+        seed,
+        epochs=1000,
+        batch_size=64,
+        patience=10,
+        min_delta=1e-4,
     ):
         self.set_metrics()
         metrics = self.metrics

@@ -1,9 +1,12 @@
+import json
+from datetime import datetime
 import logging
 import gin
 from pathlib import Path
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
+from icu_benchmarks.models.utils import JsonNumpyEncoder
 from icu_benchmarks.run_utils import log_full_line
 
 
@@ -48,6 +51,7 @@ def execute_repeated_cv(
     agg_loss = 0
     for repetition in range(cv_repetitions_to_train):
         for fold_index in range(cv_folds_to_train):
+            start_time = datetime.now()
             data = preprocess_data(
                 data_dir,
                 seed=seed,
@@ -62,6 +66,8 @@ def execute_repeated_cv(
             run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
             run_dir_seed.mkdir(parents=True, exist_ok=True)
 
+            preprocess_time = datetime.now() - start_time
+            start_time = datetime.now()
             agg_loss += train_common(
                 data,
                 log_dir=run_dir_seed,
@@ -71,7 +77,16 @@ def execute_repeated_cv(
                 reproducible=reproducible,
                 test_on=test_on,
             )
-            log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
+            train_time = datetime.now() - start_time
+
+            log_full_line(
+                f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| TRAINING DURATION {train_time}",
+                level=logging.INFO,
+            )
+            durations = {"preprocessing_duration": preprocess_time, "train_duration": train_time}
+
+            with open(run_dir_seed / "durations.json", "w") as f:
+                json.dump(durations, f, cls=JsonNumpyEncoder)
         log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)
