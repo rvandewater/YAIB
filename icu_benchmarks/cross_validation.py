@@ -75,3 +75,52 @@ def execute_repeated_cv(
         log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)
+
+
+def evaluate(
+    data_dir: Path,
+    log_dir: Path,
+    seed: int,
+    source_dir: Path = None,
+    reproducible: bool = True,
+    debug: bool = False,
+    use_cache: bool = False,
+) -> float:
+    """Preprocesses data and trains a model for each fold.
+
+    Args:
+        data_dir: Path to the data directory.
+        log_dir: Path to the log directory.
+        seed: Random seed.
+        load_weights: Whether to load weights from source_dir.
+        source_dir: Path to the source directory.
+        cv_folds: Number of folds for cross validation.
+        cv_folds_to_train: Number of folds to use during training. If None, all folds are trained on.
+        reproducible: Whether to make torch reproducible.
+        debug: Whether to load less data and enable more logging.
+        use_cache: Whether to cache and use cached data.
+        test_on: Dataset to test on. Can be "test" or "val" (e.g. for hyperparameter tuning).
+
+    Returns:
+        The average loss of all folds.
+    """
+
+    data = preprocess_data(
+        data_dir,
+        seed=seed,
+        debug=debug,
+        use_cache=use_cache,
+        test_all=True,
+    )
+
+    run_dir_seed = log_dir / f"seed_{seed}"
+    run_dir_seed.mkdir(parents=True, exist_ok=True)
+
+    return train_common(
+        data,
+        log_dir=run_dir_seed,
+        load_weights=True,
+        source_dir=source_dir,
+        seed=seed,
+        reproducible=reproducible,
+    )

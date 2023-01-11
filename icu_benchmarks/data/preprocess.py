@@ -27,6 +27,7 @@ def make_single_split(
     seed: int = 42,
     debug: bool = False,
     fold_size: int = None,
+    test_all: bool = False,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
@@ -39,6 +40,7 @@ def make_single_split(
         fold_index: Index of the fold to return.
         seed: Random seed.
         debug: Load less data if true.
+        test_all: If true, the test set will be the entire dataset.
 
     Returns:
         Input data divided into 'train', 'val', and 'test'.
@@ -50,25 +52,42 @@ def make_single_split(
         stays = stays.sample(frac=0.01, random_state=seed)
     labels = data["OUTCOME"][vars["LABEL"]].loc[stays.index]
 
+    if test_all:
+        split = {
+            "train": stays.iloc[0:0],
+            "val": stays.iloc[0:0],
+            "test": stays,
+        }
+    else:
+        outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
+        dev, test = list(outer_CV.split(stays, labels))[repetition_index]
 
-    outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
-    dev, test = list(outer_CV.split(stays, labels))[repetition_index]
+        if fold_size:
+            start_index = 0
+            end_index = fold_size
+            pre_dev = dev[start_index:end_index]
+            leave_for_test = dev[end_index:]
+            pre_dev_labels = labels.iloc[pre_dev]
+            while pre_dev_labels.sum() < cv_folds:
+                start_index += fold_size
+                end_index += fold_size
+                pre_dev = dev[start_index:end_index]
+                pre_dev_labels = labels.iloc[pre_dev]
+                leave_for_test = np.append(dev[0:start_index], dev[end_index:])
+            dev = pre_dev
+            test = np.append(test, leave_for_test)
 
-    if fold_size:
-        test = np.append(test, dev[fold_size:])
-        dev = dev[:fold_size]
+        dev_stays = stays.iloc[dev]
+        dev_labels = labels.iloc[dev]
 
-    dev_stays = stays.iloc[dev]
-    dev_labels = labels.iloc[dev]
+        inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
+        train, val = list(inner_CV.split(dev_stays, dev_labels))[fold_index]
 
-    inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
-    train, val = list(inner_CV.split(dev_stays, dev_labels))[fold_index]
-
-    split = {
-        "train": dev_stays.iloc[train],
-        "val": dev_stays.iloc[val],
-        "test": stays.iloc[test],
-    }
+        split = {
+            "train": dev_stays.iloc[train],
+            "val": dev_stays.iloc[val],
+            "test": stays.iloc[test],
+        }
 
     data_split = {}
     for fold_name, fold in split.items():  # Loop through train / val / test
@@ -81,17 +100,24 @@ def make_single_split(
     return data_split
 
 
-def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
+def apply_recipe_to_splits(
+    recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str, test_all: bool = False
+) -> dict[dict[pd.DataFrame]]:
     """Fits and transforms the training data, then transforms the validation and test data with the recipe.
 
     Args:
         recipe: Object containing info about the data and steps.
         data: Dict containing 'train', 'val', and 'test' and types of data per split.
         type: Whether to apply recipe to dynamic data, static data or outcomes.
+        test_all: If true, the test set will be the entire dataset.
 
     Returns:
         Transformed data divided into 'train', 'val', and 'test'.
     """
+    if test_all:
+        data["test"][type] = recipe.prep(data["test"][type])
+        return data
+
     data["train"][type] = recipe.prep()
     data["val"][type] = recipe.bake(data["val"][type])
     data["test"][type] = recipe.bake(data["test"][type])
@@ -112,6 +138,7 @@ def preprocess_data(
     cv_folds: int = 5,
     fold_size: int = None,
     fold_index: int = 0,
+    test_all: bool = False,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -127,6 +154,7 @@ def preprocess_data(
         repetition_index: Index of the repetition to return.
         cv_folds: Number of folds to use for cross validation.
         fold_index: Index of the fold to return.
+        test_all: If true, the test set will be the entire dataset.
 
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with data type (STATIC/DYNAMIC/OUTCOME)
@@ -135,6 +163,8 @@ def preprocess_data(
     cache_dir = data_dir / "cache"
     if fold_size:
         cache_dir = cache_dir / f"T{fold_size}"
+    if test_all:
+        cache_dir = cache_dir / "test_complete"
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
     config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{repetition_index}{fold_index}{debug}".encode(
@@ -153,7 +183,18 @@ def preprocess_data(
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in ["STATIC", "DYNAMIC", "OUTCOME"]}
 
     logging.info("Generating splits.")
-    data = make_single_split(data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug, fold_size=fold_size)
+    data = make_single_split(
+        data,
+        vars,
+        cv_repetitions,
+        repetition_index,
+        cv_folds,
+        fold_index,
+        seed=seed,
+        debug=debug,
+        fold_size=fold_size,
+        test_all=test_all,
+    )
 
     logging.info("Preprocessing static data.")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
@@ -162,7 +203,7 @@ def preprocess_data(
     sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
     sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
 
-    data = apply_recipe_to_splits(sta_rec, data, "STATIC")
+    data = apply_recipe_to_splits(sta_rec, data, "STATIC", test_all=test_all)
 
     logging.info("Preprocessing dynamic data.")
     dyn_rec = Recipe(data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
@@ -176,11 +217,11 @@ def preprocess_data(
     dyn_rec.add_step(StepImputeFill(method="ffill"))
     dyn_rec.add_step(StepImputeFill(value=0))
 
-    data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")
+    data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC", test_all=test_all)
 
     if use_cache and not cache_file.exists():
         if not cache_dir.exists():
-            cache_dir.mkdir()
+            cache_dir.mkdir(parents=True)
         cache_file.touch()
         with open(cache_file, "wb") as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
