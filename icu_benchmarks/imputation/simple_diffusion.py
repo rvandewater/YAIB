@@ -121,28 +121,45 @@ class Simple_Diffusion_Model(ImputationWrapper):
 
     def training_step(self, batch):
 
+        amputated, amputation_mask, target = batch
+        amputated = torch.nan_to_num(amputated, nan=0.0)
+
         t = torch.randint(0, self.T, (self.input_size[0],), device=self.device).long()
-        loss = self.get_loss(batch[0], t)
+        loss = self.get_loss(target, t)
         
+        self.log("train/loss", loss.item(), prog_bar=True)
+
         return loss
 
     def validation_step(self, batch, batch_index):
 
+        amputated, amputation_mask, target = batch
+        amputated = torch.nan_to_num(amputated, nan=0.0)
+        # imputated = self(amputated, amputation_mask)
+
         t = torch.randint(0, self.T, (1,), device=self.device).long()
 
-        betas_t = self.get_index_from_list(self.betas, t, batch[0].shape)
-        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, batch[0].shape)
-        sqrt_recip_alphas_t = self.get_index_from_list(self.sqrt_recip_alphas, t, batch[0].shape)
+        betas_t = self.get_index_from_list(self.betas, t, amputated.shape)
+        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, amputated.shape)
+        sqrt_recip_alphas_t = self.get_index_from_list(self.sqrt_recip_alphas, t, amputated.shape)
 
-        model_mean = sqrt_recip_alphas_t * (batch[0] - betas_t * self(batch[0], t) / sqrt_one_minus_alphas_cumprod_t)
+        model_mean = sqrt_recip_alphas_t * (amputated - betas_t * self(amputated, t) / sqrt_one_minus_alphas_cumprod_t)
 
-        posterior_variance_t = self.get_index_from_list(self.posterior_variance, t, batch[0].shape)
+        posterior_variance_t = self.get_index_from_list(self.posterior_variance, t, amputated.shape)
 
         if t == 0:
-            return model_mean
+            imputated = model_mean
         else:
-            noise = torch.randn_like(batch[0])
-            return model_mean + torch.sqrt(posterior_variance_t) * noise
+            noise = torch.randn_like(amputated)
+            imputated = model_mean + torch.sqrt(posterior_variance_t) * noise
+
+        imputated = amputated.masked_scatter_(amputation_mask, imputated)
+
+        loss = self.loss(imputated, target)
+        self.log("val/loss", loss.item(), prog_bar=True)
+
+        for metric in self.metrics.values():
+            metric.update(imputated, target)
 
 
 class Block(nn.Module):
