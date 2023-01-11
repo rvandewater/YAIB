@@ -108,6 +108,7 @@ def get_model_metrics(model: object, test_predictions: np.ndarray, test_labels: 
 
 
 def domain_adaptation(
+    data_dir: Path,
     run_dir: Path,
     seed: int,
     task: str = None,
@@ -135,7 +136,7 @@ def domain_adaptation(
     target_sizes = [500, 1000, 2000]
     datasets = ["hirid", "aumc", "miiv"]
     weights = [1] * (len(datasets) - 1) + [1]
-    task_dir = Path("../data/") / task
+    task_dir = data_dir / task
     model_path = Path("../models/best_models/")
 
     # evaluate models on same test split
