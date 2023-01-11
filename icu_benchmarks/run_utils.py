@@ -2,14 +2,11 @@ import json
 from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime
 import logging
-import gin
 from pathlib import Path
 import scipy.stats as stats
 import shutil
 from statistics import mean, stdev
 
-from icu_benchmarks.data.preprocess import preprocess_data
-from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.utils import JsonNumpyEncoder
 
 
@@ -33,9 +30,7 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument("-l", "--log-dir", required=True, type=Path, help="Log directory with model weights.")
-    general_args.add_argument(
-        "-s", "--seeds", default=[1111], nargs="+", type=int, help="Random seed for processing, tuning and training."
-    )
+    general_args.add_argument("-s", "--seed", default=1111, type=int, help="Random seed for processing, tuning and training.")
     general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
     general_args.add_argument("-pl", "--plot", action=BooleanOptionalAction, help="Generate common plots.")
@@ -74,63 +69,6 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     if randomly_searched_params:
         (log_dir_run / randomly_searched_params).touch()
     return log_dir_run
-
-
-@gin.configurable
-def preprocess_and_train_for_folds(
-    data_dir: Path,
-    log_dir: Path,
-    seed: int,
-    load_weights: bool = False,
-    source_dir: Path = None,
-    num_folds: int = gin.REQUIRED,
-    num_folds_to_train: int = None,
-    reproducible: bool = True,
-    debug: bool = False,
-    use_cache: bool = False,
-    test_on: str = "test",
-) -> float:
-    """Preprocesses data and trains a model for each fold.
-
-    Args:
-        data_dir: Path to the data directory.
-        log_dir: Path to the log directory.
-        seed: Random seed.
-        load_weights: Whether to load weights from source_dir.
-        source_dir: Path to the source directory.
-        num_folds: Number of folds for preprocessing.
-        num_folds_to_train: Number of folds to train on. If None, all folds are trained on.
-        reproducible: Whether to make torch reproducible.
-        debug: Whether to load less data and enable more logging.
-        use_cache: Whether to cache and use cached data.
-        test_on: Dataset to test on.
-
-    Returns:
-        The average loss of all folds.
-    """
-    if not num_folds_to_train:
-        num_folds_to_train = num_folds
-    agg_loss = 0
-    for fold_index in range(num_folds_to_train):
-        data = preprocess_data(
-            data_dir, seed=seed, debug=debug, use_cache=use_cache, num_folds=num_folds, fold_index=fold_index
-        )
-
-        run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
-        run_dir_seed.mkdir(parents=True, exist_ok=True)
-
-        agg_loss += train_common(
-            data,
-            log_dir=run_dir_seed,
-            load_weights=load_weights,
-            source_dir=source_dir,
-            seed=seed,
-            reproducible=reproducible,
-            test_on=test_on,
-        )
-        log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
-
-    return agg_loss / num_folds
 
 
 def aggregate_results(log_dir: Path):
