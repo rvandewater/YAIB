@@ -10,16 +10,15 @@ RES_LAB = 1
 preprocess.use_features = False
 
 # Train params
-train_common.model = @DLWrapper()
+train_common.model = @Transformer
 train_common.do_test = True
 
-DLWrapper.encoder = @Transformer()
-DLWrapper.optimizer_fn = @Adam
+train_common.optimizer = @Adam
 
-DLWrapper.train.epochs = 1000
-DLWrapper.train.batch_size = 8 16
-DLWrapper.train.patience = 10
-DLWrapper.train.min_delta = 1e-4
+train_common.epochs = 1000
+train_common.batch_size = 16
+train_common.patience = 10
+train_common.min_delta = 1e-4
 
 # Optimizer params
 Adam.weight_decay = 1e-6
@@ -32,7 +31,7 @@ Transformer.ff_hidden_mult = 2
 Transformer.l1_reg = 0.0
 Transformer.num_classes = %NUM_CLASSES
 model/random_search.class_to_configure = @Transformer
-model/random_search.hidden_dim = [32, 64, 128, 256]
+model/random_search.hidden = [32, 64, 128, 256]
 model/random_search.heads = [1, 2, 4, 8]
 model/random_search.depth = [1, 2, 3]
 model/random_search.dropout = [0.0, 0.1, 0.2, 0.3, 0.4]

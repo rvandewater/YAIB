@@ -1,10 +1,13 @@
+import logging
+from datetime import datetime
 import gin
 import numpy as np
+from typing import Union, List, Dict
 from pathlib import Path
 
 
 @gin.configurable
-def random_search(class_to_configure: type = gin.REQUIRED, **kwargs: dict[str, list]) -> list[str]:
+def random_search(class_to_configure: Union[type, str] = gin.REQUIRED, **kwargs: Dict[str, list]) -> List[str]:
     """Randomly searches parameters for a class and sets gin bindings.
 
     Args:
@@ -16,7 +19,8 @@ def random_search(class_to_configure: type = gin.REQUIRED, **kwargs: dict[str, l
     """
     randomly_searched_params = []
     for param, values in kwargs.items():
-        param_to_set = f"{class_to_configure.__name__}.{param}"
+        class_name = class_to_configure.__name__ if isinstance(class_to_configure, type) else class_to_configure
+        param_to_set = f"{class_name}.{param}"
         if f"{param_to_set}=" in gin.config_str().replace(" ", ""):
             continue  # hyperparameter is already set in the config (e.g. from experiment), so skip random search
         value = values[np.random.randint(len(values))]
@@ -25,7 +29,7 @@ def random_search(class_to_configure: type = gin.REQUIRED, **kwargs: dict[str, l
 
 
 @gin.configurable
-def run_random_searches(scopes: list[str] = gin.REQUIRED) -> list[str]:
+def run_random_searches(scopes: List[str] = []) -> List[str]:
     """Executes random searches for the different scopes defined in gin configs.
 
     Args:
@@ -42,7 +46,7 @@ def run_random_searches(scopes: list[str] = gin.REQUIRED) -> list[str]:
 
 
 def parse_gin_and_random_search(
-    gin_config_files: list[Path], hyperparams_from_cli: list[str], train_on_cpu: bool, log_dir: Path, max_attempts: int = 1000
+    gin_config_files: List[Path], hyperparams_from_cli: List[str], train_on_cpu: bool, log_dir: Path, max_attempts: int = 1000
 ) -> str:
     """Parses and binds gin configs and finds unexplored parameters via random search.
 
@@ -81,7 +85,9 @@ def parse_gin_and_random_search(
         if not hyperparams_already_tried:
             break  # unexplored set of hyperparameters found
     if hyperparams_already_tried:
-        raise RuntimeError(f"Could not find unexplored set of hyperparameters in {max_attempts} attempts.")
+        logging.info(f"Could not find unexplored set of hyperparameters in {max_attempts} attempts.")
+        logging.info(f"using time stemp as log dir...")
+        return datetime.now().isoformat()
     for param, value in randomly_searched_params:
         gin.bind_parameter(param, value)
     # parse gin again so overwriting parameters in experiments and CLI takes precedence

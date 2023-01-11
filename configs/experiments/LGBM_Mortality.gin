@@ -1,7 +1,7 @@
 include "configs/tasks/Mortality_At24Hours.gin"
 include "configs/models/LGBMClassifier.gin"
 
-LGBMClassifier.max_depth = 7
-LGBMClassifier.num_leaves = 32
-LGBMClassifier.subsample = 1
-LGBMClassifier.colsample_bytree = 0.66
+LGBMClassifier.model_args.max_depth = 7
+LGBMClassifier.model_args.num_leaves = 32
+LGBMClassifier.model_args.subsample = 1
+LGBMClassifier.model_args.colsample_bytree = 0.66

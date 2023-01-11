@@ -15,13 +15,13 @@ from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepScale
 
 
 def make_single_split(
-    data: dict[pd.DataFrame],
-    vars: dict[str],
+    data: Dict[str, pd.DataFrame],
+    vars: Dict[str, str],
     train_pct: float = 0.7,
     val_pct: float = 0.1,
     seed: int = 42,
     debug: bool = False,
-) -> dict[dict[pd.DataFrame]]:
+) -> Dict[str, Dict[str, pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
     Args:
@@ -78,8 +78,8 @@ def apply_recipe_to_splits(
 @gin.configurable("preprocess")
 def preprocess_data(
     data_dir: Path,
-    file_names: dict[str] = gin.REQUIRED,
-    vars: dict[str] = gin.REQUIRED,
+    file_names: Dict[str, str] = gin.REQUIRED,
+    vars: Dict[str, str] = gin.REQUIRED,
     use_features: bool = gin.REQUIRED,
     seed: int = 42,
     debug: bool = False,
@@ -87,7 +87,7 @@ def preprocess_data(
     train_pct: float = 0.7,
     val_pct: float = 0.1,
     mode: str = "Classification",
-) -> dict[dict[pd.DataFrame]]:
+) -> Dict[str, Dict[str, pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:

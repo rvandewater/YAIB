@@ -14,7 +14,7 @@ HORIZON = 24
 train_common.weight = None  #FIXME figure out when to use "balanced"
 
 # DL
-DLWrapper.loss = @cross_entropy
+DLClassificationWrapper.loss = @cross_entropy
 
 preprocess.file_names = {
     "DYNAMIC": "dyn.parquet",
@@ -35,9 +35,8 @@ vars = {
 }
 
 preprocess.vars = %vars
-
-splits.vars = %vars
 ClassificationDataset.vars = %vars
+ClassificationDataset.ram_cache = True
 
 preprocess.train_pct = 0.7
 preprocess.val_pct = 0.1

@@ -20,7 +20,7 @@ class RICUDataset(Dataset):
         vars: Contains the names of columns in the data.
     """
 
-    def __init__(self, data: dict, split: str = "train", vars: Dict[str, str] = gin.REQUIRED):
+    def __init__(self, data: dict, split: str = "train", vars: Dict[str, str] = gin.REQUIRED, ram_cache: bool = False):
         self.split = split
         self.vars = vars
         self.static_df = data[split]["STATIC"]
@@ -31,6 +31,11 @@ class RICUDataset(Dataset):
         self.num_stays = self.static_df.shape[0]
         self.num_measurements = self.dyn_df.shape[0]
         self.maxlen = self.dyn_df.groupby([self.vars["GROUP"]]).size().max()
+
+        self._cached_dataset = None
+        if ram_cache:
+            logging.info("caching dataset in ram....")
+            self._cached_dataset = [self[i] for i in range(len(self))]
 
     def __len__(self) -> int:
         """Returns number of stays in the data.
@@ -51,6 +56,9 @@ class RICUDataset(Dataset):
         Returns:
             A sample from the data, consisting of data, labels and padding mask.
         """
+        if self._cached_dataset is not None:
+            return self._cached_dataset[idx]
+        
         pad_value = 0.0
         stay_id = self.static_df.iloc[idx][self.vars["GROUP"]]
 
@@ -130,6 +138,7 @@ class ImputationDataset(Dataset):
         mask_proportion=0.3,
         mask_method="MCAR",
         mask_observation_proportion=0.3,
+        ram_cache: bool = True,
     ):
         self.split = split
         self.vars = vars
@@ -149,6 +158,11 @@ class ImputationDataset(Dataset):
         self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars["DYNAMIC"])
         self.amputation_mask[self.vars["GROUP"]] = self.dyn_df.index
         self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
+        
+        self._cached_dataset = None
+        if ram_cache:
+            logging.info("caching dataset in ram....")
+            self._cached_dataset = [self[i] for i in range(len(self))]
 
     def __len__(self) -> int:
         """Returns number of stays in the data.
@@ -169,6 +183,8 @@ class ImputationDataset(Dataset):
         Returns:
             A sample from the data, consisting of data, labels and padding mask.
         """
+        if self._cached_dataset is not None:
+            return self._cached_dataset[idx]
         stay_id = self.static_df.iloc[idx][self.vars["GROUP"]]
 
         # slice to make sure to always return a DF
