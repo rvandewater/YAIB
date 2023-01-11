@@ -439,4 +439,7 @@ class MLWrapper(object):
 
     def predict(self, dataset, weight, seed):
         test_rep, _ = dataset.get_data_and_labels()
-        return self.model.predict_proba(test_rep)
+        if isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
+            return self.model.predict(test_rep)
+        else:
+            return self.model.predict_proba(test_rep)
