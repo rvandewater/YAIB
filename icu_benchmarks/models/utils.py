@@ -44,7 +44,7 @@ def append_results(experiment_parent, results, seed):
 
 
 class JsonResultLoggingEncoder(JSONEncoder):
-    """ JSON converter for objects that are not serializable by default. """
+    """JSON converter for objects that are not serializable by default."""
 
     # Serializes foreign datatypes
     def default(self, obj):
@@ -71,12 +71,12 @@ class Align(Enum):
 
 
 def log_table_row(
-        cells: list,
-        level: int = logging.INFO,
-        widths: list[int] = None,
-        header: list[str] = None,
-        align: Align = Align.LEFT,
-        highlight: bool = False,
+    cells: list,
+    level: int = logging.INFO,
+    widths: list[int] = None,
+    header: list[str] = None,
+    align: Align = Align.LEFT,
+    highlight: bool = False,
 ):
     """Logs a table row.
 
