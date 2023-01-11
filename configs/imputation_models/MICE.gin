@@ -11,7 +11,7 @@ preprocess.use_features = False
 train_common.model = @MICE
 train_common.do_test = True
 
-MICE.max_iter = 10
+MICE.max_iter = 100
 MICE.verbose = 2
 MICE.imputation_order = 'random' 
 MICE.random_state = 0
