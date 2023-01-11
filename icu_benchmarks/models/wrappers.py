@@ -18,7 +18,7 @@ from tqdm import tqdm, trange
 from icu_benchmarks.models.metric_constants import MLMetrics, DLMetrics
 from icu_benchmarks.models.encoders import LSTMNet
 from icu_benchmarks.models.metrics import MAE
-from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonNumpyEncoder
+from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonResultLoggingEncoder
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
@@ -251,7 +251,7 @@ class DLWrapper(object):
         best_metrics["loss"] = best_loss
 
         with open(self.log_dir / "best_metrics.json", "w") as f:
-            json.dump(best_metrics, f, cls=JsonNumpyEncoder)
+            json.dump(best_metrics, f, cls=JsonResultLoggingEncoder)
 
         self.load_weights(self.log_dir / "model.torch")  # We load back the best iteration
 
@@ -264,7 +264,7 @@ class DLWrapper(object):
 
         test_metrics["loss"] = test_loss
         with open(self.log_dir / "test_metrics.json", "w") as f:
-            json.dump(test_metrics, f, cls=JsonNumpyEncoder)
+            json.dump(test_metrics, f, cls=JsonResultLoggingEncoder)
 
         for key, value in test_metrics.items():
             if isinstance(value, float):
@@ -393,7 +393,7 @@ class MLWrapper(object):
         model_file = "model.txt" if model_type == "lgbm" else "model.joblib"
         self.save_weights(save_path=(self.log_dir / model_file), model_type=model_type)
         with open(self.log_dir / "val_metrics.json", "w") as f:
-            json.dump(val_metric_results, f, cls=JsonNumpyEncoder)
+            json.dump(val_metric_results, f, cls=JsonResultLoggingEncoder)
 
     def test(self, dataset, weight, seed):
         test_rep, test_label = dataset.get_data_and_labels()
@@ -412,7 +412,7 @@ class MLWrapper(object):
                 logging.info("Test {}: {}".format(name, value))
 
         with open(self.log_dir / "test_metrics.json", "w") as f:
-            json.dump(test_metric_results, f, cls=JsonNumpyEncoder)
+            json.dump(test_metric_results, f, cls=JsonResultLoggingEncoder)
 
         return log_loss(test_label, test_pred)
 

@@ -7,7 +7,7 @@ from pathlib import Path
 from skopt import gp_minimize
 import tempfile
 
-from icu_benchmarks.models.utils import JsonNumpyEncoder, log_table_row, Align
+from icu_benchmarks.models.utils import JsonResultLoggingEncoder, log_table_row, Align
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import log_full_line
 
@@ -141,7 +141,7 @@ def choose_and_bind_hyperparameters(
                 "x_iters": res.x_iters,
                 "func_vals": res.func_vals,
             }
-            f.write(json.dumps(data, cls=JsonNumpyEncoder))
+            f.write(json.dumps(data, cls=JsonResultLoggingEncoder))
             if do_tune:
                 table_cells = [len(res.x_iters)] + res.x_iters[-1] + [res.func_vals[-1]]
                 highlight = res.x_iters[-1] == res.x  # highlight if best so far

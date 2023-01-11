@@ -7,7 +7,7 @@ import scipy.stats as stats
 import shutil
 from statistics import mean, stdev
 
-from icu_benchmarks.models.utils import JsonNumpyEncoder
+from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 
 
 def build_parser() -> ArgumentParser:
@@ -113,10 +113,10 @@ def aggregate_results(log_dir: Path):
     accumulated_metrics = {"avg": averaged_scores, "std": std_scores, "CI_0.95": confidence_interval}
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
-        json.dump(aggregated, f, cls=JsonNumpyEncoder)
+        json.dump(aggregated, f, cls=JsonResultLoggingEncoder)
 
     with open(log_dir / "accumulated_test_metrics.json", "w") as f:
-        json.dump(accumulated_metrics, f, cls=JsonNumpyEncoder)
+        json.dump(accumulated_metrics, f, cls=JsonResultLoggingEncoder)
 
     logging.info(f"Accumulated results: {accumulated_metrics}")
 

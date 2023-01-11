@@ -6,7 +6,7 @@ from pathlib import Path
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
-from icu_benchmarks.models.utils import JsonNumpyEncoder
+from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import log_full_line
 
 
@@ -86,7 +86,7 @@ def execute_repeated_cv(
             durations = {"preprocessing_duration": preprocess_time, "train_duration": train_time}
 
             with open(run_dir_seed / "durations.json", "w") as f:
-                json.dump(durations, f, cls=JsonNumpyEncoder)
+                json.dump(durations, f, cls=JsonResultLoggingEncoder)
         log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)

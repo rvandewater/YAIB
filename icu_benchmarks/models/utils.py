@@ -40,10 +40,12 @@ def append_results(experiment_parent, results, seed):
         file = {}
     with open(experiment_parent, "w") as f:
         file[seed] = results
-        json.dump(file, f, cls=JsonNumpyEncoder)
+        json.dump(file, f, cls=JsonResultLoggingEncoder)
 
 
-class JsonNumpyEncoder(JSONEncoder):
+class JsonResultLoggingEncoder(JSONEncoder):
+    """ JSON converter for objects that are not serializable by default. """
+
     # Serializes foreign datatypes
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -57,7 +59,7 @@ class JsonNumpyEncoder(JSONEncoder):
         if isinstance(obj, tuple):
             if isinstance(obj)[0] is torch.Tensor or isinstance(obj)[0] is np.ndarray:
                 return map(lambda item: item.tolist(), obj)
-        if isinstance(obj,timedelta):
+        if isinstance(obj, timedelta):
             return str(obj)
         return JSONEncoder.default(self, obj)
 
@@ -69,12 +71,12 @@ class Align(Enum):
 
 
 def log_table_row(
-    cells: list,
-    level: int = logging.INFO,
-    widths: list[int] = None,
-    header: list[str] = None,
-    align: Align = Align.LEFT,
-    highlight: bool = False,
+        cells: list,
+        level: int = logging.INFO,
+        widths: list[int] = None,
+        header: list[str] = None,
+        align: Align = Align.LEFT,
+        highlight: bool = False,
 ):
     """Logs a table row.
 
