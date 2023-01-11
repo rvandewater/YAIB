@@ -38,7 +38,7 @@ def train_common(
     patience=10,
     min_delta=1e-4,
     use_wandb: bool = True,
-    num_workers: int = os.cpu_count(),
+    num_workers: int = min(os.cpu_count(), torch.cuda.device_count() if torch.cuda.is_available() else 16),
 ):
     """Common wrapper to train all benchmarked models.
 
