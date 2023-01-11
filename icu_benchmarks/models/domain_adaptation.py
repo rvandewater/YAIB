@@ -17,11 +17,11 @@ from icu_benchmarks.models.wrappers import MLWrapper
 from icu_benchmarks.run_utils import log_full_line
 
 
-def get_predictions_for_single_model(model: MLWrapper, dataset: RICUDataset, model_dir: Path, log_dir: Path):
+def get_predictions_for_single_model(target_model: object, dataset: RICUDataset, model_dir: Path, log_dir: Path):
     """Get predictions for a single model.
 
     Args:
-        model: Model to get predictions for.
+        target_model: Model to get predictions for.
         dataset: Dataset to get predictions for.
         model_dir: Path to directory where model weights are stored.
         log_dir: Path to directory where model output should be saved.
@@ -29,7 +29,7 @@ def get_predictions_for_single_model(model: MLWrapper, dataset: RICUDataset, mod
     Returns:
         Tuple of predictions and labels.
     """
-    model = MLWrapper()
+    model = MLWrapper(target_model.model)
     model.set_log_dir(log_dir)
     if (model_dir / "model.torch").is_file():
         model.load_weights(model_dir / "model.torch")
@@ -43,15 +43,14 @@ def get_predictions_for_single_model(model: MLWrapper, dataset: RICUDataset, mod
 
 
 def get_predictions_for_all_models(
+    target_model: object,
     data: dict[str, pd.DataFrame],
     log_dir: Path,
     source_dir: Path = None,
     seed: int = 1234,
     reproducible: bool = True,
-    model: object = MLWrapper,
-    weight: str = None,
     test_on: str = "test",
-    target_model: object = None,
+    source_datasets: list = None,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -62,8 +61,6 @@ def get_predictions_for_all_models(
         seed: Common seed used for any random operation.
         reproducible: If set to true, set torch to run reproducibly.
     """
-    model = MLWrapper()
-
     # Setting the seed before gin parsing
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
@@ -77,32 +74,28 @@ def get_predictions_for_all_models(
         torch.backends.cudnn.benchmark = False
 
     test_dataset = RICUDataset(data, split=test_on)
-    val_dataset = RICUDataset(data, split="val")
-    # weight = test_dataset.get_balance()
-    _, val_labels = val_dataset.get_data_and_labels()
     _, test_labels = test_dataset.get_data_and_labels()
 
-    val_predictions = {}
     test_predictions = {}
-    for model_dir in source_dir.iterdir():
-        if model_dir.is_dir():
-            val_predictions[model_dir.name] = get_predictions_for_single_model(model, val_dataset, model_dir, log_dir)
-            test_predictions[model_dir.name] = get_predictions_for_single_model(model, test_dataset, model_dir, log_dir)
-    val_predictions["target"] = target_model.output_transform(target_model.predict(val_dataset, None, None))
+    for source in source_datasets:
+        model_dir = source_dir / source
+        test_predictions[model_dir.name] = get_predictions_for_single_model(target_model, test_dataset, model_dir, log_dir)
     test_predictions["target"] = target_model.output_transform(target_model.predict(test_dataset, None, None))
 
-    return val_predictions, val_labels, test_predictions, test_labels
+    for name, prediction in test_predictions.items():
+        if prediction.ndim == 2:
+            test_predictions[name] = prediction[:, 1]
+
+    return test_predictions, test_labels
 
 
-def get_model_metrics(test_predictions: np.ndarray, test_labels: np.ndarray):
+def get_model_metrics(model: object, test_predictions: np.ndarray, test_labels: np.ndarray):
     """Evaluate a combination of models.
 
     Args:
         test_predictions: Predictions for test set.
         test_labels: Labels for test set.
     """
-    model = MLWrapper()
-    model.set_metrics(test_labels)
     test_metric_results = {}
     for name, metric in model.metrics.items():
         value = metric(model.label_transform(test_labels), test_predictions)
@@ -114,11 +107,10 @@ def get_model_metrics(test_predictions: np.ndarray, test_labels: np.ndarray):
 
 
 def domain_adaptation(
-    data_dir: Path,
     run_dir: Path,
     seed: int,
-    n_initial_points: int = 10,
-    n_calls: int = 50,
+    task: str = None,
+    model: str = None,
     debug: bool = False,
 ):
     """Choose hyperparameters to tune and bind them to gin.
@@ -135,23 +127,22 @@ def domain_adaptation(
     Raises:
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
-
-    # train target baselines
-    
-    
     agg_loss = 0
     cv_repetitions = 5
-    cv_repetitions_to_train = 5
+    cv_repetitions_to_train = 3
     cv_folds = 5
     cv_folds_to_train = 5
-    datasets = ["hirid", "eicu", "aumc", "miiv"]
-    weight_bounds = ((0.0001, 1.0) for _ in range(len(datasets)))
-    task_dir = Path("../data/mortality24/")
+    datasets = ["hirid", "aumc", "miiv"]
+    weights = [1] * (len(datasets) - 1) + [1]
+    task_dir = Path("../data/") / task
+    model_path = Path("../models/best_models/")
 
     # evaluate models on same test split
     for dataset in datasets:
+        data_dir = task_dir / dataset
+        source_datasets = [d for d in datasets if d != dataset]
         log_full_line(f"STARTING {dataset}", char="#", num_newlines=2)
-        choose_and_bind_hyperparameters(True, task_dir / dataset, run_dir, seed, debug=debug)
+        choose_and_bind_hyperparameters(True, data_dir, run_dir, seed, debug=debug)
         for repetition in range(cv_repetitions_to_train):
             for fold_index in range(cv_folds_to_train):
                 data = preprocess_data(
@@ -179,43 +170,31 @@ def domain_adaptation(
                 )
                 agg_loss += curr_loss
 
-                val_predictions, val_labels, test_predictions, test_labels = get_predictions_for_all_models(
+                test_predictions, test_labels = get_predictions_for_all_models(
+                    target_model,
                     data,
                     run_dir,
-                    source_dir=Path("../models/best_models/Mortality24/LGBMClassifier"),
+                    source_dir=model_path / task / model,
                     seed=seed,
-                    target_model=target_model,
+                    source_datasets=source_datasets,
                 )
 
-                # evaluate source baselines and oracle
-                for source in datasets:
-                    if source == dataset:
-                        continue
+                # evaluate source baselines
+                for source in source_datasets:
                     logging.info("Evaluating model: {}".format(source))
-                    get_model_metrics(test_predictions[source], test_labels)
+                    get_model_metrics(target_model, test_predictions[source], test_labels)
 
                 # evaluate convex combination of models
-                val_predictions_wo_oracle = [pred for source, pred in val_predictions.items() if source != dataset]
-                test_predictions_wo_oracle = [pred for source, pred in test_predictions.items() if source != dataset]
-                def convex_model_combination(model_weights):
-                    val_pred = np.average(val_predictions_wo_oracle, axis=0, weights=model_weights)
-                    return log_loss(val_labels, val_pred)
+                test_predictions_list = list(test_predictions.values())
 
-                logging.disable(logging.INFO)
-                res = gp_minimize(
-                    convex_model_combination,
-                    weight_bounds,
-                    n_calls=n_calls,
-                    n_initial_points=n_initial_points,
-                    random_state=seed,
-                    noise=1e-10,  # the models are deterministic, but noise is needed for the gp to work
-                )
-                logging.disable(logging.NOTSET)
-                best_model_weights = res.x
-                logging.info(best_model_weights)
-                test_pred = np.average(test_predictions_wo_oracle, axis=0, weights=best_model_weights)
-                get_model_metrics(test_pred, test_labels)
-
+                logging.info("Evaluating convex combination of models.")
+                target_weights = [0.1, 0.2, 0.5, 1, 2, 5]
+                weights = [1] * (len(datasets) - 1)
+                for t in target_weights:
+                    w = weights + [t * sum(weights)]
+                    logging.info(f"Evaluating target weight: {t}")
+                    test_pred = np.average(test_predictions_list, axis=0, weights=w)
+                    get_model_metrics(target_model, test_pred, test_labels)
 
                 log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
             log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
