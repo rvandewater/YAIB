@@ -9,9 +9,10 @@
 #SBATCH --output=%x_%a_%j.log # %x is job-name, %j is job id, %a is array id
 #SBATCH --array=0-3
 
+# Submit with e.g. --export=TASK_NAME=mortality24,MODEL_NAME=LGBMClassifier
 # Basic experiment variables, please exchange [INSERT] for your experiment parameters
-TASK_NAME=[INSERT:TASK_NAME] # mortality24
-MODEL_NAME=[INSERT:MODEL_NAME] # LGBM
+
+
 TASK=[INSERT:TASK_TYPE] # BinaryClassification
 YAIB_PATH=[INSERT:YAIB_PATH] #/dhc/home/robin.vandewater/projects/yaib
 EXPERIMENT_PATH=../${TASK_NAME}_experiment
@@ -30,6 +31,6 @@ icu-benchmarks train \
   -tn ${TASK_NAME} \
   -m ${MODEL_NAME} \
   -c \
-  -s 1111 2222 3333 4444 5555 \
+  -s 1111 \
   -l ${EXPERIMENT_PATH} \
   --tune
