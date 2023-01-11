@@ -129,6 +129,9 @@ class Simple_Diffusion_Model(ImputationWrapper):
         
         self.log("train/loss", loss.item(), prog_bar=True)
 
+        for metric in self.metrics["train"].values():
+            metric.update((torch.flatten(target, start_dim=1), torch.flatten(target, start_dim=1)))
+
         return loss
 
     def validation_step(self, batch, batch_index):
@@ -158,8 +161,38 @@ class Simple_Diffusion_Model(ImputationWrapper):
         loss = self.loss(imputated, target)
         self.log("val/loss", loss.item(), prog_bar=True)
 
-        for metric in self.metrics.values():
-            metric.update(imputated, target)
+        for metric in self.metrics["val"].values():
+            metric.update((torch.flatten(imputated, start_dim=1), torch.flatten(target, start_dim=1)))
+            
+    def test_step(self, batch, batch_index):
+
+        amputated, amputation_mask, target = batch
+        amputated = torch.nan_to_num(amputated, nan=0.0)
+        # imputated = self(amputated, amputation_mask)
+
+        t = torch.randint(0, self.T, (1,), device=self.device).long()
+
+        betas_t = self.get_index_from_list(self.betas, t, amputated.shape)
+        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, amputated.shape)
+        sqrt_recip_alphas_t = self.get_index_from_list(self.sqrt_recip_alphas, t, amputated.shape)
+
+        model_mean = sqrt_recip_alphas_t * (amputated - betas_t * self(amputated, t) / sqrt_one_minus_alphas_cumprod_t)
+
+        posterior_variance_t = self.get_index_from_list(self.posterior_variance, t, amputated.shape)
+
+        if t == 0:
+            imputated = model_mean
+        else:
+            noise = torch.randn_like(amputated)
+            imputated = model_mean + torch.sqrt(posterior_variance_t) * noise
+
+        imputated = amputated.masked_scatter_(amputation_mask, imputated)
+
+        loss = self.loss(imputated, target)
+        self.log("test/loss", loss.item(), prog_bar=True)
+
+        for metric in self.metrics["test"].values():
+            metric.update((torch.flatten(imputated, start_dim=1), torch.flatten(target, start_dim=1)))
 
 
 class Block(nn.Module):
