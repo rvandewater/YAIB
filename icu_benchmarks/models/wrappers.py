@@ -404,3 +404,6 @@ class ImputationWrapper(DLWrapper):
         for metric in self.metrics[step_prefix].values():
             metric.update((torch.flatten(imputated, start_dim=1), torch.flatten(target, start_dim=1)))
         return loss
+
+    def predict(self, data):
+        return self(data, None)

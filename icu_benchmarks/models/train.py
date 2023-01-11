@@ -50,6 +50,7 @@ def train_common(
         seed: Common seed used for any random operation.
         reproducible: If set to true, set torch to run reproducibly.
     """
+    logging.info(f"Training model: {model.__name__}")
     DatasetClass = ImputationDataset if mode == "Imputation" else RICUDataset
 
     save_config_file(log_dir)  # We save the operative config before and also after training

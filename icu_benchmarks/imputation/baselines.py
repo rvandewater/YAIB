@@ -206,6 +206,7 @@ class BRITSImputation(ImputationWrapper):
             rnn_hidden_size=rnn_hidden_size,
             batch_size=batch_size,
             epochs=epochs,
+            device="cuda" if torch.cuda.is_available() else "cpu",
         )
 
     def fit(self, data: ImputationDataset):
