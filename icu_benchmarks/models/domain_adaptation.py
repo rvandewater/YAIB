@@ -201,7 +201,6 @@ def domain_adaptation(
 
                     log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
                 log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
-            log_full_line(f"EVALUATED TARGET SIZE {target_size}", char="*", num_newlines=5)
 
             source_metrics = {}
             for result in results.values():
@@ -227,6 +226,7 @@ def domain_adaptation(
                 json.dump(averaged_metrics, f, cls=JsonNumpyEncoder)
 
             logging.info(f"Averaged results: {averaged_metrics}")
+            log_full_line(f"EVALUATED TARGET SIZE {target_size}", char="*", num_newlines=5)
 
         log_full_line(f"EVALUATED {dataset}", char="#", num_newlines=10)
  
