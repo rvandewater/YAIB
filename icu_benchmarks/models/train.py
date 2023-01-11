@@ -77,5 +77,5 @@ def train_common(
     # save config file again to capture missing gin parameters
     save_config_file(log_dir)
     if return_model:
-        return model.test(test_dataset, weight, seed), model
+        return model
     return model.test(test_dataset, weight, seed)

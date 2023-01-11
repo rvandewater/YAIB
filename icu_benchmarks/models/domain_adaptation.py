@@ -127,11 +127,11 @@ def domain_adaptation(
     Raises:
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
-    agg_loss = 0
     cv_repetitions = 5
     cv_repetitions_to_train = 3
     cv_folds = 5
     cv_folds_to_train = 5
+    target_sizes = [500, 1000, 2000]
     datasets = ["hirid", "aumc", "miiv"]
     weights = [1] * (len(datasets) - 1) + [1]
     task_dir = Path("../data/") / task
@@ -142,62 +142,58 @@ def domain_adaptation(
         data_dir = task_dir / dataset
         source_datasets = [d for d in datasets if d != dataset]
         log_full_line(f"STARTING {dataset}", char="#", num_newlines=2)
-        choose_and_bind_hyperparameters(True, data_dir, run_dir, seed, debug=debug)
-        for repetition in range(cv_repetitions_to_train):
-            for fold_index in range(cv_folds_to_train):
-                data = preprocess_data(
-                    data_dir,
-                    seed=seed,
-                    debug=debug,
-                    use_cache=True,
-                    cv_repetitions=cv_repetitions,
-                    repetition_index=repetition,
-                    cv_folds=cv_folds,
-                    fold_index=fold_index,
-                )
+        for target_size in target_sizes:
+            log_full_line(f"STARTING TARGET SIZE {target_size}", char="*", num_newlines=1)
+            gin.bind_parameter("preprocess.fold_size", target_size)
+            choose_and_bind_hyperparameters(True, data_dir, run_dir, seed, debug=debug)
+            for repetition in range(cv_repetitions_to_train):
+                for fold_index in range(cv_folds_to_train):
+                    data = preprocess_data(
+                        data_dir,
+                        seed=seed,
+                        debug=debug,
+                        use_cache=True,
+                        cv_repetitions=cv_repetitions,
+                        repetition_index=repetition,
+                        cv_folds=cv_folds,
+                        fold_index=fold_index,
+                    )
 
-                run_dir_seed = run_dir / f"seed_{seed}" / f"fold_{fold_index}"
-                run_dir_seed.mkdir(parents=True, exist_ok=True)
+                    run_dir_seed = run_dir / f"cv_rep_{repetition}" / f"fold_{fold_index}"
+                    run_dir_seed.mkdir(parents=True, exist_ok=True)
 
-                # evaluate target baselines
-                curr_loss, target_model = train_common(
-                    data,
-                    log_dir=run_dir_seed,
-                    seed=seed,
-                    reproducible=True,
-                    test_on="test",
-                    return_model=True,
-                )
-                agg_loss += curr_loss
+                    # evaluate target baselines
+                    target_model = train_common(data, log_dir=run_dir_seed, seed=seed, return_model=True)
+                    
+                    test_predictions, test_labels = get_predictions_for_all_models(
+                        target_model,
+                        data,
+                        run_dir,
+                        source_dir=model_path / task / model,
+                        seed=seed,
+                        source_datasets=source_datasets,
+                    )
 
-                test_predictions, test_labels = get_predictions_for_all_models(
-                    target_model,
-                    data,
-                    run_dir,
-                    source_dir=model_path / task / model,
-                    seed=seed,
-                    source_datasets=source_datasets,
-                )
+                    # evaluate source baselines
+                    for baseline, predictions in test_predictions.items():
+                        logging.info("Evaluating model: {}".format(baseline))
+                        get_model_metrics(target_model, predictions, test_labels)
 
-                # evaluate source baselines
-                for source in source_datasets:
-                    logging.info("Evaluating model: {}".format(source))
-                    get_model_metrics(target_model, test_predictions[source], test_labels)
+                    # evaluate convex combination of models
+                    test_predictions_list = list(test_predictions.values())
 
-                # evaluate convex combination of models
-                test_predictions_list = list(test_predictions.values())
+                    logging.info("Evaluating convex combination of models.")
+                    target_weights = [0.1, 0.2, 0.5, 1, 2, 5]
+                    weights = [1] * (len(datasets) - 1)
+                    for t in target_weights:
+                        w = weights + [t * sum(weights)]
+                        logging.info(f"Evaluating target weight: {t}")
+                        test_pred = np.average(test_predictions_list, axis=0, weights=w)
+                        get_model_metrics(target_model, test_pred, test_labels)
 
-                logging.info("Evaluating convex combination of models.")
-                target_weights = [0.1, 0.2, 0.5, 1, 2, 5]
-                weights = [1] * (len(datasets) - 1)
-                for t in target_weights:
-                    w = weights + [t * sum(weights)]
-                    logging.info(f"Evaluating target weight: {t}")
-                    test_pred = np.average(test_predictions_list, axis=0, weights=w)
-                    get_model_metrics(target_model, test_pred, test_labels)
-
-                log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
-            log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
+                    log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
+                log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
+            log_full_line(f"EVALUATED TARGET SIZE {target_size}", char="*", num_newlines=5)
         log_full_line(f"EVALUATED {dataset}", char="#", num_newlines=10)
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)
