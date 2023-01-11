@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
+from icu_benchmarks.models.domain_adaptation import domain_adaptation
 from utils.plotting.utils import plot_agg_results
 from icu_benchmarks.cross_validation import execute_repeated_cv, evaluate
 from icu_benchmarks.run_utils import (
@@ -49,6 +50,16 @@ def main(my_args=tuple(sys.argv[1:])):
             debug=args.debug,
             use_cache=args.cache,
         )
+        return
+    if args.command == "da":
+        run_dir = create_run_dir(log_dir)
+        gin_config_files = (
+            [Path(f"configs/experiments/{args.experiment}.gin")]
+            if args.experiment
+            else [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
+        )
+        gin.parse_config_files_and_bindings(gin_config_files, args.gin_bindings, finalize_config=False)
+        domain_adaptation(args.data_dir, run_dir, args.seed)
         return
     else:
         reproducible = args.reproducible

@@ -48,6 +48,9 @@ def build_parser() -> ArgumentParser:
     evaluate.add_argument("-sn", "--source-name", required=True, type=Path, help="Name of the source dataset.")
     evaluate.add_argument("--source-dir", required=True, type=Path, help="Directory containing gin and model weights.")
 
+    # DOMAIN ADAPTATION ARGUMENTS
+    prep_and_train = subparsers.add_parser("da", help="Run DA experiment.", parents=[parent_parser])
+
     return parser
 
 
