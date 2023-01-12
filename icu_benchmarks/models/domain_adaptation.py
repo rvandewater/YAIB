@@ -90,7 +90,7 @@ def get_predictions_for_all_models(
         test_predictions[model_dir.name] = get_predictions_for_single_model(target_model, test_dataset, model_dir, log_dir)
 
     for name, prediction in test_predictions.items():
-        if not isinstance(prediction, list) and prediction.ndim == 2:
+        if isinstance(target_model, MLWrapper) and prediction.ndim == 2:
             test_predictions[name] = prediction[:, 1]
 
     return test_predictions, test_labels
