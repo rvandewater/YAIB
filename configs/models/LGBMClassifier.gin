@@ -9,12 +9,11 @@ preprocess.use_features = True
 train_common.model = @MLWrapper()
 
 MLWrapper.model = @LGBMClassifier()
-MLWrapper.train.patience = 10
 
 model/hyperparameter.class_to_tune = @LGBMClassifier
 model/hyperparameter.colsample_bytree = (0.33, 1.0)
 model/hyperparameter.max_depth = (3, 7)
-model/hyperparameter.min_child_samples = 1000
+model/hyperparameter.min_child_samples = (2, 1024, "log-uniform", 2)
 model/hyperparameter.n_estimators = 100000
 model/hyperparameter.num_leaves = (8, 128, "log-uniform", 2)
 model/hyperparameter.subsample = (0.33, 1.0)

@@ -9,7 +9,6 @@ preprocess.use_features = True
 train_common.model = @MLWrapper()
 
 MLWrapper.model = @LogisticRegression()
-MLWrapper.train.patience = 10
 
 model/hyperparameter.class_to_tune = @LogisticRegression
 model/hyperparameter.solver = "saga"
