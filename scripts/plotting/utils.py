@@ -1,7 +1,7 @@
 import json
 import logging
 
-from utils.plotting.plotting import Plotter
+from scripts.plotting.plotting import Plotter
 
 
 def plot_fold(metrics, save_dir):
