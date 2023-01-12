@@ -309,7 +309,6 @@ class DLWrapper(object):
     def calculate_metrics(self: object, predictions: np.ndarray, labels: np.ndarray):
         metric_results = {}
         print(predictions)
-        predictions = torch.from_numpy(predictions)
         for name, metric in self.metrics.items():
             metric.update((predictions, labels))
             value = metric.compute()
