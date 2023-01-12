@@ -15,7 +15,7 @@ from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
 from icu_benchmarks.models.metric_constants import MLMetrics
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.wrappers import DLWrapper, MLWrapper
-from icu_benchmarks.models.utils import JsonNumpyEncoder
+from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import log_full_line
 
 
@@ -230,10 +230,10 @@ def domain_adaptation(
                     })
 
             with open(log_dir / "aggregated_source_metrics.json", "w") as f:
-                json.dump(results, f, cls=JsonNumpyEncoder)
+                json.dump(results, f, cls=JsonResultLoggingEncoder)
 
             with open(log_dir / "averaged_source_metrics.json", "w") as f:
-                json.dump(averaged_metrics, f, cls=JsonNumpyEncoder)
+                json.dump(averaged_metrics, f, cls=JsonResultLoggingEncoder)
 
             logging.info(f"Averaged results: {averaged_metrics}")
             log_full_line(f"EVALUATED TARGET SIZE {target_size}", char="*", num_newlines=5)
