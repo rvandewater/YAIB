@@ -14,7 +14,7 @@ DLWrapper.optimizer_fn = @Adam
 
 DLWrapper.train.epochs = 1000
 DLWrapper.train.batch_size = 64
-DLWrapper.train.patience = 5
+DLWrapper.train.patience = 1
 DLWrapper.train.min_delta = 1e-4
 
 # Optimizer params
