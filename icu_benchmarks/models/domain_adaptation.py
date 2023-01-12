@@ -31,9 +31,9 @@ def get_predictions_for_single_model(target_model: object, dataset: RICUDataset,
         Tuple of predictions and labels.
     """
     if isinstance(target_model, DLWrapper):
-        model = DLWrapper(target_model.model)
+        model = DLWrapper()
     else:
-        model = MLWrapper(target_model.model)
+        model = MLWrapper()
     model.set_log_dir(log_dir)
     if (model_dir / "model.torch").is_file():
         model.load_weights(model_dir / "model.torch")
