@@ -295,7 +295,7 @@ class DLWrapper(object):
             weight = torch.FloatTensor(weight).to(self.device)
 
         self.model.eval()
-        all_preds = torch.FloatTensor()
+        all_preds = torch.FloatTensor().to(self.device)
         with torch.no_grad():
             for elem in loader:
                 _, preds, _ = self.step_fn(elem, weight)
