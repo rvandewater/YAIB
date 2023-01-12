@@ -109,6 +109,7 @@ def get_predictions_for_all_models(
 
 
 def domain_adaptation(
+    dataset: str,
     data_dir: Path,
     run_dir: Path,
     seed: int,
@@ -143,100 +144,98 @@ def domain_adaptation(
     gin_config_before_tuning = gin.config_str()
 
     # evaluate models on same test split
-    for dataset in datasets:
-        data_dir = task_dir / dataset
-        source_datasets = [d for d in datasets if d != dataset]
-        log_full_line(f"STARTING {dataset}", char="#", num_newlines=2)
-        for target_size in target_sizes:
-            gin.clear_config()
-            gin.parse_config(gin_config_before_tuning)
-            log_full_line(f"STARTING TARGET SIZE {target_size}", char="*", num_newlines=1)
-            gin.bind_parameter("preprocess.fold_size", target_size)
-            log_dir = run_dir / task / model / dataset / f"target_{target_size}"
-            log_dir.mkdir(parents=True, exist_ok=True)
-            choose_and_bind_hyperparameters(True, data_dir, log_dir, seed, debug=debug)
-            gin_config_with_target_hyperparameters = gin.config_str()
-            results = {}
-            for repetition in range(cv_repetitions_to_train):
-                for fold_index in range(cv_folds_to_train):
-                    gin.parse_config(gin_config_with_target_hyperparameters)
-                    results[f"{repetition}_{fold_index}"] = {}
-                    fold_results = results[f"{repetition}_{fold_index}"]
+    data_dir = task_dir / dataset
+    source_datasets = [d for d in datasets if d != dataset]
+    log_full_line(f"STARTING {dataset}", char="#", num_newlines=2)
+    for target_size in target_sizes:
+        gin.clear_config()
+        gin.parse_config(gin_config_before_tuning)
+        log_full_line(f"STARTING TARGET SIZE {target_size}", char="*", num_newlines=1)
+        gin.bind_parameter("preprocess.fold_size", target_size)
+        log_dir = run_dir / task / model / dataset / f"target_{target_size}"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        choose_and_bind_hyperparameters(True, data_dir, log_dir, seed, debug=debug)
+        gin_config_with_target_hyperparameters = gin.config_str()
+        results = {}
+        for repetition in range(cv_repetitions_to_train):
+            for fold_index in range(cv_folds_to_train):
+                gin.parse_config(gin_config_with_target_hyperparameters)
+                results[f"{repetition}_{fold_index}"] = {}
+                fold_results = results[f"{repetition}_{fold_index}"]
 
-                    data = preprocess_data(
-                        data_dir,
-                        seed=seed,
-                        debug=debug,
-                        use_cache=True,
-                        cv_repetitions=cv_repetitions,
-                        repetition_index=repetition,
-                        cv_folds=cv_folds,
-                        fold_index=fold_index,
-                    )
+                data = preprocess_data(
+                    data_dir,
+                    seed=seed,
+                    debug=debug,
+                    use_cache=True,
+                    cv_repetitions=cv_repetitions,
+                    repetition_index=repetition,
+                    cv_folds=cv_folds,
+                    fold_index=fold_index,
+                )
 
-                    log_dir_fold = log_dir / f"cv_rep_{repetition}" / f"fold_{fold_index}"
-                    log_dir_fold.mkdir(parents=True, exist_ok=True)
+                log_dir_fold = log_dir / f"cv_rep_{repetition}" / f"fold_{fold_index}"
+                log_dir_fold.mkdir(parents=True, exist_ok=True)
 
-                    # evaluate target baselines
-                    target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
-                    
-                    test_predictions, test_labels = get_predictions_for_all_models(
-                        target_model,
-                        data,
-                        log_dir_fold,
-                        source_dir=model_path / task / model,
-                        seed=seed,
-                        source_datasets=source_datasets,
-                    )
+                # evaluate target baselines
+                target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
+                
+                test_predictions, test_labels = get_predictions_for_all_models(
+                    target_model,
+                    data,
+                    log_dir_fold,
+                    source_dir=model_path / task / model,
+                    seed=seed,
+                    source_datasets=source_datasets,
+                )
 
-                    # evaluate source baselines
-                    for baseline, predictions in test_predictions.items():
-                        logging.info("Evaluating model: {}".format(baseline))
-                        fold_results[baseline] = calculate_metrics(predictions, test_labels)
+                # evaluate source baselines
+                for baseline, predictions in test_predictions.items():
+                    logging.info("Evaluating model: {}".format(baseline))
+                    fold_results[baseline] = calculate_metrics(predictions, test_labels)
 
-                    # evaluate convex combination of models
-                    test_predictions_list = list(test_predictions.values())
-                    test_predictions_list_without_target = test_predictions_list[1:]
+                # evaluate convex combination of models
+                test_predictions_list = list(test_predictions.values())
+                test_predictions_list_without_target = test_predictions_list[1:]
 
-                    logging.info("Evaluating convex combination of models without target.")
-                    test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=weights)
-                    fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
+                logging.info("Evaluating convex combination of models without target.")
+                test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=weights)
+                fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
-                    logging.info("Evaluating convex combination of models.")
-                    for t in target_weights:
-                        w = [t * sum(weights)] + weights
-                        logging.info(f"Evaluating target weight: {t}")
-                        test_pred = np.average(test_predictions_list, axis=0, weights=w)
-                        fold_results[f"convex_combination_{t}"] = calculate_metrics(test_pred, test_labels)
+                logging.info("Evaluating convex combination of models.")
+                for t in target_weights:
+                    w = [t * sum(weights)] + weights
+                    logging.info(f"Evaluating target weight: {t}")
+                    test_pred = np.average(test_predictions_list, axis=0, weights=w)
+                    fold_results[f"convex_combination_{t}"] = calculate_metrics(test_pred, test_labels)
 
-                    log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
-                log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
+                log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
+            log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
-            source_metrics = {}
-            for result in results.values():
-                for source, source_stats in result.items():
-                    for metric, score in source_stats.items():
-                        if isinstance(score, (float, int)):
-                            source_metrics.setdefault(source, {}).setdefault(metric, []).append(score)
+        source_metrics = {}
+        for result in results.values():
+            for source, source_stats in result.items():
+                for metric, score in source_stats.items():
+                    if isinstance(score, (float, int)):
+                        source_metrics.setdefault(source, {}).setdefault(metric, []).append(score)
 
-            # Compute statistical metric over aggregated results
-            averaged_metrics = {}
-            for source, source_stats in source_metrics.items():
-                for metric, scores in source_stats.items():
-                    averaged_metrics.setdefault(source, {}).setdefault(metric, []).append({
-                        "avg": np.mean(scores),
-                        "std": np.std(scores),
-                        "CI_0.95": stats.t.interval(0.95, len(scores) - 1, loc=np.mean(scores), scale=stats.sem(scores)),
-                    })
+        # Compute statistical metric over aggregated results
+        averaged_metrics = {}
+        for source, source_stats in source_metrics.items():
+            for metric, scores in source_stats.items():
+                averaged_metrics.setdefault(source, {}).setdefault(metric, []).append({
+                    "avg": np.mean(scores),
+                    "std": np.std(scores),
+                    "CI_0.95": stats.t.interval(0.95, len(scores) - 1, loc=np.mean(scores), scale=stats.sem(scores)),
+                })
 
-            with open(log_dir / "aggregated_source_metrics.json", "w") as f:
-                json.dump(results, f, cls=JsonResultLoggingEncoder)
+        with open(log_dir / "aggregated_source_metrics.json", "w") as f:
+            json.dump(results, f, cls=JsonResultLoggingEncoder)
 
-            with open(log_dir / "averaged_source_metrics.json", "w") as f:
-                json.dump(averaged_metrics, f, cls=JsonResultLoggingEncoder)
+        with open(log_dir / "averaged_source_metrics.json", "w") as f:
+            json.dump(averaged_metrics, f, cls=JsonResultLoggingEncoder)
 
-            logging.info(f"Averaged results: {averaged_metrics}")
-            log_full_line(f"EVALUATED TARGET SIZE {target_size}", char="*", num_newlines=5)
+        logging.info(f"Averaged results: {averaged_metrics}")
+        log_full_line(f"EVALUATED TARGET SIZE {target_size}", char="*", num_newlines=5)
 
-        log_full_line(f"EVALUATED {dataset}", char="#", num_newlines=10)
- 
+    log_full_line(f"EVALUATED {dataset}", char="#", num_newlines=5)
