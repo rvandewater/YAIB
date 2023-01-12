@@ -196,6 +196,11 @@ def domain_adaptation(
 
                     # evaluate convex combination of models
                     test_predictions_list = list(test_predictions.values())
+                    test_predictions_list_without_target = test_predictions_list[1:]
+
+                    logging.info("Evaluating convex combination of models without target.")
+                    test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=weights)
+                    fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
                     logging.info("Evaluating convex combination of models.")
                     for t in target_weights:
