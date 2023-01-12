@@ -17,22 +17,22 @@ def plot_fold(metrics, save_dir):
     plotter.receiver_operator_curve()
 
 
-def plot_agg_results(log_dir, metrics_path):
-    """Aggregates results from all folds for one seed and generates plots.
+def plot_aggregated_results(log_dir, metrics_path):
+    """Aggregates results from all folds for one iteration and generates plots.
 
     Args:
         log_dir: Path to the log directory.
         metrics_path: Metrics JSON file
     """
-    with open(log_dir / f"{metrics_path}.json") as metrics_file:
+    with open(log_dir / f"{metrics_path}") as metrics_file:
         metrics = json.load(metrics_file)
-        for seed in metrics:
-            plotter = Plotter(metrics[seed], log_dir, seed)
+        for iteration in metrics:
+            plotter = Plotter(metrics[iteration], log_dir, iteration)
             # Check if there are multiple folds
-            if len(metrics[seed]) > 1:
-                base = metrics[seed]["fold_0"]
+            if len(metrics[iteration]) > 1:
+                base = metrics[iteration]["fold_0"]
             else:
-                base = metrics[seed]
+                base = metrics[iteration]
             if "ROC" and "AUC" in base:
                 plotter.receiver_operator_curve()
             if "PRC" and "PR" in base:
