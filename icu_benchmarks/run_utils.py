@@ -79,28 +79,34 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
 
     Args:
         log_dir: Path to the log directory.
+        execution_time: Overall execution time.
     """
     aggregated = {}
     for seed in log_dir.iterdir():
         if seed.is_dir():
             aggregated[seed.name] = {}
             for fold in seed.iterdir():
-                with open(fold / "test_metrics.json", "r") as f:
-                    result = json.load(f)
-                    aggregated[seed.name][fold.name] = result
-                # Add durations to metrics
-                with open(fold / "durations.json", "r") as f:
-                    result = json.load(f)
-                    aggregated[seed.name][fold.name].update(result)
+                aggregated[seed.name][fold.name] = {}
+                for fold_iter in fold.iterdir():
+                    if (fold_iter / "test_metrics.json").is_file():
+                        with open(fold_iter / "test_metrics.json", "r") as f:
+                            result = json.load(f)
+                            aggregated[seed.name][fold.name][fold_iter.name] = result
+                    # Add durations to metrics
+                    if (fold_iter / "durations.json").is_file():
+                        with open(fold_iter / "durations.json", "r") as f:
+                            result = json.load(f)
+                            aggregated[seed.name][fold.name][fold_iter.name].update(result)
 
     # Aggregate results per metric
     list_scores = {}
     for seed, folds in aggregated.items():
-        for fold, result in folds.items():
-            for metric, score in result.items():
-                if isinstance(score, (float, int)):
-                    list_scores[metric] = list_scores.setdefault(metric, [])
-                    list_scores[metric].append(score)
+        for fold, fold_iters in folds.items():
+            for fold_iter, result in fold_iters.items():
+                for metric, score in result.items():
+                    if isinstance(score, (float, int)):
+                        list_scores[metric] = list_scores.setdefault(metric, [])
+                        list_scores[metric].append(score)
 
     # Compute statistical metric over aggregated results
     averaged_scores = {metric: (mean(list)) for metric, list in list_scores.items()}

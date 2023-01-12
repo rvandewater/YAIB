@@ -63,7 +63,7 @@ def execute_repeated_cv(
                 fold_index=fold_index,
             )
 
-            run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
+            run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}" / f"repetition_{repetition}"
             run_dir_seed.mkdir(parents=True, exist_ok=True)
 
             preprocess_time = datetime.now() - start_time
