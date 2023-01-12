@@ -36,7 +36,7 @@ def build_parser() -> ArgumentParser:
         "--verbose",
         default=True,
         action=BooleanOptionalAction,
-        help="Whether to use verbose logging. Disable for " "clean logs.",
+        help="Whether to use verbose logging. Disable for clean logs.",
     )
     general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
