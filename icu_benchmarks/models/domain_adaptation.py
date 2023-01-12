@@ -137,7 +137,7 @@ def domain_adaptation(
     datasets = ["hirid", "aumc", "miiv"]
     weights = [1] * (len(datasets) - 1) + [1]
     task_dir = data_dir / task
-    model_path = Path("../models/best_models/")
+    model_path = Path("../yaib_models/best_models/")
 
     # evaluate models on same test split
     for dataset in datasets:
