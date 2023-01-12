@@ -290,7 +290,7 @@ class DLWrapper(object):
 
     def predict(self, dataset, weight, seed):
         self.set_metrics()
-        loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.n_worker, pin_memory=self.pin_memory)
+        loader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=self.n_worker, pin_memory=self.pin_memory)
         if isinstance(weight, list):
             weight = torch.FloatTensor(weight).to(self.device)
 
