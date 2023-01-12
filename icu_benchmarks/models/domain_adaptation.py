@@ -44,6 +44,7 @@ def get_predictions_for_single_model(target_model: object, dataset: RICUDataset,
         model.load_weights(model_dir / "model.joblib")
     else:
         raise Exception("No weights to load at path : {}".format(model_dir / "model.*"))
+    logging.info(f"Generating predictions for model : {model_dir}")
     return model.predict(dataset, None, None)
 
 
@@ -82,13 +83,14 @@ def get_predictions_for_all_models(
     _, test_labels = test_dataset.get_data_and_labels()
 
     test_predictions = {}
+    logging.info("Generating predictions for target")
     test_predictions["target"] = target_model.predict(test_dataset, None, None)
     for source in source_datasets:
         model_dir = source_dir / source
         test_predictions[model_dir.name] = get_predictions_for_single_model(target_model, test_dataset, model_dir, log_dir)
 
     for name, prediction in test_predictions.items():
-        if prediction.ndim == 2:
+        if not isinstance(prediction, list) and prediction.ndim == 2:
             test_predictions[name] = prediction[:, 1]
 
     return test_predictions, test_labels
