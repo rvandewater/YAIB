@@ -13,7 +13,7 @@ from icu_benchmarks.data.loader import RICUDataset
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
 from icu_benchmarks.models.train import train_common
-from icu_benchmarks.models.wrappers import MLWrapper
+from icu_benchmarks.models.wrappers import DLWrapper, MLWrapper
 from icu_benchmarks.models.utils import JsonNumpyEncoder
 from icu_benchmarks.run_utils import log_full_line
 
@@ -30,7 +30,10 @@ def get_predictions_for_single_model(target_model: object, dataset: RICUDataset,
     Returns:
         Tuple of predictions and labels.
     """
-    model = MLWrapper(target_model.model)
+    if isinstance(target_model, DLWrapper):
+        model = DLWrapper(target_model.model)
+    else:
+        model = MLWrapper(target_model.model)
     model.set_log_dir(log_dir)
     if (model_dir / "model.torch").is_file():
         model.load_weights(model_dir / "model.torch")
