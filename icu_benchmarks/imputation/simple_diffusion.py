@@ -84,10 +84,11 @@ class Simple_Diffusion_Model(ImputationWrapper):
         while considering the batch dimension.
         """
         batch_size = t.shape[0]
-        out = vals.gather(-1, t.cpu())
+        # print(t.device, vals.device)
+        out = vals.gather(-1, t)
         return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
 
-    def forward_diffusion_sample(self, x_0, t, device="cpu"):
+    def forward_diffusion_sample(self, x_0, t):
         """ 
         Takes an image and a timestep as input and 
         returns the noisy version of it
@@ -98,8 +99,8 @@ class Simple_Diffusion_Model(ImputationWrapper):
             self.sqrt_one_minus_alphas_cumprod, t, x_0.shape
         )
         # mean + variance
-        return sqrt_alphas_cumprod_t.to(device) * x_0.to(device) \
-        + sqrt_one_minus_alphas_cumprod_t.to(device) * noise.to(device), noise.to(device)
+        return sqrt_alphas_cumprod_t * x_0 \
+        + sqrt_one_minus_alphas_cumprod_t * noise, noise
 
     # Define beta schedule
     T = 300
@@ -115,9 +116,20 @@ class Simple_Diffusion_Model(ImputationWrapper):
     posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
 
     def get_loss(self, x_0, t):
-        x_noisy, noise = self.forward_diffusion_sample(x_0, t, self.device)
+        x_noisy, noise = self.forward_diffusion_sample(x_0, t)
         noise_pred = self(x_noisy, t)
         return F.l1_loss(noise, noise_pred)
+
+    def on_fit_start(self) -> None:
+        self.betas = self.betas.to(self.device)
+        self.alphas = self.alphas.to(self.device)
+        self.alphas_cumprod = self.alphas_cumprod.to(self.device)
+        self.alphas_cumprod_prev = self.alphas_cumprod_prev.to(self.device)
+        self.sqrt_recip_alphas = self.sqrt_recip_alphas.to(self.device)
+        self.sqrt_alphas_cumprod = self.sqrt_alphas_cumprod.to(self.device)
+        self.sqrt_one_minus_alphas_cumprod = self.sqrt_one_minus_alphas_cumprod.to(self.device)
+        self.posterior_variance = self.posterior_variance.to(self.device)
+        super().on_fit_start()
 
     def training_step(self, batch):
 
@@ -156,7 +168,7 @@ class Simple_Diffusion_Model(ImputationWrapper):
             noise = torch.randn_like(amputated)
             imputated = model_mean + torch.sqrt(posterior_variance_t) * noise
 
-        imputated = amputated.masked_scatter_(amputation_mask, imputated)
+        imputated = amputated.masked_scatter_(amputation_mask.bool(), imputated)
 
         loss = self.loss(imputated, target)
         self.log("val/loss", loss.item(), prog_bar=True)
@@ -186,7 +198,7 @@ class Simple_Diffusion_Model(ImputationWrapper):
             noise = torch.randn_like(amputated)
             imputated = model_mean + torch.sqrt(posterior_variance_t) * noise
 
-        imputated = amputated.masked_scatter_(amputation_mask, imputated)
+        imputated = amputated.masked_scatter_(amputation_mask.bool(), imputated)
 
         loss = self.loss(imputated, target)
         self.log("test/loss", loss.item(), prog_bar=True)
