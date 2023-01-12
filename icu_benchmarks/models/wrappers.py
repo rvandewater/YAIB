@@ -295,11 +295,12 @@ class DLWrapper(object):
             weight = torch.FloatTensor(weight).to(self.device)
 
         self.model.eval()
-        all_preds = np.ndarray()
+        all_preds = []
         with torch.no_grad():
             for elem in loader:
                 _, preds, _ = self.step_fn(elem, weight)
-                all_preds = np.append(all_preds, preds.cpu().numpy().tolist())
+                all_preds += preds.cpu().numpy().tolist()
+        all_preds = np.array(all_preds)
         print(all_preds)
 
         return all_preds
