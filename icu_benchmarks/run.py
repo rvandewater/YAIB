@@ -23,7 +23,7 @@ def main(my_args=tuple(sys.argv[1:])):
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
-    # Disable verbose logging for reducing log output
+    # Whether to enable verbose logging. If disabled reduces log output desired for running compute cluster jobs.
     gin.bind_parameter("DLWrapper.verbose_logging", args.verbose)
 
     load_weights = args.command == "evaluate"
