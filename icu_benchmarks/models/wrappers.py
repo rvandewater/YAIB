@@ -300,7 +300,7 @@ class DLWrapper(object):
             for elem in loader:
                 _, preds, target = self.step_fn(elem, weight)
                 preds, target = self.output_transform((preds, target))
-                all_preds += preds
+                all_preds += preds.cpu().numpy().tolist()
         all_preds = np.array(all_preds)
         print(all_preds)
 
