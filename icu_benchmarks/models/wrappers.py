@@ -298,8 +298,9 @@ class DLWrapper(object):
         all_preds = []
         with torch.no_grad():
             for elem in loader:
-                _, preds, _ = self.step_fn(elem, weight)
-                all_preds += preds.cpu().numpy().tolist()
+                _, preds, target = self.step_fn(elem, weight)
+                preds, target = self.output_transform((preds, target))
+                all_preds += preds
         all_preds = np.array(all_preds)
         print(all_preds)
 
@@ -310,7 +311,7 @@ class DLWrapper(object):
         print(predictions)
         predictions = torch.from_numpy(predictions)
         for name, metric in self.metrics.items():
-            metric.update(self.output_transform((predictions, labels)))
+            metric.update((predictions, labels))
             value = metric.compute()
             metric_results[name] = value
             # Only log float values
