@@ -96,23 +96,6 @@ def get_predictions_for_all_models(
     return test_predictions, test_labels
 
 
-def get_model_metrics(model: object, test_predictions: np.ndarray, test_labels: np.ndarray):
-    """Evaluate a combination of models.
-
-    Args:
-        test_predictions: Predictions for test set.
-        test_labels: Labels for test set.
-    """
-    test_metric_results = {}
-    for name, metric in model.metrics.items():
-        value = metric(model.label_transform(test_labels), test_predictions)
-        test_metric_results[name] = value
-        # Only log float values
-        if isinstance(value, np.float):
-            logging.info("test {}: {}".format(name, value))
-    return test_metric_results
-
-
 def domain_adaptation(
     data_dir: Path,
     run_dir: Path,

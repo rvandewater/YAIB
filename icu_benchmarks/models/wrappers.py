@@ -290,19 +290,29 @@ class DLWrapper(object):
 
     def predict(self, dataset, weight, seed):
         self.set_metrics()
-        test_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.n_worker, pin_memory=self.pin_memory)
+        loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.n_worker, pin_memory=self.pin_memory)
         if isinstance(weight, list):
             weight = torch.FloatTensor(weight).to(self.device)
-        test_loss, test_metrics = self.evaluate(test_loader, self.metrics, weight)
 
         self.model.eval()
         all_preds = []
         with torch.no_grad():
-            for elem in test_loader:
+            for elem in loader:
                 _, preds, _ = self.step_fn(elem, weight)
                 all_preds += preds
 
         return all_preds
+
+    def calculate_metrics(self: object, predictions: np.ndarray, labels: np.ndarray):
+        metric_results = {}
+        for name, metric in self.metrics.items():
+            metric.update(self.output_transform((predictions, labels)))
+            value = metric.compute()
+            metric_results[name] = value
+            # Only log float values
+            if isinstance(value, np.float):
+                logging.info("Test {}: {}".format(name, value))
+        return metric_results
 
 
 @gin.configurable("MLWrapper")
@@ -443,3 +453,13 @@ class MLWrapper(object):
             return self.model.predict(test_rep)
         else:
             return self.model.predict_proba(test_rep)
+
+    def calculate_metrics(self: object, predictions: np.ndarray, labels: np.ndarray):
+        metric_results = {}
+        for name, metric in self.metrics.items():
+            value = metric(self.label_transform(labels), predictions)
+            metric_results[name] = value
+            # Only log float values
+            if isinstance(value, np.float):
+                logging.info("Test {}: {}".format(name, value))
+        return metric_results
