@@ -305,6 +305,7 @@ class DLWrapper(object):
 
     def calculate_metrics(self: object, predictions: list, labels: np.ndarray):
         metric_results = {}
+        print(predictions)
         predictions = torch.FloatTensor(predictions)
         for name, metric in self.metrics.items():
             metric.update(self.output_transform((predictions, labels)))
