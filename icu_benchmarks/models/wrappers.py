@@ -299,7 +299,7 @@ class DLWrapper(object):
         with torch.no_grad():
             for elem in loader:
                 _, preds, _ = self.step_fn(elem, weight)
-                all_preds = all_preds.cat(preds)
+                all_preds = torch.cat((all_preds, preds))
 
         return all_preds
 
