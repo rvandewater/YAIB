@@ -138,7 +138,7 @@ def domain_adaptation(
     cv_folds = 5
     cv_folds_to_train = 5
     target_sizes = [500, 1000, 2000]
-    datasets = ["hirid", "aumc", "miiv"]
+    datasets = ["hirid", "aumc", "eicu", "miiv"]
     target_weights = [0.1, 0.2, 0.5, 1, 2, 5]
     weights = [1] * (len(datasets) - 1)
     task_dir = data_dir / task
