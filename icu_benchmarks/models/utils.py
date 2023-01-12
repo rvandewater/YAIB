@@ -32,17 +32,6 @@ def save_config_file(log_dir):
         f.write(gin.operative_config_str())
 
 
-def append_results(experiment_parent, results, seed):
-    try:
-        with open(experiment_parent) as f:
-            file = json.load(f)
-    except IOError:
-        file = {}
-    with open(experiment_parent, "w") as f:
-        file[seed] = results
-        json.dump(file, f, cls=JsonResultLoggingEncoder)
-
-
 class JsonResultLoggingEncoder(JSONEncoder):
     """JSON converter for objects that are not serializable by default."""
 
