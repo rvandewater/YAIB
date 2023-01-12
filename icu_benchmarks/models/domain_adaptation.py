@@ -30,6 +30,7 @@ def get_predictions_for_single_model(target_model: object, dataset: RICUDataset,
     Returns:
         Tuple of predictions and labels.
     """
+    gin.parse_config_file(model_dir / "train_config.gin")
     if isinstance(target_model, DLWrapper):
         model = DLWrapper()
     else:
@@ -81,10 +82,10 @@ def get_predictions_for_all_models(
     _, test_labels = test_dataset.get_data_and_labels()
 
     test_predictions = {}
+    test_predictions["target"] = target_model.output_transform(target_model.predict(test_dataset, None, None))
     for source in source_datasets:
         model_dir = source_dir / source
         test_predictions[model_dir.name] = get_predictions_for_single_model(target_model, test_dataset, model_dir, log_dir)
-    test_predictions["target"] = target_model.output_transform(target_model.predict(test_dataset, None, None))
 
     for name, prediction in test_predictions.items():
         if prediction.ndim == 2:
@@ -138,7 +139,8 @@ def domain_adaptation(
     cv_folds_to_train = 2
     target_sizes = [500, 1000, 2000]
     datasets = ["hirid", "aumc", "miiv"]
-    weights = [1] * (len(datasets) - 1) + [1]
+    target_weights = [0.1, 0.2, 0.5, 1, 2, 5]
+    weights = [1] * (len(datasets) - 1)
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
 
@@ -153,9 +155,11 @@ def domain_adaptation(
             log_dir = run_dir / task / dataset / f"target_{target_size}"
             log_dir.mkdir(parents=True, exist_ok=True)
             choose_and_bind_hyperparameters(True, data_dir, log_dir, seed, debug=debug)
+            gin_config_with_target_hyperparameters = gin.config_str()
             results = {}
             for repetition in range(cv_repetitions_to_train):
                 for fold_index in range(cv_folds_to_train):
+                    gin.parse_config(gin_config_with_target_hyperparameters)
                     results[f"{repetition}_{fold_index}"] = {}
                     fold_results = results[f"{repetition}_{fold_index}"]
 
@@ -190,15 +194,12 @@ def domain_adaptation(
                         logging.info("Evaluating model: {}".format(baseline))
                         fold_results[baseline] = get_model_metrics(target_model, predictions, test_labels)
 
-
                     # evaluate convex combination of models
                     test_predictions_list = list(test_predictions.values())
 
                     logging.info("Evaluating convex combination of models.")
-                    target_weights = [0.1, 0.2, 0.5, 1, 2, 5]
-                    weights = [1] * (len(datasets) - 1)
                     for t in target_weights:
-                        w = weights + [t * sum(weights)]
+                        w = [t * sum(weights)] + weights
                         logging.info(f"Evaluating target weight: {t}")
                         test_pred = np.average(test_predictions_list, axis=0, weights=w)
                         fold_results[f"convex_combination_{t}"] = get_model_metrics(target_model, test_pred, test_labels)
