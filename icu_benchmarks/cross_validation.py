@@ -63,14 +63,14 @@ def execute_repeated_cv(
                 fold_index=fold_index,
             )
 
-            run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}" / f"repetition_{repetition}"
-            run_dir_seed.mkdir(parents=True, exist_ok=True)
+            repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
+            repetition_fold_dir.mkdir(parents=True, exist_ok=True)
 
             preprocess_time = datetime.now() - start_time
             start_time = datetime.now()
             agg_loss += train_common(
                 data,
-                log_dir=run_dir_seed,
+                log_dir=repetition_fold_dir,
                 load_weights=load_weights,
                 source_dir=source_dir,
                 seed=seed,
@@ -85,7 +85,7 @@ def execute_repeated_cv(
             )
             durations = {"preprocessing_duration": preprocess_time, "train_duration": train_time}
 
-            with open(run_dir_seed / "durations.json", "w") as f:
+            with open(repetition_fold_dir / "durations.json", "w") as f:
                 json.dump(durations, f, cls=JsonResultLoggingEncoder)
         log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
