@@ -82,7 +82,7 @@ def get_predictions_for_all_models(
     _, test_labels = test_dataset.get_data_and_labels()
 
     test_predictions = {}
-    test_predictions["target"] = target_model.output_transform(target_model.predict(test_dataset, None, None))
+    test_predictions["target"] = target_model.predict(test_dataset, None, None)
     for source in source_datasets:
         model_dir = source_dir / source
         test_predictions[model_dir.name] = get_predictions_for_single_model(target_model, test_dataset, model_dir, log_dir)
