@@ -55,10 +55,10 @@ class DLWrapper(object):
         self.pin_memory = pin_memory
         self.n_worker = n_worker
 
-        self.encoder = encoder
-        self.encoder.to(device)
+        self.model = encoder
+        self.model.to(device)
         self.loss = loss
-        self.optimizer = optimizer_fn(self.encoder.parameters())
+        self.optimizer = optimizer_fn(self.model.parameters())
         self.scaler = None
 
     def set_log_dir(self, log_dir: Path):
@@ -82,12 +82,12 @@ class DLWrapper(object):
 
         # Binary classification
         # output transform is not applied for contrib metrics so we do our own.
-        if self.encoder.logit.out_features == 2:
+        if self.model.logit.out_features == 2:
             self.output_transform = softmax_binary_output_transform
             self.metrics = DLMetrics.BINARY_CLASSIFICATION
 
         # Regression
-        elif self.encoder.logit.out_features == 1:
+        elif self.model.logit.out_features == 1:
             self.output_transform = lambda x: x
             if self.scaler is not None:
                 self.metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
@@ -119,7 +119,7 @@ class DLWrapper(object):
                 data = data.float().to(self.device)
         else:
             raise Exception("Loader should return either (data, label) or (data, label, mask)")
-        out = self.encoder(data)
+        out = self.model(data)
         if len(out) == 2 and isinstance(out, tuple):
             out, aux_loss = out
         else:
@@ -135,7 +135,7 @@ class DLWrapper(object):
 
     def _do_training(self, train_loader, weight, metrics):
         # Training epoch
-        self.encoder.train()
+        self.model.train()
         agg_train_loss = 0
         for elem in tqdm(train_loader, leave=False):
             loss, preds, target = self.step_fn(elem, weight)
@@ -265,7 +265,7 @@ class DLWrapper(object):
         return test_loss
 
     def evaluate(self, eval_loader, metrics, weight):
-        self.encoder.eval()
+        self.model.eval()
         agg_eval_loss = 0
 
         with torch.no_grad():
@@ -283,10 +283,10 @@ class DLWrapper(object):
         return eval_loss, eval_metric_results
 
     def save_weights(self, epoch, save_path):
-        save_model(self.encoder, self.optimizer, epoch, save_path)
+        save_model(self.model, self.optimizer, epoch, save_path)
 
     def load_weights(self, load_path):
-        load_model_state(load_path, self.encoder, optimizer=self.optimizer)
+        load_model_state(load_path, self.model, optimizer=self.optimizer)
 
     def predict(self, dataset, weight, seed):
         self.set_metrics()
@@ -295,7 +295,7 @@ class DLWrapper(object):
             weight = torch.FloatTensor(weight).to(self.device)
         test_loss, test_metrics = self.evaluate(test_loader, self.metrics, weight)
 
-        self.encoder.eval()
+        self.model.eval()
         all_preds = []
         with torch.no_grad():
             for elem in test_loader:
