@@ -55,7 +55,7 @@ class DLWrapper(object):
         self.pin_memory = pin_memory
         self.n_worker = n_worker
 
-        self.model = encoder
+        self.model = encoder()
         self.model.to(device)
         self.loss = loss
         self.optimizer = optimizer_fn(self.model.parameters())
