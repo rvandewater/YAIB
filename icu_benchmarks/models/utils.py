@@ -1,5 +1,6 @@
+from datetime import timedelta
 from enum import Enum
-import json
+from json import JSONEncoder
 import gin
 import logging
 import numpy as np
@@ -30,18 +31,9 @@ def save_config_file(log_dir):
         f.write(gin.operative_config_str())
 
 
-def append_results(experiment_parent, results, seed):
-    try:
-        with open(experiment_parent) as f:
-            file = json.load(f)
-    except IOError:
-        file = {}
-    with open(experiment_parent, "w") as f:
-        file[seed] = results
-        json.dump(file, f, cls=JsonNumpyEncoder)
+class JsonResultLoggingEncoder(JSONEncoder):
+    """JSON converter for objects that are not serializable by default."""
 
-
-class JsonNumpyEncoder(json.JSONEncoder):
     # Serializes foreign datatypes
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -55,7 +47,9 @@ class JsonNumpyEncoder(json.JSONEncoder):
         if isinstance(obj, tuple):
             if isinstance(obj)[0] is torch.Tensor or isinstance(obj)[0] is np.ndarray:
                 return map(lambda item: item.tolist(), obj)
-        return super(JsonNumpyEncoder).default(self, obj)
+        if isinstance(obj, timedelta):
+            return str(obj)
+        return JSONEncoder.default(self, obj)
 
 
 class Align(Enum):

@@ -1,13 +1,13 @@
 import json
 from argparse import ArgumentParser, BooleanOptionalAction
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from pathlib import Path
 import scipy.stats as stats
 import shutil
 from statistics import mean, stdev
 
-from icu_benchmarks.models.utils import JsonNumpyEncoder
+from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 
 
 def build_parser() -> ArgumentParser:
@@ -32,6 +32,13 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-l", "--log-dir", required=True, type=Path, help="Log directory with model weights.")
     general_args.add_argument("-s", "--seed", default=1111, type=int, help="Random seed for processing, tuning and training.")
     general_args.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train and test on CPU.")
+    general_args.add_argument(
+        "-v",
+        "--verbose",
+        default=True,
+        action=BooleanOptionalAction,
+        help="Whether to use verbose logging. Disable for clean logs.",
+    )
     general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
     general_args.add_argument("-pl", "--plot", action=BooleanOptionalAction, help="Generate common plots.")
@@ -74,24 +81,30 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     return log_dir_run
 
 
-def aggregate_results(log_dir: Path):
+def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
     """Aggregates results from all folds and writes to JSON file.
 
     Args:
         log_dir: Path to the log directory.
+        execution_time: Overall execution time.
     """
     aggregated = {}
-    for seed in log_dir.iterdir():
-        if seed.is_dir():
-            aggregated[seed.name] = {}
-            for fold in seed.iterdir():
-                with open(fold / "test_metrics.json", "r") as f:
+    for repetition in log_dir.iterdir():
+        aggregated[repetition.name] = {}
+        for fold_iter in repetition.iterdir():
+            if (fold_iter / "test_metrics.json").is_file():
+                with open(fold_iter / "test_metrics.json", "r") as f:
                     result = json.load(f)
-                    aggregated[seed.name][fold.name] = result
+                    aggregated[repetition.name][fold_iter.name] = result
+            # Add durations to metrics
+            if (fold_iter / "durations.json").is_file():
+                with open(fold_iter / "durations.json", "r") as f:
+                    result = json.load(f)
+                    aggregated[repetition.name][fold_iter.name].update(result)
 
     # Aggregate results per metric
     list_scores = {}
-    for seed, folds in aggregated.items():
+    for repetition, folds in aggregated.items():
         for fold, result in folds.items():
             for metric, score in result.items():
                 if isinstance(score, (float, int)):
@@ -106,13 +119,18 @@ def aggregate_results(log_dir: Path):
         for metric, list in list_scores.items()
     }
 
-    accumulated_metrics = {"avg": averaged_scores, "std": std_scores, "CI_0.95": confidence_interval}
+    accumulated_metrics = {
+        "avg": averaged_scores,
+        "std": std_scores,
+        "CI_0.95": confidence_interval,
+        "execution_time": execution_time,
+    }
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
-        json.dump(aggregated, f, cls=JsonNumpyEncoder)
+        json.dump(aggregated, f, cls=JsonResultLoggingEncoder)
 
     with open(log_dir / "accumulated_test_metrics.json", "w") as f:
-        json.dump(accumulated_metrics, f, cls=JsonNumpyEncoder)
+        json.dump(accumulated_metrics, f, cls=JsonResultLoggingEncoder)
 
     logging.info(f"Accumulated results: {accumulated_metrics}")
 
