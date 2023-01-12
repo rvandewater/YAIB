@@ -143,6 +143,7 @@ def domain_adaptation(
     weights = [1] * (len(datasets) - 1)
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
+    gin_config_before_tuning = gin.config_str()
 
     # evaluate models on same test split
     for dataset in datasets:
@@ -150,6 +151,8 @@ def domain_adaptation(
         source_datasets = [d for d in datasets if d != dataset]
         log_full_line(f"STARTING {dataset}", char="#", num_newlines=2)
         for target_size in target_sizes:
+            gin.clear_config()
+            gin.parse_config(gin_config_before_tuning)
             log_full_line(f"STARTING TARGET SIZE {target_size}", char="*", num_newlines=1)
             gin.bind_parameter("preprocess.fold_size", target_size)
             log_dir = run_dir / task / model / dataset / f"target_{target_size}"
