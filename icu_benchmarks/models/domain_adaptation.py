@@ -12,6 +12,7 @@ import scipy.stats as stats
 from icu_benchmarks.data.loader import RICUDataset
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
+from icu_benchmarks.models.metric_constants import MLMetrics
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.wrappers import DLWrapper, MLWrapper
 from icu_benchmarks.models.utils import JsonNumpyEncoder
@@ -46,6 +47,17 @@ def get_predictions_for_single_model(target_model: object, dataset: RICUDataset,
         raise Exception("No weights to load at path : {}".format(model_dir / "model.*"))
     logging.info(f"Generating predictions for model : {model_dir}")
     return model.predict(dataset, None, None)
+
+
+def calculate_metrics(predictions: np.ndarray, labels: np.ndarray):
+    metric_results = {}
+    for name, metric in MLMetrics.BINARY_CLASSIFICATION.items():
+        value = metric(labels, predictions)
+        metric_results[name] = value
+        # Only log float values
+        if isinstance(value, np.float):
+            logging.info("Test {}: {}".format(name, value))
+    return metric_results
 
 
 def get_predictions_for_all_models(
@@ -180,7 +192,7 @@ def domain_adaptation(
                     # evaluate source baselines
                     for baseline, predictions in test_predictions.items():
                         logging.info("Evaluating model: {}".format(baseline))
-                        fold_results[baseline] = target_model.calculate_metrics(predictions, test_labels)
+                        fold_results[baseline] = calculate_metrics(predictions, test_labels)
 
                     # evaluate convex combination of models
                     test_predictions_list = list(test_predictions.values())
@@ -190,7 +202,7 @@ def domain_adaptation(
                         w = [t * sum(weights)] + weights
                         logging.info(f"Evaluating target weight: {t}")
                         test_pred = np.average(test_predictions_list, axis=0, weights=w)
-                        fold_results[f"convex_combination_{t}"] = target_model.calculate_metrics(test_pred, test_labels)
+                        fold_results[f"convex_combination_{t}"] = calculate_metrics(test_pred, test_labels)
 
                     log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
                 log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)

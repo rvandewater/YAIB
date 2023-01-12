@@ -306,18 +306,6 @@ class DLWrapper(object):
 
         return all_preds
 
-    def calculate_metrics(self: object, predictions: np.ndarray, labels: np.ndarray):
-        metric_results = {}
-        print(predictions)
-        for name, metric in self.metrics.items():
-            metric.update((predictions, labels))
-            value = metric.compute()
-            metric_results[name] = value
-            # Only log float values
-            if isinstance(value, np.float):
-                logging.info("Test {}: {}".format(name, value))
-        return metric_results
-
 
 @gin.configurable("MLWrapper")
 class MLWrapper(object):
@@ -457,13 +445,3 @@ class MLWrapper(object):
             return self.model.predict(test_rep)
         else:
             return self.model.predict_proba(test_rep)
-
-    def calculate_metrics(self: object, predictions: np.ndarray, labels: np.ndarray):
-        metric_results = {}
-        for name, metric in self.metrics.items():
-            value = metric(self.label_transform(labels), predictions)
-            metric_results[name] = value
-            # Only log float values
-            if isinstance(value, np.float):
-                logging.info("Test {}: {}".format(name, value))
-        return metric_results
