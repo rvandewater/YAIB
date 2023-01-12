@@ -9,7 +9,7 @@ preprocess.use_features = False
 # Train params
 train_common.model = @DLWrapper()
 
-DLWrapper.encoder = @Transformer
+DLWrapper.encoder = @Transformer()
 DLWrapper.optimizer_fn = @Adam
 
 DLWrapper.train.epochs = 1000
