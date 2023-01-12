@@ -295,18 +295,17 @@ class DLWrapper(object):
             weight = torch.FloatTensor(weight).to(self.device)
 
         self.model.eval()
-        all_preds = []
+        all_preds = torch.FloatTensor()
         with torch.no_grad():
             for elem in loader:
                 _, preds, _ = self.step_fn(elem, weight)
-                all_preds += preds
+                all_preds = all_preds.cat(preds)
 
         return all_preds
 
-    def calculate_metrics(self: object, predictions: list, labels: np.ndarray):
+    def calculate_metrics(self: object, predictions: torch.tensor, labels: np.ndarray):
         metric_results = {}
         print(predictions)
-        predictions = torch.FloatTensor(predictions)
         for name, metric in self.metrics.items():
             metric.update(self.output_transform((predictions, labels)))
             value = metric.compute()
