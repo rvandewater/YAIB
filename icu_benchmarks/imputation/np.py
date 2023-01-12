@@ -81,7 +81,7 @@ class NPImputation(ImputationWrapper):
         amputated = torch.split(amputated, split_size_or_sections = 1, dim = 2)
         
         # Create and rearrange x to be the same shape as variables (x is timesteps)
-        batch_x = torch.arange(0, num_timesteps)
+        batch_x = torch.arange(0, num_timesteps).to(self.device)
         batch_x = batch_x.repeat(batch_size)
         batch_x = batch_x.reshape(batch_size, num_timesteps, 1)
         # Resulting size is [batch size, number of timesteps, 1]
@@ -143,7 +143,7 @@ class NPImputation(ImputationWrapper):
         amputation_mask = torch.split(amputation_mask, split_size_or_sections = 1, dim = 2)
         
         # Create and rearrange x to be the same shape as variables (x is timesteps)
-        batch_x = torch.arange(0, num_timesteps)
+        batch_x = torch.arange(0, num_timesteps).to(self.device)
         batch_x = batch_x.repeat(batch_size)
         batch_x = batch_x.reshape(batch_size, num_timesteps, 1)
         # Resulting size is [batch size, number of timesteps, 1]
@@ -227,7 +227,7 @@ class NPImputation(ImputationWrapper):
         amputation_mask = torch.split(amputation_mask, split_size_or_sections = 1, dim = 2)
         
         # Create and rearrange x to be the same shape as variables (x is timesteps)
-        batch_x = torch.arange(0, num_timesteps)
+        batch_x = torch.arange(0, num_timesteps).to(self.device)
         batch_x = batch_x.repeat(batch_size)
         batch_x = batch_x.reshape(batch_size, num_timesteps, 1)
         # Resulting size is [batch size, number of timesteps, 1]
@@ -331,8 +331,8 @@ class NPImputation(ImputationWrapper):
         y = y[idx]
 
         # Return them into shapes of [1, number of timesteps, 1] for less code changes
-        x = torch.unflatten(x, 0, (1, x.shape[0], 1))
-        y = torch.unflatten(y, 0, (1, y.shape[0], 1))
+        x = x.unflatten(0, (1, x.shape[0], 1))
+        y = y.unflatten(0, (1, y.shape[0], 1))
 
         # Calculate how many points we can have for context/target split
         num_points = x.shape[1]

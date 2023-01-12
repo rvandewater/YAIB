@@ -53,6 +53,7 @@ def train_common(
     logging.info(f"Training model: {model.__name__}")
     DatasetClass = ImputationDataset if mode == "Imputation" else RICUDataset
 
+    logging.info(f"Logging to directory: {log_dir}")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
     train_dataset = DatasetClass(data, split="train")
@@ -102,7 +103,7 @@ def train_common(
         trainer = Trainer(
             max_epochs=epochs if model.needs_training else 1,
             callbacks=[
-                EarlyStopping(monitor=f"val/loss/{model.get_seed()}", min_delta=min_delta, patience=patience, strict=False),
+                EarlyStopping(monitor=f"val/loss", min_delta=min_delta, patience=patience, strict=False),
                 ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
             ],
             # precision=16,
@@ -119,8 +120,6 @@ def train_common(
             if mode == "Imputation":
                 model.fit(train_dataset)
             else:
-                print("special fit")
-                print("len dat:", len(val_dataset))
                 trainer.fit(
                     model,
                     train_dataloaders=DataLoader([train_dataset.get_data_and_labels() + val_dataset.get_data_and_labels()], batch_size=1),
