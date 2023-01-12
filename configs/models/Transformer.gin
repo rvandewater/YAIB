@@ -35,6 +35,6 @@ model/hyperparameter.dropout = (0.0, 0.4)
 model/hyperparameter.dropout_att = (0.0, 0.4)
 
 tune_hyperparameters.scopes = ["model", "optimizer"]
-tune_hyperparameters.n_initial_points = 5
-tune_hyperparameters.n_calls = 30
+tune_hyperparameters.n_initial_points = 2
+tune_hyperparameters.n_calls = 4
 tune_hyperparameters.folds_to_tune_on = 2
