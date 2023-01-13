@@ -26,7 +26,6 @@ class NPImputation(ImputationWrapper):
     needs_fit = False
     def __init__(
         self, 
-        *args, 
         input_size, 
         encoder_layers,
         encoder_h_dim,
@@ -34,22 +33,16 @@ class NPImputation(ImputationWrapper):
         decoder_h_dim,
         r_dim,
         z_dim,
+        *args, 
         **kwargs
         ) -> None:
         super().__init__(*args, **kwargs)
-        
-        # NOTE: set the manual optimization (as we need an optimizer for each model)
-        self.automatic_optimization = False
 
-        self.x_dim = 1
-        self.y_dim = 1
+        self.x_dim = input_size[2]
+        self.y_dim = input_size[2]
         self.z_dim = z_dim
 
-        model_list = []
-        # NOTE: For each variable, initialize a separate Neural Process
-        for i in range(input_size[2]):
-            model_list.append(
-                NeuralProcess(
+        self.model = NeuralProcess(
                     self.x_dim, 
                     self.y_dim, 
                     encoder_layers, 
@@ -58,253 +51,132 @@ class NPImputation(ImputationWrapper):
                     decoder_h_dim, 
                     r_dim, 
                     z_dim
-                    )
-                )     
-        # Cast the list to ModuleList to properly register all NPs
-        self.model = torch.nn.ModuleList(model_list)
-
-    # NOTE: index is required to specify which variable is being processed
-    def forward(self, index, x_context, y_context, x_target, y_target = None):
-        return self.model[index](x_context, y_context, x_target, y_target)
+                )
+        
+    def forward(self, x_context, y_context, x_target, y_target = None):
+        return self.model(x_context, y_context, x_target, y_target)
 
     # Override the training step - needed for the custom loss calculation
     def training_step(self, batch, _):
-        # Set models to training mode
-        for model in self.model:
-            model.training = True
+        self.model.train(True)
 
         # Unpack batch into three values
-        amputated, _, _ = batch
-        batch_size, num_timesteps, num_obs_var = amputated.shape
-               
-        # Split batch across the last dimension (i.e., have 6 tensors of shape [batch size, number of timesteps, 1])       
-        amputated = torch.split(amputated, split_size_or_sections = 1, dim = 2)
-        
+        _, _, complete = batch
+        batch_size, num_timesteps, num_obs_var = complete.shape
+
         # Create and rearrange x to be the same shape as variables (x is timesteps)
-        batch_x = torch.arange(0, num_timesteps).to(self.device)
-        batch_x = batch_x.repeat(batch_size)
-        batch_x = batch_x.reshape(batch_size, num_timesteps, 1)
-        # Resulting size is [batch size, number of timesteps, 1]
+        x = torch.arange(0, num_timesteps).to(self.device)
+        x = x.repeat(batch_size)
+        x = x.repeat(num_obs_var)
+        x = x.reshape(batch_size, num_timesteps, num_obs_var)
+        # Resulting size is [batch size, number of timesteps, number of observed variables]
 
-        optimizers = self.optimizers()
+        # For now, do the most basic thing - train on complete data
+        x_context, y_context, x_target, y_target =\
+            self._context_target_split(x, complete)
 
-        loss = 0.
-        epoch_loss = 0.
-        # Take one variable at a time (from a list of tensors amputated)
-        for index in range(num_obs_var):
-            # Set optimizer zero_grad for the model
-            optimizers[index].zero_grad()
-            
-            curr_var = amputated[index]
-            for pt_id in range(batch_size):
-                # Get the x and y for the batch
-                x = batch_x[pt_id]
-                y = curr_var[index]
+        # Get the predicted probability distribution
+        p_y_pred, q_context, q_target =\
+            self(x_context, y_context, x_target, y_target)
 
-                x_context, y_context, x_target, y_target =\
-                    self._context_target_split(x, y)
+        loss = self._loss(p_y_pred, y_target, q_target, q_context)
 
-                # Get the predicted probability distribution
-                p_y_pred, q_context, q_target =\
-                    self(index, x_context, y_context, x_target, y_target)
-
-                loss = self._loss(p_y_pred, y_target, q_target, q_context)
-                epoch_loss += loss.item()
-                loss.backward()
-
-            optimizers[index].step() 
-
-        self.log("train/loss", epoch_loss, prog_bar = True)
+        self.log("train/loss", loss.item(), prog_bar = True)
+        return loss
 
     # Do a sanity check when training ends for any nans
     def on_train_end(self) -> None:
         try:
-            for model in self.model:
-                finite_checks.detect_nan_parameters(model)
+            finite_checks.detect_nan_parameters(self.model)
         except ValueError:
-            for model in self.model:
-                finite_checks.print_nan_gradients(model)
+            logging.error('Found nan values in the model gradients:')
+            finite_checks.print_nan_gradients(self.model)
             quit()
         return super().on_train_end()
 
     # Override the validation step - needed for the custom loss calculation
     @torch.no_grad()
     def validation_step(self, batch, _):
-        # Unset training mode for each model
-        for model in self.model:
-            model.eval()
-
+        self.model.eval()
         # Unpack batch into three values
-        amputated, amputation_mask, target = batch
-        batch_size, num_timesteps, num_obs_var = amputated.shape
-               
-        # Split batch across the last dimension (i.e., have 6 tensors of shape [batch size, number of timesteps, 1])       
-        amputated = torch.split(amputated, split_size_or_sections = 1, dim = 2)
-        amputation_mask = torch.split(amputation_mask, split_size_or_sections = 1, dim = 2)
+        amputed, mask, complete = batch
+        batch_size, num_timesteps, num_obs_var = complete.shape
         
         # Create and rearrange x to be the same shape as variables (x is timesteps)
-        batch_x = torch.arange(0, num_timesteps).to(self.device)
-        batch_x = batch_x.repeat(batch_size)
-        batch_x = batch_x.reshape(batch_size, num_timesteps, 1)
-        # Resulting size is [batch size, number of timesteps, 1]
+        x = torch.arange(0, num_timesteps).to(self.device)
+        x = x.repeat(batch_size)
+        x = x.repeat(num_obs_var)
+        x = x.reshape(batch_size, num_timesteps, num_obs_var)
+        # Resulting size is [batch size, number of timesteps, number of observed variables]
 
-        # Create an empty tensor to keep values that we are imputing
-        imputed_values = torch.Tensor([]).to(self.device)
+        # For now, do the most basic thing - put 0s instead of nans
+        amputed = torch.nan_to_num(amputed, nan = 0.0).to(self.device)
 
-        loss = 0.
-        # Take one variable at a time (from a list of tensors amputated)
-        for index in range(num_obs_var):
-            curr_var = amputated[index]
-            # Store mask for the current variable
-            curr_mask = amputation_mask[index]
-            for pt_id in range(batch_size):
-                # Get the x and y for the batch
-                x = batch_x[pt_id]
-                y = curr_var[index]
+        x_context, y_context, _, _ =\
+            self._context_target_split(x, amputed)
 
-                # Get current mask for the patient's variable and make a x_target out of it - i.e. what values we need to impute
-                x_target = torch.nonzero(curr_mask[pt_id].squeeze()) 
+        x_target = x.to(self.device)
 
-                # Squeeze the target into a 1-d tensor
-                x_target = x_target.squeeze()
+        # Get the predicted probability distribution
+        p_y_pred =\
+            self(x_context, y_context, x_target)
 
-                # If there are no values to impute, skip this variable
-                if x_target.shape == torch.Size([0]):
-                    pass
-                # If there is only one value to impute, transfor the tensor into a 1D tensor
-                elif x_target.ndim == 0:
-                    x_target_copy = x_target.reshape(1, 1, 1)
-                # Otherwise, reshape the x_target tensor into [1, number of values to impute, 1] for less code changes
-                else:
-                    x_target_copy = x_target.reshape(1, x_target.size(dim = 0), 1)
-                
-                # Make a split for context (target is ignored as we are making predictions)
-                x_context, y_context, _, _ =\
-                    self._context_target_split(x, y)
+        # Sample the distribution to put the values from it into the amputed dataset
+        generated = p_y_pred.sample()
+        # Use the indexing functionality of tensor to impute values into the indicies specified by the mask
+        amputed[mask > 0] = generated[mask > 0]
 
-                # Get the predicted probability distribution
-                p_y_pred = self(index, x_context, y_context, x_target_copy) 
+        # In val/test loops, use the MSE loss - KL divergence can't be calculated without target distribution
+        loss = self.loss(amputed, complete)
 
-                # Take probability distribution and create a sample
-                y_hat = p_y_pred.sample()
-                # Flatten the tensor to 1-D to concatenate correctly
-                y_hat = y_hat.flatten()
-                
-                # Put the y_hat values into imputed values tensor to put it into places where values are missing in the amputated data 
-                imputed_values = torch.cat([imputed_values, y_hat])
-        
-        # Concatenate back all tensors
-        amputated = torch.cat(amputated, dim = 2)
-        amputation_mask = torch.cat(amputation_mask, dim = 2)
-        
-        # Use masked_scatter_ to put imputed values into positions where items are missing
-        # Before that, convert the mask into boolean so that masked_scatter_ would work
-        amputation_mask = amputation_mask > 0
-        imputed = amputated.masked_scatter_(mask = amputation_mask, source = imputed_values)
-
-        # Calculate MSE loss over predictions
-        loss = self.loss(imputed, target)
-
-        # Report the loss for current batch
         self.log("val/loss", loss.item(), prog_bar = True)
-        
+
         # Update the metrics
         for metric in self.metrics["val"].values():
-            metric.update((torch.flatten(imputed, start_dim=1), torch.flatten(target, start_dim=1)))
+            metric.update((torch.flatten(amputed, start_dim=1), torch.flatten(complete, start_dim=1)))
 
     @torch.no_grad()
     def test_step(self, batch, _):
-        # Unset training mode for each model
-        for model in self.model:
-            model.eval()
-
+        self.model.eval()
         # Unpack batch into three values
-        amputated, amputation_mask, target = batch
-        batch_size, num_timesteps, num_obs_var = amputated.shape
-               
-        # Split batch across the last dimension (i.e., have 6 tensors of shape [batch size, number of timesteps, 1])       
-        amputated = torch.split(amputated, split_size_or_sections = 1, dim = 2)
-        amputation_mask = torch.split(amputation_mask, split_size_or_sections = 1, dim = 2)
+        amputed, mask, complete = batch
+        batch_size, num_timesteps, num_obs_var = amputed.shape
         
         # Create and rearrange x to be the same shape as variables (x is timesteps)
-        batch_x = torch.arange(0, num_timesteps).to(self.device)
-        batch_x = batch_x.repeat(batch_size)
-        batch_x = batch_x.reshape(batch_size, num_timesteps, 1)
-        # Resulting size is [batch size, number of timesteps, 1]
-
-        # Create an empty tensor to keep values that we are imputing
-        imputed_values = torch.Tensor([]).to(self.device)
-
-        loss = 0.
-        # Take one variable at a time (from a list of tensors amputated)
-        for index in range(num_obs_var):
-            curr_var = amputated[index]
-            # Store mask for the current variable
-            curr_mask = amputation_mask[index]
-            for pt_id in range(batch_size):
-                # Get the x and y for the batch
-                x = batch_x[pt_id]
-                y = curr_var[index]
-
-                # Get current mask for the patient's variable and make a x_target out of it - i.e. what values we need to impute
-                x_target = torch.nonzero(curr_mask[pt_id].squeeze()) 
-
-                # Squeeze the target into a 1-d tensor
-                x_target = x_target.squeeze()
-
-                # If there are no values to impute, skip this variable
-                if x_target.shape == torch.Size([0]):
-                    pass
-                # If there is only one value to impute, transfor the tensor into a 1D tensor
-                elif x_target.ndim == 0:
-                    x_target_copy = x_target.reshape(1, 1, 1)
-                # Otherwise, reshape the x_target tensor into [1, number of values to impute, 1] for less code changes
-                else:
-                    x_target_copy = x_target.reshape(1, x_target.size(dim = 0), 1)
-                
-                # Make a split for context (target is ignored as we are making predictions)
-                x_context, y_context, _, _ =\
-                    self._context_target_split(x, y)
-
-                # Get the predicted probability distribution
-                p_y_pred = self(index, x_context, y_context, x_target_copy) 
-
-                # Take probability distribution and create a sample
-                y_hat = p_y_pred.sample()
-                # Flatten the tensor to 1-D to concatenate correctly
-                y_hat = y_hat.flatten()
-                
-                # Put the y_hat values into imputed values tensor to put it into places where values are missing in the amputated data 
-                imputed_values = torch.cat([imputed_values, y_hat])
+        x = torch.arange(0, num_timesteps).to(self.device)
+        x = x.repeat(batch_size)
+        x = x.repeat(num_obs_var)
+        x = x.reshape(batch_size, num_timesteps, num_obs_var)
+        # Resulting size is [batch size, number of timesteps, number of observed variables]
         
-        # Concatenate back all tensors
-        amputated = torch.cat(amputated, dim = 2)
-        amputation_mask = torch.cat(amputation_mask, dim = 2)
-        
-        # Use masked_scatter_ to put imputed values into positions where items are missing
-        # Before that, convert the mask into boolean so that masked_scatter_ would work
-        amputation_mask = amputation_mask > 0
-        imputed = amputated.masked_scatter_(mask = amputation_mask, source = imputed_values)
+        # For now, do the most basic thing - put 0s instead of nans
+        amputed = torch.nan_to_num(amputed, nan = 0.0).to(self.device)
 
-        # Calculate MSE loss over predictions
-        loss = self.loss(imputed, target)
+        x_context, y_context, _, _ =\
+            self._context_target_split(x, amputed)
 
-        # Report the loss for current batch
+        x_target = x.to(self.device)
+
+        # Get the predicted probability distribution
+        p_y_pred =\
+            self(x_context, y_context, x_target)
+
+        # Sample the distribution to put the values from it into the amputed dataset
+        generated = p_y_pred.sample()
+        # Use the indexing functionality of tensor to impute values into the indicies specified by the mask
+        amputed[mask > 0] = generated[mask > 0]
+
+        # In val/test loops, use the MSE loss - KL divergence can't be calculated without target distribution
+        loss = self.loss(amputed, complete)
+
         self.log("test/loss", loss.item(), prog_bar = True)
-        
+
         # Update the metrics
         for metric in self.metrics["test"].values():
-            metric.update((torch.flatten(imputed, start_dim=1), torch.flatten(target, start_dim=1)))
+            metric.update((torch.flatten(amputed, start_dim=1), torch.flatten(complete, start_dim=1)))
 
     def predict_step(self, batch, _):
         raise NotImplementedError()
-
-    # Override the configuration (separate optimizer is required for each model) 
-    def configure_optimizers(self):
-        optimizer = []
-        for i in range(len(self.model)):
-            optimizer.append(self.optimizer(self.model[i].parameters()))
-        return optimizer
 
     # Loss function - with KL divergence
     def _loss(self, p_y_pred, y_target, q_context, q_target):
@@ -312,34 +184,10 @@ class NPImputation(ImputationWrapper):
         # KL Divergence
         kl = kl_divergence(q_target, q_context).mean(dim = 0).sum()
         return -log_likelihood + kl
-
-    # TODO: think of a better way to do this split
-    # Right now: 
-    #   * we take each variable separately (for 6 variables there are 6 neural processes),
-    #   * instead of taking a batch of patients and processing it as a batch for a given variable, we forloop over the entire batch,
-    #   * for each patient's variable, there are 25 observations but some of them are NaN, so we remove them from x and y,
-    #   * with the remaining x and y we do the context/target split 
+ 
     def _context_target_split(self, x, y):
-        # We expect the size to be [number of timesteps, 1]
-        x = torch.flatten(x)
-        y = torch.flatten(y)
-
-        # As both x and y are one-dimensional, we can look at positions where there is missingness 
-        idx = x.isfinite() & y.isfinite()
-        # Then take only those points from both x and y
-        x = x[idx]
-        y = y[idx]
-
-        # Return them into shapes of [1, number of timesteps, 1] for less code changes
-        x = x.unflatten(0, (1, x.shape[0], 1))
-        y = y.unflatten(0, (1, y.shape[0], 1))
-
         # Calculate how many points we can have for context/target split
         num_points = x.shape[1]
-        # If the number of points is not enough for a context/target split (at least 2 points), then pass None
-        #   (this would skip the batch)
-        if num_points < 2:
-            return None, None, None, None
         num_context = math.floor(num_points / 2)
         # Randomly rearrange the indexes (so that the split is not on the same locations every time)
         locations = permutation(num_points)
@@ -370,9 +218,6 @@ class NeuralProcess(nn.Module):
         self.y_dim = y_dim
         self.r_dim = r_dim
         self.z_dim = z_dim
-
-        # Set training to true
-        self.training = True
 
         # Initialize encoders/decoder
         self.encoder = MLPEncoder(
