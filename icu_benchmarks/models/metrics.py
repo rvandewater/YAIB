@@ -59,7 +59,8 @@ def JSD_fn (y_preds: torch.Tensor, y_targets: torch.Tensor):
     except ImportError:
         raise RuntimeError("This contrib module requires scipy to be installed.")
     
-    return jensenshannon(abs(y_preds.flatten()), abs(y_targets.flatten()))
+    return jensenshannon(abs(y_preds).flatten(),abs(y_targets).flatten()) ** 2
+    #return jensenshannon(abs(y_preds),abs(y_targets)) ** 2
     
 
 #def KLD_fn(output, targets) -> float:
@@ -94,7 +95,7 @@ class MAE(EpochMetric):
         )
 
 class JSD(EpochMetric):
-    def __init__(
+    def __init__( 
         self,
         output_transform: Callable = lambda x: x,
         check_compute_fn: bool = False,
