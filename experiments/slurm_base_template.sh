@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=[INSERT:TASK_NAME,MODEL_NAME]
+#SBATCH --job-name=default
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=[INSERT:EMAIL]
 #SBATCH --partition=gpu # -p
@@ -12,6 +12,7 @@
 # Submit with e.g. --export=TASK_NAME=mortality24,MODEL_NAME=LGBMClassifier
 # Basic experiment variables, please exchange [INSERT] for your experiment parameters
 
+echo "This is a SLURM job named" $SLURM_JOB_NAME "with array id" $SLURM_ARRAY_TASK_ID "and job id" $SLURM_JOB_ID
 
 TASK=[INSERT:TASK_TYPE] # BinaryClassification
 YAIB_PATH=[INSERT:YAIB_PATH] #/dhc/home/robin.vandewater/projects/yaib
@@ -23,6 +24,9 @@ cd ${YAIB_PATH}
 
 eval "$(conda shell.bash hook)"
 conda activate yaib
+
+echo "Task:  " ${TASK_NAME}" Model: "${MODEL_NAME}" Dataset:" ${DATASETS[$SLURM_ARRAY_TASK_ID]}
+
 
 icu-benchmarks train \
   -d ${DATASET_ROOT_PATH}/${TASK_NAME}/${DATASETS[$SLURM_ARRAY_TASK_ID]} \
