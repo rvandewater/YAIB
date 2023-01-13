@@ -132,7 +132,7 @@ class NPImputation(ImputationWrapper):
     def validation_step(self, batch, _):
         # Unset training mode for each model
         for model in self.model:
-            model.training = False
+            model.eval()
 
         # Unpack batch into three values
         amputated, amputation_mask, target = batch
@@ -149,7 +149,7 @@ class NPImputation(ImputationWrapper):
         # Resulting size is [batch size, number of timesteps, 1]
 
         # Create an empty tensor to keep values that we are imputing
-        imputed_values = torch.Tensor([])
+        imputed_values = torch.Tensor([]).to(self.device)
 
         loss = 0.
         # Take one variable at a time (from a list of tensors amputated)
@@ -209,14 +209,14 @@ class NPImputation(ImputationWrapper):
         self.log("val/loss", loss.item(), prog_bar = True)
         
         # Update the metrics
-        for metric in self.metrics.values():
-            metric.update(imputed, target)
+        for metric in self.metrics["val"].values():
+            metric.update((torch.flatten(imputed, start_dim=1), torch.flatten(target, start_dim=1)))
 
     @torch.no_grad()
     def test_step(self, batch, _):
         # Unset training mode for each model
         for model in self.model:
-            model.training = False
+            model.eval()
 
         # Unpack batch into three values
         amputated, amputation_mask, target = batch
@@ -233,7 +233,7 @@ class NPImputation(ImputationWrapper):
         # Resulting size is [batch size, number of timesteps, 1]
 
         # Create an empty tensor to keep values that we are imputing
-        imputed_values = torch.Tensor([])
+        imputed_values = torch.Tensor([]).to(self.device)
 
         loss = 0.
         # Take one variable at a time (from a list of tensors amputated)
@@ -293,8 +293,8 @@ class NPImputation(ImputationWrapper):
         self.log("test/loss", loss.item(), prog_bar = True)
         
         # Update the metrics
-        for metric in self.metrics.values():
-            metric.update(imputed, target)
+        for metric in self.metrics["test"].values():
+            metric.update((torch.flatten(imputed, start_dim=1), torch.flatten(target, start_dim=1)))
 
     def predict_step(self, batch, _):
         raise NotImplementedError()
