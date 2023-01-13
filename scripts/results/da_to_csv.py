@@ -10,6 +10,7 @@ for metric in ["AUC", "PR"]:
                 writer = csv.writer(csv_file)
                 info = ["model", "target", "target_size"]
                 source_names = ['target', 'aumc', 'eicu', 'hirid', 'miiv', 'convex_combination_without_target', 'convex_combination_0.1', 'convex_combination_0.2', 'convex_combination_0.5', 'convex_combination_1', 'convex_combination_2', 'convex_combination_5']
+                stats_basis = ['avg', 'std', 'CI_0.95']
                 stats = ['avg', 'std', 'CI_0.95_min', 'CI_0.95_max']
                 # combine fieldnames and stats
                 full_fields = [f'{source}_{stat}' for source in source_names for stat in stats]
@@ -30,7 +31,7 @@ for metric in ["AUC", "PR"]:
                                     'target': target.name,
                                     'target_size': target_size
                                 }
-                                for stat in stats:
+                                for stat in stats_basis:
                                     for source, source_metrics in results.items():
                                         if stat == 'CI_0.95':
                                             row_data[f'{source}_{stat}_min'] = source_metrics[metric][0][stat][0] * 100
