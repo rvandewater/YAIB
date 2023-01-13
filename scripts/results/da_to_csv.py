@@ -28,10 +28,11 @@ for metric in ["AUC", "PR"]:
                                 # source_metrics_flat = [item for sublist in source_metrics for item in sublist]
                                 # writer.writerow([model.name, target.name, target_size.name] + source_metrics_flat)
 
-                                info = {
+                                row_data = {
                                     'model': model.name,
                                     'target': target.name,
                                     'target_size': target_size.name
                                 }
-                                metrics_row = {f'{source}_{stat}': source_metrics[metric][0][stat] for source, source_metrics in results.items() for stat in stats}
-                                writer.writerow(info + metrics_row)
+                                metrics_data = {f'{source}_{stat}': source_metrics[metric][0][stat] for source, source_metrics in results.items() for stat in stats}
+                                row_data.update(metrics_data)
+                                writer.writerow(row_data)
