@@ -35,8 +35,8 @@ def train_common(
     do_test: bool = False,
     batch_size=64,
     epochs=1000,
-    patience=10,
-    min_delta=1e-4,
+    patience=20,
+    min_delta=1e-5,
     use_wandb: bool = True,
     num_workers: int = min(os.cpu_count(), torch.cuda.device_count() * 8 if torch.cuda.is_available() else 16),
 ):
