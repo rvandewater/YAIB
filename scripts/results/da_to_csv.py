@@ -8,6 +8,8 @@ for metric in ["AUC", "PR"]:
         with open(models_dir / f'{endpoint.name}_{metric}_results.csv', 'w') as csv_file:
             writer = csv.writer(csv_file)
             for model in endpoint.iterdir():
+                if model.name == "LSTM":
+                    continue
                 for target in model.iterdir():
                     for target_size in target.iterdir():
                         with open(target_size / 'averaged_source_metrics.json', 'r') as f:
