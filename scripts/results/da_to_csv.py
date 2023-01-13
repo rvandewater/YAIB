@@ -30,6 +30,11 @@ for metric in ["AUC", "PR"]:
                                     'target': target.name,
                                     'target_size': target_size
                                 }
-                                metrics_data = {f'{source}_{stat}': source_metrics[metric][0][stat] for source, source_metrics in results.items() for stat in stats}
-                                row_data.update(metrics_data)
+                                for stat in stats:
+                                    for source, source_metrics in results.items():
+                                        if stat == 'CI_0.95':
+                                            row_data[f'{source}_{stat}_min'] = source_metrics[metric][0][stat][0] * 100
+                                            row_data[f'{source}_{stat}_max'] = source_metrics[metric][0][stat][1] * 100
+                                        else:
+                                            row_data[f'{source}_{stat}'] = source_metrics[metric][0][stat] * 100
                                 writer.writerow(row_data)
