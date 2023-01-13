@@ -14,4 +14,4 @@ for metric in ["AUC", "PR"]:
                     for target_size in target.iterdir():
                         with open(target_size / 'averaged_source_metrics.json', 'r') as f:
                             results = json.load(f)
-                            writer.writerow([model.name, target, target_size] + [source[metric] for source in results])
+                            writer.writerow([model.name, target, target_size] + [source_metrics[metric] for source_name, source_metrics in results.items()])
