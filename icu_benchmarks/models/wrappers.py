@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Any
 from typing import List, Optional, Union
 from torch.nn import Module, MSELoss, CrossEntropyLoss
@@ -20,6 +21,7 @@ from sklearn.metrics import (
 import torch
 from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
 from ignite.metrics import MeanAbsoluteError, Accuracy, RootMeanSquaredError
+from ignite.exceptions import NotComputableError
 
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve, JSD
@@ -116,9 +118,13 @@ class DLWrapper(BaseModule):
         return super().on_fit_start()
 
     def finalize_step(self, step_prefix = ""):
-        self.log_dict({f"{step_prefix}/{name}": metric.compute() for name, metric in self.metrics[step_prefix].items() if "_Curve" not in name})
-        for metric in self.metrics[step_prefix].values():
-            metric.reset()
+        try:
+            self.log_dict({f"{step_prefix}/{name}": metric.compute() for name, metric in self.metrics[step_prefix].items() if "_Curve" not in name})
+            for metric in self.metrics[step_prefix].values():
+                metric.reset()
+        except (NotComputableError, ValueError):
+            logging.warning(f"Metrics for {step_prefix} not computable")
+            pass
 
     def configure_optimizers(self):
         if isinstance(self.optimizer, str):
@@ -405,3 +411,7 @@ class ImputationWrapper(DLWrapper):
         for metric in self.metrics[step_prefix].values():
             metric.update((torch.flatten(imputated, start_dim=1), torch.flatten(target, start_dim=1)))
         return loss
+
+    def predict(self, data):
+        self.eval()
+        return self(data, None)

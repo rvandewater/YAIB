@@ -118,3 +118,6 @@ lightning_logs
 
 # Mac file system
 .DS_Store
+
+# wandb logs
+wandb/

@@ -5,6 +5,7 @@ Original code: https://github.com/BorisMuzellec/MissingDataOT/blob/master/utils.
 
 import gin
 import torch
+import logging
 import numpy as np
 from scipy import optimize
 
@@ -187,7 +188,7 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
     imputed_data: DataFrame
         The data with the generated missing values.
     """
-
+    logging.info(f"applying {mechanism} amputation!")
     X = torch.tensor(data.values.astype(np.float32))
 
     if mechanism == "MAR":

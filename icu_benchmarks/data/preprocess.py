@@ -7,11 +7,13 @@ import numpy as np
 import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
+import wandb
 from typing import Dict, List
 
 from recipys.recipe import Recipe
 from recipys.selector import all_of
-from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepScale
+from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepImputeModel, StepScale
+import torch
 
 
 def make_single_split(
@@ -87,6 +89,7 @@ def preprocess_data(
     train_pct: float = 0.7,
     val_pct: float = 0.1,
     mode: str = "Classification",
+    pretrained_imputation_model: str = None,
 ) -> Dict[str, Dict[str, pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -129,15 +132,13 @@ def preprocess_data(
         data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
     logging.info("Generating splits.")
     data = make_single_split(data, vars, train_pct=train_pct, val_pct=val_pct, seed=seed, debug=debug)
-    
-
 
     logging.info("Preprocessing static data.")
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
     # sta_rec.steps = stat_recipe_steps
     sta_rec.add_step(StepScale())
     if mode == "classification":
-        sta_rec.add_step(StepImputeFill(value=0))
+        sta_rec.add_step(StepImputeFill(value=0) if pretrained_imputation_model is None else StepImputeModel(model=pretrained_imputation_model.predict))
 
     data = apply_recipe_to_splits(sta_rec, data, "STATIC")
 
@@ -145,13 +146,19 @@ def preprocess_data(
     dyn_rec = Recipe(data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
     dyn_rec.add_step(StepScale())
     if mode == "Classification":
+        print("use features: ", use_features)
         if use_features:
-            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
-            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
-            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.COUNT, suffix="count_hist"))
-            dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MEAN, suffix="mean_hist"))
-        dyn_rec.add_step(StepImputeFill(method="ffill"))
-        dyn_rec.add_step(StepImputeFill(value=0))
+            logging.info("Generating features....")
+            # dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
+            # dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
+            # dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.COUNT, suffix="count_hist"))
+            # dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MEAN, suffix="mean_hist"))
+        if pretrained_imputation_model is not None:
+            logging.info("Imputing missing values with pretrained model...")
+            dyn_rec.add_step(StepImputeModel(model=pretrained_imputation_model.predict))
+        else:
+            dyn_rec.add_step(StepImputeFill(method="ffill"))
+            dyn_rec.add_step(StepImputeFill(value=0))
     # dyn_rec = dyn_recipe_steps
 
     data = apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")

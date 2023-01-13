@@ -55,7 +55,7 @@ train_common.epochs = 1000
 train_common.batch_size = 64
 train_common.patience = 10
 train_common.min_delta = 1e-4
-train_common.wandb = True
+train_common.use_wandb = True
 
 ImputationWrapper.optimizer = @Adam
 ImputationWrapper.lr_scheduler = "cosine"

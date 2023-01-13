@@ -4,6 +4,8 @@ from datetime import datetime
 import gin
 import logging
 import sys
+import torch
+import wandb
 from pathlib import Path
 from pytorch_lightning import seed_everything
 
@@ -38,6 +40,8 @@ def build_parser() -> argparse.ArgumentParser:
     general_args.add_argument("-s", "--seed", default=SEEDS, nargs="+", type=int, help="Random seed at train and eval.")
     general_args.add_argument("-db", "--debug", action="store_true", help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action="store_true", help="Set to cache and use preprocessed data.")
+    general_args.add_argument("--wandb-sweep", action="store_true", help="activates wandb hyper parameter sweep")
+    general_args.add_argument("--pretrained-imputation", required=False, type=str, help="Path to pretrained imputation model.")
 
     # MODEL TRAINING ARGUMENTS
     parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
@@ -48,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--hyperparameter-search", default=False, action="store_true", help="Train the model with an untried hyperparameter set."
     )
     parser_prep_and_train.add_argument("--cpu", default=False, action="store_true", help="Set to train on CPU.")
-    parser_prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
+    parser_prep_and_train.add_argument("-hp", "--hyperparams", default=[], nargs="+", help="Hyperparameters for model.")
 
     # EVALUATION PARSER
     evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
@@ -83,6 +87,12 @@ def get_mode(mode: gin.REQUIRED):
 
 def main(my_args=tuple(sys.argv[1:])):
     args = build_parser().parse_args(my_args)
+    if args.wandb_sweep:
+        wandb.init()
+        sweep_config = wandb.config
+        args.__dict__.update(sweep_config)
+        for key, value in sweep_config.items():
+            args.hyperparams.append(f"{key}=" + (('\'' + value + '\'') if isinstance(value, str) else str(value)))
 
     debug = args.debug
     cache = args.cache
@@ -92,13 +102,15 @@ def main(my_args=tuple(sys.argv[1:])):
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
-    
+
 
     load_weights = args.command == "evaluate"
     name = args.name
     task = args.task
     model = args.model
-    
+    if isinstance(args.seed, int):
+        args.seed = [args.seed]
+
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
     logging.info(f"Task mode: {mode}")
@@ -106,6 +118,13 @@ def main(my_args=tuple(sys.argv[1:])):
     log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
     log_dir_name = log_dir_base / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / task / model)
+    
+    if args.pretrained_imputation is not None and not Path(args.pretrained_imputation).exists():
+        args.pretrained_imputation = None
+        
+    pretrained_imputation_model = torch.load(args.pretrained_imputation, map_location=torch.device('cpu')) if args.pretrained_imputation is not None else None
+    if wandb.run is not None:
+        wandb.config.update({"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
 
     if load_weights:
         log_dir /= f"from_{args.source_name}"
@@ -127,7 +146,7 @@ def main(my_args=tuple(sys.argv[1:])):
 
     for seed in args.seed:
         seed_everything(seed)
-        data = preprocess_data(args.data_dir, seed=seed, debug=debug, use_cache=cache, mode=mode)
+        data = preprocess_data(args.data_dir, seed=seed, debug=debug, use_cache=cache, mode=mode, pretrained_imputation_model=pretrained_imputation_model)
         run_dir_seed = run_dir / f"seed_{str(seed)}"
         run_dir_seed.mkdir()
         train_common(
