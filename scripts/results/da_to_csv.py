@@ -28,7 +28,7 @@ for metric in ["AUC", "PR"]:
                                 row_data = {
                                     'model': model.name,
                                     'target': target.name,
-                                    'target_size': target_size.name
+                                    'target_size': target_size
                                 }
                                 metrics_data = {f'{source}_{stat}': source_metrics[metric][0][stat] for source, source_metrics in results.items() for stat in stats}
                                 row_data.update(metrics_data)
