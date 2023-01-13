@@ -119,7 +119,12 @@ def main(my_args=tuple(sys.argv[1:])):
     log_dir_name = log_dir_base / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / task / model)
     
+    if args.pretrained_imputation is not None and not Path(args.pretrained_imputation).exists():
+        args.pretrained_imputation = None
+        
     pretrained_imputation_model = torch.load(args.pretrained_imputation, map_location=torch.device('cpu')) if args.pretrained_imputation is not None else None
+    if wandb.run is not None:
+        wandb.config.update({"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
 
     if load_weights:
         log_dir /= f"from_{args.source_name}"
