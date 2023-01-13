@@ -20,13 +20,10 @@ for metric in ["AUC", "PR"]:
                     if model.name == "LSTM":
                         continue
                     for target in model.iterdir():
-                        for target_size in target.iterdir():
-                            with open(target_size / 'averaged_source_metrics.json', 'r') as f:
+                        target_sizes = ['target_500', 'target_1000', 'target_2000']
+                        for target_size in target_sizes:
+                            with open(target / target_size / 'averaged_source_metrics.json', 'r') as f:
                                 results = json.load(f)
-                                # source_metrics = [source_metrics[metric] for source_name, source_metrics in results.items()]
-                                # source_metrics = [[metr[0]["avg"], metr[0]["std"], metr[0]["CI_0.95"]] for metr in source_metrics]
-                                # source_metrics_flat = [item for sublist in source_metrics for item in sublist]
-                                # writer.writerow([model.name, target.name, target_size.name] + source_metrics_flat)
 
                                 row_data = {
                                     'model': model.name,
