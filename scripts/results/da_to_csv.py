@@ -26,4 +26,4 @@ for metric in ["AUC", "PR"]:
                                 # source_metrics = [[metr[0]["avg"], metr[0]["std"], metr[0]["CI_0.95"]] for metr in source_metrics]
                                 # source_metrics_flat = [item for sublist in source_metrics for item in sublist]
                                 # writer.writerow([model.name, target.name, target_size.name] + source_metrics_flat)
-                                writer.writerow({f'{source}_{stat}': source_metrics[metric][stat] for source, source_metrics in results.items() for stat in stats})
+                                writer.writerow({f'{source}_{stat}': source_metrics[metric][0][stat] for source, source_metrics in results.items() for stat in stats})
