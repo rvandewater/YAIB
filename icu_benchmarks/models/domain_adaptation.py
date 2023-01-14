@@ -204,7 +204,7 @@ def domain_adaptation(
 
                 # train target model
                 # target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
-                target_model = load_model(Path("../yaib_logs/DA") / task / model / dataset / f"target_{target_size}" / f"cv_rep_{repetition}" / f"fold_{fold_index}", log_dir_fold)
+                target_model = load_model(Path("../DA_logs/") / task / model / dataset / f"target_{target_size}" / f"cv_rep_{repetition}" / f"fold_{fold_index}", log_dir_fold)
                 
                 val_predictions, val_labels = get_predictions_for_all_models(
                     target_model,
