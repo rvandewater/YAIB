@@ -136,8 +136,7 @@ def domain_adaptation(
     cv_folds = 5
     cv_folds_to_train = 5
     target_sizes = [500, 1000, 2000]
-    datasets = ["miiv", "aumc", "eicu", "miiv"]
-    target_weights = [0.1, 0.2, 0.5, 1, 2, 5]
+    datasets = ["aumc", "eicu", "hirid", "miiv"]
     target_weights = [0.1, 0.2, 0.5, 1, 2, 5]
     # weights = [1] * (len(datasets) - 1)
     weights = [
@@ -209,16 +208,16 @@ def domain_adaptation(
                 test_predictions_list_without_target = test_predictions_list[1:]
 
                 logging.info("Evaluating convex combination of models without target.")
-                test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=weights)
+                test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1,1,1])
                 fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
                 logging.info("Evaluating convex combination of models.")
                 for w in weights:
                     # w =  weights + [t * sum(weights)]
-                    logging.info(f"Evaluating target weight: {t}")
+                    # logging.info(f"Evaluating target weight: {t}")
                     logging.info(f"Evaluating weights: {w}")
-                    test_pred = np.average(source_predictions_with_target, axis=0, weights=w)
-                    fold_results[f"convex_combination_{t}"] = calculate_metrics(test_pred, test_labels)
+                    test_pred = np.average(test_predictions_list, axis=0, weights=w)
+                    fold_results[f"convex_combination_{w}"] = calculate_metrics(test_pred, test_labels)
 
                 log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
             log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
