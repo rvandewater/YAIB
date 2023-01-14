@@ -136,9 +136,19 @@ def domain_adaptation(
     cv_folds = 5
     cv_folds_to_train = 5
     target_sizes = [500, 1000, 2000]
-    datasets = ["hirid", "aumc", "eicu", "miiv"]
+    datasets = ["miiv", "aumc", "eicu", "miiv"]
     target_weights = [0.1, 0.2, 0.5, 1, 2, 5]
-    weights = [1] * (len(datasets) - 1)
+    target_weights = [0.1, 0.2, 0.5, 1, 2, 5]
+    # weights = [1] * (len(datasets) - 1)
+    weights = [
+        [0, 1, 2, 1],
+        [0, 1, 5, 1],
+        [0, 1, 10, 1],
+        [1, 1, 1, 1],
+        [1, 1, 2, 1],
+        [1, 1, 5, 1],
+        [1, 1, 10, 1],
+    ]
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
     gin_config_before_tuning = gin.config_str()
@@ -203,10 +213,11 @@ def domain_adaptation(
                 fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
                 logging.info("Evaluating convex combination of models.")
-                for t in target_weights:
-                    w = [t * sum(weights)] + weights
+                for w in weights:
+                    # w =  weights + [t * sum(weights)]
                     logging.info(f"Evaluating target weight: {t}")
-                    test_pred = np.average(test_predictions_list, axis=0, weights=w)
+                    logging.info(f"Evaluating weights: {w}")
+                    test_pred = np.average(source_predictions_with_target, axis=0, weights=w)
                     fold_results[f"convex_combination_{t}"] = calculate_metrics(test_pred, test_labels)
 
                 log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
