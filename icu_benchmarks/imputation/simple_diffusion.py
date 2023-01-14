@@ -199,9 +199,11 @@ class Block(nn.Module):
     def __init__(self, in_ch, out_ch, time_emb_dim, up=False):
         super().__init__()
         self.time_mlp = nn.Linear(time_emb_dim, out_ch)
+        time_dim = 5 if in_ch == 25 else 4 if in_ch == 20 else 3 if in_ch == 18 else 2
         if up:
             # take 2 times the number of input channels because residuals were added in the upsampling process
-            self.conv1 = nn.ConvTranspose1d(2 * in_ch, out_ch, 3, padding=1)
+            in_ch *= 2
+            self.conv1 = nn.ConvTranspose1d(in_ch, out_ch, 3, padding=1)
             self.transform = nn.ConvTranspose1d(out_ch, out_ch, 2)
         else:
             self.conv1 = nn.Conv1d(in_ch, out_ch, 3, padding=1)
@@ -211,9 +213,23 @@ class Block(nn.Module):
         self.bnorm2 = nn.BatchNorm1d(out_ch)
         self.relu = nn.ReLU()
 
+
+        # Transformer Encoder for Feature Self-Attention
+        self.feature_layer = nn.TransformerEncoderLayer(d_model=in_ch, nhead=1, dim_feedforward=64, activation="gelu")
+        self.feature_transformer = nn.TransformerEncoder(self.feature_layer, num_layers=1)
+
+        # Transformer Encoder for Time Self-Attention
+        self.time_layer = nn.TransformerEncoderLayer(d_model=time_dim, nhead=1, dim_feedforward=64, activation="gelu")
+        self.time_transformer = nn.TransformerEncoder(self.time_layer, num_layers=1)
+        
+
     def forward(self, x, t):
+        # Apply Feature Self-Attention
+        h = self.feature_transformer(x.permute(0, 2, 1)).permute(0, 2, 1)
+        # Apply Time Self-Attention
+        h = self.time_transformer(h)
         # First Convolution
-        h = self.bnorm1(self.relu(self.conv1(x)))
+        h = self.bnorm1(self.relu(self.conv1(h)))
         # Time Embedding
         time_emb = self.relu(self.time_mlp(t))
         # Extend last dimension
