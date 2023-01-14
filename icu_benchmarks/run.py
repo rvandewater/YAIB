@@ -9,7 +9,7 @@ from pathlib import Path
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
 from icu_benchmarks.models.domain_adaptation import domain_adaptation
 from scripts.plotting.utils import plot_aggregated_results
-from icu_benchmarks.cross_validation import execute_repeated_cv, evaluate
+from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import (
     build_parser,
     create_run_dir,
@@ -45,16 +45,6 @@ def main(my_args=tuple(sys.argv[1:])):
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
         gin.parse_config_file(source_dir / "train_config.gin")
-        evaluate(
-            args.data_dir,
-            run_dir,
-            args.seed,
-            source_dir=source_dir,
-            reproducible=reproducible,
-            debug=args.debug,
-            use_cache=args.cache,
-        )
-        return
     if args.command == "da":
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]
