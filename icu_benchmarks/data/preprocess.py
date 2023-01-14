@@ -50,7 +50,6 @@ def make_single_split(
         stays = stays.sample(frac=0.01, random_state=seed)
     labels = data["OUTCOME"][vars["LABEL"]].loc[stays.index]
 
- 
     outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
     dev, test = list(outer_CV.split(stays, labels))[repetition_index]
 
