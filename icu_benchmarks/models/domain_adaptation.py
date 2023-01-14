@@ -177,7 +177,7 @@ def domain_adaptation(
                 log_dir_fold = log_dir / f"cv_rep_{repetition}" / f"fold_{fold_index}"
                 log_dir_fold.mkdir(parents=True, exist_ok=True)
 
-                # evaluate target baselines
+                # train target model
                 target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
                 
                 test_predictions, test_labels = get_predictions_for_all_models(
@@ -189,10 +189,10 @@ def domain_adaptation(
                     source_datasets=source_datasets,
                 )
 
-                # evaluate source baselines
                 for baseline, predictions in test_predictions.items():
                     logging.info("Evaluating model: {}".format(baseline))
                     fold_results[baseline] = calculate_metrics(predictions, test_labels)
+                # evaluate baselines
 
                 # evaluate convex combination of models
                 test_predictions_list = list(test_predictions.values())
