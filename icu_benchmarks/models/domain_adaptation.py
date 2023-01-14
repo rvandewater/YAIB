@@ -163,7 +163,7 @@ def domain_adaptation(
         gin.bind_parameter("preprocess.fold_size", target_size)
         log_dir = run_dir / task / model / dataset / f"target_{target_size}"
         log_dir.mkdir(parents=True, exist_ok=True)
-        choose_and_bind_hyperparameters(True, data_dir, log_dir, seed, debug=debug)
+        choose_and_bind_hyperparameters(False, data_dir, log_dir, seed, debug=debug)
         gin_config_with_target_hyperparameters = gin.config_str()
         results = {}
         for repetition in range(cv_repetitions_to_train):
