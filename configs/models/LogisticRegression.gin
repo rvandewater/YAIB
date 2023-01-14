@@ -18,6 +18,6 @@ model/hyperparameter.penalty = ["l1", "l2", "elasticnet"]
 model/hyperparameter.l1_ratio = (0.0, 1.0)
 
 tune_hyperparameters.scopes = ["model"]
-tune_hyperparameters.n_initial_points = 10
-tune_hyperparameters.n_calls = 100
-tune_hyperparameters.folds_to_tune_on = 3
+tune_hyperparameters.n_initial_points = 5
+tune_hyperparameters.n_calls = 30
+tune_hyperparameters.folds_to_tune_on = 2
