@@ -18,8 +18,6 @@ for metric in ["AUC", "PR"]:
 
                 writer.writeheader()
                 for model in endpoint.iterdir():
-                    if model.name == "LSTM":
-                        continue
                     for target in model.iterdir():
                         target_sizes = ['target_500', 'target_1000', 'target_2000']
                         for target_size in target_sizes:
