@@ -51,6 +51,8 @@ def make_single_split(
     labels = data["OUTCOME"][vars["LABEL"]].loc[stays.index]
 
     outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
+    inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
+
     dev, test = list(outer_CV.split(stays, labels))[repetition_index]
 
     if fold_size:
@@ -71,7 +73,6 @@ def make_single_split(
     dev_stays = stays.iloc[dev]
     dev_labels = labels.iloc[dev]
 
-    inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
     train, val = list(inner_CV.split(dev_stays, dev_labels))[fold_index]
 
     split = {
