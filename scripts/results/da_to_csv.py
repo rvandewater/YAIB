@@ -11,7 +11,9 @@ for metric in ["AUC", "PR"]:
                 info = ["model", "target", "target_size"]
                 source_names = ['target', 'aumc', 'eicu', 'hirid', 'miiv', 'convex_combination_without_target', 'convex_combination_0.1', 'convex_combination_0.2', 'convex_combination_0.5', 'convex_combination_1', 'convex_combination_2', 'convex_combination_5']
                 stats_basis = ['avg', 'std', 'CI_0.95']
+                stats_basis = ['avg']
                 stats = ['avg', 'std', 'CI_0.95_min', 'CI_0.95_max']
+                stats = ['avg']
                 # combine fieldnames and stats
                 full_fields = [f'{source}_{stat}' for source in source_names for stat in stats]
                 writer = csv.DictWriter(csv_file, fieldnames=info+full_fields)
