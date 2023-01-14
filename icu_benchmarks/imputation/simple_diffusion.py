@@ -156,7 +156,7 @@ class Simple_Diffusion_Model(ImputationWrapper):
             noise = torch.randn_like(amputated)
             imputated = model_mean + torch.sqrt(posterior_variance_t) * noise
 
-        imputated = amputated.masked_scatter_(amputation_mask, imputated)
+        imputated = amputated.masked_scatter_(amputation_mask.bool(), imputated)
 
         loss = self.loss(imputated, target)
         self.log("val/loss", loss.item(), prog_bar=True)
@@ -186,7 +186,7 @@ class Simple_Diffusion_Model(ImputationWrapper):
             noise = torch.randn_like(amputated)
             imputated = model_mean + torch.sqrt(posterior_variance_t) * noise
 
-        imputated = amputated.masked_scatter_(amputation_mask, imputated)
+        imputated = amputated.masked_scatter_(amputation_mask.bool(), imputated)
 
         loss = self.loss(imputated, target)
         self.log("test/loss", loss.item(), prog_bar=True)
