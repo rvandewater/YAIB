@@ -20,10 +20,10 @@ for metric in ["AUC", "PR"]:
 
                 writer.writeheader()
                 for model in endpoint.iterdir():
-                    for target in model.iterdir():
+                    for target in ["aumc", "eicu", "hirid", "miiv"]:
                         target_sizes = ['target_500', 'target_1000', 'target_2000']
                         for target_size in target_sizes:
-                            with open(target / target_size / 'averaged_source_metrics.json', 'r') as f:
+                            with open(model / target / target_size / 'averaged_source_metrics.json', 'r') as f:
                                 results = json.load(f)
 
                                 row_data = {
