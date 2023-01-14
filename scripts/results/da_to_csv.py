@@ -28,7 +28,7 @@ for metric in ["AUC", "PR"]:
 
                                 row_data = {
                                     'model': model.name,
-                                    'target': target.name,
+                                    'target': target,
                                     'target_size': target_size
                                 }
                                 for stat in stats_basis:
