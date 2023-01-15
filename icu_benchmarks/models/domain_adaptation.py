@@ -333,7 +333,7 @@ def domain_adaptation(
             logging.info(f"auc: {fold_results[f'loss_based_source_only_mixture']['AUC']}")
 
             logging.info("Evaluating auc weighted source only mixture.")
-            auc_based_weights = [avg_val_aucs.values() - 0.5][1:] ** 2
+            auc_based_weights = (np.array(list(avg_val_aucs.values())) - 0.5)[1:] ** 2
             test_pred = np.average(test_predictions_list_without_target, axis=0, weights=auc_based_weights)
             fold_results[f"auc_based_source_only_mixture"] = calculate_metrics(test_pred, test_labels)
             logging.info(f"auc: {fold_results[f'auc_based_source_only_mixture']['AUC']}")
