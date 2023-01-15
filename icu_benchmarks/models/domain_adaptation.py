@@ -283,7 +283,7 @@ def domain_adaptation(
                     weights = np.array([f(x) for x in val_aucs.values()])
                     weights = weights.clip(min=0)
                     test_pred = np.average(test_predictions_list, axis=0, weights=weights)
-                    # logging.info(f"weights: {weights}")
+                    logging.info(f"weights: {weights}")
                     print(f_str)
                     print(weights)
                     
