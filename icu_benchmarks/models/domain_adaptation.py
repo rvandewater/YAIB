@@ -166,6 +166,7 @@ def domain_adaptation(
     ]
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
+    # old_run_dir = Path("../yaib_logs/DA")
     old_run_dir = Path("../DA_logs")
     gin_config_before_tuning = gin.config_str()
 
@@ -184,6 +185,8 @@ def domain_adaptation(
         # gin_config_with_target_hyperparameters = gin.config_str()
         results = {}
         for repetition in range(cv_repetitions_to_train):
+            agg_val_losses = []
+            agg_val_aucs = []
             for fold_index in range(cv_folds_to_train):
                 # gin.parse_config(gin_config_with_target_hyperparameters)
                 results[f"{repetition}_{fold_index}"] = {}
@@ -255,8 +258,6 @@ def domain_adaptation(
                 for baseline, predictions in test_predictions.items():
                     # logging.info("Evaluating model: {}".format(baseline))
                     fold_results[baseline] = calculate_metrics(predictions, test_labels)
-                    print(min(predictions))
-                    print(max(predictions))
                 # evaluate baselines
 
                 # evaluate convex combination of models
@@ -267,6 +268,9 @@ def domain_adaptation(
                 test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1,1,1])
                 fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
+                agg_val_losses.append(val_losses)
+                agg_val_aucs.append(val_aucs)
+
                 # logging.info("Evaluating convex combination of models.")
                 # for w in weights:
                 #     # w =  weights + [t * sum(weights)]
@@ -275,41 +279,53 @@ def domain_adaptation(
                 #     test_pred = np.average(test_predictions_list, axis=0, weights=w)
                 #     fold_results[f"convex_combination_{w}"] = calculate_metrics(test_pred, test_labels)
 
-                # find top three auc functions
-                rated_auc_functions = []
-                for f in auc_functions:
-                    f_str = inspect.getsource(f).replace(" ", "")[:-2]
-                    # logging.info(f"Evaluating convex combination of models with AUC function {f_str}.")
-                    weights = np.array([f(x) for x in val_aucs.values()])
-                    weights = weights.clip(min=0)
-                    test_pred = np.average(test_predictions_list, axis=0, weights=weights)
-                    logging.info(f"weights: {weights}")
-                    print(f_str)
-                    print(weights)
-                    
-                    fold_results[f"AUC_{f_str}"] = calculate_metrics(test_pred, test_labels)
-                    rated_auc_functions.append((f_str, fold_results[f"AUC_{f_str}"]["AUC"]))
-                rated_auc_functions.sort(key=lambda x: x[1], reverse=True)
-                
-
-                # find top three loss functions
-                rated_loss_functions = []
-                for f in loss_functions:
-                    # strip whitespace
-                    f_str = inspect.getsource(f).replace(" ", "")[:-2]
-                    # logging.info(f"Evaluating convex combination of models with loss function {f_str}.")
-                    weights = [f(x) for x in val_losses.values()]
-                    # logging.info(f"losses: {val_losses.values()}")
-                    # logging.info(f"weights: {weights}")
-                    test_pred = np.average(test_predictions_list, axis=0, weights=weights)
-                    fold_results[f"loss_{f_str}"] = calculate_metrics(test_pred, test_labels)
-                    rated_loss_functions.append((f_str, fold_results[f"loss_{f_str}"]["AUC"]))
-                rated_loss_functions.sort(key=lambda x: x[1], reverse=True)
-
                 # logging.info(f"Top three AUC functions: {rated_auc_functions[:3]}")
                 # logging.info(f"Top three loss functions: {rated_loss_functions[:3]}")
 
-                log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)            
+                log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
+
+            avg_val_losses = np.array([np.mean([x[source] for x in agg_val_losses]) for source in val_losses.keys()])
+            avg_val_aucs = {source: np.mean([x[source] for x in agg_val_aucs]) for source in val_aucs.keys()}
+            logging.info("Average validation losses: %s", dict(zip(val_losses.keys(), avg_val_losses)))
+            logging.info("Average validation AUCs: %s", dict(zip(val_aucs.keys(), avg_val_aucs)))
+
+            scaled_losses = 0.9 * avg_val_losses / np.max(avg_val_losses)
+            logging.info(f"scaled_losses: {scaled_losses}")
+
+            # find top three auc functions
+            rated_auc_functions = []
+            for f in auc_functions:
+                f_str = inspect.getsource(f).replace(" ", "")[:-2]
+                # logging.info(f"Evaluating convex combination of models with AUC function {f_str}.")
+                weights = np.array([f(x) for x in avg_val_aucs.values()])
+                weights = weights.clip(min=0)
+                test_pred = np.average(test_predictions_list, axis=0, weights=weights)
+                # logging.info(f"weights: {weights}")
+                
+                fold_results[f"AUC_{f_str}"] = calculate_metrics(test_pred, test_labels)
+                rated_auc_functions.append((f_str, fold_results[f"AUC_{f_str}"]["AUC"]))
+            rated_auc_functions.sort(key=lambda x: x[1], reverse=True)
+            # print top three auc functions
+            for f_str, auc in rated_auc_functions[:3]:
+                logging.info(f"{f_str}: {auc}")
+            
+
+            # find top three loss functions
+            rated_loss_functions = []
+            for f in loss_functions:
+                # strip whitespace
+                f_str = inspect.getsource(f).replace(" ", "")[:-2]
+                # logging.info(f"Evaluating convex combination of models with loss function {f_str}.")
+                weights = [f(x) for x in scaled_losses]
+                logging.info(f"weights: {weights}")
+                test_pred = np.average(test_predictions_list, axis=0, weights=weights)
+                fold_results[f"loss_{f_str}"] = calculate_metrics(test_pred, test_labels)
+                rated_loss_functions.append((f_str, fold_results[f"loss_{f_str}"]["AUC"]))
+            rated_loss_functions.sort(key=lambda x: x[1], reverse=True)
+            for f_str, auc in rated_auc_functions[:3]:
+                logging.info(f"{f_str}: {auc}")
+
+            
             # average results over folds
             agg_aucs = {}
             for fold_results in results.values():
@@ -324,21 +340,21 @@ def domain_adaptation(
             for source, auc in avg_aucs.items():
                 if source in ["target", "convex_combination_without_target"] + datasets:
                     logging.info(f"{source}: {auc}")
-            avg_aucs_list = sorted(avg_aucs.items(), key=lambda x: x[1], reverse=True)
-            i = 0
-            for source, auc in avg_aucs_list:
-                if "AUC" in source:
-                    i += 1
-                    logging.info(f"{source}: {auc}")
-                    if i == 3:
-                        break
-            i = 0
-            for source, auc in avg_aucs_list:
-                if "loss" in source:
-                    i += 1
-                    logging.info(f"{source}: {auc}")
-                    if i == 3:
-                        break
+            # avg_aucs_list = sorted(avg_aucs.items(), key=lambda x: x[1], reverse=True)
+            # i = 0
+            # for source, auc in avg_aucs_list:
+            #     if "AUC" in source:
+            #         i += 1
+            #         logging.info(f"{source}: {auc}")
+            #         if i == 3:
+            #             break
+            # i = 0
+            # for source, auc in avg_aucs_list:
+            #     if "loss" in source:
+            #         i += 1
+            #         logging.info(f"{source}: {auc}")
+            #         if i == 3:
+            #             break
             log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
         source_metrics = {}
