@@ -280,7 +280,7 @@ def domain_adaptation(
                 for f in auc_functions:
                     f_str = inspect.getsource(f).replace(" ", "")[:-2]
                     # logging.info(f"Evaluating convex combination of models with AUC function {f_str}.")
-                    weights = [f(x) for x in val_aucs.values()]
+                    weights = np.array([f(x) for x in val_aucs.values()])
                     weights.clip(min=0)
                     # logging.info(f"weights: {weights}")
                     print(f_str)
