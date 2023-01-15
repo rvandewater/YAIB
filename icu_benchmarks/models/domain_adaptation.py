@@ -317,7 +317,7 @@ def domain_adaptation(
                 f_str = inspect.getsource(f).replace(" ", "")[:-2]
                 # logging.info(f"Evaluating convex combination of models with loss function {f_str}.")
                 weights = [f(x) for x in scaled_losses]
-                logging.info(f"weights: {weights}")
+                # logging.info(f"weights: {weights}")
                 test_pred = np.average(test_predictions_list, axis=0, weights=weights)
                 fold_results[f"loss_{f_str}"] = calculate_metrics(test_pred, test_labels)
                 rated_loss_functions.append((f_str, fold_results[f"loss_{f_str}"]["AUC"]))
@@ -331,6 +331,12 @@ def domain_adaptation(
             test_pred = np.average(test_predictions_list_without_target, axis=0, weights=loss_based_weights)
             fold_results[f"loss_based_source_only_mixture"] = calculate_metrics(test_pred, test_labels)
             logging.info(f"auc: {fold_results[f'loss_based_source_only_mixture']['AUC']}")
+
+            logging.info("Evaluating auc weighted source only mixture.")
+            auc_based_weights = [avg_val_aucs.values() - 0.5][1:] ** 2
+            test_pred = np.average(test_predictions_list_without_target, axis=0, weights=auc_based_weights)
+            fold_results[f"auc_based_source_only_mixture"] = calculate_metrics(test_pred, test_labels)
+            logging.info(f"auc: {fold_results[f'auc_based_source_only_mixture']['AUC']}")
             
             # average results over folds
             agg_aucs = {}
