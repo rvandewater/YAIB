@@ -281,12 +281,9 @@ def domain_adaptation(
                     f_str = inspect.getsource(f).replace(" ", "")[:-2]
                     # logging.info(f"Evaluating convex combination of models with AUC function {f_str}.")
                     weights = [f(x) for x in val_aucs.values()]
+                    weights.clip(min=0)
                     # logging.info(f"weights: {weights}")
-                    test_pred = np.average(test_predictions_list, axis=0, weights=weights)
-                    test_pred = (test_pred-np.min(test_pred))/(np.max(test_pred)-np.min(test_pred))
                     print(f_str)
-                    print(test_pred.min())
-                    print(test_pred.max())
                     print(weights)
                     
                     fold_results[f"AUC_{f_str}"] = calculate_metrics(test_pred, test_labels)
