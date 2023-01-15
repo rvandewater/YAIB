@@ -166,7 +166,7 @@ def domain_adaptation(
     ]
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
-    old_run_dir = Path("../DA_logs/")
+    old_run_dir = Path("../yaib_logs/DA")
     gin_config_before_tuning = gin.config_str()
 
     # evaluate models on same test split
@@ -280,6 +280,9 @@ def domain_adaptation(
                     weights = [f(x) for x in val_aucs.values()]
                     # logging.info(f"weights: {weights}")
                     test_pred = np.average(test_predictions_list, axis=0, weights=weights)
+                    print(f_str)
+                    print(test_pred.min())
+                    print(test_pred.max())
                     fold_results[f"AUC_{f_str}"] = calculate_metrics(test_pred, test_labels)
                     rated_auc_functions.append((f_str, fold_results[f"AUC_{f_str}"]["AUC"]))
                 rated_auc_functions.sort(key=lambda x: x[1], reverse=True)
