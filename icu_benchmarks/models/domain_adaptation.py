@@ -271,6 +271,7 @@ def domain_adaptation(
                 gin.clear_config()
                 gin.parse_config_file(target_model_dir / "train_config.gin")
                 gin.bind_parameter("Transformer.emb", 103)
+                gin.bind_parameter("LSTM.emb", 103)
                 gin.bind_parameter("preprocess.fold_size", target_size)
                 data_with_predictions = preprocess_data(
                     data_dir,
