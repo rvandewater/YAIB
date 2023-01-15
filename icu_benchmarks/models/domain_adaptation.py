@@ -166,6 +166,7 @@ def domain_adaptation(
     ]
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
+    old_run_dir = Path("../DA_logs/")
     gin_config_before_tuning = gin.config_str()
 
     # evaluate models on same test split
@@ -204,17 +205,25 @@ def domain_adaptation(
 
                 # train target model
                 # target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
-                target_model = load_model(Path("../DA_logs/") / task / model / dataset / f"target_{target_size}" / f"cv_rep_{repetition}" / f"fold_{fold_index}", log_dir_fold)
+                target_model = load_model(old_run_dir / task / model / dataset / f"target_{target_size}" / f"cv_rep_{repetition}" / f"fold_{fold_index}", log_dir_fold)
                 
-                val_predictions, val_labels = get_predictions_for_all_models(
-                    target_model,
-                    data,
-                    log_dir_fold,
-                    source_dir=model_path / task / model,
-                    seed=seed,
-                    source_datasets=source_datasets,
-                    test_on="val",
-                )
+                # generate predictions and write to file if not already done
+                if not (log_dir_fold / "val_predictions.json").exists():
+                    val_predictions, val_labels = get_predictions_for_all_models(
+                        target_model,
+                        data,
+                        log_dir_fold,
+                        source_dir=model_path / task / model,
+                        seed=seed,
+                        source_datasets=source_datasets,
+                        test_on="val",
+                    )
+                    with open(log_dir_fold / "val_predictions.json", "w") as f:
+                        json.dump(val_predictions, f, cls=JsonResultLoggingEncoder)
+                else:
+                    with open(log_dir_fold / "val_predictions.json", "r") as f:
+                        val_predictions = json.load(f)
+                    _, val_labels = RICUDataset(data, split="val").get_data_and_labels()
                 val_losses = {}
                 val_aucs = {}
                 val_losses["target"] = log_loss(val_labels, val_predictions["target"])
@@ -223,14 +232,23 @@ def domain_adaptation(
                     val_losses[baseline] = log_loss(val_labels, predictions)
                     val_aucs[baseline] = roc_auc_score(val_labels, predictions)
 
-                test_predictions, test_labels = get_predictions_for_all_models(
-                    target_model,
-                    data,
-                    log_dir_fold,
-                    source_dir=model_path / task / model,
-                    seed=seed,
-                    source_datasets=source_datasets,
-                )
+                # generate predictions and write to file if not already done
+                if not (log_dir_fold / "test_predictions.json").exists():
+                    test_predictions, test_labels = get_predictions_for_all_models(
+                        target_model,
+                        data,
+                        log_dir_fold,
+                        source_dir=model_path / task / model,
+                        seed=seed,
+                        source_datasets=source_datasets,
+                    )
+                    with open(log_dir_fold / "test_predictions.json", "w") as f:
+                        json.dump(test_predictions, f, cls=JsonResultLoggingEncoder)
+                else:
+                    with open(log_dir_fold / "test_predictions.json", "r") as f:
+                        test_predictions = json.load(f)
+                    _, test_labels = RICUDataset(data, split="test").get_data_and_labels()
+
 
                 for baseline, predictions in test_predictions.items():
                     # logging.info("Evaluating model: {}".format(baseline))
