@@ -294,7 +294,7 @@ def domain_adaptation(
                 target_model_with_predictions.train(RICUDataset(data_with_predictions, split="train"), RICUDataset(data_with_predictions, split="val"), "balanced", seed)
                 dataset_with_predictions = RICUDataset(data_with_predictions, split="test")
                 preds_w_preds = target_model_with_predictions.predict(dataset_with_predictions, None, None)
-                if preds_w_preds.shape[1] == 2:
+                if isinstance(target_model_with_predictions, MLWrapper):
                     preds_w_preds = preds_w_preds[:, 1]
                 fold_results["target_with_predictions"] = calculate_metrics(preds_w_preds, test_labels)
                 logging.info(f"auc with preds: {fold_results[f'target_with_predictions']['AUC']}")
