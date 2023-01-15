@@ -322,7 +322,7 @@ def domain_adaptation(
                 fold_results[f"loss_{f_str}"] = calculate_metrics(test_pred, test_labels)
                 rated_loss_functions.append((f_str, fold_results[f"loss_{f_str}"]["AUC"]))
             rated_loss_functions.sort(key=lambda x: x[1], reverse=True)
-            for f_str, auc in rated_auc_functions[:3]:
+            for f_str, auc in rated_loss_functions[:3]:
                 logging.info(f"{f_str}: {auc}")
 
             
