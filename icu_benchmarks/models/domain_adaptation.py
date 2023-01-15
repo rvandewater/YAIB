@@ -209,6 +209,17 @@ def domain_adaptation(
                 # train target model
                 # target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
                 target_model = load_model(old_run_dir / task / model / dataset / f"target_{target_size}" / f"cv_rep_{repetition}" / f"fold_{fold_index}", log_dir_fold)
+
+                # get predictions for train set
+                train_predictions, train_labels = get_predictions_for_all_models(
+                    target_model,
+                    data,
+                    log_dir_fold,
+                    source_dir=model_path / task / model,
+                    seed=seed,
+                    source_datasets=source_datasets,
+                    test_on="train",
+                )
                 
                 # generate predictions and write to file if not already done
                 if not (log_dir_fold / "val_predictions.json").exists():
@@ -253,6 +264,35 @@ def domain_adaptation(
                     with open(log_dir_fold / "test_predictions.json", "r") as f:
                         test_predictions = json.load(f)
                     _, test_labels = RICUDataset(data, split="test").get_data_and_labels()
+
+
+
+                # join predictions with static data and train new model
+                gin.clear_config()
+                gin.parse_config(gin_config_before_tuning)
+                gin.bind_parameter("preprocess.fold_size", target_size)
+                data_with_predictions = preprocess_data(
+                    data_dir,
+                    seed=seed,
+                    debug=debug,
+                    use_cache=True,
+                    cv_repetitions=cv_repetitions,
+                    repetition_index=repetition,
+                    cv_folds=cv_folds,
+                    fold_index=fold_index,
+                )
+                data_with_predictions["train"]["STATIC"] = data_with_predictions["train"]["STATIC"].join(pd.DataFrame(list(train_predictions.values())[1:]).T)
+                data_with_predictions["val"]["STATIC"] = data_with_predictions["val"]["STATIC"].join(pd.DataFrame(list(val_predictions.values())[1:]).T)
+                data_with_predictions["test"]["STATIC"] = data_with_predictions["test"]["STATIC"].join(pd.DataFrame(list(test_predictions.values())[1:]).T)
+                target_model_with_predictions = MLWrapper()
+                target_model_with_predictions.set_log_dir(log_dir_fold)
+                target_model_with_predictions.train(RICUDataset(data_with_predictions, split="train"), RICUDataset(data_with_predictions, split="val"), "balanced", seed)
+                dataset_with_predictions = RICUDataset(data_with_predictions, split="test")
+                preds_w_preds = target_model_with_predictions.predict(dataset_with_predictions, None, None)
+                preds_w_preds = preds_w_preds[:, 1]
+                fold_results["target_with_predictions"] = calculate_metrics(preds_w_preds, test_labels)
+                logging.info(f"auc with preds: {fold_results[f'target_with_predictions']['AUC']}")
+                
 
 
                 for baseline, predictions in test_predictions.items():
@@ -350,7 +390,7 @@ def domain_adaptation(
 
             # print baselines first, then top three AUC, then top three loss
             for source, auc in avg_aucs.items():
-                if source in ["target", "convex_combination_without_target"] + datasets:
+                if source in ["target", "convex_combination_without_target", "target_with_predictions"] + datasets:
                     logging.info(f"{source}: {auc}")
             # avg_aucs_list = sorted(avg_aucs.items(), key=lambda x: x[1], reverse=True)
             # i = 0
