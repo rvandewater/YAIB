@@ -208,7 +208,8 @@ def domain_adaptation(
 
                 # train target model
                 # target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
-                target_model = load_model(old_run_dir / task / model / dataset / f"target_{target_size}" / f"cv_rep_{repetition}" / f"fold_{fold_index}", log_dir_fold)
+                target_model_dir = old_run_dir / task / model / dataset / f"target_{target_size}" / f"cv_rep_{repetition}" / f"fold_{fold_index}"
+                target_model = load_model(target_model_dir, log_dir_fold)
 
                 # get predictions for train set
                 train_predictions, train_labels = get_predictions_for_all_models(
@@ -266,10 +267,10 @@ def domain_adaptation(
                     _, test_labels = RICUDataset(data, split="test").get_data_and_labels()
 
 
-
                 # join predictions with static data and train new model
                 gin.clear_config()
                 gin.parse_config(gin_config_before_tuning)
+                gin.parse_config_file(target_model_dir / "train_config.gin")
                 gin.bind_parameter("preprocess.fold_size", target_size)
                 data_with_predictions = preprocess_data(
                     data_dir,
