@@ -231,6 +231,7 @@ def domain_adaptation(
                 for baseline, predictions in val_predictions.items():
                     val_losses[baseline] = log_loss(val_labels, predictions)
                     val_aucs[baseline] = roc_auc_score(val_labels, predictions)
+                logging.info("Validation losses: %s", val_losses)
 
                 # generate predictions and write to file if not already done
                 if not (log_dir_fold / "test_predictions.json").exists():
