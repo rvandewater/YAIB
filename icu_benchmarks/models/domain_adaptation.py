@@ -269,7 +269,6 @@ def domain_adaptation(
 
                 # join predictions with static data and train new model
                 gin.clear_config()
-                gin.parse_config(gin_config_before_tuning)
                 gin.parse_config_file(target_model_dir / "train_config.gin")
                 gin.bind_parameter("preprocess.fold_size", target_size)
                 data_with_predictions = preprocess_data(
