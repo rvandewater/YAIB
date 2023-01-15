@@ -123,6 +123,7 @@ def preprocess_data(
     cv_folds: int = 5,
     fold_size: int = None,
     fold_index: int = 0,
+    test_all: bool = False,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
