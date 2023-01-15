@@ -284,7 +284,11 @@ def domain_adaptation(
                 data_with_predictions["train"]["STATIC"] = data_with_predictions["train"]["STATIC"].join(pd.DataFrame(list(train_predictions.values())[1:]).T)
                 data_with_predictions["val"]["STATIC"] = data_with_predictions["val"]["STATIC"].join(pd.DataFrame(list(val_predictions.values())[1:]).T)
                 data_with_predictions["test"]["STATIC"] = data_with_predictions["test"]["STATIC"].join(pd.DataFrame(list(test_predictions.values())[1:]).T)
-                target_model_with_predictions = MLWrapper()
+                model_type = gin.query_parameter("train_common.model")
+                if str(model_type) == "@DLWrapper()":
+                    target_model_with_predictions = DLWrapper()
+                elif str(model_type) == "@MLWrapper()":
+                    target_model_with_predictions = MLWrapper()
                 target_model_with_predictions.set_log_dir(log_dir_fold)
                 target_model_with_predictions.train(RICUDataset(data_with_predictions, split="train"), RICUDataset(data_with_predictions, split="val"), "balanced", seed)
                 dataset_with_predictions = RICUDataset(data_with_predictions, split="test")
