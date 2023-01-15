@@ -298,8 +298,8 @@ def domain_adaptation(
                     preds_w_preds = preds_w_preds[:, 1]
                 fold_results["target_with_predictions"] = calculate_metrics(preds_w_preds, test_labels)
                 logging.info(f"auc with preds: {fold_results[f'target_with_predictions']['AUC']}")
-                
 
+                
 
                 for baseline, predictions in test_predictions.items():
                     # logging.info("Evaluating model: {}".format(baseline))
@@ -313,6 +313,9 @@ def domain_adaptation(
                 # logging.info("Evaluating convex combination of models without target.")
                 test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1,1,1])
                 fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
+
+                test_pred_with_preds = np.average([preds_w_preds] + test_predictions_list_without_target, axis=0, weights=[.5,1,1,1])
+                fold_results[f"cc_with_preds"] = calculate_metrics(test_pred_with_preds, test_labels)
 
                 agg_val_losses.append(val_losses)
                 agg_val_aucs.append(val_aucs)
@@ -396,7 +399,7 @@ def domain_adaptation(
 
             # print baselines first, then top three AUC, then top three loss
             for source, auc in avg_aucs.items():
-                if source in ["target", "convex_combination_without_target", "target_with_predictions"] + datasets:
+                if source in ["target", "convex_combination_without_target", "target_with_predictions", "cc_with_preds"] + datasets:
                     logging.info(f"{source}: {auc}")
             # avg_aucs_list = sorted(avg_aucs.items(), key=lambda x: x[1], reverse=True)
             # i = 0
