@@ -231,6 +231,7 @@ def domain_adaptation(
                 for baseline, predictions in val_predictions.items():
                     val_losses[baseline] = log_loss(val_labels, predictions)
                     val_aucs[baseline] = roc_auc_score(val_labels, predictions)
+                logging.info("Validation AUCS: %s", val_aucs)
                 logging.info("Validation losses: %s", val_losses)
 
                 # generate predictions and write to file if not already done
@@ -282,6 +283,7 @@ def domain_adaptation(
                     weights = [f(x) for x in val_aucs.values()]
                     # logging.info(f"weights: {weights}")
                     test_pred = np.average(test_predictions_list, axis=0, weights=weights)
+                    test_pred = (test_pred-np.min(test_pred))/(np.max(test_pred)-np.min(test_pred))
                     print(f_str)
                     print(test_pred.min())
                     print(test_pred.max())
