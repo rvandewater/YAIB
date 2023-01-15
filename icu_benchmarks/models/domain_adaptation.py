@@ -285,6 +285,8 @@ def domain_adaptation(
                     print(f_str)
                     print(test_pred.min())
                     print(test_pred.max())
+                    print(weights)
+                    
                     fold_results[f"AUC_{f_str}"] = calculate_metrics(test_pred, test_labels)
                     rated_auc_functions.append((f_str, fold_results[f"AUC_{f_str}"]["AUC"]))
                 rated_auc_functions.sort(key=lambda x: x[1], reverse=True)
