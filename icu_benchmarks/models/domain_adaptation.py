@@ -166,7 +166,7 @@ def domain_adaptation(
     ]
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
-    old_run_dir = Path("../yaib_logs/DA")
+    old_run_dir = Path("../DA_logs")
     gin_config_before_tuning = gin.config_str()
 
     # evaluate models on same test split
