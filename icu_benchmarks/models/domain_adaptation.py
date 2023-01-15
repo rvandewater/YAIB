@@ -289,7 +289,7 @@ def domain_adaptation(
             logging.info("Average validation losses: %s", dict(zip(val_losses.keys(), avg_val_losses)))
             logging.info("Average validation AUCs: %s", dict(zip(val_aucs.keys(), avg_val_aucs)))
 
-            scaled_losses = 0.9 * avg_val_losses / np.max(avg_val_losses)
+            scaled_losses = np.array(0.9 * avg_val_losses / np.max(avg_val_losses))
             logging.info(f"scaled_losses: {scaled_losses}")
 
             # find top three auc functions
@@ -325,6 +325,12 @@ def domain_adaptation(
             for f_str, auc in rated_loss_functions[:3]:
                 logging.info(f"{f_str}: {auc}")
 
+            # evaluate source only mixture
+            logging.info("Evaluating loss weighted source only mixture.")
+            loss_based_weights = 1 - scaled_losses[1:]
+            test_pred = np.average(test_predictions_list_without_target, axis=0, weights=loss_based_weights)
+            fold_results[f"loss_based_source_only_mixture"] = calculate_metrics(test_pred, test_labels)
+            logging.info(f"auc: {fold_results[f'loss_based_source_only_mixture']['AUC']}")
             
             # average results over folds
             agg_aucs = {}
