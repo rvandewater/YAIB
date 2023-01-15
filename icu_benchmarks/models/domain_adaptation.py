@@ -254,8 +254,8 @@ def domain_adaptation(
                 for baseline, predictions in test_predictions.items():
                     # logging.info("Evaluating model: {}".format(baseline))
                     fold_results[baseline] = calculate_metrics(predictions, test_labels)
-                    print(test_predictions.min())
-                    print(test_predictions.max())
+                    print(predictions.min())
+                    print(predictions.max())
                 # evaluate baselines
 
                 # evaluate convex combination of models
