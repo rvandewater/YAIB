@@ -161,14 +161,18 @@ def domain_adaptation(
         gin.bind_parameter("preprocess.fold_size", target_size)
         log_dir = run_dir / task / model / dataset / f"target_{target_size}"
         log_dir.mkdir(parents=True, exist_ok=True)
-        # choose_and_bind_hyperparameters(False, data_dir, log_dir, seed, debug=debug)
-        # gin_config_with_target_hyperparameters = gin.config_str()
+        target_model_dir = (old_run_dir / task / model / dataset / f"target_{target_size}")
+        if not (target_model_dir / "cv_rep_0" / "fold_0").exists():
+            choose_and_bind_hyperparameters(True, data_dir, log_dir, seed, debug=debug)
+        else:
+            gin.parse_config_file(target_model_dir / "cv_rep_0" / "fold_0" / "train_config.gin")
+        gin_config_with_target_hyperparameters = gin.config_str()
         results = {}
         loss_weighted_results = {}
         for repetition in range(cv_repetitions_to_train):
             agg_val_losses = []
             for fold_index in range(cv_folds_to_train):
-                # gin.parse_config(gin_config_with_target_hyperparameters)
+                gin.parse_config(gin_config_with_target_hyperparameters)
                 results[f"{repetition}_{fold_index}"] = {}
                 fold_results = results[f"{repetition}_{fold_index}"]
 
@@ -187,18 +191,11 @@ def domain_adaptation(
                 log_dir_fold.mkdir(parents=True, exist_ok=True)
 
                 # load or train target model
-                target_model_dir = (
-                    old_run_dir
-                    / task
-                    / model
-                    / dataset
-                    / f"target_{target_size}"
-                    / f"cv_rep_{repetition}"
-                    / f"fold_{fold_index}"
-                )
-                if target_model_dir.exists():
-                    target_model = load_model(target_model_dir, log_dir_fold)
+                target_model_dir_fold = target_model_dir / f"cv_rep_{repetition}" / f"fold_{fold_index}"
+                if target_model_dir_fold.exists():
+                    target_model = load_model(target_model_dir_fold, log_dir_fold)
                 else:
+                    logging.info("Model not found, training new model.")
                     target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
 
                 def get_preds(split):
@@ -258,7 +255,7 @@ def domain_adaptation(
 
                 # join predictions with static data and train new model
                 gin.clear_config()
-                gin.parse_config_file(target_model_dir / "train_config.gin")
+                gin.parse_config(gin_config_with_target_hyperparameters)
                 gin.bind_parameter("Transformer.emb", 103)
                 gin.bind_parameter("LSTMNet.input_dim", 103)
                 gin.bind_parameter("preprocess.fold_size", target_size)
