@@ -87,17 +87,18 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
     """
     aggregated = {}
     for repetition in log_dir.iterdir():
-        aggregated[repetition.name] = {}
-        for fold_iter in repetition.iterdir():
-            if (fold_iter / "test_metrics.json").is_file():
-                with open(fold_iter / "test_metrics.json", "r") as f:
-                    result = json.load(f)
-                    aggregated[repetition.name][fold_iter.name] = result
-            # Add durations to metrics
-            if (fold_iter / "durations.json").is_file():
-                with open(fold_iter / "durations.json", "r") as f:
-                    result = json.load(f)
-                    aggregated[repetition.name][fold_iter.name].update(result)
+        if repetition.is_dir():
+            aggregated[repetition.name] = {}
+            for fold_iter in repetition.iterdir():
+                if (fold_iter / "test_metrics.json").is_file():
+                    with open(fold_iter / "test_metrics.json", "r") as f:
+                        result = json.load(f)
+                        aggregated[repetition.name][fold_iter.name] = result
+                # Add durations to metrics
+                if (fold_iter / "durations.json").is_file():
+                    with open(fold_iter / "durations.json", "r") as f:
+                        result = json.load(f)
+                        aggregated[repetition.name][fold_iter.name].update(result)
 
     # Aggregate results per metric
     list_scores = {}
