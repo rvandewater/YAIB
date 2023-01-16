@@ -58,6 +58,7 @@ def train_common(
 
     train_dataset = DatasetClass(data, split="train")
     val_dataset = DatasetClass(data, split="val")
+    print("IN TRAIN ", batch_size, "epochs:", epochs)
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
