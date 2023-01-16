@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import csv
 
-models_dir = Path("../DA_logs")
+models_dir = Path("../DA_new")
 for metric in ["AUC", "PR"]:
     for endpoint in models_dir.iterdir():
         if endpoint.is_dir():
