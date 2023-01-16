@@ -144,26 +144,6 @@ def domain_adaptation(
     cv_folds_to_train = 5
     target_sizes = [500, 1000, 2000]
     datasets = ["aumc", "eicu", "hirid", "miiv"]
-    target_weights = [0.1, 0.2, 0.5, 1, 2, 5]
-    # weights = [1] * (len(datasets) - 1)
-    auc_functions = [
-        lambda x: (x-0.5) ** 1,
-        lambda x: (x-0.5) ** 2,
-        lambda x: (x-0.5) ** 3,
-        lambda x: (x-0.5) ** 4,
-        lambda x: (x-0.5) ** 5,
-        lambda x: ((2 ** (10*(x-0.5))) - 1),
-        lambda x: ((3 ** (10*(x-0.5))) - 1),
-    ]
-    loss_functions = [
-        lambda x: (1-x) ** 1,
-        lambda x: (1-x) ** 2,
-        lambda x: (1-x) ** 3,
-        lambda x: (1-x) ** 4,
-        lambda x: (1-x) ** 5,
-        lambda x: ((2 ** (10*(1-x))) - 1),
-        lambda x: ((3 ** (10*(1-x))) - 1),
-    ]
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
     # old_run_dir = Path("../yaib_logs/DA")
@@ -184,9 +164,9 @@ def domain_adaptation(
         # choose_and_bind_hyperparameters(False, data_dir, log_dir, seed, debug=debug)
         # gin_config_with_target_hyperparameters = gin.config_str()
         results = {}
+        loss_weighted_results = {}
         for repetition in range(cv_repetitions_to_train):
             agg_val_losses = []
-            agg_val_aucs = []
             for fold_index in range(cv_folds_to_train):
                 # gin.parse_config(gin_config_with_target_hyperparameters)
                 results[f"{repetition}_{fold_index}"] = {}
@@ -206,66 +186,67 @@ def domain_adaptation(
                 log_dir_fold = log_dir / f"cv_rep_{repetition}" / f"fold_{fold_index}"
                 log_dir_fold.mkdir(parents=True, exist_ok=True)
 
-                # train target model
-                # target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
+                # load or train target model
                 target_model_dir = old_run_dir / task / model / dataset / f"target_{target_size}" / f"cv_rep_{repetition}" / f"fold_{fold_index}"
-                target_model = load_model(target_model_dir, log_dir_fold)
+                if target_model_dir.exists():
+                    target_model = load_model(target_model_dir, log_dir_fold)
+                else:
+                    target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
 
-                # get predictions for train set
-                train_predictions, train_labels = get_predictions_for_all_models(
-                    target_model,
-                    data,
-                    log_dir_fold,
-                    source_dir=model_path / task / model,
-                    seed=seed,
-                    source_datasets=source_datasets,
-                    test_on="train",
-                )
+                def get_preds(split):
+                    if not (log_dir_fold / f"{split}_predictions.json").exists():
+                        predictions, labels = get_predictions_for_all_models(
+                            target_model,
+                            data,
+                            log_dir_fold,
+                            source_dir=model_path / task / model,
+                            seed=seed,
+                            source_datasets=source_datasets,
+                            test_on=split,
+                        )
+                        with open(log_dir_fold / f"{split}_predictions.json", "w") as f:
+                            json.dump(predictions, f, cls=JsonResultLoggingEncoder)
+                    else:
+                        with open(log_dir_fold / f"{split}_predictions.json", "r") as f:
+                            predictions = json.load(f)
+                        _, labels = RICUDataset(data, split=split).get_data_and_labels()
+                    return predictions, labels
                 
-                # generate predictions and write to file if not already done
-                if not (log_dir_fold / "val_predictions.json").exists():
-                    val_predictions, val_labels = get_predictions_for_all_models(
-                        target_model,
-                        data,
-                        log_dir_fold,
-                        source_dir=model_path / task / model,
-                        seed=seed,
-                        source_datasets=source_datasets,
-                        test_on="val",
-                    )
-                    with open(log_dir_fold / "val_predictions.json", "w") as f:
-                        json.dump(val_predictions, f, cls=JsonResultLoggingEncoder)
-                else:
-                    with open(log_dir_fold / "val_predictions.json", "r") as f:
-                        val_predictions = json.load(f)
-                    _, val_labels = RICUDataset(data, split="val").get_data_and_labels()
-                val_losses = {}
-                val_aucs = {}
+                # get predictions for train set
+                train_predictions, train_labels = get_preds("train")
+                test_predictions, test_labels = get_preds("test")
+                val_predictions, val_labels = get_preds("val")
+                val_losses = {baseline: log_loss(val_labels, predictions) for baseline, predictions in val_predictions.items()}
                 val_losses["target"] = log_loss(val_labels, val_predictions["target"])
-                val_aucs["target"] = roc_auc_score(val_labels, val_predictions["target"])
-                for baseline, predictions in val_predictions.items():
-                    val_losses[baseline] = log_loss(val_labels, predictions)
-                    val_aucs[baseline] = roc_auc_score(val_labels, predictions)
-                logging.info("Validation AUCS: %s", val_aucs)
-                logging.info("Validation losses: %s", val_losses)
+                # logging.info("Validation AUCS: %s", val_aucs)
+                # logging.info("Validation losses: %s", val_losses)
+                agg_val_losses.append(val_losses)
 
-                # generate predictions and write to file if not already done
-                if not (log_dir_fold / "test_predictions.json").exists():
-                    test_predictions, test_labels = get_predictions_for_all_models(
-                        target_model,
-                        data,
-                        log_dir_fold,
-                        source_dir=model_path / task / model,
-                        seed=seed,
-                        source_datasets=source_datasets,
-                    )
-                    with open(log_dir_fold / "test_predictions.json", "w") as f:
-                        json.dump(test_predictions, f, cls=JsonResultLoggingEncoder)
-                else:
-                    with open(log_dir_fold / "test_predictions.json", "r") as f:
-                        test_predictions = json.load(f)
-                    _, test_labels = RICUDataset(data, split="test").get_data_and_labels()
+                # evaluate baselines
+                for baseline, predictions in test_predictions.items():
+                    # logging.info("Evaluating model: {}".format(baseline))
+                    fold_results[baseline] = calculate_metrics(predictions, test_labels)
+                
+                # evaluate convex combination of models without target
+                test_predictions_list = list(test_predictions.values())
+                test_predictions_list_without_target = test_predictions_list[1:]
+                test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1,1,1])
+                fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
+                # evaluate convex combination of models with target
+                weights = {
+                    "aumc": 10535,
+                    "eicu": 113382,
+                    "hirid": 12859,
+                    "mimic": 52045,
+                }
+                weights_without_target = [v for k, v in weights.items() if k != dataset]
+                target_weights = [0.5, 1, 2]
+                for t in target_weights:
+                    w =  [t * sum(weights_without_target)] + weights_without_target
+                    # logging.info(f"Evaluating target weight: {t}")
+                    test_pred = np.average(test_predictions_list, axis=0, weights=w)
+                    fold_results[f"target_weight_{t}"] = calculate_metrics(test_pred, test_labels)
 
                 # join predictions with static data and train new model
                 gin.clear_config()
@@ -298,95 +279,10 @@ def domain_adaptation(
                 if isinstance(target_model_with_predictions, MLWrapper):
                     preds_w_preds = preds_w_preds[:, 1]
                 fold_results["target_with_predictions"] = calculate_metrics(preds_w_preds, test_labels)
-                logging.info(f"auc with preds: {fold_results[f'target_with_predictions']['AUC']}")
-
-                
-
-                for baseline, predictions in test_predictions.items():
-                    # logging.info("Evaluating model: {}".format(baseline))
-                    fold_results[baseline] = calculate_metrics(predictions, test_labels)
-                # evaluate baselines
-
-                # evaluate convex combination of models
-                test_predictions_list = list(test_predictions.values())
-                test_predictions_list_without_target = test_predictions_list[1:]
-
-                # logging.info("Evaluating convex combination of models without target.")
-                test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1,1,1])
-                fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
-
                 test_pred_with_preds = np.average([preds_w_preds] + test_predictions_list_without_target, axis=0, weights=[.5,1,1,1])
                 fold_results[f"cc_with_preds"] = calculate_metrics(test_pred_with_preds, test_labels)
 
-                agg_val_losses.append(val_losses)
-                agg_val_aucs.append(val_aucs)
-
-                # logging.info("Evaluating convex combination of models.")
-                # for w in weights:
-                #     # w =  weights + [t * sum(weights)]
-                #     # logging.info(f"Evaluating target weight: {t}")
-                #     logging.info(f"Evaluating weights: {w}")
-                #     test_pred = np.average(test_predictions_list, axis=0, weights=w)
-                #     fold_results[f"convex_combination_{w}"] = calculate_metrics(test_pred, test_labels)
-
-                # logging.info(f"Top three AUC functions: {rated_auc_functions[:3]}")
-                # logging.info(f"Top three loss functions: {rated_loss_functions[:3]}")
-
                 log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
-
-            avg_val_losses = np.array([np.mean([x[source] for x in agg_val_losses]) for source in val_losses.keys()])
-            avg_val_aucs = {source: np.mean([x[source] for x in agg_val_aucs]) for source in val_aucs.keys()}
-            logging.info("Average validation losses: %s", dict(zip(val_losses.keys(), avg_val_losses)))
-            logging.info("Average validation AUCs: %s", dict(zip(val_aucs.keys(), avg_val_aucs)))
-
-            scaled_losses = np.array(0.9 * avg_val_losses / np.max(avg_val_losses))
-            logging.info(f"scaled_losses: {scaled_losses}")
-
-            # find top three auc functions
-            rated_auc_functions = []
-            for f in auc_functions:
-                f_str = inspect.getsource(f).replace(" ", "")[:-2]
-                # logging.info(f"Evaluating convex combination of models with AUC function {f_str}.")
-                weights = np.array([f(x) for x in avg_val_aucs.values()])
-                weights = weights.clip(min=0)
-                test_pred = np.average(test_predictions_list, axis=0, weights=weights)
-                # logging.info(f"weights: {weights}")
-                
-                fold_results[f"AUC_{f_str}"] = calculate_metrics(test_pred, test_labels)
-                rated_auc_functions.append((f_str, fold_results[f"AUC_{f_str}"]["AUC"]))
-            rated_auc_functions.sort(key=lambda x: x[1], reverse=True)
-            # print top three auc functions
-            for f_str, auc in rated_auc_functions[:3]:
-                logging.info(f"{f_str}: {auc}")
-            
-
-            # find top three loss functions
-            rated_loss_functions = []
-            for f in loss_functions:
-                # strip whitespace
-                f_str = inspect.getsource(f).replace(" ", "")[:-2]
-                # logging.info(f"Evaluating convex combination of models with loss function {f_str}.")
-                weights = [f(x) for x in scaled_losses]
-                # logging.info(f"weights: {weights}")
-                test_pred = np.average(test_predictions_list, axis=0, weights=weights)
-                fold_results[f"loss_{f_str}"] = calculate_metrics(test_pred, test_labels)
-                rated_loss_functions.append((f_str, fold_results[f"loss_{f_str}"]["AUC"]))
-            rated_loss_functions.sort(key=lambda x: x[1], reverse=True)
-            for f_str, auc in rated_loss_functions[:3]:
-                logging.info(f"{f_str}: {auc}")
-
-            # evaluate source only mixture
-            logging.info("Evaluating loss weighted source only mixture.")
-            loss_based_weights = 1 - scaled_losses[1:]
-            test_pred = np.average(test_predictions_list_without_target, axis=0, weights=loss_based_weights)
-            fold_results[f"loss_based_source_only_mixture"] = calculate_metrics(test_pred, test_labels)
-            logging.info(f"auc: {fold_results[f'loss_based_source_only_mixture']['AUC']}")
-
-            logging.info("Evaluating auc weighted source only mixture.")
-            auc_based_weights = (np.array(list(avg_val_aucs.values())) - 0.5)[1:] ** 2
-            test_pred = np.average(test_predictions_list_without_target, axis=0, weights=auc_based_weights)
-            fold_results[f"auc_based_source_only_mixture"] = calculate_metrics(test_pred, test_labels)
-            logging.info(f"auc: {fold_results[f'auc_based_source_only_mixture']['AUC']}")
             
             # average results over folds
             agg_aucs = {}
@@ -398,25 +294,21 @@ def domain_adaptation(
             for source, aucs in agg_aucs.items():
                 avg_aucs[source] = np.mean(aucs)
 
+            avg_val_losses = np.array([np.mean([x[source] for x in agg_val_losses]) for source in val_losses.keys()])
+            logging.info("Average validation losses: %s", dict(zip(val_losses.keys(), avg_val_losses)))
+            scaled_losses = np.array(0.9 * avg_val_losses / np.max(avg_val_losses))
+            logging.info(f"scaled_losses: {scaled_losses}")
+
+            weights = [(1-x) for x in scaled_losses]
+            # logging.info(f"weights: {weights}")
+            test_pred = np.average(test_predictions_list, axis=0, weights=weights)
+            loss_weighted_results[repetition] = calculate_metrics(test_pred, test_labels)
+            avg_aucs["loss_weighted"] = calculate_metrics(test_pred, test_labels)["AUC"]
+
             # print baselines first, then top three AUC, then top three loss
             for source, auc in avg_aucs.items():
-                if source in ["target", "convex_combination_without_target", "target_with_predictions", "cc_with_preds"] + datasets:
-                    logging.info(f"{source}: {auc}")
-            # avg_aucs_list = sorted(avg_aucs.items(), key=lambda x: x[1], reverse=True)
-            # i = 0
-            # for source, auc in avg_aucs_list:
-            #     if "AUC" in source:
-            #         i += 1
-            #         logging.info(f"{source}: {auc}")
-            #         if i == 3:
-            #             break
-            # i = 0
-            # for source, auc in avg_aucs_list:
-            #     if "loss" in source:
-            #         i += 1
-            #         logging.info(f"{source}: {auc}")
-            #         if i == 3:
-            #             break
+                logging.info(f"{source}: {auc}")
+
             log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
         source_metrics = {}
@@ -425,6 +317,10 @@ def domain_adaptation(
                 for metric, score in source_stats.items():
                     if isinstance(score, (float, int)):
                         source_metrics.setdefault(source, {}).setdefault(metric, []).append(score)
+        for loss_weighted_result in loss_weighted_results.values():
+            for metric, score in loss_weighted_result.items():
+                if isinstance(score, (float, int)):
+                    source_metrics.setdefault("loss_weighted", {}).setdefault(metric, []).append(score)
 
         # Compute statistical metric over aggregated results
         averaged_metrics = {}
