@@ -10,8 +10,8 @@ preprocess.use_features = False
 # Train params
 train_common.model = @BRITS
 train_common.do_test = True
+train_common.epochs = 10
 
 # Model params
 BRITS.rnn_hidden_size = 64
 BRITS.batch_size = 256
-BRITS.epochs = 10

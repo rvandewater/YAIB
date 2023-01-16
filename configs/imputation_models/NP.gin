@@ -10,18 +10,8 @@ preprocess.use_features = False
 # Train params
 train_common.model = @NP
 train_common.do_test = True
-train_common.epochs = 100
-train_common.batch_size = 64
-train_common.patience = 10
-train_common.min_delta = 1e-4
-train_common.use_wandb = True
 
-ImputationWrapper.optimizer = @Adam
-
-# Optimizer params
-Adam.lr = 1e-2
-Adam.weight_decay = 1e-6
-
+# Model params
 # Deterministic encoder params
 NP.encoder_layers = 3
 NP.encoder_h_dim = 50

@@ -24,7 +24,7 @@ from ignite.metrics import MeanAbsoluteError, Accuracy, RootMeanSquaredError
 from ignite.exceptions import NotComputableError
 
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
-from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
+from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve, JSD
 
 from pytorch_lightning import LightningModule
 
@@ -372,6 +372,7 @@ class ImputationWrapper(DLWrapper):
         return {
             "rmse": RootMeanSquaredError(),
             "mae": MAE(),
+            "jsd": JSD(),
         }
 
     def init_weights(self, init_type="normal", gain=0.02):

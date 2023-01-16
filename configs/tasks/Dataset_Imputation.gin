@@ -24,6 +24,6 @@ preprocess.file_names = {
 preprocess.vars = %vars
 preprocess.use_features = False
 ImputationDataset.vars = %vars
-# ImputationDataset.ram_cache = True
+# ImputationDataset.ram_cache = False
 
 EMB = 48

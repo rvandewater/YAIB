@@ -13,7 +13,7 @@ hyperimpute
 pytorch_lightning
 torchmetrics
 wandb
-pypots
+# pypots
 mypy
 flake8
 flake8-docstrings
