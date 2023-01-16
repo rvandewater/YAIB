@@ -187,7 +187,15 @@ def domain_adaptation(
                 log_dir_fold.mkdir(parents=True, exist_ok=True)
 
                 # load or train target model
-                target_model_dir = old_run_dir / task / model / dataset / f"target_{target_size}" / f"cv_rep_{repetition}" / f"fold_{fold_index}"
+                target_model_dir = (
+                    old_run_dir
+                    / task
+                    / model
+                    / dataset
+                    / f"target_{target_size}"
+                    / f"cv_rep_{repetition}"
+                    / f"fold_{fold_index}"
+                )
                 if target_model_dir.exists():
                     target_model = load_model(target_model_dir, log_dir_fold)
                 else:
@@ -211,7 +219,7 @@ def domain_adaptation(
                             predictions = json.load(f)
                         _, labels = RICUDataset(data, split=split).get_data_and_labels()
                     return predictions, labels
-                
+
                 # get predictions for train set
                 train_predictions, train_labels = get_preds("train")
                 test_predictions, test_labels = get_preds("test")
@@ -226,11 +234,11 @@ def domain_adaptation(
                 for baseline, predictions in test_predictions.items():
                     # logging.info("Evaluating model: {}".format(baseline))
                     fold_results[baseline] = calculate_metrics(predictions, test_labels)
-                
+
                 # evaluate convex combination of models without target
                 test_predictions_list = list(test_predictions.values())
                 test_predictions_list_without_target = test_predictions_list[1:]
-                test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1,1,1])
+                test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1, 1, 1])
                 fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
                 # evaluate convex combination of models with target
@@ -243,7 +251,7 @@ def domain_adaptation(
                 weights_without_target = [v for k, v in weights.items() if k != dataset]
                 target_weights = [0.5, 1, 2]
                 for t in target_weights:
-                    w =  [t * sum(weights_without_target)] + weights_without_target
+                    w = [t * sum(weights_without_target)] + weights_without_target
                     # logging.info(f"Evaluating target weight: {t}")
                     test_pred = np.average(test_predictions_list, axis=0, weights=w)
                     fold_results[f"target_weight_{t}"] = calculate_metrics(test_pred, test_labels)
@@ -264,26 +272,39 @@ def domain_adaptation(
                     cv_folds=cv_folds,
                     fold_index=fold_index,
                 )
-                data_with_predictions["train"]["STATIC"] = data_with_predictions["train"]["STATIC"].join(pd.DataFrame(list(train_predictions.values())[1:]).T)
-                data_with_predictions["val"]["STATIC"] = data_with_predictions["val"]["STATIC"].join(pd.DataFrame(list(val_predictions.values())[1:]).T)
-                data_with_predictions["test"]["STATIC"] = data_with_predictions["test"]["STATIC"].join(pd.DataFrame(list(test_predictions.values())[1:]).T)
+                data_with_predictions["train"]["STATIC"] = data_with_predictions["train"]["STATIC"].join(
+                    pd.DataFrame(list(train_predictions.values())[1:]).T
+                )
+                data_with_predictions["val"]["STATIC"] = data_with_predictions["val"]["STATIC"].join(
+                    pd.DataFrame(list(val_predictions.values())[1:]).T
+                )
+                data_with_predictions["test"]["STATIC"] = data_with_predictions["test"]["STATIC"].join(
+                    pd.DataFrame(list(test_predictions.values())[1:]).T
+                )
                 model_type = gin.query_parameter("train_common.model")
                 if str(model_type) == "@DLWrapper()":
                     target_model_with_predictions = DLWrapper()
                 elif str(model_type) == "@MLWrapper()":
                     target_model_with_predictions = MLWrapper()
                 target_model_with_predictions.set_log_dir(log_dir_fold)
-                target_model_with_predictions.train(RICUDataset(data_with_predictions, split="train"), RICUDataset(data_with_predictions, split="val"), "balanced", seed)
+                target_model_with_predictions.train(
+                    RICUDataset(data_with_predictions, split="train"),
+                    RICUDataset(data_with_predictions, split="val"),
+                    "balanced",
+                    seed,
+                )
                 dataset_with_predictions = RICUDataset(data_with_predictions, split="test")
                 preds_w_preds = target_model_with_predictions.predict(dataset_with_predictions, None, None)
                 if isinstance(target_model_with_predictions, MLWrapper):
                     preds_w_preds = preds_w_preds[:, 1]
                 fold_results["target_with_predictions"] = calculate_metrics(preds_w_preds, test_labels)
-                test_pred_with_preds = np.average([preds_w_preds] + test_predictions_list_without_target, axis=0, weights=[.5,1,1,1])
+                test_pred_with_preds = np.average(
+                    [preds_w_preds] + test_predictions_list_without_target, axis=0, weights=[0.5, 1, 1, 1]
+                )
                 fold_results[f"cc_with_preds"] = calculate_metrics(test_pred_with_preds, test_labels)
 
                 log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
-            
+
             # average results over folds
             agg_aucs = {}
             for fold_results in results.values():
@@ -299,7 +320,7 @@ def domain_adaptation(
             scaled_losses = np.array(0.9 * avg_val_losses / np.max(avg_val_losses))
             logging.info(f"scaled_losses: {scaled_losses}")
 
-            weights = [(1-x) for x in scaled_losses]
+            weights = [(1 - x) for x in scaled_losses]
             # logging.info(f"weights: {weights}")
             test_pred = np.average(test_predictions_list, axis=0, weights=weights)
             loss_weighted_results[repetition] = calculate_metrics(test_pred, test_labels)
@@ -326,11 +347,13 @@ def domain_adaptation(
         averaged_metrics = {}
         for source, source_stats in source_metrics.items():
             for metric, scores in source_stats.items():
-                averaged_metrics.setdefault(source, {}).setdefault(metric, []).append({
-                    "avg": np.mean(scores),
-                    "std": np.std(scores),
-                    "CI_0.95": stats.t.interval(0.95, len(scores) - 1, loc=np.mean(scores), scale=stats.sem(scores)),
-                })
+                averaged_metrics.setdefault(source, {}).setdefault(metric, []).append(
+                    {
+                        "avg": np.mean(scores),
+                        "std": np.std(scores),
+                        "CI_0.95": stats.t.interval(0.95, len(scores) - 1, loc=np.mean(scores), scale=stats.sem(scores)),
+                    }
+                )
 
         with open(log_dir / "aggregated_source_metrics.json", "w") as f:
             json.dump(results, f, cls=JsonResultLoggingEncoder)
