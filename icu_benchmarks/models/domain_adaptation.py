@@ -138,6 +138,9 @@ def domain_adaptation(
     Raises:
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
+    if dataset != "miiv":
+        return
+
     cv_repetitions = 5
     cv_repetitions_to_train = 5
     cv_folds = 5
@@ -243,7 +246,7 @@ def domain_adaptation(
                     "aumc": 10535,
                     "eicu": 113382,
                     "hirid": 12859,
-                    "mimic": 52045,
+                    "miiv": 52045,
                 }
                 weights_without_target = [v for k, v in weights.items() if k != dataset]
                 target_weights = [0.5, 1, 2]
