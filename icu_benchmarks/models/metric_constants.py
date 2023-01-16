@@ -51,7 +51,7 @@ class DLMetrics:
     BINARY_CLASSIFICATION = {
         "AUC": ROC_AUC(),
         "Calibration_Curve": CalibrationCurve(),
-        "Confusion_Matrix": ConfusionMatrix(num_classes=2),
+        # "Confusion_Matrix": ConfusionMatrix(num_classes=2),
         "PR": AveragePrecision(),
         "PRC": PrecisionRecallCurve(),
         "ROC": RocCurve(),
