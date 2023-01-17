@@ -145,7 +145,8 @@ def domain_adaptation(
     cv_repetitions_to_train = 5
     cv_folds = 5
     cv_folds_to_train = 5
-    target_sizes = [500, 1000, 2000]
+    # target_sizes = [500, 1000, 2000]
+    target_sizes = [500]
     datasets = ["aumc", "eicu", "hirid", "miiv"]
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
