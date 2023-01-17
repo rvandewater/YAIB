@@ -4,7 +4,7 @@ from hyperimpute.plugins.imputers import Imputers
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import KNNImputer, SimpleImputer, IterativeImputer
 from sklearn.linear_model import LinearRegression
-from icu_benchmarks.data.loader import ImputationDataset
+# from icu_benchmarks.data.loader impor
 from icu_benchmarks.models.wrappers import ImputationWrapper
 from pypots.imputation import BRITS, SAITS, Transformer
 import gin
@@ -20,7 +20,7 @@ class KNNImputation(ImputationWrapper):
         super().__init__(*args, **kwargs)
         self.imputer = KNNImputer(n_neighbors=n_neighbors)
 
-    def fit(self, data: ImputationDataset):
+    def fit(self, data):
         self.imputer.fit(data.amputated_values.values)
 
     def forward(self, amputated_values, amputation_mask):
@@ -48,7 +48,7 @@ class MICEImputation(ImputationWrapper):
             random_state=random_state,
         )
 
-    def fit(self, data: ImputationDataset):
+    def fit(self, data):
         self.imputer.fit(data.amputated_values.values)
 
     def forward(self, amputated_values, amputation_mask):
@@ -70,7 +70,7 @@ class MeanImputation(ImputationWrapper):
         super().__init__(*args, **kwargs)
         self.imputer = SimpleImputer(strategy="mean")
 
-    def fit(self, data: ImputationDataset):
+    def fit(self, data):
         self.imputer.fit(data.amputated_values.values)
 
     def forward(self, amputated_values, amputation_mask):
@@ -92,7 +92,7 @@ class MedianImputation(ImputationWrapper):
         super().__init__(*args, **kwargs)
         self.imputer = SimpleImputer(strategy="median")
 
-    def fit(self, data: ImputationDataset):
+    def fit(self, data):
         self.imputer.fit(data.amputated_values.values)
 
     def forward(self, amputated_values, amputation_mask):
@@ -114,7 +114,7 @@ class ZeroImputation(ImputationWrapper):
         super().__init__(*args, **kwargs)
         self.imputer = SimpleImputer(strategy="constant", fill_value=0.0)
 
-    def fit(self, data: ImputationDataset):
+    def fit(self, data):
         self.imputer.fit(data.amputated_values.values)
 
     def forward(self, amputated_values, amputation_mask):
@@ -136,7 +136,7 @@ class MostFrequentImputation(ImputationWrapper):
         super().__init__(*args, **kwargs)
         self.imputer = SimpleImputer(strategy="most_frequent")
 
-    def fit(self, data: ImputationDataset):
+    def fit(self, data):
         self.imputer.fit(data.amputated_values.values)
 
     def forward(self, amputated_values, amputation_mask):
@@ -158,7 +158,7 @@ class MissForestImputation(ImputationWrapper):
         super().__init__(*args, **kwargs)
         self.imputer = Imputers().get("sklearn_missforest")
 
-    def fit(self, data: ImputationDataset):
+    def fit(self, data):
         self.imputer._model.fit(data.amputated_values.values)
 
     def forward(self, amputated_values, amputation_mask):
@@ -180,7 +180,7 @@ class GAINImputation(ImputationWrapper):
         super().__init__(*args, **kwargs)
         self.imputer = Imputers().get("gain")
 
-    def fit(self, data: ImputationDataset):
+    def fit(self, data):
         self.imputer._model.fit(torch.Tensor(data.amputated_values.values))
 
     def forward(self, amputated_values, amputation_mask):
@@ -210,7 +210,7 @@ class BRITSImputation(ImputationWrapper):
             device="cuda" if torch.cuda.is_available() else "cpu",
         )
 
-    def fit(self, data: ImputationDataset):
+    def fit(self, data):
         self.imputer.fit(torch.Tensor(data.amputated_values.values.reshape(-1, data.maxlen, data.dyn_measurements)))
 
     def forward(self, amputated_values, amputation_mask):
@@ -242,7 +242,7 @@ class SAITSImputation(ImputationWrapper):
             epochs=epochs,
         )
 
-    def fit(self, data: ImputationDataset):
+    def fit(self, data):
         self.imputer.fit(torch.Tensor(data.amputated_values.values.reshape(-1, data.maxlen, data.dyn_measurements)))
 
     def forward(self, amputated_values, amputation_mask):
@@ -274,7 +274,7 @@ class AttentionImputation(ImputationWrapper):
             epochs=epochs,
         )
 
-    def fit(self, data: ImputationDataset):
+    def fit(self, data):
         self.imputer.fit(torch.Tensor(data.amputated_values.values.reshape(-1, data.maxlen, data.dyn_measurements)))
 
     def forward(self, amputated_values, amputation_mask):

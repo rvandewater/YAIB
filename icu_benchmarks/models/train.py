@@ -81,10 +81,10 @@ def train_common(
 
     if load_weights:
         if source_dir.exists():
-            if not model.needs_training:
-                model = torch.load(source_dir / "model.ckpt")
-            else:
-                model = model.from_checkpoint(source_dir / "model.ckpt")
+            # if not model.needs_training:
+            #     model = torch.load(source_dir / "model.ckpt")
+            # else:
+            model = model.from_checkpoint(source_dir / "model.ckpt")
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
         do_test = True
@@ -103,6 +103,7 @@ def train_common(
             wandb.run.save()
 
         trainer = Trainer(
+            # model=model,
             max_epochs=epochs if model.needs_training else 1,
             callbacks=[
                 EarlyStopping(monitor=f"val/loss", min_delta=min_delta, patience=patience, strict=False),
@@ -129,7 +130,8 @@ def train_common(
                 )
             if not model.needs_training:
                 try:
-                    torch.save(model, log_dir / "model.ckpt")
+                    trainer.model = model
+                    trainer.save_checkpoint(log_dir / "model.ckpt")
                 except Exception as e:
                     logging.error(f"cannot save model to path {str((log_dir / 'model.ckpt').resolve())}: {e}")
             logging.info("fitting complete!")

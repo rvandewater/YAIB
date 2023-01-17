@@ -1,8 +1,8 @@
-from baselines import *
-from mlp import *
-from np import *
-from rnn import *
-from simple_diffusion import *
+from .baselines import *
+from .mlp import *
+from .np import *
+from .rnn import *
+from .simple_diffusion import *
 
 name_mapping = {
     "NP": NPImputation,

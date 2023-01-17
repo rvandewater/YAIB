@@ -12,7 +12,7 @@ class RNNImputation(ImputationWrapper):
     needs_fit = False
 
     def __init__(self, *args, input_size, hidden_size=64, state_init='zero', cell='gru', **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, input_size, hidden_size=64, state_init='zero', cell='gru', **kwargs)
         self.input_size = input_size
         self.n_features = input_size[2]
         self.hidden_size = hidden_size

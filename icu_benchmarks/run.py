@@ -132,15 +132,15 @@ def main(my_args=tuple(sys.argv[1:])):
     
     # print("now loading from the following path: >"+str(args.use_pretrained_imputation.resolve())+"< and exists:"+str(args.use_pretrained_imputation.exists()))
     pretrained_imputation_model = torch.load(args.use_pretrained_imputation, map_location=torch.device('cpu')) if args.use_pretrained_imputation is not None else None
+    if isinstance(pretrained_imputation_model, dict):
+        model_name = Path(args.use_pretrained_imputation).parent.parent.parent.name
+        model_class = name_mapping[model_name]
+        # print("is dict? keys:", pretrained_imputation_model.keys())
+        pretrained_imputation_model = model_class.load_from_checkpoint(args.use_pretrained_imputation)
+        # for k, v in pretrained_imputation_model.items():
+        #     if isinstance(v, str) and "NP" in v:
+        #         print(k, ":", v)
     if wandb.run is not None:
-        if isinstance(pretrained_imputation_model, dict):
-            model_name = Path(args.use_pretrained_imputation).parent.parent.parent.name
-            model_class = name_mapping[model_name]
-            pretrained_imputation_model = model_class.load_from_checkpoint(args.use_pretrained_imputation)
-            print("is dict? keys:", pretrained_imputation_model.keys())
-            for k, v in pretrained_imputation_model.items():
-                if isinstance(v, str) and "NP" in v:
-                    print(k, ":", v)
         print("updating wandb config:", {"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
         wandb.config.update({"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
 

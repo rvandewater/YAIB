@@ -11,10 +11,10 @@ class MLPImputation(ImputationWrapper):
     needs_fit = False
 
     def __init__(self, *args, input_size, num_hidden_layers=3, hidden_layer_size=10, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, input_size=input_size, num_hidden_layers=num_hidden_layers, hidden_layer_size=hidden_layer_size, **kwargs)
         self.model = [
             Flatten(),
-            Linear(input_size[1] * 2 * input_size[2], hidden_layer_size),
+            Linear(input_size[1] * input_size[2], hidden_layer_size),
             ReLU(),
             BatchNorm1d(hidden_layer_size),
         ]
@@ -26,9 +26,9 @@ class MLPImputation(ImputationWrapper):
 
     def forward(self, amputated, amputation_mask):
         amputated = torch.nan_to_num(amputated, nan=0.0)
-        model_input = torch.cat((amputated, amputation_mask), dim=1)
+        # model_input = torch.cat((amputated, amputation_mask), dim=1)
 
-        output = self.model(model_input)
+        output = self.model(amputated)
         output = output.reshape(amputated.shape)
 
         return output

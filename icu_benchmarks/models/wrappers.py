@@ -413,5 +413,6 @@ class ImputationWrapper(DLWrapper):
         return loss
 
     def predict(self, data):
+        # prediction_dataset = ImputationDataset(data, None, None)
         self.eval()
         return self(data, None)
