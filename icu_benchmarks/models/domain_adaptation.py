@@ -238,6 +238,10 @@ def domain_adaptation(
                 test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1, 1, 1])
                 fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
+                # evaluate max probability
+                max_pred = np.max(test_predictions_list, axis=0)
+                fold_results[f"max_prediction"] = calculate_metrics(max_pred, test_labels)
+
                 # evaluate convex combination of models with target
                 weights = {
                     "aumc": 10535,
