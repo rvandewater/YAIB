@@ -138,15 +138,11 @@ def domain_adaptation(
     Raises:
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
-    if dataset != "miiv":
-        return
-
     cv_repetitions = 5
     cv_repetitions_to_train = 5
     cv_folds = 5
     cv_folds_to_train = 5
-    # target_sizes = [500, 1000, 2000]
-    target_sizes = [500]
+    target_sizes = [500, 1000, 2000]
     datasets = ["aumc", "eicu", "hirid", "miiv"]
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
@@ -318,14 +314,18 @@ def domain_adaptation(
 
             avg_val_losses = np.array([np.mean([x[source] for x in agg_val_losses]) for source in val_losses.keys()])
             logging.info("Average validation losses: %s", dict(zip(val_losses.keys(), avg_val_losses)))
-            scaled_losses = np.array(0.9 * avg_val_losses / np.max(avg_val_losses))
-            logging.info(f"scaled_losses: {scaled_losses}")
 
-            weights = [(1 - x) for x in scaled_losses]
-            # logging.info(f"weights: {weights}")
+            weights = 1 / avg_val_losses
+            logging.info(f"weights: {weights}")
             test_pred = np.average(test_predictions_list, axis=0, weights=weights)
             loss_weighted_results[repetition] = calculate_metrics(test_pred, test_labels)
             avg_aucs["loss_weighted"] = calculate_metrics(test_pred, test_labels)["AUC"]
+
+            weights = (1 / avg_val_losses) ** 2
+            logging.info(f"weights: {weights}")
+            test_pred = np.average(test_predictions_list, axis=0, weights=weights)
+            loss_weighted_results[repetition] = calculate_metrics(test_pred, test_labels)
+            avg_aucs["squared_loss_weighted"] = calculate_metrics(test_pred, test_labels)["AUC"]
 
             # print baselines first, then top three AUC, then top three loss
             for source, auc in avg_aucs.items():
