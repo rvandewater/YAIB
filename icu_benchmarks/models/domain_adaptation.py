@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import scipy.stats as stats
-from sklearn.metrics import log_loss, roc_auc_score
+from sklearn.metrics import log_loss
+from skopt import gp_minimize
 
 from icu_benchmarks.data.loader import RICUDataset
 from icu_benchmarks.data.preprocess import preprocess_data
@@ -303,6 +304,25 @@ def domain_adaptation(
                     [preds_w_preds] + test_predictions_list_without_target, axis=0, weights=[0.5*sum(weights_without_target)] + weights_without_target
                 )
                 fold_results[f"cc_with_preds"] = calculate_metrics(test_pred_with_preds, test_labels)
+
+                def convex_model_combination(model_weights):
+                    val_pred = np.average(list(val_predictions.values()), axis=0, weights=model_weights)
+                    return log_loss(val_labels, val_pred)
+
+                logging.disable(logging.INFO)
+                res = gp_minimize(
+                    convex_model_combination,
+                    [(0.01, 1)] * len(datasets),
+                    n_calls=50,
+                    n_initial_points=10,
+                    random_state=seed,
+                    noise=1e-10,  # the models are deterministic, but noise is needed for the gp to work
+                )
+                logging.disable(logging.NOTSET)
+                best_model_weights = res.x
+                logging.info(best_model_weights)
+                test_pred = np.average(test_predictions_list, axis=0, weights=best_model_weights)
+                fold_results["bayes_opt"] = calculate_metrics(test_pred, test_labels)
 
                 log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
 
