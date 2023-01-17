@@ -58,7 +58,7 @@ class DefaultPreprocessor(Preprocessor):
         return data
 
     def process_static(self, data, vars):
-        sta_rec = Recipe(self.data["train"]["STATIC"], [], vars["STATIC"])
+        sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
         if self.scaling:
             sta_rec.add_step(StepScale())
 
@@ -78,15 +78,15 @@ class DefaultPreprocessor(Preprocessor):
         dyn_rec.add_step(StepImputeFill(method="ffill"))
         dyn_rec.add_step(StepImputeFill(value=0))
         if self.generate_features:
-            dyn_rec = self.dynamic_feature_generation(dyn_rec)
-        data = self.apply_recipe_to_splits(dyn_rec, self.data, "DYNAMIC")
+            dyn_rec = self.dynamic_feature_generation(dyn_rec, all_of(vars["DYNAMIC"]))
+        data = self.apply_recipe_to_splits(dyn_rec, data, "DYNAMIC")
         return data
 
-    def dynamic_feature_generation(self, data):
-        data.add_step(StepHistorical(sel=all_of(self.vars["DYNAMIC"]), fun=Accumulator.MIN, suffix="min_hist"))
-        data.add_step(StepHistorical(sel=all_of(self.vars["DYNAMIC"]), fun=Accumulator.MAX, suffix="max_hist"))
-        data.add_step(StepHistorical(sel=all_of(self.vars["DYNAMIC"]), fun=Accumulator.COUNT, suffix="count_hist"))
-        data.add_step(StepHistorical(sel=all_of(self.vars["DYNAMIC"]), fun=Accumulator.MEAN, suffix="mean_hist"))
+    def dynamic_feature_generation(self, data, dynamic_vars):
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.COUNT, suffix="count_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist"))
         return data
 
     def to_cache_string(self):

@@ -24,6 +24,7 @@ def execute_repeated_cv(
     reproducible: bool = True,
     debug: bool = False,
     use_cache: bool = False,
+    load_cache: bool = False,
     test_on: str = "test",
 ) -> float:
     """Preprocesses data and trains a model for each fold.
