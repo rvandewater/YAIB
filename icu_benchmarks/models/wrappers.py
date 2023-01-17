@@ -404,12 +404,13 @@ class ImputationWrapper(DLWrapper):
     def step_fn(self, batch, step_prefix=""):
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
+        amputated[amputation_mask > 0] = imputated[amputation_mask > 0]
 
-        loss = self.loss(imputated, target)
+        loss = self.loss(amputated, target)
         self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
         
         for metric in self.metrics[step_prefix].values():
-            metric.update((torch.flatten(imputated, start_dim=1), torch.flatten(target, start_dim=1)))
+            metric.update((torch.flatten(amputated, start_dim=1), torch.flatten(target, start_dim=1)))
         return loss
 
     def predict(self, data):
