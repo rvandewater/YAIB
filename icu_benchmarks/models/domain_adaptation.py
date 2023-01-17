@@ -296,7 +296,7 @@ def domain_adaptation(
                     preds_w_preds = preds_w_preds[:, 1]
                 fold_results["target_with_predictions"] = calculate_metrics(preds_w_preds, test_labels)
                 test_pred_with_preds = np.average(
-                    [preds_w_preds] + test_predictions_list_without_target, axis=0, weights=[0.5, 1, 1, 1]
+                    [preds_w_preds] + test_predictions_list_without_target, axis=0, weights=[0.5*sum(weights_without_target)] + weights_without_target
                 )
                 fold_results[f"cc_with_preds"] = calculate_metrics(test_pred_with_preds, test_labels)
 
