@@ -77,13 +77,11 @@ def preprocess_data(
     vars: dict[str] = gin.REQUIRED,
     seed: int = 42,
     debug: bool = False,
-    use_cache: bool = False,
     cv_repetitions: int = 5,
     repetition_index: int = 0,
     cv_folds: int = 5,
     load_cache: bool = False,
     generate_cache: bool = False,
-    num_folds: int = 5,
     fold_index: int = 0,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
@@ -95,13 +93,11 @@ def preprocess_data(
         vars: Contains the names of columns in the data.
         seed: Random seed.
         debug: Load less data if true.
-        use_cache: Cache and use cached preprocessed data if true.
         cv_repetitions: Number of times to repeat cross validation.
         repetition_index: Index of the repetition to return.
         cv_folds: Number of folds to use for cross validation.
         load_cache: Use cached preprocessed data if true.
         generate_cache: Generate cached preprocessed data if true.
-        num_folds: Number of folds to use for cross validation.
         fold_index: Index of the fold to return.
 
     Returns:
@@ -117,7 +113,11 @@ def preprocess_data(
         logging.log(logging.INFO, "Using user-supplied preprocessor.")
     preprocessor = preprocessor()
 
-    config_string = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{seed}{repetition_index}{fold_index}{debug}".encode("utf-8")
+    config_string = (
+        f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{seed}{repetition_index}{fold_index}{debug}".encode(
+            "utf-8"
+        )
+    )
 
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 

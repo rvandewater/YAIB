@@ -25,7 +25,6 @@ class CustomPreprocessor(Preprocessor):
         self.generate_features = generate_features
         self.scaling = scaling
 
-    # TODO: pass data and vars as arguments
     def apply(self, data, vars):
         """
         Args:
