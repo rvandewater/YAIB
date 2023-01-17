@@ -3,12 +3,11 @@ import gin
 import json
 import hashlib
 import pandas as pd
-import numpy as np
 import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultPreprocessor
 
@@ -16,7 +15,9 @@ from icu_benchmarks.data.preprocessor import Preprocessor, DefaultPreprocessor
 def make_single_split(
     data: dict[pd.DataFrame],
     vars: dict[str],
-    num_folds: int,
+    cv_repetitions: int,
+    repetition_index: int,
+    cv_folds: int,
     fold_index: int,
     seed: int = 42,
     debug: bool = False,
@@ -26,7 +27,10 @@ def make_single_split(
     Args:
         data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
         vars: Contains the names of columns in the data.
-        num_folds: Number of folds for cross validation.
+        cv_repetitions: Number of times to repeat cross validation.
+        repetition_index: Index of the repetition to return.
+        cv_folds: Number of folds for cross validation.
+        fold_index: Index of the fold to return.
         seed: Random seed.
         debug: Load less data if true.
 
@@ -34,18 +38,24 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
-    fraction_to_load = 1 if not debug else 0.01
-    stays = data["STATIC"][[id]].sample(frac=fraction_to_load, random_state=seed)
+    stays = data["STATIC"][id]
+    if debug:
+        # Only use 1% of the data
+        stays = stays.sample(frac=0.01, random_state=seed)
+    labels = data["OUTCOME"][vars["LABEL"]].loc[stays.index]
 
-    outer = KFold(num_folds, shuffle=True, random_state=seed)
+    outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
+    inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
 
-    train, test_and_val = list(outer.split(stays))[fold_index]
-    test, val = np.array_split(test_and_val, 2)
+    dev, test = list(outer_CV.split(stays, labels))[repetition_index]
+    dev_stays = stays.iloc[dev]
+    dev_labels = labels.iloc[dev]
+    train, val = list(inner_CV.split(dev_stays, dev_labels))[fold_index]
 
     split = {
-        "train": stays.iloc[train],
-        "val": stays.iloc[test],
-        "test": stays.iloc[val],
+        "train": dev_stays.iloc[train],
+        "val": dev_stays.iloc[val],
+        "test": stays.iloc[test],
     }
     data_split = {}
 
@@ -67,6 +77,10 @@ def preprocess_data(
     vars: dict[str] = gin.REQUIRED,
     seed: int = 42,
     debug: bool = False,
+    use_cache: bool = False,
+    cv_repetitions: int = 5,
+    repetition_index: int = 0,
+    cv_folds: int = 5,
     load_cache: bool = False,
     generate_cache: bool = False,
     num_folds: int = 5,
@@ -81,6 +95,10 @@ def preprocess_data(
         vars: Contains the names of columns in the data.
         seed: Random seed.
         debug: Load less data if true.
+        use_cache: Cache and use cached preprocessed data if true.
+        cv_repetitions: Number of times to repeat cross validation.
+        repetition_index: Index of the repetition to return.
+        cv_folds: Number of folds to use for cross validation.
         load_cache: Use cached preprocessed data if true.
         generate_cache: Generate cached preprocessed data if true.
         num_folds: Number of folds to use for cross validation.
@@ -99,7 +117,7 @@ def preprocess_data(
         logging.log(logging.INFO, "Using user-supplied preprocessor.")
     preprocessor = preprocessor()
 
-    config_string = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{seed}{fold_index}{debug}".encode("utf-8")
+    config_string = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{seed}{repetition_index}{fold_index}{debug}".encode("utf-8")
 
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
@@ -114,7 +132,7 @@ def preprocess_data(
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in file_names.keys()}
 
     logging.info("Generating splits.")
-    data = make_single_split(data, vars, num_folds, fold_index, seed=seed, debug=debug)
+    data = make_single_split(data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug)
 
     data = preprocessor.apply(data, vars)
 

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
+
 import gin
 import logging
 import sys
@@ -7,10 +9,11 @@ import importlib.util
 
 from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
 from utils.plotting.utils import plot_agg_results
+from scripts.plotting.utils import plot_aggregated_results
+from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import (
     build_parser,
     create_run_dir,
-    preprocess_and_train_for_folds,
     aggregate_results,
     log_full_line,
 )
@@ -22,6 +25,8 @@ def main(my_args=tuple(sys.argv[1:])):
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
+    # Whether to enable verbose logging. If disabled reduces log output desired for running compute cluster jobs.
+    gin.bind_parameter("DLWrapper.verbose_logging", args.verbose)
 
     load_weights = args.command == "evaluate"
     name = args.name
@@ -62,30 +67,28 @@ def main(my_args=tuple(sys.argv[1:])):
         )
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         run_dir = create_run_dir(log_dir)
-        choose_and_bind_hyperparameters(
-            args.tune, args.data_dir, run_dir, args.seeds[0], checkpoint=checkpoint, debug=args.debug
-        )
+        choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, args.seed, checkpoint=checkpoint, debug=args.debug)
 
     logging.info(f"Logging to {run_dir.resolve()}")
     log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)
-
-    for seed in args.seeds:
-        preprocess_and_train_for_folds(
-            args.data_dir,
-            run_dir,
-            seed,
-            load_weights=load_weights,
-            source_dir=source_dir,
-            reproducible=reproducible,
-            debug=args.debug,
-            load_cache=args.cache,
-        )
-        log_full_line(f"FINISHED SEED {seed}", level=logging.INFO, char="=", num_newlines=3)
+    start_time = datetime.now()
+    execute_repeated_cv(
+        args.data_dir,
+        run_dir,
+        args.seed,
+        load_weights=load_weights,
+        source_dir=source_dir,
+        reproducible=reproducible,
+        debug=args.debug,
+        load_cache=args.cache,
+    )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
-    aggregate_results(run_dir)
+    execution_time = datetime.now() - start_time
+    log_full_line(f"DURATION: {execution_time}", level=logging.INFO, char="")
+    aggregate_results(run_dir, execution_time)
     if args.plot:
-        plot_agg_results(run_dir, "aggregated_test_metrics")
+        plot_aggregated_results(run_dir, "aggregated_test_metrics.json")
 
 
 """Main module."""

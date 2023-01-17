@@ -18,7 +18,7 @@ from tqdm import tqdm, trange
 from icu_benchmarks.models.metric_constants import MLMetrics, DLMetrics
 from icu_benchmarks.models.encoders import LSTMNet
 from icu_benchmarks.models.metrics import MAE
-from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonNumpyEncoder
+from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonResultLoggingEncoder
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
@@ -47,7 +47,14 @@ def pick_device_config(hint=None):
 
 @gin.configurable("DLWrapper")
 class DLWrapper(object):
-    def __init__(self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, device=None):
+    def __init__(
+        self,
+        encoder=LSTMNet,
+        loss=torch.nn.functional.cross_entropy,
+        optimizer_fn=torch.optim.Adam,
+        device=None,
+        verbose_logging=True,
+    ):
         device, pin_memory, n_worker = pick_device_config(device)
 
         self.device = device
@@ -60,6 +67,7 @@ class DLWrapper(object):
         self.loss = loss
         self.optimizer = optimizer_fn(self.encoder.parameters())
         self.scaler = None
+        self.verbose_logging = verbose_logging
 
     def set_log_dir(self, log_dir: Path):
         self.log_dir = log_dir
@@ -137,7 +145,7 @@ class DLWrapper(object):
         # Training epoch
         self.encoder.train()
         agg_train_loss = 0
-        for elem in tqdm(train_loader, leave=False):
+        for elem in tqdm(train_loader, leave=False, disable=not self.verbose_logging):
             loss, preds, target = self.step_fn(elem, weight)
             loss.backward()
             self.optimizer.step()
@@ -165,7 +173,6 @@ class DLWrapper(object):
         patience=10,
         min_delta=1e-4,
     ):
-
         self.set_metrics()
         metrics = self.metrics
 
@@ -202,7 +209,7 @@ class DLWrapper(object):
         widths = [5, 5, 25, 50]
         log_table_row(table_header, widths=widths)
         disable_tqdm = logging.getLogger().isEnabledFor(logging.INFO)
-        for epoch in trange(epochs, leave=False, disable=disable_tqdm):
+        for epoch in trange(epochs, leave=False, disable=not self.verbose_logging or disable_tqdm):
             # Train step
             train_loss, train_metric_results = self._do_training(train_loader, weight, metrics)
 
@@ -244,7 +251,7 @@ class DLWrapper(object):
         best_metrics["loss"] = best_loss
 
         with open(self.log_dir / "best_metrics.json", "w") as f:
-            json.dump(best_metrics, f, cls=JsonNumpyEncoder)
+            json.dump(best_metrics, f, cls=JsonResultLoggingEncoder)
 
         self.load_weights(self.log_dir / "model.torch")  # We load back the best iteration
 
@@ -257,7 +264,7 @@ class DLWrapper(object):
 
         test_metrics["loss"] = test_loss
         with open(self.log_dir / "test_metrics.json", "w") as f:
-            json.dump(test_metrics, f, cls=JsonNumpyEncoder)
+            json.dump(test_metrics, f, cls=JsonResultLoggingEncoder)
 
         for key, value in test_metrics.items():
             if isinstance(value, float):
@@ -306,7 +313,7 @@ class MLWrapper(object):
             if isinstance(self.model, lightgbm.basic.Booster):
                 self.output_transform = lambda x: x
             else:
-                self.output_transform = lambda x: np.round(x[:, 1])
+                self.output_transform = lambda x: x[:, 1]
             self.label_transform = lambda x: x
 
             self.metrics = MLMetrics.BINARY_CLASSIFICATION
@@ -386,7 +393,7 @@ class MLWrapper(object):
         model_file = "model.txt" if model_type == "lgbm" else "model.joblib"
         self.save_weights(save_path=(self.log_dir / model_file), model_type=model_type)
         with open(self.log_dir / "val_metrics.json", "w") as f:
-            json.dump(val_metric_results, f, cls=JsonNumpyEncoder)
+            json.dump(val_metric_results, f, cls=JsonResultLoggingEncoder)
 
     def test(self, dataset, weight, seed):
         test_rep, test_label = dataset.get_data_and_labels()
@@ -405,7 +412,7 @@ class MLWrapper(object):
                 logging.info("Test {}: {}".format(name, value))
 
         with open(self.log_dir / "test_metrics.json", "w") as f:
-            json.dump(test_metric_results, f, cls=JsonNumpyEncoder)
+            json.dump(test_metric_results, f, cls=JsonResultLoggingEncoder)
 
         return log_loss(test_label, test_pred)
 
