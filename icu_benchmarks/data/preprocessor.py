@@ -24,24 +24,28 @@ class Preprocessor:
         return f"{self.__class__.__name__}"
 
 
-# TODO: Change to preprocessor with flags: scaling (whether or not), feature generation, weather to use static features or not
-#  (concatenate static features to dynamic features here),
+# TODO: static features or not.
+# TODO: concatenate static features to dynamic features here.
+
 @gin.configurable("base_preprocessor")
 class DefaultPreprocessor(Preprocessor):
     def __init__(
         self,
         generate_features: bool = True,
         scaling: bool = True,
+        use_static_features: bool = False,
     ):
         """
         Args:
             generate_features: Generate features for static data.
             scaling: Scaling of dynamic and static data.
+            use_static_features: Use static features.
         Returns:
             Preprocessed data.
         """
         self.generate_features = generate_features
         self.scaling = scaling
+        self.use_static_features = use_static_features
 
     # TODO: pass data and vars as arguments
     def apply(self, data, vars):
@@ -53,7 +57,8 @@ class DefaultPreprocessor(Preprocessor):
             Preprocessed data.
         """
         logging.info("Preprocessor static features.")
-        data = self.process_static(data, vars)
+        if self.use_static_features:
+            data = self.process_static(data, vars)
         data = self.process_dynamic(data, vars)
         return data
 
