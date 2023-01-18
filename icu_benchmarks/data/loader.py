@@ -46,7 +46,7 @@ class RICUDataset(Dataset):
             A sample from the data, consisting of data, labels and padding mask.
         """
         pad_value = 0.0
-        stay_id = self.outcome_df.index.unique()[idx] #[self.vars["GROUP"]]
+        stay_id = self.outcome_df.index.unique()[idx]  # [self.vars["GROUP"]]
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id].to_numpy()

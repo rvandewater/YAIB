@@ -65,7 +65,7 @@ def execute_repeated_cv(
                 repetition_index=repetition,
                 cv_folds=cv_folds,
                 fold_index=fold_index,
-                use_static=use_static
+                use_static=use_static,
             )
 
             repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"

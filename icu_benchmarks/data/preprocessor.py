@@ -23,6 +23,7 @@ class Preprocessor:
     def to_cache_string(self):
         return f"{self.__class__.__name__}"
 
+
 @gin.configurable("base_preprocessor")
 class DefaultPreprocessor(Preprocessor):
     def __init__(

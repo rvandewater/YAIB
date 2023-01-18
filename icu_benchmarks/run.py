@@ -80,7 +80,7 @@ def main(my_args=tuple(sys.argv[1:])):
         reproducible=reproducible,
         debug=args.debug,
         load_cache=args.load_cache,
-        generate_cache=args.generate_cache
+        generate_cache=args.generate_cache,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
