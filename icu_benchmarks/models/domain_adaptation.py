@@ -148,8 +148,8 @@ def domain_adaptation(
     datasets = ["aumc", "hirid"]
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
-    # old_run_dir = Path("../yaib_logs/DA")
-    old_run_dir = Path("../DA_logs")
+    # old_run_dir = Path("../yaib_logs/DA_sep")
+    old_run_dir = Path("../DA_seps")
     gin_config_before_tuning = gin.config_str()
 
     # evaluate models on same test split
@@ -236,9 +236,9 @@ def domain_adaptation(
 
                 # evaluate convex combination of models without target
                 test_predictions_list = list(test_predictions.values())
-                # test_predictions_list_without_target = test_predictions_list[1:]
-                # test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1, 1, 1])
-                # fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
+                test_predictions_list_without_target = test_predictions_list[1:]
+                test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1, 1, 1])
+                fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
                 # evaluate max probability
                 max_pred = np.max(test_predictions_list, axis=0)
