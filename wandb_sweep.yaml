@@ -19,4 +19,4 @@ parameters:
   ImputationDataset.mask_method:
     values: ["MCAR", "MAR", "MNAR"]
   seed:
-    values: [3333]
+    values: [1111, 2222, 3333]
