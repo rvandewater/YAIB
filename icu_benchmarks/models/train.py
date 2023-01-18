@@ -52,8 +52,8 @@ def train_common(
     model.set_log_dir(log_dir)
     save_config_file(log_dir)
 
-    dataset = RICUDataset(data, split="train", use_static=use_static)
-    val_dataset = RICUDataset(data, split="val", use_static=use_static)
+    dataset = RICUDataset(data, split="train")
+    val_dataset = RICUDataset(data, split="val")
 
     if load_weights:
         if (source_dir / "model.torch").is_file():
@@ -72,7 +72,7 @@ def train_common(
             logging.exception(e)
             sys.exit(1)
 
-    test_dataset = RICUDataset(data, split=test_on, use_static=use_static)
+    test_dataset = RICUDataset(data, split=test_on)
     weight = dataset.get_balance()
 
     # save config file again to capture missing gin parameters

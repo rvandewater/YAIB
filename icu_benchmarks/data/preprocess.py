@@ -107,8 +107,6 @@ def preprocess_data(
     """
 
     cache_dir = data_dir / "cache"
-    load_cache = False
-    use_static = True
 
     if not use_static:
         file_names.pop("STATIC")

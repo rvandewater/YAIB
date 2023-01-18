@@ -32,7 +32,7 @@ class DefaultPreprocessor(Preprocessor):
         self,
         generate_features: bool = True,
         scaling: bool = True,
-        use_static_features: bool = False,
+        use_static_features: bool = True,
     ):
         """
         Args:
@@ -46,7 +46,6 @@ class DefaultPreprocessor(Preprocessor):
         self.scaling = scaling
         self.use_static_features = use_static_features
 
-    # TODO: pass data and vars as arguments
     def apply(self, data, vars):
         """
         Args:
@@ -56,9 +55,12 @@ class DefaultPreprocessor(Preprocessor):
             Preprocessed data.
         """
         logging.info("Preprocessor static features.")
+        data = self.process_dynamic(data, vars)
         if self.use_static_features:
             data = self.process_static(data, vars)
-        data = self.process_dynamic(data, vars)
+            data["train"]["DYNAMIC"] = data["train"]["DYNAMIC"].join(data["train"]["STATIC"].set_index(vars["GROUP"]))
+            data["val"]["DYNAMIC"] = data["val"]["DYNAMIC"].join(data["val"]["STATIC"].set_index(vars["GROUP"]))
+            data["test"]["DYNAMIC"] = data["test"]["DYNAMIC"].join(data["test"]["STATIC"].set_index(vars["GROUP"]))
         return data
 
     def process_static(self, data, vars):

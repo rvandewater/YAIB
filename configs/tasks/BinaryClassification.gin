@@ -34,7 +34,6 @@ preprocess.vars = %vars
 base_preprocessor.scaling = False
 
 Dataset.vars = %vars
-Dataset.use_static = True
 
 execute_repeated_cv.cv_repetitions = 5
 execute_repeated_cv.cv_folds = 5
