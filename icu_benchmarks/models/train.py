@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-from icu_benchmarks.data.loader import RICUDataset
+from icu_benchmarks.data.loader import SICUDataset
 from icu_benchmarks.models.wrappers import MLWrapper
 from icu_benchmarks.models.utils import save_config_file
 
@@ -52,8 +52,8 @@ def train_common(
     model.set_log_dir(log_dir)
     save_config_file(log_dir)
 
-    dataset = RICUDataset(data, split="train")
-    val_dataset = RICUDataset(data, split="val")
+    dataset = SICUDataset(data, split="train")
+    val_dataset = SICUDataset(data, split="val")
 
     if load_weights:
         if (source_dir / "model.torch").is_file():
@@ -72,7 +72,7 @@ def train_common(
             logging.exception(e)
             sys.exit(1)
 
-    test_dataset = RICUDataset(data, split=test_on)
+    test_dataset = SICUDataset(data, split=test_on)
     weight = dataset.get_balance()
 
     # save config file again to capture missing gin parameters

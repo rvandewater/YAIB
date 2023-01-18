@@ -6,8 +6,8 @@ from torch.utils.data import Dataset
 
 
 @gin.configurable("Dataset")
-class RICUDataset(Dataset):
-    """Subclass of torch Dataset that represents the data to learn on.
+class SICUDataset(Dataset):
+    """Standardized ICU Dataset: subclass of Torch Dataset that represents the data to learn on.
 
     Args:
         data: Dict of the different splits of the data.
