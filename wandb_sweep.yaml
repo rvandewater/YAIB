@@ -17,6 +17,6 @@ parameters:
   model:
     values: ["Mean", "Median", "Zero", "MostFrequent", "KNN", "MICE", "GAIN", "BRITS", "SAITS", "Attention", "MissForest", "MLP", "BRNN", "RNN", "Simple_Diffusion", "NP"]
   ImputationDataset.mask_method:
-    values: ["MCAR", "MAR", "MNAR"]
+    values: ["MCAR"]
   seed:
     values: [1111, 2222, 3333]

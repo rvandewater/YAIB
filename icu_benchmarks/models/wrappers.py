@@ -413,6 +413,9 @@ class ImputationWrapper(DLWrapper):
         return loss
 
     def predict(self, data):
-        # prediction_dataset = ImputationDataset(data, None, None)
         self.eval()
-        return self(data, None)
+        data = data.to(self.device)
+        data_missingness = torch.isnan(data)
+        prediction = self(data, None)
+        data[data_missingness] = prediction[data_missingness]
+        return data

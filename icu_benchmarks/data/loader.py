@@ -212,86 +212,75 @@ class ImputationDataset(Dataset):
         return self.amputated_values, rep
 
 
-# @gin.configurable("ImputationDataset")
-# class ImputationPredictionDataset(Dataset):
-#     """Subclass of torch Dataset that represents the data to learn on.
+@gin.configurable("ImputationPredictionDataset")
+class ImputationPredictionDataset(Dataset):
+    """Subclass of torch Dataset that represents the data to learn on.
 
-#     Args:
-#         data: Dict of the different splits of the data.
-#         split: Either 'train','val' or 'test'.
-#         vars: Contains the names of columns in the data.
-#     """
+    Args:
+        data: Dict of the different splits of the data.
+        split: Either 'train','val' or 'test'.
+        vars: Contains the names of columns in the data.
+    """
 
-#     def __init__(
-#         self,
-#         data: DataFrame,
-#         ram_cache: bool = True,
-#     ):
-#         self.static_df = data[split]["STATIC"]
-#         self.dyn_df = data[split]["DYNAMIC"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
-#         self.dyn_df = self.dyn_df.loc[:, self.vars["DYNAMIC"]]
+    def __init__(
+        self,
+        data: DataFrame,
+        grouping_column: str = "stay_id",
+        ram_cache: bool = True,
+    ):
+        if grouping_column is not None:
+            self.dyn_df = data.set_index(grouping_column)
+        else:
+            self.dyn_df = data
 
-#         # calculate basic info for the data
-#         self.num_stays = self.static_df.shape[0]
-#         self.num_measurements = self.dyn_df.shape[0]
-#         self.dyn_measurements = self.dyn_df.shape[1]
-#         self.maxlen = self.dyn_df.groupby([self.vars["GROUP"]]).size().max()
-
-#         self.amputated_values, self.amputation_mask = ampute_data(
-#             self.dyn_df, mask_method, mask_proportion, mask_observation_proportion
-#         )
-#         self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars["DYNAMIC"])
-#         self.amputation_mask[self.vars["GROUP"]] = self.dyn_df.index
-#         self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
+        # calculate basic info for the data
+        self.group_indices = self.dyn_df.index.unique()
+        self.num_measurements = self.dyn_df.shape[0]
+        self.dyn_measurements = self.dyn_df.shape[1]
+        self.maxlen = self.dyn_df.groupby(grouping_column).size().max()
         
-#         self._cached_dataset = None
-#         if ram_cache:
-#             logging.info("caching dataset in ram....")
-#             self._cached_dataset = [self[i] for i in range(len(self))]
+        self._cached_dataset = None
+        if ram_cache:
+            logging.info("caching dataset in ram....")
+            self._cached_dataset = [self[i] for i in range(len(self))]
 
-#     def __len__(self) -> int:
-#         """Returns number of stays in the data.
+    def __len__(self) -> int:
+        """Returns number of stays in the data.
 
-#         Returns:
-#             number of stays in the data
-#         """
-#         return self.num_stays
+        Returns:
+            number of stays in the data
+        """
+        return self.group_indices.shape[0]
 
-#     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
-#         """Function to sample from the data split of choice.
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
+        """Function to sample from the data split of choice.
 
-#         Used for deep learning implementations.
+        Used for deep learning implementations.
 
-#         Args:
-#             idx: A specific row index to sample.
+        Args:
+            idx: A specific row index to sample.
 
-#         Returns:
-#             A sample from the data, consisting of data, labels and padding mask.
-#         """
-#         if self._cached_dataset is not None:
-#             return self._cached_dataset[idx]
-#         stay_id = self.static_df.iloc[idx][self.vars["GROUP"]]
+        Returns:
+            A sample from the data, consisting of data, labels and padding mask.
+        """
+        if self._cached_dataset is not None:
+            return self._cached_dataset[idx]
+        stay_id = self.group_indices[idx]
 
-#         # slice to make sure to always return a DF
-#         window = self.dyn_df.loc[stay_id:stay_id, self.vars["DYNAMIC"]]
-#         amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars["DYNAMIC"]]
-#         amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars["DYNAMIC"]]
+        # slice to make sure to always return a DF
+        window = self.dyn_df.loc[stay_id:stay_id, :]
 
-#         return (
-#             torch.from_numpy(amputated_window.values).to(torch.float32),
-#             torch.from_numpy(amputation_mask.values).to(torch.float32),
-#             torch.from_numpy(window.values).to(torch.float32),
-#         )
+        return torch.from_numpy(window.values).to(torch.float32)
 
-#     def get_data_and_labels(self) -> Tuple[np.array, np.array]:
-#         """Function to return all the data and labels aligned at once.
+    def get_data_and_labels(self) -> Tuple[np.array, np.array]:
+        """Function to return all the data and labels aligned at once.
 
-#         We use this function for the ML methods which don't require an iterator.
+        We use this function for the ML methods which don't require an iterator.
 
-#         Returns:
-#             A Tuple containing data points and label for the split.
-#         """
-#         logging.info("Gathering the samples for split " + self.split)
-#         rep: DataFrame = self.dyn_df.to_numpy()
+        Returns:
+            A Tuple containing data points and label for the split.
+        """
+        logging.info("Gathering the samples for split " + self.split)
+        rep: DataFrame = self.dyn_df.to_numpy()
 
-#         return self.amputated_values, rep
+        return self.amputated_values, rep
