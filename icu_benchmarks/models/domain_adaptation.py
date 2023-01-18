@@ -143,13 +143,13 @@ def domain_adaptation(
     cv_repetitions_to_train = 5
     cv_folds = 5
     cv_folds_to_train = 5
-    target_sizes = [500, 1000, 2000]
-    # datasets = ["aumc", "eicu", "hirid", "miiv"]
-    datasets = ["aumc", "hirid"]
+    target_sizes = [500]
+    datasets = ["aumc", "eicu", "hirid", "miiv"]
+    # datasets = ["aumc", "hirid"]
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
     # old_run_dir = Path("../yaib_logs/DA_sep")
-    old_run_dir = Path("../DA_seps")
+    old_run_dir = Path("../DA_new")
     gin_config_before_tuning = gin.config_str()
 
     # evaluate models on same test split
@@ -247,9 +247,9 @@ def domain_adaptation(
                 # evaluate convex combination of models with target
                 weights = {
                     "aumc": 10535,
-                    # "eicu": 113382,
+                    "eicu": 113382,
                     "hirid": 12859,
-                    # "miiv": 52045,
+                    "miiv": 52045,
                 }
                 weights_without_target = [v for k, v in weights.items() if k != dataset]
                 target_weights = [0.5, 1, 2]
