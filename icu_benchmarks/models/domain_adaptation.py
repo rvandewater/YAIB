@@ -143,9 +143,9 @@ def domain_adaptation(
     cv_repetitions_to_train = 5
     cv_folds = 5
     cv_folds_to_train = 5
-    # target_sizes = [500, 1000, 2000]
-    target_sizes = [1000, 2000]
-    datasets = ["aumc", "eicu", "hirid", "miiv"]
+    target_sizes = [500, 1000, 2000]
+    # datasets = ["aumc", "eicu", "hirid", "miiv"]
+    datasets = ["aumc", "hirid"]
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
     # old_run_dir = Path("../yaib_logs/DA")
@@ -164,7 +164,7 @@ def domain_adaptation(
         log_dir = run_dir / task / model / dataset / f"target_{target_size}"
         log_dir.mkdir(parents=True, exist_ok=True)
         target_model_dir = old_run_dir / task / model / dataset / f"target_{target_size}"
-        if not (target_model_dir / "cv_rep_0" / "fold_0").exists():
+        if not (target_model_dir / "cv_rep_0" / "fold_0" / "train_config.gin").exists():
             choose_and_bind_hyperparameters(True, data_dir, log_dir, seed, debug=debug)
         else:
             gin.parse_config_file(target_model_dir / "cv_rep_0" / "fold_0" / "train_config.gin")
@@ -194,9 +194,9 @@ def domain_adaptation(
 
                 # load or train target model
                 target_model_dir_fold = target_model_dir / f"cv_rep_{repetition}" / f"fold_{fold_index}"
-                if target_model_dir_fold.exists():
+                try:
                     target_model = load_model(target_model_dir_fold, log_dir_fold)
-                else:
+                except:
                     logging.info("Model not found, training new model.")
                     target_model = train_common(data, log_dir=log_dir_fold, seed=seed, return_model=True)
 
@@ -236,9 +236,9 @@ def domain_adaptation(
 
                 # evaluate convex combination of models without target
                 test_predictions_list = list(test_predictions.values())
-                test_predictions_list_without_target = test_predictions_list[1:]
-                test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1, 1, 1])
-                fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
+                # test_predictions_list_without_target = test_predictions_list[1:]
+                # test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1, 1, 1])
+                # fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
                 # evaluate max probability
                 max_pred = np.max(test_predictions_list, axis=0)
@@ -247,9 +247,9 @@ def domain_adaptation(
                 # evaluate convex combination of models with target
                 weights = {
                     "aumc": 10535,
-                    "eicu": 113382,
+                    # "eicu": 113382,
                     "hirid": 12859,
-                    "miiv": 52045,
+                    # "miiv": 52045,
                 }
                 weights_without_target = [v for k, v in weights.items() if k != dataset]
                 target_weights = [0.5, 1, 2]
