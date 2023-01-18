@@ -23,9 +23,6 @@ class Preprocessor:
     def to_cache_string(self):
         return f"{self.__class__.__name__}"
 
-
-# TODO: concatenate static features to dynamic features here.
-
 @gin.configurable("base_preprocessor")
 class DefaultPreprocessor(Preprocessor):
     def __init__(
@@ -58,9 +55,16 @@ class DefaultPreprocessor(Preprocessor):
         data = self.process_dynamic(data, vars)
         if self.use_static_features:
             data = self.process_static(data, vars)
-            data["train"]["DYNAMIC"] = data["train"]["DYNAMIC"].join(data["train"]["STATIC"].set_index(vars["GROUP"]))
-            data["val"]["DYNAMIC"] = data["val"]["DYNAMIC"].join(data["val"]["STATIC"].set_index(vars["GROUP"]))
-            data["test"]["DYNAMIC"] = data["test"]["DYNAMIC"].join(data["test"]["STATIC"].set_index(vars["GROUP"]))
+            data["train"]["STATIC"] = data["train"]["STATIC"].set_index(vars["GROUP"])
+            data["val"]["STATIC"] = data["val"]["STATIC"].set_index(vars["GROUP"])
+            data["test"]["STATIC"] = data["test"]["STATIC"].set_index(vars["GROUP"])
+
+            data["train"]["DYNAMIC"] = data["train"]["DYNAMIC"].join(data["train"]["STATIC"], on=vars["GROUP"])
+            data["val"]["DYNAMIC"] = data["val"]["DYNAMIC"].join(data["val"]["STATIC"], on=vars["GROUP"])
+            data["test"]["DYNAMIC"] = data["test"]["DYNAMIC"].join(data["test"]["STATIC"], on=vars["GROUP"])
+        data["train"]["FEATURES"] = data["train"].pop("DYNAMIC")
+        data["val"]["FEATURES"] = data["val"].pop("DYNAMIC")
+        data["test"]["FEATURES"] = data["test"].pop("DYNAMIC")
         return data
 
     def process_static(self, data, vars):

@@ -4,7 +4,7 @@ import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.loader
 
-preprocess.use_features = False
+base_preprocessor.generate_features = False
 
 # Train params
 train_common.model = @DLWrapper()

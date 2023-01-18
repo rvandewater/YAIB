@@ -2,7 +2,7 @@ import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
-base_preprocessor.use_features = False
+base_preprocessor.generate_features = False
 
 # Train params
 train_common.model = @DLWrapper()

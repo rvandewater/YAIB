@@ -18,13 +18,13 @@ class RICUDataset(Dataset):
     def __init__(self, data: dict, split: str = "train", vars: dict[str] = gin.REQUIRED):
         self.split = split
         self.vars = vars
-        self.outc_df = data[split]["OUTCOME"].set_index(self.vars["GROUP"])
-        self.dyn_df = data[split]["DYNAMIC"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+        self.outcome_df = data[split]["OUTCOME"].set_index(self.vars["GROUP"])
+        self.features_df = data[split]["FEATURES"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
 
         # calculate basic info for the data
-        self.num_stays = self.outc_df.index.unique().shape[0]
-        self.num_measurements = self.dyn_df.shape[0]
-        self.maxlen = self.dyn_df.groupby([self.vars["GROUP"]]).size().max()
+        self.num_stays = self.outcome_df.index.unique().shape[0]
+        self.num_measurements = self.features_df.shape[0]
+        self.maxlen = self.features_df.groupby([self.vars["GROUP"]]).size().max()
 
     def __len__(self) -> int:
         """Returns number of stays in the data.
@@ -46,11 +46,11 @@ class RICUDataset(Dataset):
             A sample from the data, consisting of data, labels and padding mask.
         """
         pad_value = 0.0
-        stay_id = self.outc_df.iloc[idx][self.vars["GROUP"]]
+        stay_id = self.outcome_df.index.unique()[idx] #[self.vars["GROUP"]]
 
         # slice to make sure to always return a DF
-        window = self.dyn_df.loc[stay_id:stay_id].to_numpy()
-        labels = self.outc_df.loc[stay_id:stay_id]["label"].to_numpy(dtype=float)
+        window = self.features_df.loc[stay_id:stay_id].to_numpy()
+        labels = self.outcome_df.loc[stay_id:stay_id]["label"].to_numpy(dtype=float)
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -62,7 +62,7 @@ class RICUDataset(Dataset):
 
         # Padding the array to fulfill size requirement
         if length_diff > 0:
-            # window shorter than longest window in dataset, pad to same length
+            # window shorter than the longest window in dataset, pad to same length
             window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
             labels = np.concatenate([labels, np.ones(length_diff) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
@@ -84,7 +84,7 @@ class RICUDataset(Dataset):
         Returns:
             Weights for each label.
         """
-        counts = self.outc_df["label"].value_counts()
+        counts = self.outcome_df["label"].value_counts()
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
     def get_data_and_labels(self) -> tuple[np.array, np.array]:
@@ -95,8 +95,8 @@ class RICUDataset(Dataset):
         Returns:
             A tuple containing data points and label for the split.
         """
-        labels = self.outc_df["label"].to_numpy().astype(float)
-        rep = self.dyn_df
+        labels = self.outcome_df["label"].to_numpy().astype(float)
+        rep = self.features_df
         if len(labels) == self.num_stays:
             # order of groups could be random, we make sure not to change it
             rep = rep.groupby(level=self.vars["GROUP"], sort=False).last()
