@@ -128,8 +128,8 @@ def choose_and_bind_hyperparameters(
                 seed,
                 cv_repetitions_to_train=1,
                 cv_folds_to_train=folds_to_tune_on,
-                use_cache=True,
                 generate_cache=True,
+                load_cache=True,
                 test_on="val",
                 debug=debug,
             )

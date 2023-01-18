@@ -24,6 +24,7 @@ def train_common(
     model: object = MLWrapper,
     weight: str = None,
     test_on: str = "test",
+    use_static: bool = True,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -51,8 +52,8 @@ def train_common(
     model.set_log_dir(log_dir)
     save_config_file(log_dir)
 
-    dataset = RICUDataset(data, split="train")
-    val_dataset = RICUDataset(data, split="val")
+    dataset = RICUDataset(data, split="train", use_static=use_static)
+    val_dataset = RICUDataset(data, split="val", use_static=use_static)
 
     if load_weights:
         if (source_dir / "model.torch").is_file():
@@ -71,7 +72,7 @@ def train_common(
             logging.exception(e)
             sys.exit(1)
 
-    test_dataset = RICUDataset(data, split=test_on)
+    test_dataset = RICUDataset(data, split=test_on, use_static=use_static)
     weight = dataset.get_balance()
 
     # save config file again to capture missing gin parameters

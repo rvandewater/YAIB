@@ -38,7 +38,7 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
-    stays = data["STATIC"][id]
+    stays = data["OUTCOME"][id]
     if debug:
         # Only use 1% of the data
         stays = stays.sample(frac=0.01, random_state=seed)
@@ -74,6 +74,7 @@ def preprocess_data(
     data_dir: Path,
     file_names: dict[str] = gin.REQUIRED,
     preprocessor: Preprocessor = DefaultPreprocessor,
+    use_static: bool = True,
     vars: dict[str] = gin.REQUIRED,
     seed: int = 42,
     debug: bool = False,
@@ -101,11 +102,18 @@ def preprocess_data(
         fold_index: Index of the fold to return.
 
     Returns:
-        Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC/DYNAMIC/OUTCOME)
+        Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC) / DYNAMIC/ OUTCOME
             nested within split (train/val/test).
     """
 
     cache_dir = data_dir / "cache"
+    load_cache = False
+    use_static = True
+
+    if not use_static:
+        file_names.pop("STATIC")
+        vars.pop("STATIC")
+
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 

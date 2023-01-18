@@ -24,7 +24,6 @@ class Preprocessor:
         return f"{self.__class__.__name__}"
 
 
-# TODO: static features or not.
 # TODO: concatenate static features to dynamic features here.
 
 @gin.configurable("base_preprocessor")
