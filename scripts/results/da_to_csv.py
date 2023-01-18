@@ -16,10 +16,12 @@ for metric in ["AUC", "PR"]:
                     "hirid",
                     "miiv",
                     "convex_combination_without_target",
+                    "max_prediction_avg", 
                     "target_weight_0.5",
                     "target_weight_1",
                     "target_weight_2",
                     "loss_weighted",
+                    "bayes_opt_avg",
                     "target_with_predictions",
                     "cc_with_preds",
                 ]
