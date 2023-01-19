@@ -145,11 +145,12 @@ def domain_adaptation(
     cv_folds_to_train = 5
     target_sizes = [500, 1000, 2000]
     datasets = ["aumc", "hirid"] if debug else ["aumc", "eicu", "hirid", "miiv"]
+    # old_run_dir = Path("../yaib_logs/DA_sep")
+    old_run_dir = Path("../DA_seps") if debug else Path("../DA_new")
     debug = False
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
-    # old_run_dir = Path("../yaib_logs/DA_sep")
-    old_run_dir = Path("../DA_seps")
+    
     gin_config_before_tuning = gin.config_str()
 
     # evaluate models on same test split
