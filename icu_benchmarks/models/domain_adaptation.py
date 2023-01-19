@@ -252,7 +252,7 @@ def domain_adaptation(
                     "hirid": 12859,
                     "miiv": 52045,
                 }
-                weights_without_target = [v for k, v in weights.items() if k != dataset]
+                weights_without_target = [v for k, v in weights.items() if k in source_datasets]
                 target_weights = [0.5, 1, 2]
                 for t in target_weights:
                     w = [t * sum(weights_without_target)] + weights_without_target
