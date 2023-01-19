@@ -144,8 +144,8 @@ def domain_adaptation(
     cv_folds = 5
     cv_folds_to_train = 5
     target_sizes = [500, 1000, 2000]
-    datasets = ["aumc", "eicu", "hirid", "miiv"]
-    # datasets = ["aumc", "hirid"]
+    datasets = ["aumc", "hirid"] if debug else ["aumc", "eicu", "hirid", "miiv"]
+    debug = False
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
     # old_run_dir = Path("../yaib_logs/DA_sep")
