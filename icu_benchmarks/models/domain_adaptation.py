@@ -170,8 +170,9 @@ def domain_adaptation(
             gin.parse_config_file(target_model_dir / "cv_rep_0" / "fold_0" / "train_config.gin")
         gin_config_with_target_hyperparameters = gin.config_str()
         results = {}
-        loss_weighted_results = {}
+        loss_weighted_results = []
         for repetition in range(cv_repetitions_to_train):
+            loss_weighted_results.append({})
             agg_val_losses = []
             for fold_index in range(cv_folds_to_train):
                 gin.parse_config(gin_config_with_target_hyperparameters)
@@ -345,14 +346,14 @@ def domain_adaptation(
             weights = 1 / avg_val_losses
             logging.info(f"weights: {weights}")
             test_pred = np.average(test_predictions_list, axis=0, weights=weights)
-            loss_weighted_results[repetition] = calculate_metrics(test_pred, test_labels)
-            avg_aucs["loss_weighted"] = calculate_metrics(test_pred, test_labels)["AUC"]
+            loss_weighted_results[repetition]["loss_weighted"] = calculate_metrics(test_pred, test_labels)
+            avg_aucs["loss_weighted"] = loss_weighted_results[repetition]["loss_weighted"]["AUC"]
 
             weights = (1 / avg_val_losses) ** 2
             logging.info(f"weights: {weights}")
             test_pred = np.average(test_predictions_list, axis=0, weights=weights)
-            loss_weighted_results[repetition] = calculate_metrics(test_pred, test_labels)
-            avg_aucs["squared_loss_weighted"] = calculate_metrics(test_pred, test_labels)["AUC"]
+            loss_weighted_results[repetition]["squared_loss_weighted"] = calculate_metrics(test_pred, test_labels)
+            avg_aucs["squared_loss_weighted"] = loss_weighted_results[repetition]["squared_loss_weighted"]["AUC"]
 
             # print baselines first, then top three AUC, then top three loss
             for source, auc in avg_aucs.items():
