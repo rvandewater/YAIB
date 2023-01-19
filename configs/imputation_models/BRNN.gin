@@ -2,25 +2,28 @@ import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
+import icu_benchmarks.imputation.rnn
 import icu_benchmarks.data.preprocess
-import icu_benchmarks.imputation.simple_diffusion
 
 preprocess.use_features = False
 
 # Train params
-train_common.model = @Simple_Diffusion
+train_common.model = @BRNN
 train_common.do_test = True
-
-# here you can set some training parameters
-train_common.epochs = 1000
+train_common.epochs = 10
 train_common.batch_size = 64
 train_common.patience = 10
 train_common.min_delta = 1e-4
-train_common.use_wandb = True
 
-ImputationWrapper.optimizer = @Adam
+train_common.optimizer = @Adam
 ImputationWrapper.lr_scheduler = "cosine"
 
 # Optimizer params
-Adam.lr = 3e-4
+Adam.lr = 1e-2
 Adam.weight_decay = 1e-6
+
+# Model params
+BRNN.cell = 'gru'
+BRNN.hidden_size = 64
+BRNN.state_init = 'zero'
+BRNN.dropout = 0.

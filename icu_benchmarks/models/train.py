@@ -35,10 +35,10 @@ def train_common(
     do_test: bool = False,
     batch_size=64,
     epochs=1000,
-    patience=10,
-    min_delta=1e-4,
+    patience=20,
+    min_delta=1e-5,
     use_wandb: bool = True,
-    num_workers: int = os.cpu_count(),
+    num_workers: int = min(os.cpu_count(), torch.cuda.device_count() * 8 if torch.cuda.is_available() else 16),
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -50,8 +50,10 @@ def train_common(
         seed: Common seed used for any random operation.
         reproducible: If set to true, set torch to run reproducibly.
     """
+    logging.info(f"Training model: {model.__name__}")
     DatasetClass = ImputationDataset if mode == "Imputation" else RICUDataset
 
+    logging.info(f"Logging to directory: {log_dir}")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
     train_dataset = DatasetClass(data, split="train")
@@ -74,6 +76,7 @@ def train_common(
     )
 
     data_shape = next(iter(train_loader))[0].shape
+    logging.info(f"performing task on model {model.__name__}...")
 
     if load_weights:
         if source_dir.exists():
@@ -101,7 +104,7 @@ def train_common(
         trainer = Trainer(
             max_epochs=epochs if model.needs_training else 1,
             callbacks=[
-                EarlyStopping(monitor=f"val/loss/{model.get_seed()}", min_delta=min_delta, patience=patience, strict=False),
+                EarlyStopping(monitor=f"val/loss", min_delta=min_delta, patience=patience, strict=False),
                 ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
             ],
             # precision=16,
@@ -118,8 +121,6 @@ def train_common(
             if mode == "Imputation":
                 model.fit(train_dataset)
             else:
-                print("special fit")
-                print("len dat:", len(val_dataset))
                 trainer.fit(
                     model,
                     train_dataloaders=DataLoader([train_dataset.get_data_and_labels() + val_dataset.get_data_and_labels()], batch_size=1),

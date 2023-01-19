@@ -1,0 +1,25 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+import icu_benchmarks.imputation.np
+import icu_benchmarks.data.preprocess
+
+preprocess.use_features = False
+
+# Train params
+train_common.model = @NP
+train_common.do_test = True
+
+# Model params
+# Deterministic encoder params
+NP.encoder_layers = 3
+NP.encoder_h_dim = 50
+
+# Decoder params
+NP.decoder_layers = 3
+NP.decoder_h_dim = 50
+
+# Additional params
+NP.r_dim = 50     # Dimension of output representation r
+NP.z_dim = 50     # Dimension of latent variable z

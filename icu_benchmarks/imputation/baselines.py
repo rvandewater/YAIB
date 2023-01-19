@@ -200,12 +200,14 @@ class BRITSImputation(ImputationWrapper):
 
     def __init__(self, *args, input_size, epochs=1, rnn_hidden_size=64, batch_size=256, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        print("brits, setting epochs", epochs)
         self.imputer = BRITS(
             n_steps=input_size[1],
             n_features=input_size[2],
             rnn_hidden_size=rnn_hidden_size,
             batch_size=batch_size,
             epochs=epochs,
+            device="cuda" if torch.cuda.is_available() else "cpu",
         )
 
     def fit(self, data: ImputationDataset):
