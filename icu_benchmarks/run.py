@@ -52,7 +52,7 @@ def main(my_args=tuple(sys.argv[1:])):
             else [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
         )
         gin.parse_config_files_and_bindings(gin_config_files, args.gin_bindings, finalize_config=False)
-        domain_adaptation(name, args.data_dir, args.log_dir, args.seed, args.task_name, model)
+        domain_adaptation(name, args.data_dir, args.log_dir, args.seed, args.task_name, model, debug=args.debug)
         return
     else:
         reproducible = args.reproducible
