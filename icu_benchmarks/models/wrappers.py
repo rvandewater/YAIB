@@ -1,6 +1,7 @@
 import inspect
 import json
 import logging
+import os
 from pathlib import Path
 
 import gin
@@ -41,7 +42,7 @@ def pick_device_config(hint=None):
     else:
         device = torch.device("cpu")
         pin_memory = False
-        n_worker = 8
+        n_worker = os.cpu_count()
     return device, pin_memory, n_worker
 
 
