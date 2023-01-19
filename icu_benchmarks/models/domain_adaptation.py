@@ -368,10 +368,11 @@ def domain_adaptation(
                 for metric, score in source_stats.items():
                     if isinstance(score, (float, int)):
                         source_metrics.setdefault(source, {}).setdefault(metric, []).append(score)
-        for loss_weighted_result in loss_weighted_results.values():
-            for metric, score in loss_weighted_result.items():
-                if isinstance(score, (float, int)):
-                    source_metrics.setdefault("loss_weighted", {}).setdefault(metric, []).append(score)
+        for loss_weighted_result in loss_weighted_results:
+            for source, source_stats in loss_weighted_result.items():
+                for metric, score in source_stats.items():
+                    if isinstance(score, (float, int)):
+                        source_metrics.setdefault(source, {}).setdefault(metric, []).append(score)
 
         # Compute statistical metric over aggregated results
         averaged_metrics = {}
