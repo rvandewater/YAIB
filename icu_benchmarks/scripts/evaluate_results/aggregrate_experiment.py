@@ -10,31 +10,32 @@ import pandas as pd
 
 
 
-log_parent = Path(r"C:\Users\Robin\Downloads\yaib_experiments_aki")
+log_parent = Path(r"C:\Users\Robin\Downloads\new_yaib_results\sepsis")
 aggregated = pd.DataFrame(columns=["Dataset","Model", "Avg", "Std", "95% CI"])
 # pd.MultiIndex.from_tuples(aggregated, names=[("Dataset","Model")])
 metric_type = "PR"
 accumulation = "avg"
-seeds = 5
+seeds = 1
 for dataset in log_parent.iterdir():
-    for task in dataset.iterdir():
-        for model in task.iterdir():
-            for log_time in model.iterdir():
+    if dataset.is_dir():
+        for task in dataset.iterdir():
+            for model in task.iterdir():
+                for log_time in model.iterdir():
 
-                if(Path(log_time / "accumulated_test_metrics.json").exists()):
-                    test_metrics = json.load(open(log_time / "accumulated_test_metrics.json"))
-                    avg = test_metrics[accumulation][metric_type]
-                    std = test_metrics["std"][metric_type]
-                    ci_95 = test_metrics["CI_0.95"][metric_type]
-                else:
-                    avg = "NaN"
-                    std = "NaN"
-                    ci_95 = "NaN"
-                aggregated.loc[len(aggregated.index)] = [dataset.name, model.name, avg, std, ci_95]
+                    if(Path(log_time / "accumulated_test_metrics.json").exists()):
+                        test_metrics = json.load(open(log_time / "accumulated_test_metrics.json"))
+                        avg = test_metrics[accumulation][metric_type]
+                        std = test_metrics["std"][metric_type]
+                        ci_95 = test_metrics["CI_0.95"][metric_type]
+                    else:
+                        avg = "NaN"
+                        std = "NaN"
+                        ci_95 = "NaN"
+                    aggregated.loc[len(aggregated.index)] = [dataset.name, model.name, avg, std, ci_95]
 
-                # print(aggregated[dataset.name, model.name])
-                # aggregated = pd.concat([aggregated, pd.DataFrame({"Dataset": dataset.name, "Model": model.name})], ignore_index=True)
-                    # = json.load(open(log_time / "accumulated_test_metrics.json"))
+                    # print(aggregated[dataset.name, model.name])
+                    # aggregated = pd.concat([aggregated, pd.DataFrame({"Dataset": dataset.name, "Model": model.name})], ignore_index=True)
+                        # = json.load(open(log_time / "accumulated_test_metrics.json"))
 nan_rows = aggregated[aggregated["95% CI"]=="NaN"]
 aggregated = aggregated[aggregated["95% CI"]!="NaN"]
 
