@@ -21,6 +21,7 @@ for metric in ["AUC", "PR"]:
                     "target_weight_1",
                     "target_weight_2",
                     "loss_weighted",
+                    "squared_loss_weighted_avg",
                     "bayes_opt",
                     "target_with_predictions",
                     "cc_with_preds",
