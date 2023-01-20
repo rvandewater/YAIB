@@ -7,8 +7,9 @@ from pathlib import Path
 from skopt import gp_minimize
 import tempfile
 
-from icu_benchmarks.models.utils import JsonNumpyEncoder, log_table_row, Align
-from icu_benchmarks.run_utils import log_full_line, preprocess_and_train_for_folds
+from icu_benchmarks.models.utils import JsonResultLoggingEncoder, log_table_row, Align
+from icu_benchmarks.cross_validation import execute_repeated_cv
+from icu_benchmarks.run_utils import log_full_line
 
 TUNE = 25
 logging.addLevelName(25, "TUNE")
@@ -86,7 +87,7 @@ def choose_and_bind_hyperparameters(
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
     hyperparams = {}
-    # Collect hyperparameters.
+    # Collect hyperparameters
     for scope in scopes:
         with gin.config_scope(scope):
             hyperparams.update(hyperparameters_to_tune())
@@ -121,11 +122,12 @@ def choose_and_bind_hyperparameters(
             bind_params(hyperparams_names, hyperparams)
             if not do_tune:
                 return 0
-            return preprocess_and_train_for_folds(
+            return execute_repeated_cv(
                 data_dir,
                 Path(temp_dir),
                 seed,
-                num_folds_to_train=folds_to_tune_on,
+                cv_repetitions_to_train=1,
+                cv_folds_to_train=folds_to_tune_on,
                 use_cache=True,
                 test_on="val",
                 debug=debug,
@@ -139,7 +141,7 @@ def choose_and_bind_hyperparameters(
                 "x_iters": res.x_iters,
                 "func_vals": res.func_vals,
             }
-            f.write(json.dumps(data, cls=JsonNumpyEncoder))
+            f.write(json.dumps(data, cls=JsonResultLoggingEncoder))
             if do_tune:
                 table_cells = [len(res.x_iters)] + res.x_iters[-1] + [res.func_vals[-1]]
                 highlight = res.x_iters[-1] == res.x  # highlight if best so far

@@ -1,6 +1,7 @@
 import inspect
 import json
 import logging
+import os
 from pathlib import Path
 
 import gin
@@ -8,27 +9,17 @@ import joblib
 import lightgbm
 import numpy as np
 import torch
-from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-from ignite.metrics import MeanAbsoluteError, Accuracy
-from sklearn.calibration import calibration_curve
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    average_precision_score,
-    roc_auc_score,
-    accuracy_score,
-    balanced_accuracy_score,
-    mean_absolute_error,
-    precision_recall_curve,
-    roc_curve,
-    log_loss,
-)
+from sklearn.metrics import log_loss
+
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm, trange
 
+from icu_benchmarks.models.metric_constants import MLMetrics, DLMetrics
 from icu_benchmarks.models.encoders import LSTMNet
-from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve
-from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonNumpyEncoder
+from icu_benchmarks.models.metrics import MAE
+from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonResultLoggingEncoder
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
@@ -51,13 +42,20 @@ def pick_device_config(hint=None):
     else:
         device = torch.device("cpu")
         pin_memory = False
-        n_worker = 8
+        n_worker = os.cpu_count()
     return device, pin_memory, n_worker
 
 
 @gin.configurable("DLWrapper")
 class DLWrapper(object):
-    def __init__(self, encoder=LSTMNet, loss=torch.nn.functional.cross_entropy, optimizer_fn=torch.optim.Adam, device=None):
+    def __init__(
+        self,
+        encoder=LSTMNet,
+        loss=torch.nn.functional.cross_entropy,
+        optimizer_fn=torch.optim.Adam,
+        device=None,
+        verbose_logging=True,
+    ):
         device, pin_memory, n_worker = pick_device_config(device)
 
         self.device = device
@@ -70,6 +68,7 @@ class DLWrapper(object):
         self.loss = loss
         self.optimizer = optimizer_fn(self.encoder.parameters())
         self.scaler = None
+        self.verbose_logging = verbose_logging
 
     def set_log_dir(self, log_dir: Path):
         self.log_dir = log_dir
@@ -90,27 +89,24 @@ class DLWrapper(object):
                 y_pred = torch.softmax(y_pred, dim=1)
                 return y_pred, y
 
+        # Binary classification
         # output transform is not applied for contrib metrics so we do our own.
         if self.encoder.logit.out_features == 2:
             self.output_transform = softmax_binary_output_transform
-            self.metrics = {
-                "PR": AveragePrecision(),
-                "AUC": ROC_AUC(),
-                "PR_Curve": PrecisionRecallCurve(),
-                "ROC_Curve": RocCurve(),
-                "Calibration_Curve": CalibrationCurve(),
-            }
+            self.metrics = DLMetrics.BINARY_CLASSIFICATION
 
+        # Regression
         elif self.encoder.logit.out_features == 1:
             self.output_transform = lambda x: x
             if self.scaler is not None:
                 self.metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
             else:
-                self.metrics = {"MAE": MeanAbsoluteError()}
+                self.metrics = DLMetrics.REGRESSION
 
+        # Multiclass classification
         else:
             self.output_transform = softmax_multi_output_transform
-            self.metrics = {"Accuracy": Accuracy(), "BalancedAccuracy": BalancedAccuracy()}
+            self.metrics = DLMetrics.MULTICLASS_CLASSIFICATION
 
     def step_fn(self, element, loss_weight=None):
 
@@ -150,7 +146,7 @@ class DLWrapper(object):
         # Training epoch
         self.encoder.train()
         agg_train_loss = 0
-        for elem in tqdm(train_loader, leave=False):
+        for elem in tqdm(train_loader, leave=False, disable=not self.verbose_logging):
             loss, preds, target = self.step_fn(elem, weight)
             loss.backward()
             self.optimizer.step()
@@ -178,7 +174,6 @@ class DLWrapper(object):
         patience=10,
         min_delta=1e-4,
     ):
-
         self.set_metrics()
         metrics = self.metrics
 
@@ -215,7 +210,7 @@ class DLWrapper(object):
         widths = [5, 5, 25, 50]
         log_table_row(table_header, widths=widths)
         disable_tqdm = logging.getLogger().isEnabledFor(logging.INFO)
-        for epoch in trange(epochs, leave=False, disable=disable_tqdm):
+        for epoch in trange(epochs, leave=False, disable=not self.verbose_logging or disable_tqdm):
             # Train step
             train_loss, train_metric_results = self._do_training(train_loader, weight, metrics)
 
@@ -257,7 +252,7 @@ class DLWrapper(object):
         best_metrics["loss"] = best_loss
 
         with open(self.log_dir / "best_metrics.json", "w") as f:
-            json.dump(best_metrics, f, cls=JsonNumpyEncoder)
+            json.dump(best_metrics, f, cls=JsonResultLoggingEncoder)
 
         self.load_weights(self.log_dir / "model.torch")  # We load back the best iteration
 
@@ -270,7 +265,7 @@ class DLWrapper(object):
 
         test_metrics["loss"] = test_loss
         with open(self.log_dir / "test_metrics.json", "w") as f:
-            json.dump(test_metrics, f, cls=JsonNumpyEncoder)
+            json.dump(test_metrics, f, cls=JsonResultLoggingEncoder)
 
         for key, value in test_metrics.items():
             if isinstance(value, float):
@@ -313,6 +308,8 @@ class MLWrapper(object):
         self.log_dir = log_dir
 
     def set_metrics(self, labels):
+
+        # Binary classification
         if len(np.unique(labels)) == 2:
             if isinstance(self.model, lightgbm.basic.Booster):
                 self.output_transform = lambda x: x
@@ -320,19 +317,15 @@ class MLWrapper(object):
                 self.output_transform = lambda x: x[:, 1]
             self.label_transform = lambda x: x
 
-            self.metrics = {
-                "PR": average_precision_score,
-                "AUC": roc_auc_score,
-                "ROC": roc_curve,
-                "PRC": precision_recall_curve,
-                "Calibration": calibration_curve,
-            }
+            self.metrics = MLMetrics.BINARY_CLASSIFICATION
 
+        # Multiclass classification
         elif np.all(labels[:10].astype(int) == labels[:10]):
             self.output_transform = lambda x: np.argmax(x, axis=-1)
             self.label_transform = lambda x: x
-            self.metrics = {"Accuracy": accuracy_score, "BalancedAccuracy": balanced_accuracy_score}
+            self.metrics = MLMetrics.MULTICLASS_CLASSIFICATION
 
+        # Regression
         else:
             if self.scaler is not None:  # We invert transform the labels and predictions if they were scaled.
                 self.output_transform = lambda x: self.scaler.inverse_transform(x.reshape(-1, 1))
@@ -340,7 +333,7 @@ class MLWrapper(object):
             else:
                 self.output_transform = lambda x: x
                 self.label_transform = lambda x: x
-            self.metrics = {"MAE": mean_absolute_error}
+            self.metrics = MLMetrics.REGRESSION
 
     def set_scaler(self, scaler):
         self.scaler = scaler
@@ -357,7 +350,7 @@ class MLWrapper(object):
 
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
             model_type = "lgbm"
-            self.model.set_params(random_state=np.random.get_state()[1][0])
+            self.model.set_params(random_state=seed)
             self.model.fit(
                 train_rep,
                 train_label,
@@ -401,7 +394,7 @@ class MLWrapper(object):
         model_file = "model.txt" if model_type == "lgbm" else "model.joblib"
         self.save_weights(save_path=(self.log_dir / model_file), model_type=model_type)
         with open(self.log_dir / "val_metrics.json", "w") as f:
-            json.dump(val_metric_results, f, cls=JsonNumpyEncoder)
+            json.dump(val_metric_results, f, cls=JsonResultLoggingEncoder)
 
     def test(self, dataset, weight, seed):
         test_rep, test_label = dataset.get_data_and_labels()
@@ -420,7 +413,7 @@ class MLWrapper(object):
                 logging.info("Test {}: {}".format(name, value))
 
         with open(self.log_dir / "test_metrics.json", "w") as f:
-            json.dump(test_metric_results, f, cls=JsonNumpyEncoder)
+            json.dump(test_metric_results, f, cls=JsonResultLoggingEncoder)
 
         return log_loss(test_label, test_pred)
 
