@@ -139,15 +139,15 @@ def domain_adaptation(
     Raises:
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
+    is_sepsis = task == "sepsis"
     cv_repetitions = 5
     cv_repetitions_to_train = 5
     cv_folds = 5
     cv_folds_to_train = 5
     target_sizes = [500, 1000, 2000]
-    datasets = ["aumc", "hirid"] if debug else ["aumc", "eicu", "hirid", "miiv"]
+    datasets = ["aumc", "hirid"] if is_sepsis else ["aumc", "eicu", "hirid", "miiv"]
     # old_run_dir = Path("../yaib_logs/DA_sep")
-    old_run_dir = Path("../DA_seps") if debug else Path("../DA_new")
-    debug = False
+    old_run_dir = Path("../DA_seps") if is_sepsis else Path("../DA_new")
     task_dir = data_dir / task
     model_path = Path("../yaib_models/best_models/")
     
@@ -239,7 +239,7 @@ def domain_adaptation(
                 # evaluate convex combination of models without target
                 test_predictions_list = list(test_predictions.values())
                 test_predictions_list_without_target = test_predictions_list[1:]
-                if not debug:
+                if not is_sepsis:
                     test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1, 1, 1])
                     fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
