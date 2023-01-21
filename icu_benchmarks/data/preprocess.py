@@ -26,7 +26,7 @@ def model_impute_data(model):
         model.eval()
         with torch.no_grad():
             imputation = model.predict(data)
-        
+        return imputation.flatten(end_dim=1)
     return predict
 
 
