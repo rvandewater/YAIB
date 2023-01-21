@@ -239,9 +239,9 @@ def domain_adaptation(
                 # evaluate convex combination of models without target
                 test_predictions_list = list(test_predictions.values())
                 test_predictions_list_without_target = test_predictions_list[1:]
-                if not is_sepsis:
-                    test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=[1, 1, 1])
-                    fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
+                weights_without_target = [1, 1] if is_sepsis else [1, 1, 1]
+                test_pred_without_target = np.average(test_predictions_list_without_target, axis=0, weights=weights_without_target)
+                fold_results[f"convex_combination_without_target"] = calculate_metrics(test_pred_without_target, test_labels)
 
                 # evaluate max probability
                 max_pred = np.max(test_predictions_list, axis=0)
