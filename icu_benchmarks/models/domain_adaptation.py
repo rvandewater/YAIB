@@ -145,7 +145,7 @@ def domain_adaptation(
     cv_folds = 5
     cv_folds_to_train = 5
     target_sizes = [500, 1000, 2000]
-    datasets = ["aumc", "hirid"] if is_sepsis else ["aumc", "eicu", "hirid", "miiv"]
+    datasets = ["aumc", "hirid", "miiv"] if is_sepsis else ["aumc", "eicu", "hirid", "miiv"]
     # old_run_dir = Path("../yaib_logs/DA_sep")
     old_run_dir = Path("../DA_seps") if is_sepsis else Path("../DA_new")
     task_dir = data_dir / task
