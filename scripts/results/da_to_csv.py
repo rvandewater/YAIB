@@ -26,10 +26,8 @@ for metric in ["AUC", "PR"]:
                     "target_with_predictions",
                     "cc_with_preds",
                 ]
-                stats_basis = ["avg", "std", "CI_0.95"]
-                stats_basis = ["avg"]
-                stats = ["avg", "std", "CI_0.95_min", "CI_0.95_max"]
-                stats = ["avg"]
+                stats_basis = ["avg", "std"]
+                stats = ["avg", "std"]
                 # combine fieldnames and stats
                 full_fields = [f"{source}_{stat}" for source in source_names for stat in stats]
                 writer = csv.DictWriter(csv_file, fieldnames=info + full_fields)
@@ -37,10 +35,11 @@ for metric in ["AUC", "PR"]:
                 writer.writeheader()
                 for model in endpoint.iterdir():
                     for target in ["aumc", "eicu", "hirid", "miiv"]:
-                        target_sizes = ["target_500", "target_1000", "target_2000"]
+                        target_sizes = [500, 1000, 2000]
                         for target_size in target_sizes:
-                            if (model / target / target_size).exists():
-                                with open(model / target / target_size / "averaged_source_metrics.json", "r") as f:
+                            target_str = f"target_{target_size}"
+                            if (model / target / target_str).exists():
+                                with open(model / target / target_str / "averaged_source_metrics.json", "r") as f:
                                     results = json.load(f)
 
                                     row_data = {"model": model.name, "target": target, "target_size": target_size}
