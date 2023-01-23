@@ -130,8 +130,7 @@ def train_common(
                 )
             if not model.needs_training:
                 try:
-                    trainer.model = model
-                    trainer.save_checkpoint(log_dir / "model.ckpt")
+                    torch.save(model, log_dir / "model.ckpt")
                 except Exception as e:
                     logging.error(f"cannot save model to path {str((log_dir / 'model.ckpt').resolve())}: {e}")
             logging.info("fitting complete!")

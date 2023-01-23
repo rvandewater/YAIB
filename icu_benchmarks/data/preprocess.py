@@ -25,7 +25,10 @@ def model_impute_data(model):
         # dataloader = DataLoader(dataset, batch_size=64, num_workers=0)
         model.eval()
         with torch.no_grad():
+            logging.info("predicting...")
             imputation = model.predict(data)
+            logging.info("done predicting")
+        assert imputation.isnan().sum() == 0
         return imputation.flatten(end_dim=1)
     return predict
 

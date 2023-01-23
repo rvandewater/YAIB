@@ -26,6 +26,7 @@ class RICUDataset(Dataset):
         self.static_df = data[split]["STATIC"]
         self.outc_df = data[split]["OUTCOME"].set_index(self.vars["GROUP"])
         self.dyn_df = data[split]["DYNAMIC"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+        self.dyn_df = self.dyn_df.loc[:, self.vars["DYNAMIC"]]
 
         # calculate basic info for the data
         self.num_stays = self.static_df.shape[0]

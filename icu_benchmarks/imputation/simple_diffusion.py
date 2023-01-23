@@ -19,7 +19,7 @@ class Simple_Diffusion_Model(ImputationWrapper):
     input_size = []
 
     def __init__(self, *args, input_size, **kwargs):
-        super().__init__(*args, input_size, **kwargs)
+        super().__init__(*args, input_size=input_size, **kwargs)
 
         down_channels = (25, 20, 18, 15)
         up_channels = (15, 18, 20, 25)

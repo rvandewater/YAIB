@@ -17,7 +17,7 @@ class KNNImputation(ImputationWrapper):
     needs_fit = True
 
     def __init__(self, *args, n_neighbors=2, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, n_neighbors=n_neighbors, **kwargs)
         self.imputer = KNNImputer(n_neighbors=n_neighbors)
 
     def fit(self, data):
@@ -39,7 +39,7 @@ class MICEImputation(ImputationWrapper):
     needs_fit = True
 
     def __init__(self, *args, max_iter=100, verbose=2, imputation_order="random", random_state=0, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, max_iter=max_iter, verbose=verbose, imputation_order=imputation_order, random_state=random_state, **kwargs)
         self.imputer = IterativeImputer(
             estimator=LinearRegression(),
             max_iter=max_iter,
@@ -199,7 +199,7 @@ class BRITSImputation(ImputationWrapper):
     needs_fit = True
 
     def __init__(self, *args, input_size, epochs=1, rnn_hidden_size=64, batch_size=256, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, input_size=input_size, epochs=epochs, rnn_hidden_size=rnn_hidden_size, batch_size=batch_size, **kwargs)
         print("brits, setting epochs", epochs)
         self.imputer = BRITS(
             n_steps=input_size[1],
@@ -214,8 +214,9 @@ class BRITSImputation(ImputationWrapper):
         self.imputer.fit(torch.Tensor(data.amputated_values.values.reshape(-1, data.maxlen, data.dyn_measurements)))
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to("cpu")
-        output = torch.Tensor(self.imputer.impute(debatched_values)).to(amputated_values.device)
+        debatched_values = amputated_values.to(self.imputer.device)
+        self.imputer.model = self.imputer.model.to(self.imputer.device)
+        output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
 
         output = output.reshape(amputated_values.shape)
         return output
@@ -228,7 +229,7 @@ class SAITSImputation(ImputationWrapper):
     needs_fit = True
 
     def __init__(self, *args, input_size, epochs, n_layers, d_model, d_inner, n_head, d_k, d_v, dropout, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, input_size=input_size, epochs=epochs, n_layers=n_layers, d_model=d_model, d_inner=d_inner, n_head=n_head, d_k=d_k, d_v=d_v, dropout=dropout, **kwargs)
         self.imputer = SAITS(
             n_steps=input_size[1],
             n_features=input_size[2],
@@ -246,8 +247,9 @@ class SAITSImputation(ImputationWrapper):
         self.imputer.fit(torch.Tensor(data.amputated_values.values.reshape(-1, data.maxlen, data.dyn_measurements)))
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to("cpu")
-        output = torch.Tensor(self.imputer.impute(debatched_values)).to(amputated_values.device)
+        debatched_values = amputated_values.to(self.imputer.device)
+        self.imputer.model = self.imputer.model.to(self.imputer.device)
+        output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
 
         output = output.reshape(amputated_values.shape)
         return output
@@ -260,7 +262,7 @@ class AttentionImputation(ImputationWrapper):
     needs_fit = True
 
     def __init__(self, *args, input_size, epochs, n_layers, d_model, d_inner, n_head, d_k, d_v, dropout, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, input_size=input_size, epochs=epochs, n_layers=n_layers, d_model=d_model, d_inner=d_inner, n_head=n_head, d_k=d_k, d_v=d_v, dropout=dropout, **kwargs)
         self.imputer = Transformer(
             n_steps=input_size[1],
             n_features=input_size[2],
@@ -278,8 +280,9 @@ class AttentionImputation(ImputationWrapper):
         self.imputer.fit(torch.Tensor(data.amputated_values.values.reshape(-1, data.maxlen, data.dyn_measurements)))
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to("cpu")
-        output = torch.Tensor(self.imputer.impute(debatched_values)).to(amputated_values.device)
+        debatched_values = amputated_values.to(self.imputer.device)
+        self.imputer.model = self.imputer.model.to(self.imputer.device)
+        output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
 
         output = output.reshape(amputated_values.shape)
         return output

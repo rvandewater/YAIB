@@ -140,6 +140,8 @@ def main(my_args=tuple(sys.argv[1:])):
         # for k, v in pretrained_imputation_model.items():
         #     if isinstance(v, str) and "NP" in v:
         #         print(k, ":", v)
+    if pretrained_imputation_model is not None:
+        pretrained_imputation_model = pretrained_imputation_model.to("cuda" if torch.cuda.is_available() else "cpu")
     if wandb.run is not None:
         print("updating wandb config:", {"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
         wandb.config.update({"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})

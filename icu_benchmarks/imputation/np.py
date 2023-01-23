@@ -36,7 +36,17 @@ class NPImputation(ImputationWrapper):
         *args, 
         **kwargs
         ) -> None:
-        super().__init__(*args, input_size, encoder_layers, encoder_h_dim, decoder_layers,  decoder_h_dim, r_dim, z_dim, **kwargs)
+        super().__init__(
+            *args,
+            input_size=input_size,
+            encoder_layers=encoder_layers,
+            encoder_h_dim=encoder_h_dim,
+            decoder_layers=decoder_layers,
+            decoder_h_dim=decoder_h_dim,
+            r_dim=r_dim,
+            z_dim=z_dim,
+            **kwargs
+        )
 
         self.x_dim = input_size[2]
         self.y_dim = input_size[2]

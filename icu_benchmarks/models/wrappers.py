@@ -226,7 +226,7 @@ class DLClassificationWrapper(DLWrapper):
         transformed_output = self.output_transform((prediction, target))
         for metric in self.metrics[step_prefix].values():
             metric.update(transformed_output)
-        self.log(f"{step_prefix}/loss/{self.get_seed()}", loss, on_step=False, on_epoch=True)
+        self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True)
         return loss
 
 @gin.configurable("MLClassificationWrapper")
@@ -298,10 +298,10 @@ class MLClassificationWrapper(BaseModule):
         else:
             train_pred = self.model.predict_proba(train_rep)
         
-        self.log(f"train/loss/{self.get_seed()}", 0.0)
-        self.log(f"val/loss/{self.get_seed()}", val_loss)
+        self.log(f"train/loss", 0.0)
+        self.log(f"val/loss", val_loss)
         self.log_dict({
-            f"train/{name}/{self.get_seed()}": metric(self.label_transform(train_label), self.output_transform(train_pred))
+            f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
             for name, metric in self.metrics.items()
         })
 
@@ -316,7 +316,7 @@ class MLClassificationWrapper(BaseModule):
             val_pred = self.model.predict_proba(val_rep)
 
         self.log_dict({
-            f"val/{name}/{self.get_seed()}": metric(self.label_transform(val_label), self.output_transform(val_pred))
+            f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
             for name, metric in self.metrics.items()
         })
 
@@ -329,9 +329,9 @@ class MLClassificationWrapper(BaseModule):
         else:
             test_pred = self.model.predict_proba(test_rep)
 
-        self.log(f"test/loss/{self.get_seed()}", 0.0)
+        self.log(f"test/loss", 0.0)
         self.log_dict({
-            f"test/{name}/{self.get_seed()}": metric(self.label_transform(test_label), self.output_transform(test_pred))
+            f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
             for name, metric in self.metrics.items()
         })
     
@@ -411,11 +411,14 @@ class ImputationWrapper(DLWrapper):
         for metric in self.metrics[step_prefix].values():
             metric.update((torch.flatten(imputated, start_dim=1), torch.flatten(target, start_dim=1)))
         return loss
+    
+    def predict_step(self, data, amputation_mask=None):
+        return self(data, amputation_mask)
 
     def predict(self, data):
         self.eval()
         data = data.to(self.device)
         data_missingness = torch.isnan(data)
-        prediction = self(data, None)
+        prediction = self.predict_step(data, data_missingness)
         data[data_missingness] = prediction[data_missingness]
         return data
