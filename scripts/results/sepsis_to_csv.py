@@ -12,7 +12,6 @@ for metric in ["AUC", "PR"]:
                 source_names = [
                     "target",
                     "aumc",
-                    "eicu",
                     "hirid",
                     "miiv",
                     "convex_combination_without_target",
