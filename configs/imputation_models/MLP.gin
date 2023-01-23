@@ -10,7 +10,7 @@ preprocess.use_features = False
 # Train params
 train_common.model = @MLP
 train_common.do_test = True
-train_common.epochs = 5
+train_common.epochs = 100
 train_common.batch_size = 64
 train_common.patience = 10
 train_common.min_delta = 1e-4

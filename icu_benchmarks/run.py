@@ -32,8 +32,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # ARGUMENTS FOR ALL COMMANDS
     general_args = parent_parser.add_argument_group("General arguments")
-    general_args.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
-    general_args.add_argument("-n", "--name", required=True, help="Name of the (target) dataset.")
+    general_args.add_argument("-d", "--data-dir", "--data_dir", required=True, type=Path, help="Path to the parquet data directory.")
+    general_args.add_argument("-n", "--name", required=False, help="Name of the (target) dataset.")
     general_args.add_argument("-t", "--task", default="Mortality_At24Hours", help="Name of the task gin.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
@@ -87,7 +87,7 @@ def get_mode(mode: gin.REQUIRED):
     return mode
 
 def main(my_args=tuple(sys.argv[1:])):
-    args = build_parser().parse_args(my_args)
+    args, _ = build_parser().parse_known_args(my_args)
     if args.wandb_sweep:
         wandb.init()
         sweep_config = wandb.config
@@ -106,7 +106,10 @@ def main(my_args=tuple(sys.argv[1:])):
 
 
     load_weights = args.command == "evaluate"
+    args.data_dir = Path(args.data_dir)
     name = args.name
+    if name is None:
+        name = args.data_dir.name
     task = args.task
     model = args.model
     if isinstance(args.seed, int):

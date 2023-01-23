@@ -19,4 +19,4 @@ Attention.n_head = 4
 Attention.d_k = 64
 Attention.d_v = 64
 Attention.dropout = 0.1
-Attention.epochs = 10
+Attention.epochs = 100
