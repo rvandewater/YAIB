@@ -58,16 +58,16 @@ def bind_params(hyperparams_names: list[str], hyperparams_values: list):
 
 @gin.configurable("tune_hyperparameters")
 def choose_and_bind_hyperparameters(
-    do_tune: bool,
-    data_dir: Path,
-    log_dir: Path,
-    seed: int,
-    checkpoint: str = None,
-    scopes: list[str] = gin.REQUIRED,
-    n_initial_points: int = 3,
-    n_calls: int = 20,
-    folds_to_tune_on: int = gin.REQUIRED,
-    debug: bool = False,
+        do_tune: bool,
+        data_dir: Path,
+        log_dir: Path,
+        seed: int,
+        checkpoint: str = None,
+        scopes: list[str] = gin.REQUIRED,
+        n_initial_points: int = 3,
+        n_calls: int = 20,
+        folds_to_tune_on: int = gin.REQUIRED,
+        debug: bool = False,
 ):
     """Choose hyperparameters to tune and bind them to gin.
 
@@ -103,13 +103,20 @@ def choose_and_bind_hyperparameters(
     if checkpoint:
         checkpoint_path = checkpoint / checkpoint_file
         if not checkpoint_path.exists():
-            raise ValueError(f"No checkpoint found in {checkpoint_path} to restart from.")
-        with open(checkpoint_path, "r") as f:
-            data = json.loads(f.read())
-            x0 = data["x_iters"]
-            y0 = data["func_vals"]
-        n_calls -= len(x0)
-        logging.log(TUNE, f"Restarting hyperparameter tuning from {len(x0)} points.")
+            logging.warning(f"Hyperparameter checkpoint {checkpoint_path} does not exist.")
+            logging.info("Attempting to find latest checkpoint file.")
+            checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
+        # Check if we found a checkpoint file
+        if checkpoint_path:
+            logging.info(f"Loading checkpoint at {checkpoint_path}")
+            with open(checkpoint_path, "r") as f:
+                data = json.loads(f.read())
+                x0 = data["x_iters"]
+                y0 = data["func_vals"]
+            n_calls -= len(x0)
+            logging.log(TUNE, f"Checkpoint contains {len(x0)} points.")
+        else:
+            logging.warning("No checkpoint file found, starting from scratch.")
         if n_calls <= 0:
             logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
             logging.info("Training with these hyperparameters:")
@@ -152,9 +159,15 @@ def choose_and_bind_hyperparameters(
         logging.log(TUNE, f"Tuning from {n_initial_points} points in {n_calls} iterations on {folds_to_tune_on} folds.")
         log_table_row(header, TUNE)
     else:
-        logging.log(TUNE, "Hyperparameter tuning disabled, choosing randomly from bounds.")
-        n_initial_points = 1
-        n_calls = 1
+        logging.log(TUNE, "Hyperparameter tuning disabled")
+        if x0:
+            # We have loaded a checkpoint, use the best hyperparameters.
+            logging.info("Training with the best hyperparameters from loaded checkpoint:")
+            bind_params(hyperparams_names, x0[np.argmin(y0)])
+        else:
+            logging.log(TUNE, "Choosing randomly from bounds.")
+            n_initial_points = 1
+            n_calls = 1
     if not debug:
         logging.disable(level=INFO)
 
@@ -176,3 +189,11 @@ def choose_and_bind_hyperparameters(
 
     logging.info("Training with these hyperparameters:")
     bind_params(hyperparams_names, res.x)
+
+
+def find_checkpoint(log_dir, checkpoint_file):
+    """Find the latest checkpoint in the log directory."""
+    hyperparameters = sorted(log_dir.glob(f"*/{checkpoint_file}"), reverse=True)
+    if not hyperparameters:
+        return None
+    return hyperparameters[0]
