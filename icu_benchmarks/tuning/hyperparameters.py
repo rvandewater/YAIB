@@ -10,51 +10,10 @@ import tempfile
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder, log_table_row, Align
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import log_full_line
+from icu_benchmarks.tuning.gin_utils import get_gin_hyperparameters, bind_gin_params
 
 TUNE = 25
 logging.addLevelName(25, "TUNE")
-
-
-@gin.configurable("hyperparameter")
-def hyperparameters_to_tune(class_to_tune: str = gin.REQUIRED, **hyperparams: dict) -> dict:
-    """Get hyperparameters to tune from gin config.
-
-    Hyperparameters that are already present in the gin config are ignored.
-    Hyperparameters that are not a list or tuple are bound directly to the class.
-    Hyperparameters that are a list or tuple are returned to be tuned.
-
-    Args:
-        class_to_tune: Name of the class to tune hyperparameters for.
-        **hyperparams: Dictionary of hyperparameters to potentially tune.
-
-    Returns:
-        Dictionary of hyperparameters to tune.
-    """
-    hyperparams_to_tune = {}
-    for param, values in hyperparams.items():
-        name = f"{class_to_tune.__name__}.{param}"
-        if f"{name}=" in gin.config_str().replace(" ", ""):
-            # check if parameter is already bound, directly binding to class always takes precedence
-            continue
-        if not isinstance(values, (list, tuple)):
-            # if parameter is not a tuple, bind it directly
-            gin.bind_parameter(name, values)
-            continue
-        hyperparams_to_tune[name] = values
-    return hyperparams_to_tune
-
-
-def bind_params(hyperparams_names: list[str], hyperparams_values: list):
-    """Binds hyperparameters to gin config and logs them.
-
-    Args:
-        hyperparams_names: List of hyperparameter names.
-        hyperparams_values: List of hyperparameter values.
-    """
-    for param, value in zip(hyperparams_names, hyperparams_values):
-        gin.bind_parameter(param, value)
-        logging.info(f"{param} = {value}")
-
 
 
 @gin.configurable("tune_hyperparameters")
@@ -109,19 +68,19 @@ def choose_and_bind_hyperparameters(
         # Check if we found a checkpoint file
         if checkpoint_path:
             n_calls, configuration, evaluation = load_checkpoint(checkpoint_path, n_calls)
+            # Check if we surpassed maximum tuning iterations
+            if n_calls <= 0:
+                logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
+                logging.info("Training with these hyperparameters:")
+                bind_gin_params(hyperparams_names, configuration[np.argmin(evaluation)])  # bind best hyperparameters
+                return
         else:
             logging.warning("No checkpoint file found, starting from scratch.")
 
-        if n_calls <= 0:
-            logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
-            logging.info("Training with these hyperparameters:")
-            bind_params(hyperparams_names, configuration[np.argmin(evaluation)])  # bind best hyperparameters
-            return
-
-    #Function to
+    # Function to
     def bind_params_and_train(hyperparams):
         with tempfile.TemporaryDirectory() as temp_dir:
-            bind_params(hyperparams_names, hyperparams)
+            bind_gin_params(hyperparams_names, hyperparams)
             if not do_tune:
                 return 0
             return execute_repeated_cv(
@@ -157,7 +116,7 @@ def choose_and_bind_hyperparameters(
         if configuration:
             # We have loaded a checkpoint, use the best hyperparameters.
             logging.info("Training with the best hyperparameters from loaded checkpoint:")
-            bind_params(hyperparams_names, configuration[np.argmin(evaluation)])
+            bind_gin_params(hyperparams_names, configuration[np.argmin(evaluation)])
         else:
             logging.log(TUNE, "Choosing hyperparameters randomly from bounds.")
             n_initial_points = 1
@@ -183,13 +142,13 @@ def choose_and_bind_hyperparameters(
         log_full_line("FINISHED TUNING", level=TUNE, char="=", num_newlines=4)
 
     logging.info("Training with these hyperparameters:")
-    bind_params(hyperparams_names, res.x)
+    bind_gin_params(hyperparams_names, res.x)
 
 
 def collect_bound_hyperparameters(hyperparams, scopes):
     for scope in scopes:
         with gin.config_scope(scope):
-            hyperparams.update(hyperparameters_to_tune())
+            hyperparams.update(get_gin_hyperparameters())
     hyperparams_names = list(hyperparams.keys())
     hyperparams_bounds = list(hyperparams.values())
     return hyperparams_bounds, hyperparams_names
