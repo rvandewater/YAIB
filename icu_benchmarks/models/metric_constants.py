@@ -1,5 +1,5 @@
 from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-from ignite.metrics import MeanAbsoluteError, Accuracy, ConfusionMatrix
+from ignite.metrics import MeanAbsoluteError, Accuracy  # , ConfusionMatrix
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     average_precision_score,
@@ -47,11 +47,12 @@ class MLMetrics:
     }
 
 
+# TODO: add support for confusion matrix
 class DLMetrics:
     BINARY_CLASSIFICATION = {
         "AUC": ROC_AUC(),
         "Calibration_Curve": CalibrationCurve(),
-        "Confusion_Matrix": ConfusionMatrix(num_classes=2),
+        # "Confusion_Matrix": ConfusionMatrix(num_classes=2),
         "PR": AveragePrecision(),
         "PRC": PrecisionRecallCurve(),
         "ROC": RocCurve(),
