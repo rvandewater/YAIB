@@ -67,6 +67,7 @@ def choose_and_bind_hyperparameters(
     n_initial_points: int = 3,
     n_calls: int = 20,
     folds_to_tune_on: int = gin.REQUIRED,
+    checkpoint_file: str = "hyperparameter_tuning_logs.json",
     debug: bool = False,
 ):
     """Choose hyperparameters to tune and bind them to gin.
@@ -81,25 +82,23 @@ def choose_and_bind_hyperparameters(
         n_initial_points: Number of initial points to explore.
         n_calls: Number of iterations to optimize the hyperparameters.
         folds_to_tune_on: Number of folds to tune on.
+        checkpoint_file: Name of the checkpoint file.
         debug: Whether to load less data and enable more logging.
 
     Raises:
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
     hyperparams = {}
+
     # Collect hyperparameters
-    for scope in scopes:
-        with gin.config_scope(scope):
-            hyperparams.update(hyperparameters_to_tune())
-    hyperparams_names = list(hyperparams.keys())
-    hyperparams_bounds = list(hyperparams.values())
+    hyperparams_bounds, hyperparams_names = collect_bound_hyperparameters(hyperparams, scopes)
 
     if do_tune and not hyperparams_bounds:
         logging.info("No hyperparameters to tune, skipping tuning.")
         return
 
+    # Attempt checkpoint loading
     x0, y0 = None, None
-    checkpoint_file = "hyperparameter_tuning_logs.json"
     if checkpoint:
         checkpoint_path = checkpoint / checkpoint_file
         if not checkpoint_path.exists():
@@ -184,6 +183,15 @@ def choose_and_bind_hyperparameters(
 
     logging.info("Training with these hyperparameters:")
     bind_params(hyperparams_names, res.x)
+
+
+def collect_bound_hyperparameters(hyperparams, scopes):
+    for scope in scopes:
+        with gin.config_scope(scope):
+            hyperparams.update(hyperparameters_to_tune())
+    hyperparams_names = list(hyperparams.keys())
+    hyperparams_bounds = list(hyperparams.values())
+    return hyperparams_bounds, hyperparams_names
 
 
 def load_checkpoint(checkpoint_path, n_calls):
