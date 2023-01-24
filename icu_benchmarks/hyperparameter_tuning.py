@@ -58,16 +58,16 @@ def bind_params(hyperparams_names: list[str], hyperparams_values: list):
 
 @gin.configurable("tune_hyperparameters")
 def choose_and_bind_hyperparameters(
-        do_tune: bool,
-        data_dir: Path,
-        log_dir: Path,
-        seed: int,
-        checkpoint: str = None,
-        scopes: list[str] = gin.REQUIRED,
-        n_initial_points: int = 3,
-        n_calls: int = 20,
-        folds_to_tune_on: int = gin.REQUIRED,
-        debug: bool = False,
+    do_tune: bool,
+    data_dir: Path,
+    log_dir: Path,
+    seed: int,
+    checkpoint: str = None,
+    scopes: list[str] = gin.REQUIRED,
+    n_initial_points: int = 3,
+    n_calls: int = 20,
+    folds_to_tune_on: int = gin.REQUIRED,
+    debug: bool = False,
 ):
     """Choose hyperparameters to tune and bind them to gin.
 
