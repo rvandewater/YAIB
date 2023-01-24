@@ -12,20 +12,28 @@
 # Submit with e.g. --export=TASK_NAME=mortality24,MODEL_NAME=LGBMClassifier
 # Basic experiment variables, please exchange [INSERT] for your experiment parameters
 
-echo "This is a SLURM job named" $SLURM_JOB_NAME "with array id" $SLURM_ARRAY_TASK_ID "and job id" $SLURM_JOB_ID
-
 TASK=[INSERT:TASK_TYPE] # BinaryClassification
 YAIB_PATH=[INSERT:YAIB_PATH] #/dhc/home/robin.vandewater/projects/yaib
 EXPERIMENT_PATH=../${TASK_NAME}_experiment
 DATASET_ROOT_PATH=[INSERT:COHORT_ROOT] #data/YAIB_Datasets/data
 DATASETS=(hirid miiv eicu aumc)
 
+echo "This is a SLURM job named" $SLURM_JOB_NAME "with array id" $SLURM_ARRAY_TASK_ID "and job id" $SLURM_JOB_ID
+echo "Resources allocated: " $SLURM_CPUS_PER_TASK "CPUs, " $SLURM_MEM_PER_NODE "GB RAM, " $SLURM_GPUS_PER_NODE "GPUs"
+echi "Task type:" ${TASK}
+echo "Task: " ${TASK_NAME}
+echo "Model: "${MODEL_NAME}
+echo "Dataset: "${DATASETS[$SLURM_ARRAY_TASK_ID]}
+echo "Experiment path: "${EXPERIMENT_PATH}
+
+
+
+
 cd ${YAIB_PATH}
 
 eval "$(conda shell.bash hook)"
 conda activate yaib
 
-echo "Task:  " ${TASK_NAME}" Model: "${MODEL_NAME}" Dataset:" ${DATASETS[$SLURM_ARRAY_TASK_ID]}
 
 
 icu-benchmarks train \
