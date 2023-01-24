@@ -56,6 +56,7 @@ def bind_params(hyperparams_names: list[str], hyperparams_values: list):
         logging.info(f"{param} = {value}")
 
 
+
 @gin.configurable("tune_hyperparameters")
 def choose_and_bind_hyperparameters(
     do_tune: bool,
@@ -98,7 +99,7 @@ def choose_and_bind_hyperparameters(
         return
 
     # Attempt checkpoint loading
-    x0, y0 = None, None
+    configuration, evaluation = None, None
     if checkpoint:
         checkpoint_path = checkpoint / checkpoint_file
         if not checkpoint_path.exists():
@@ -107,19 +108,19 @@ def choose_and_bind_hyperparameters(
             checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
         # Check if we found a checkpoint file
         if checkpoint_path:
-            n_calls, x0, y0 = load_checkpoint(checkpoint_path, n_calls)
+            n_calls, configuration, evaluation = load_checkpoint(checkpoint_path, n_calls)
         else:
             logging.warning("No checkpoint file found, starting from scratch.")
 
         if n_calls <= 0:
             logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
             logging.info("Training with these hyperparameters:")
-            bind_params(hyperparams_names, x0[np.argmin(y0)])  # bind best hyperparameters
+            bind_params(hyperparams_names, configuration[np.argmin(evaluation)])  # bind best hyperparameters
             return
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-
-        def bind_params_and_train(hyperparams):
+    #Function to
+    def bind_params_and_train(hyperparams):
+        with tempfile.TemporaryDirectory() as temp_dir:
             bind_params(hyperparams_names, hyperparams)
             if not do_tune:
                 return 0
@@ -143,10 +144,9 @@ def choose_and_bind_hyperparameters(
                 "func_vals": res.func_vals,
             }
             f.write(json.dumps(data, cls=JsonResultLoggingEncoder))
-            if do_tune:
-                table_cells = [len(res.x_iters)] + res.x_iters[-1] + [res.func_vals[-1]]
-                highlight = res.x_iters[-1] == res.x  # highlight if best so far
-                log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
+            table_cells = [len(res.x_iters)] + res.x_iters[-1] + [res.func_vals[-1]]
+            highlight = res.x_iters[-1] == res.x  # highlight if best so far
+            log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
 
     if do_tune:
         log_full_line("STARTING TUNING", level=TUNE, char="=")
@@ -154,28 +154,29 @@ def choose_and_bind_hyperparameters(
         log_table_row(header, TUNE)
     else:
         logging.log(TUNE, "Hyperparameter tuning disabled")
-        if x0:
+        if configuration:
             # We have loaded a checkpoint, use the best hyperparameters.
             logging.info("Training with the best hyperparameters from loaded checkpoint:")
-            bind_params(hyperparams_names, x0[np.argmin(y0)])
+            bind_params(hyperparams_names, configuration[np.argmin(evaluation)])
         else:
-            logging.log(TUNE, "Choosing randomly from bounds.")
+            logging.log(TUNE, "Choosing hyperparameters randomly from bounds.")
             n_initial_points = 1
             n_calls = 1
     if not debug:
         logging.disable(level=INFO)
 
+    # Call gaussian process. To choose a random set of hyperparameters this functions is also called.
     res = gp_minimize(
         bind_params_and_train,
         hyperparams_bounds,
-        x0=x0,
-        y0=y0,
+        x0=configuration,
+        y0=evaluation,
         n_calls=n_calls,
         n_initial_points=n_initial_points,
         random_state=seed,
-        noise=1e-10,  # the models are deterministic, but noise is needed for the gp to work
+        noise=1e-10,  # The models are deterministic, but noise is needed for the gp to work.
         callback=tune_step_callback if do_tune else None,
-    )  # to choose a random set of hyperparameters this functions is also called when tuning is disabled
+    )
     logging.disable(level=NOTSET)
 
     if do_tune:
