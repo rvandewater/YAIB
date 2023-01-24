@@ -108,15 +108,10 @@ def choose_and_bind_hyperparameters(
             checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
         # Check if we found a checkpoint file
         if checkpoint_path:
-            logging.info(f"Loading checkpoint at {checkpoint_path}")
-            with open(checkpoint_path, "r") as f:
-                data = json.loads(f.read())
-                x0 = data["x_iters"]
-                y0 = data["func_vals"]
-            n_calls -= len(x0)
-            logging.log(TUNE, f"Checkpoint contains {len(x0)} points.")
+            n_calls, x0, y0 = load_checkpoint(checkpoint_path, n_calls)
         else:
             logging.warning("No checkpoint file found, starting from scratch.")
+
         if n_calls <= 0:
             logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
             logging.info("Training with these hyperparameters:")
@@ -189,6 +184,17 @@ def choose_and_bind_hyperparameters(
 
     logging.info("Training with these hyperparameters:")
     bind_params(hyperparams_names, res.x)
+
+
+def load_checkpoint(checkpoint_path, n_calls):
+    logging.info(f"Loading checkpoint at {checkpoint_path}")
+    with open(checkpoint_path, "r") as f:
+        data = json.loads(f.read())
+        x0 = data["x_iters"]
+        y0 = data["func_vals"]
+    n_calls -= len(x0)
+    logging.log(TUNE, f"Checkpoint contains {len(x0)} points.")
+    return n_calls, x0, y0
 
 
 def find_checkpoint(log_dir, checkpoint_file):
