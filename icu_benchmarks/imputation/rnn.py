@@ -12,7 +12,7 @@ class RNNImputation(ImputationWrapper):
     needs_fit = False
 
     def __init__(self, *args, input_size, hidden_size=64, state_init='zero', cell='gru', **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, input_size=input_size, hidden_size=hidden_size, state_init=state_init, cell=cell, **kwargs)
         self.input_size = input_size
         self.n_features = input_size[2]
         self.hidden_size = hidden_size
@@ -69,7 +69,7 @@ class BRNNImputation(ImputationWrapper):
     needs_fit = False
     
     def __init__(self, *args, input_size, hidden_size=64, state_init='zero', dropout=0., cell='gru', **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, input_size=input_size, hidden_size=hidden_size, state_init=state_init, dropout=dropout, cell=cell, **kwargs)
         self.hidden_size = hidden_size
         self.fwd_rnn = RNNImputation(input_size=input_size, hidden_size=hidden_size, state_init=state_init, cell=cell)
         self.bwd_rnn = RNNImputation(input_size=input_size, hidden_size=hidden_size, state_init=state_init, cell=cell)

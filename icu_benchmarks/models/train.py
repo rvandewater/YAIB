@@ -38,7 +38,7 @@ def train_common(
     patience=20,
     min_delta=1e-5,
     use_wandb: bool = True,
-    num_workers: int = min(os.cpu_count(), torch.cuda.device_count() * 8 if torch.cuda.is_available() else 16),
+    num_workers: int = min(len(os.sched_getaffinity(0)), torch.cuda.device_count() * 8 if torch.cuda.is_available() else 16),
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -58,6 +58,7 @@ def train_common(
 
     train_dataset = DatasetClass(data, split="train")
     val_dataset = DatasetClass(data, split="val")
+    print("IN TRAIN ", batch_size, "epochs:", epochs)
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -80,10 +81,10 @@ def train_common(
 
     if load_weights:
         if source_dir.exists():
-            if not model.needs_training:
-                model = torch.load(source_dir / "model.ckpt")
-            else:
-                model = model.from_checkpoint(source_dir / "model.ckpt")
+            # if not model.needs_training:
+            #     model = torch.load(source_dir / "model.ckpt")
+            # else:
+            model = model.from_checkpoint(source_dir / "model.ckpt")
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
         do_test = True
@@ -102,6 +103,7 @@ def train_common(
             wandb.run.save()
 
         trainer = Trainer(
+            # model=model,
             max_epochs=epochs if model.needs_training else 1,
             callbacks=[
                 EarlyStopping(monitor=f"val/loss", min_delta=min_delta, patience=patience, strict=False),

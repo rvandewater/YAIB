@@ -14,6 +14,23 @@ from recipys.recipe import Recipe
 from recipys.selector import all_of
 from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepImputeModel, StepScale
 import torch
+from torch.utils.data import DataLoader
+
+from icu_benchmarks.data.loader import ImputationPredictionDataset
+
+def model_impute_data(model):
+    def predict(data, group=None):
+        dataset = ImputationPredictionDataset(data, group)
+        data = torch.cat([data_point.unsqueeze(0) for data_point in dataset], dim=0)
+        # dataloader = DataLoader(dataset, batch_size=64, num_workers=0)
+        model.eval()
+        with torch.no_grad():
+            logging.info("predicting...")
+            imputation = model.predict(data)
+            logging.info("done predicting")
+        assert imputation.isnan().sum() == 0
+        return imputation.flatten(end_dim=1)
+    return predict
 
 
 def make_single_split(
@@ -113,7 +130,7 @@ def preprocess_data(
     cache_dir = data_dir / "cache"
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
-    config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{use_cache}{train_pct}{val_pct}".encode("utf-8")
+    config_string = f"{dumped_file_names}{dumped_vars}{use_features}{seed}{use_cache}{train_pct}{val_pct}{pretrained_imputation_model.__class__.__name__}".encode("utf-8")
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
     if use_cache:
@@ -137,8 +154,9 @@ def preprocess_data(
     sta_rec = Recipe(data["train"]["STATIC"], [], vars["STATIC"])
     # sta_rec.steps = stat_recipe_steps
     sta_rec.add_step(StepScale())
-    if mode == "classification":
-        sta_rec.add_step(StepImputeFill(value=0) if pretrained_imputation_model is None else StepImputeModel(model=pretrained_imputation_model.predict))
+    if mode == "Classification":
+        sta_rec.add_step(StepImputeFill(value=0))
+        # sta_rec.add_step(StepImputeFill(value=0) if pretrained_imputation_model is None else StepImputeModel(model=pretrained_imputation_model.predict))
 
     data = apply_recipe_to_splits(sta_rec, data, "STATIC")
 
@@ -155,7 +173,7 @@ def preprocess_data(
             # dyn_rec.add_step(StepHistorical(sel=all_of(vars["DYNAMIC"]), fun=Accumulator.MEAN, suffix="mean_hist"))
         if pretrained_imputation_model is not None:
             logging.info("Imputing missing values with pretrained model...")
-            dyn_rec.add_step(StepImputeModel(model=pretrained_imputation_model.predict))
+            dyn_rec.add_step(StepImputeModel(model=model_impute_data(pretrained_imputation_model)))
         else:
             dyn_rec.add_step(StepImputeFill(method="ffill"))
             dyn_rec.add_step(StepImputeFill(value=0))

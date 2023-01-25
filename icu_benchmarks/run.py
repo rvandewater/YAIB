@@ -12,6 +12,7 @@ from pytorch_lightning import seed_everything
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.gin_utils import parse_gin_and_random_search
+from icu_benchmarks.imputation import name_mapping
 
 SEEDS = [1111]
 
@@ -31,8 +32,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # ARGUMENTS FOR ALL COMMANDS
     general_args = parent_parser.add_argument_group("General arguments")
-    general_args.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
-    general_args.add_argument("-n", "--name", required=True, help="Name of the (target) dataset.")
+    general_args.add_argument("-d", "--data-dir", "--data_dir", required=True, type=Path, help="Path to the parquet data directory.")
+    general_args.add_argument("-n", "--name", required=False, help="Name of the (target) dataset.")
     general_args.add_argument("-t", "--task", default="Mortality_At24Hours", help="Name of the task gin.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
@@ -41,7 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     general_args.add_argument("-db", "--debug", action="store_true", help="Set to load less data.")
     general_args.add_argument("-c", "--cache", action="store_true", help="Set to cache and use preprocessed data.")
     general_args.add_argument("--wandb-sweep", action="store_true", help="activates wandb hyper parameter sweep")
-    general_args.add_argument("--pretrained-imputation", required=False, type=str, help="Path to pretrained imputation model.")
+    general_args.add_argument("--use_pretrained_imputation", required=False, type=str, help="Path to pretrained imputation model.")
 
     # MODEL TRAINING ARGUMENTS
     parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
@@ -86,7 +87,7 @@ def get_mode(mode: gin.REQUIRED):
     return mode
 
 def main(my_args=tuple(sys.argv[1:])):
-    args = build_parser().parse_args(my_args)
+    args, _ = build_parser().parse_known_args(my_args)
     if args.wandb_sweep:
         wandb.init()
         sweep_config = wandb.config
@@ -105,7 +106,10 @@ def main(my_args=tuple(sys.argv[1:])):
 
 
     load_weights = args.command == "evaluate"
+    args.data_dir = Path(args.data_dir)
     name = args.name
+    if name is None:
+        name = args.data_dir.name
     task = args.task
     model = args.model
     if isinstance(args.seed, int):
@@ -119,11 +123,33 @@ def main(my_args=tuple(sys.argv[1:])):
     log_dir_name = log_dir_base / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / task / model)
     
-    if args.pretrained_imputation is not None and not Path(args.pretrained_imputation).exists():
-        args.pretrained_imputation = None
-        
-    pretrained_imputation_model = torch.load(args.pretrained_imputation, map_location=torch.device('cpu')) if args.pretrained_imputation is not None else None
+    logging.info("using pretrained from" + str(args.use_pretrained_imputation))
+    if args.use_pretrained_imputation is not None and not Path(args.use_pretrained_imputation).exists():
+        #     args.use_pretrained_imputation = Path(args.use_pretrained_imputation).parent / "model.ckpt"
+        # logging.info("exists:", args.use_pretrained_imputation.exists())
+        # else:
+        #     args.use_pretrained_imputation = Path(args.use_pretrained_imputation)
+        logging.info("THE SPECIFIED PATH TO THE PRETRAINED MODEL DOES NOT EXIST: >" + args.use_pretrained_imputation + "<")
+        a = Path(args.use_pretrained_imputation)
+        logging.info("a e: " + str(a.exists()) + " pa e: " + str(a.parent.exists()) + " ppa e: " + str(a.parent.parent.exists()))
+        logging.info("doesnt exist")
+        args.use_pretrained_imputation = None
+    logging.info("now using pretrained from" + str(args.use_pretrained_imputation))
+    
+    # print("now loading from the following path: >"+str(args.use_pretrained_imputation.resolve())+"< and exists:"+str(args.use_pretrained_imputation.exists()))
+    pretrained_imputation_model = torch.load(args.use_pretrained_imputation, map_location=torch.device('cpu')) if args.use_pretrained_imputation is not None else None
+    if isinstance(pretrained_imputation_model, dict):
+        model_name = Path(args.use_pretrained_imputation).parent.parent.parent.name
+        model_class = name_mapping[model_name]
+        # print("is dict? keys:", pretrained_imputation_model.keys())
+        pretrained_imputation_model = model_class.load_from_checkpoint(args.use_pretrained_imputation)
+        # for k, v in pretrained_imputation_model.items():
+        #     if isinstance(v, str) and "NP" in v:
+        #         print(k, ":", v)
+    if pretrained_imputation_model is not None:
+        pretrained_imputation_model = pretrained_imputation_model.to("cuda" if torch.cuda.is_available() else "cpu")
     if wandb.run is not None:
+        print("updating wandb config:", {"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
         wandb.config.update({"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
 
     if load_weights:
@@ -141,6 +167,7 @@ def main(my_args=tuple(sys.argv[1:])):
             model_path = Path("configs") / ("imputation_models" if mode == "Imputation" else "classification_models")
             model_path = model_path / f"{model}.gin"
             gin_config_files = [model_path, Path(f"configs/tasks/{task}.gin")]
+        print("HYPERPARAMS:", args.hyperparams)
         randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, args.cpu, log_dir)
         run_dir = create_run_dir(log_dir, randomly_searched_params)
 
