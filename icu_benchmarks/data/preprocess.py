@@ -93,6 +93,17 @@ def apply_recipe_to_splits(
     data["test"][type] = recipe.prep(data["test"][type])
     return data
 
+def filter_missing_values(data, vars, window_size):
+    maxlen = data["DYNAMIC"].groupby([vars["GROUP"]]).size().max()
+    if window_size == -1 or window_size >= maxlen:
+        rows_to_remove = data["DYNAMIC"][vars["DYNAMIC"]].isna().sum(axis=1) != 0
+        ids_to_remove = data["DYNAMIC"].loc[rows_to_remove][vars["GROUP"]].unique()
+        data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
+        return data
+    else:
+        ...
+    
+
 
 @gin.configurable("preprocess")
 def preprocess_data(
@@ -106,6 +117,7 @@ def preprocess_data(
     train_pct: float = 0.7,
     val_pct: float = 0.1,
     mode: str = "Classification",
+    window_size: int = 25,
     pretrained_imputation_model: str = None,
 ) -> Dict[str, Dict[str, pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
@@ -144,9 +156,7 @@ def preprocess_data(
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in file_names.keys()}
 
     if mode == "Imputation":
-        rows_to_remove = data["DYNAMIC"][vars["DYNAMIC"]].isna().sum(axis=1) != 0
-        ids_to_remove = data["DYNAMIC"].loc[rows_to_remove][vars["GROUP"]].unique()
-        data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
+        data = filter_missing_values(data, vars, window_size)
     logging.info("Generating splits.")
     data = make_single_split(data, vars, train_pct=train_pct, val_pct=val_pct, seed=seed, debug=debug)
 

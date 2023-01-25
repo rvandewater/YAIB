@@ -26,4 +26,4 @@ preprocess.use_features = False
 ImputationDataset.vars = %vars
 # ImputationDataset.ram_cache = False
 
-EMB = 48
+EMB = 6
