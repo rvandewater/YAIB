@@ -123,15 +123,18 @@ def main(my_args=tuple(sys.argv[1:])):
     log_dir_name = log_dir_base / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / task / model)
     
-    print("using pretrained from", args.use_pretrained_imputation)
+    logging.info("using pretrained from" + str(args.use_pretrained_imputation))
     if args.use_pretrained_imputation is not None and not Path(args.use_pretrained_imputation).exists():
         #     args.use_pretrained_imputation = Path(args.use_pretrained_imputation).parent / "model.ckpt"
-        # print("exists:", args.use_pretrained_imputation.exists())
+        # logging.info("exists:", args.use_pretrained_imputation.exists())
         # else:
         #     args.use_pretrained_imputation = Path(args.use_pretrained_imputation)
-        print("doesnt exist")
+        logging.info("THE SPECIFIED PATH TO THE PRETRAINED MODEL DOES NOT EXIST: >" + args.use_pretrained_imputation + "<")
+        a = Path(args.use_pretrained_imputation)
+        logging.info("a e: " + str(a.exists()) + " pa e: " + str(a.parent.exists()) + " ppa e: " + str(a.parent.parent.exists()))
+        logging.info("doesnt exist")
         args.use_pretrained_imputation = None
-    print("now using pretrained from", args.use_pretrained_imputation)
+    logging.info("now using pretrained from" + str(args.use_pretrained_imputation))
     
     # print("now loading from the following path: >"+str(args.use_pretrained_imputation.resolve())+"< and exists:"+str(args.use_pretrained_imputation.exists()))
     pretrained_imputation_model = torch.load(args.use_pretrained_imputation, map_location=torch.device('cpu')) if args.use_pretrained_imputation is not None else None
