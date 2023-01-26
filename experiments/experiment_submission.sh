@@ -7,4 +7,4 @@ export GPUS=1
 export CPUS=4
 
 mkdir -p ../${TASK_NAME}
-sbatch --export=ALL -p ${PARTITION} --gpus ${GPUS} -J ${JOB_NAME} --cpus-per-task=${CPUS} --output=../${TASK_NAME}/%x_%a_%j.log experiments/slurm_base_robin.sh
+sbatch --export=ALL -p ${PARTITION} -t 72:00:00 --gpus ${GPUS} -J ${JOB_NAME} --cpus-per-task=${CPUS} --output=../${TASK_NAME}/%x_%a_%j.log experiments/slurm_base_single.sh
