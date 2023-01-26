@@ -10,12 +10,12 @@ import pandas as pd
 
 
 
-log_parent = Path(r"C:\Users\Robin\Downloads\new_yaib_results\sepsis")
+log_parent = Path(r"C:\Users\Robin\Downloads\mortality24")
 aggregated = pd.DataFrame(columns=["Dataset","Model", "Avg", "Std", "95% CI"])
 # pd.MultiIndex.from_tuples(aggregated, names=[("Dataset","Model")])
-metric_type = "PR"
+metric_type = "AUC"
 accumulation = "avg"
-seeds = 1
+iterations = 5
 for dataset in log_parent.iterdir():
     if dataset.is_dir():
         for task in dataset.iterdir():
@@ -27,11 +27,11 @@ for dataset in log_parent.iterdir():
                         avg = test_metrics[accumulation][metric_type]
                         std = test_metrics["std"][metric_type]
                         ci_95 = test_metrics["CI_0.95"][metric_type]
+                        aggregated.loc[len(aggregated.index)] = [dataset.name, model.name, avg, std, ci_95]
                     else:
                         avg = "NaN"
                         std = "NaN"
                         ci_95 = "NaN"
-                    aggregated.loc[len(aggregated.index)] = [dataset.name, model.name, avg, std, ci_95]
 
                     # print(aggregated[dataset.name, model.name])
                     # aggregated = pd.concat([aggregated, pd.DataFrame({"Dataset": dataset.name, "Model": model.name})], ignore_index=True)
@@ -43,7 +43,8 @@ aggregated["Avg"] = pd.to_numeric(aggregated["Avg"], errors="coerce")
 aggregated["Std"] = pd.to_numeric(aggregated["Std"], errors="coerce")
 aggregated["95% CI"] = aggregated["95% CI"].apply(lambda x: (pd.to_numeric(x[1])*100, pd.to_numeric(x[0])*100))
 aggregated[["Avg", "Std"]] = aggregated[["Avg", "Std"]].apply(lambda x: x*100)
-aggregated["Std"] = aggregated["Std"].apply(lambda x: x/math.sqrt(seeds))
+# Correct std for amount of iterations
+aggregated["Std"] = aggregated["Std"].apply(lambda x: x/math.sqrt(iterations))
 # aggregated[""] = aggregated.apply(pd.to_numeric, columns= ["Avg", "Std"], errors='coerce')
 aggregated = aggregated.round(2)
 aggregated["95% CI"] = aggregated["95% CI"].apply(lambda x: tuple(map(lambda y: round(y,2),x)))
@@ -52,4 +53,5 @@ aggregated = aggregated.set_index(["Dataset"])
 # aggregated = aggregated.reset_index(drop=True)
 # pd.to_numeric(aggregated["Avg"])
 aggregated = aggregated.sort_values(by=["Dataset", "Model"], ascending=[True, True])
+aggregated = aggregated[aggregated["Model"]=="TCN"]
 print(aggregated.to_markdown())
