@@ -19,7 +19,7 @@ def aggregate_results(
     sort=["Dataset", "Model"],
     datasets=["miiv", "aumc", "hirid", "eicu"],
 ):
-    results = pd.DataFrame(columns=["Time", "Dataset", "Model", "Average", "Std", "95% CI"])
+    results = pd.DataFrame(columns=["Time", "Dataset", "Model", "Average", "Std", "95% CI", "Execution Time"])
     for dataset in log_dir.iterdir():
         if dataset.is_dir() and dataset.name in datasets:
             for task in dataset.iterdir():
@@ -30,16 +30,22 @@ def aggregate_results(
                             avg = test_metrics["avg"][metric_type]
                             std = test_metrics["std"][metric_type]
                             ci_95 = test_metrics["CI_0.95"][metric_type]
-                            results.loc[len(results.index)] = [log_time.name, dataset.name, model.name, avg, std, ci_95]
+                            time = "NaN"
+                            if "execution_time" in test_metrics:
+                                time = test_metrics["execution_time"]
+                            results.loc[len(results.index)] = [log_time.name, dataset.name, model.name, avg, std, ci_95, time]
+
                         elif include_unfinished:
                             avg = "NaN"
                             std = "NaN"
                             ci_95 = "NaN"
-                            results.loc[len(results.index)] = [dataset.name, model.name, avg, std, ci_95]
+                            time = "NaN"
+                            results.loc[len(results.index)] = [log_time.name, dataset.name, model.name, avg, std, ci_95, time]
 
     nan_rows = results[results["95% CI"] == "NaN"]
     results = results[results["95% CI"] != "NaN"]
-
+    #results["Time"] = results["Time"].apply(lambda x: pd.to_datetime(x, format="%H:%M:%S"))
+    results["Execution Time"] = pd.to_timedelta(results["Execution Time"])
     results["Average"] = pd.to_numeric(results["Average"], errors="coerce")
     results["Std"] = pd.to_numeric(results["Std"], errors="coerce")
     results["95% CI"] = results["95% CI"].apply(lambda x: (pd.to_numeric(x[1]) * 100, pd.to_numeric(x[0]) * 100))
@@ -60,4 +66,4 @@ def aggregate_results(
     print(results.to_markdown())
 
 
-aggregate_results(Path(r"C:\Users\Robin\Downloads\mortality24"), metric_type="PR", datasets=["hirid", "hirid_extended"])
+aggregate_results(Path(r"C:\Users\Robin\Downloads\aki"), metric_type="AUC", include_unfinished=False)
