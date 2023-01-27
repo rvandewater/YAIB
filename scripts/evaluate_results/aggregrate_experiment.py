@@ -82,7 +82,4 @@ def aggregate_results(
 
     # Exclude datasets
     results = results[results["Model"].isin(models)]
-    print(results.to_markdown())
-
-
-aggregate_results(Path(r"C:\Users\Robin\Downloads\aki"), metric_type="AUC", include_unfinished=False)
+    return results
