@@ -1,86 +1,25 @@
 # -*- coding: utf-8 -*-
-import argparse
 from datetime import datetime
+
 import gin
 import logging
 import sys
 import torch
 import wandb
 from pathlib import Path
-from pytorch_lightning import seed_everything
-
-from icu_benchmarks.data.preprocess import preprocess_data
-from icu_benchmarks.models.train import train_common
-from icu_benchmarks.gin_utils import parse_gin_and_random_search
 from icu_benchmarks.imputation import name_mapping
 
-SEEDS = [1111]
+import importlib.util
 
-
-def build_parser() -> argparse.ArgumentParser:
-    """Builds an ArgumentParser for the command line.
-
-    Returns:
-        The configured ArgumentParser.
-    """
-    parser = argparse.ArgumentParser(
-        description="Benchmark lib for processing and evaluation of deep learning models on ICU data"
-    )
-
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    subparsers = parser.add_subparsers(title="Commands", dest="command", required=True)
-
-    # ARGUMENTS FOR ALL COMMANDS
-    general_args = parent_parser.add_argument_group("General arguments")
-    general_args.add_argument("-d", "--data-dir", "--data_dir", required=True, type=Path, help="Path to the parquet data directory.")
-    general_args.add_argument("-n", "--name", required=False, help="Name of the (target) dataset.")
-    general_args.add_argument("-t", "--task", default="Mortality_At24Hours", help="Name of the task gin.")
-    general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
-    general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
-    general_args.add_argument("-l", "--log-dir", type=Path, help="Path to the log directory with model weights.")
-    general_args.add_argument("-s", "--seed", default=SEEDS, nargs="+", type=int, help="Random seed at train and eval.")
-    general_args.add_argument("-db", "--debug", action="store_true", help="Set to load less data.")
-    general_args.add_argument("-c", "--cache", action="store_true", help="Set to cache and use preprocessed data.")
-    general_args.add_argument("--wandb-sweep", action="store_true", help="activates wandb hyper parameter sweep")
-    general_args.add_argument("--use_pretrained_imputation", required=False, type=str, help="Path to pretrained imputation model.")
-
-    # MODEL TRAINING ARGUMENTS
-    parser_prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
-    parser_prep_and_train.add_argument(
-        "--reproducible", default=False, action="store_true", help="Set torch to be reproducible."
-    )
-    parser_prep_and_train.add_argument(
-        "--hyperparameter-search", default=False, action="store_true", help="Train the model with an untried hyperparameter set."
-    )
-    parser_prep_and_train.add_argument("--cpu", default=False, action="store_true", help="Set to train on CPU.")
-    parser_prep_and_train.add_argument("-hp", "--hyperparams", default=[], nargs="+", help="Hyperparameters for model.")
-
-    # EVALUATION PARSER
-    evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
-    evaluate_parser.add_argument("-sn", "--source-name", required=True, type=Path, help="Name of the source dataset.")
-    evaluate_parser.add_argument("--source-dir", required=True, type=Path, help="Directory containing gin and model weights.")
-
-    return parser
-
-
-def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
-    """Creates a log directory with the current time as name.
-
-    Also creates a file in the log directory, if any parameters were randomly searched.
-    The filename contains the fixed hyperparameters to check against in future runs.
-
-    Args:
-        log_dir: Parent directory to create run directory in.
-        randomly_searched_params: String representing the randomly searched params.
-
-    Returns:
-        Path to the created run log directory.
-    """
-    log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))
-    log_dir_run.mkdir(parents=True)
-    if randomly_searched_params:
-        (log_dir_run / randomly_searched_params).touch()
-    return log_dir_run
+from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters
+from scripts.plotting.utils import plot_aggregated_results
+from icu_benchmarks.cross_validation import execute_repeated_cv
+from icu_benchmarks.run_utils import (
+    build_parser,
+    create_run_dir,
+    aggregate_results,
+    log_full_line,
+)
 
 @gin.configurable("Run")
 def get_mode(mode: gin.REQUIRED):
@@ -119,60 +58,87 @@ def main(my_args=tuple(sys.argv[1:])):
     mode = get_mode()
     logging.info(f"Task mode: {mode}")
     experiment = args.experiment
-    log_dir_base = args.data_dir / "logs" if args.log_dir is None else args.log_dir
-    log_dir_name = log_dir_base / name
-    log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / task / model)
     
-    logging.info("using pretrained imputation from" + str(args.use_pretrained_imputation))
     if args.use_pretrained_imputation is not None and not Path(args.use_pretrained_imputation).exists():
         logging.info("the specified pretrained imputation model does not exist")
         args.use_pretrained_imputation = None
     
-    pretrained_imputation_model = torch.load(args.use_pretrained_imputation, map_location=torch.device('cpu')) if args.use_pretrained_imputation is not None else None
-    # check if the loaded model is a pytorch lightning checkpoint
-    if isinstance(pretrained_imputation_model, dict):
-        model_name = Path(args.use_pretrained_imputation).parent.parent.parent.name
-        model_class = name_mapping[model_name]
-        pretrained_imputation_model = model_class.load_from_checkpoint(args.use_pretrained_imputation)
-
-    if pretrained_imputation_model is not None:
+    if args.use_pretrained_imputation is not None:
+        logging.info("using pretrained imputation from" + str(args.use_pretrained_imputation))
+        pretrained_imputation_model_checkpoint = torch.load(args.use_pretrained_imputation, map_location=torch.device('cpu'))
+        # check if the loaded model is a pytorch lightning checkpoint
+        # if isinstance(pretrained_imputation_model, dict):
+        #     model_name = Path(args.use_pretrained_imputation).parent.parent.parent.name
+        #     model_class = name_mapping[model_name]
+        #     pretrained_imputation_model = model_class.load_from_checkpoint(args.use_pretrained_imputation)
+        imputation_model_class = pretrained_imputation_model_checkpoint["class"]
+        pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
+        pretrained_imputation_model.load_state_dict(pretrained_imputation_model_checkpoint["state_dict"])
         pretrained_imputation_model = pretrained_imputation_model.to("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        pretrained_imputation_model = None
+
     if wandb.run is not None:
         print("updating wandb config:", {"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
         wandb.config.update({"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
+    source_dir = None
+    reproducible = False
+    log_dir_name = args.log_dir / name
+    log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / args.task_name / model)
+
+    if args.preprocessor:
+        # Import custom supplied preprocessor
+        try:
+            spec = importlib.util.spec_from_file_location("CustomPreprocessor", args.preprocessor)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["preprocessor"] = module
+            spec.loader.exec_module(module)
+            gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
+        except Exception as e:
+            logging.error(f"Could not import custom preprocessor from {args.preprocessor}: {e}")
 
     if load_weights:
         log_dir /= f"from_{args.source_name}"
-        source_dir = args.source_dir
-        reproducible = False
-        gin.parse_config_file(source_dir / "train_config.gin")
         run_dir = create_run_dir(log_dir)
+        source_dir = args.source_dir
+        gin.parse_config_file(source_dir / "train_config.gin")
     else:
-        source_dir = None
         reproducible = args.reproducible
-        if args.experiment:
-            gin_config_files = [Path(f"configs/experiments/{args.experiment}.gin")]
-        else:
-            model_path = Path("configs") / ("imputation_models" if mode == "Imputation" else "classification_models")
-            model_path = model_path / f"{model}.gin"
-            gin_config_files = [model_path, Path(f"configs/tasks/{task}.gin")]
-        randomly_searched_params = parse_gin_and_random_search(gin_config_files, args.hyperparams, args.cpu, log_dir)
-        run_dir = create_run_dir(log_dir, randomly_searched_params)
-
-    for seed in args.seed:
-        seed_everything(seed)
-        data = preprocess_data(args.data_dir, seed=seed, debug=debug, use_cache=cache, mode=mode, pretrained_imputation_model=pretrained_imputation_model)
-        run_dir_seed = run_dir / f"seed_{str(seed)}"
-        run_dir_seed.mkdir()
-        train_common(
-            log_dir=run_dir_seed,
-            data=data,
-            load_weights=load_weights,
-            source_dir=source_dir,
-            reproducible=reproducible,
-            dataset_name=name,
-            mode=mode,
+        checkpoint = log_dir / args.checkpoint if args.checkpoint else None
+        model_path = Path("configs") / ("imputation_models" if mode == "Imputation" else "classification_models") / f"{model}.gin"
+        gin_config_files = (
+            [Path(f"configs/experiments/{args.experiment}.gin")]
+            if args.experiment
+            else [model_path, Path(f"configs/tasks/{task}.gin")]
         )
+        gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
+        run_dir = create_run_dir(log_dir)
+        choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, args.seed, checkpoint=checkpoint, debug=args.debug)
+
+    logging.info(f"Logging to {run_dir.resolve()}")
+    log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)
+    start_time = datetime.now()
+    execute_repeated_cv(
+        args.data_dir,
+        run_dir,
+        args.seed,
+        load_weights=load_weights,
+        source_dir=source_dir,
+        reproducible=reproducible,
+        debug=args.debug,
+        load_cache=args.load_cache,
+        generate_cache=args.generate_cache,
+        mode=mode,
+        pretrained_imputation_model=pretrained_imputation_model,
+        dataset_name=name,
+    )
+
+    log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
+    execution_time = datetime.now() - start_time
+    log_full_line(f"DURATION: {execution_time}", level=logging.INFO, char="")
+    aggregate_results(run_dir, execution_time)
+    if args.plot:
+        plot_aggregated_results(run_dir, "aggregated_test_metrics.json")
 
 
 """Main module."""

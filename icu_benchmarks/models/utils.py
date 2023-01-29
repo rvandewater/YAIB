@@ -1,7 +1,16 @@
-import logging
+import json
+from typing import Dict
+from pathlib import Path
+from datetime import timedelta
+from enum import Enum
+from json import JSONEncoder
 import gin
+import logging
+import numpy as np
 import torch
 
+from pytorch_lightning.loggers.logger import Logger, rank_zero_experiment
+from pytorch_lightning.utilities import rank_zero_only
 from torch.nn import Module
 from torch.optim import Optimizer, Adam, SGD, RAdam
 from typing import Optional, List, Union
@@ -93,3 +102,98 @@ def create_scheduler(
         return None
     else:
         raise ValueError(f"no scheduler with name {scheduler_name} found!")
+
+class JsonResultLoggingEncoder(JSONEncoder):
+    """JSON converter for objects that are not serializable by default."""
+
+    # Serializes foreign datatypes
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, torch.Tensor):
+            return obj.tolist()
+        if isinstance(obj, tuple):
+            if isinstance(obj)[0] is torch.Tensor or isinstance(obj)[0] is np.ndarray:
+                return map(lambda item: item.tolist(), obj)
+        if isinstance(obj, timedelta):
+            return str(obj)
+        return JSONEncoder.default(self, obj)
+
+
+class Align(Enum):
+    LEFT = "<"
+    CENTER = "^"
+    RIGHT = ">"
+
+
+def log_table_row(
+    cells: list,
+    level: int = logging.INFO,
+    widths: list[int] = None,
+    header: list[str] = None,
+    align: Align = Align.LEFT,
+    highlight: bool = False,
+):
+    """Logs a table row.
+
+    Args:
+        cells: List of cells to log.
+        level: Logging level.
+        widths: List of widths for each cell.
+        header: List of headers to calculate widths if widths not supplied.
+        highlight: If set to true, highlight the row.
+    """
+    table_cells = cells
+    if not widths and header:
+        widths = [len(head) for head in header]
+    if widths:
+        table_cells = []
+        for cell, width in zip(cells, widths):
+            cell = str(cell)[:width]  # truncate cell if it is too long
+            table_cells.append("{: {align}{width}}".format(cell, align=align.value, width=width))
+    table_row = " | ".join([f"{cell}" for cell in table_cells])
+    if highlight:
+        table_row = f"\x1b[31;32m{table_row}\x1b[0m"
+    logging.log(level, table_row)
+
+
+class JSONMetricsLoggoer(Logger):
+    def __init__(self, *args, output_dir=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if output_dir is None:
+            output_dir = Path.cwd() / "metrics"
+        logging.info(f"logging metrics to file: {str(output_dir.resolve())}")
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.output_dir = output_dir
+    
+    @property
+    def name(self):
+        return "json_metrics_logger"
+    
+    @rank_zero_only
+    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
+        old_metrics = {}
+        stage_metrics = {
+            "train": {"/".join(key.split("/")[1:]): value for key, value in metrics.items() if key.startswith("train/")},
+            "val": {"/".join(key.split("/")[1:]): value for key, value in metrics.items() if key.startswith("val/")},
+            "test": {"/".join(key.split("/")[1:]): value for key, value in metrics.items() if key.startswith("test/")},
+        }
+        for stage, metrics in stage_metrics.items():
+            if metrics:
+                output_file = self.output_dir / f"{stage}_metrics.json"
+                old_metrics = {}
+                if output_file.exists():
+                    try:
+                        with output_file.open("r") as f:
+                            old_metrics = json.load(f)
+                        logging.debug(f"updating {stage} metrics file...")
+                    except json.decoder.JSONDecodeError:
+                        logging.warning("could not decode json file, overwriting...")
+                
+                old_metrics.update(metrics)
+                with output_file.open("w") as f:
+                    json.dump(old_metrics, f, cls=JsonResultLoggingEncoder, indent=4)

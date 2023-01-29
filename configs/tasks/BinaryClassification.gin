@@ -3,7 +3,6 @@ import icu_benchmarks.data.loader
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
-TASK = "Mortality_At24Hours"
 MODE = "Classification"
 
 Run.mode = %MODE
@@ -11,7 +10,7 @@ Run.mode = %MODE
 NUM_CLASSES = 2
 HORIZON = 24
 
-train_common.weight = None  #FIXME figure out when to use "balanced"
+train_common.weight = "balanced"
 
 # DL
 DLClassificationWrapper.loss = @cross_entropy
@@ -36,18 +35,22 @@ preprocess.file_names = {
 
 vars = {
     "GROUP": "stay_id",
+    "LABEL": "label",
     "SEQUENCE": "time",
     "DYNAMIC": ["hr","map","sbp", "dbp", "resp", "o2sat"],
     "STATIC": ["age", "sex", "height", "weight"],
 }
 
 
+preprocess.preprocessor = @base_classification_processor
 preprocess.vars = %vars
 ClassificationDataset.vars = %vars
 ClassificationDataset.ram_cache = True
 
-preprocess.train_pct = 0.7
-preprocess.val_pct = 0.1
+base_classification_processor.use_static_features = False
 
-# EMB = 48
-EMB = 6
+execute_repeated_cv.cv_repetitions = 5
+execute_repeated_cv.cv_folds = 5
+
+EMB = 100
+# EMB = 6

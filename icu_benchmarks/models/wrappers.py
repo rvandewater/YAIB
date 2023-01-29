@@ -5,8 +5,14 @@ from torch.nn import Module, MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 import inspect
+import inspect
+import json
+import logging
+import os
+from pathlib import Path
 
 import gin
+import joblib
 import lightgbm
 import numpy as np
 
@@ -27,6 +33,18 @@ from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve, JSD
 
 from pytorch_lightning import LightningModule
+import torch
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import log_loss
+
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm, trange
+
+from icu_benchmarks.models.metric_constants import MLMetrics, DLMetrics
+from icu_benchmarks.models.encoders import LSTMNet
+from icu_benchmarks.models.metrics import MAE
+from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonResultLoggingEncoder
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
@@ -84,6 +102,10 @@ class BaseModule(LightningModule):
 
     def on_test_epoch_end(self) -> None:
         self.finalize_step("test")
+    
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        checkpoint["class"] = self.__class__
+        return super().on_save_checkpoint(checkpoint)
 
 
 @gin.configurable("DLWrapper")
@@ -167,29 +189,24 @@ class DLClassificationWrapper(DLWrapper):
                 y_pred = torch.softmax(y_pred, dim=1)
                 return y_pred, y
 
-        metrics = {}
+        # Binary classification
         # output transform is not applied for contrib metrics so we do our own.
         if self.logit.out_features == 2:
             self.output_transform = softmax_binary_output_transform
-            metrics = {
-                "PR": AveragePrecision(),
-                "AUC": ROC_AUC(),
-                "PR_Curve": PrecisionRecallCurve(),
-                "ROC_Curve": RocCurve(),
-                "Calibration_Curve": CalibrationCurve(),
-            }
+            self.metrics = DLMetrics.BINARY_CLASSIFICATION
 
-        elif self.logit.out_features == 1:
+        # Regression
+        elif self.encoder.logit.out_features == 1:
             self.output_transform = lambda x: x
             if self.scaler is not None:
                 metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
             else:
-                metrics = {"MAE": MeanAbsoluteError()}
+                self.metrics = DLMetrics.REGRESSION
 
+        # Multiclass classification
         else:
             self.output_transform = softmax_multi_output_transform
-            metrics = {"Accuracy": Accuracy(), "BalancedAccuracy": BalancedAccuracy()}
-        return metrics
+            self.metrics = DLMetrics.MULTICLASS_CLASSIFICATION
 
 
     def step_fn(self, element, step_prefix = ""):
@@ -242,6 +259,8 @@ class MLClassificationWrapper(BaseModule):
         self.scaler = None
 
     def set_metrics(self, labels):
+
+        # Binary classification
         if len(np.unique(labels)) == 2:
             if isinstance(self.model, lightgbm.basic.Booster):
                 self.output_transform = lambda x: x
@@ -249,13 +268,15 @@ class MLClassificationWrapper(BaseModule):
                 self.output_transform = lambda x: x[:, 1]
             self.label_transform = lambda x: x
 
-            self.metrics = {"PR": average_precision_score, "AUC": roc_auc_score}
+            self.metrics = MLMetrics.BINARY_CLASSIFICATION
 
+        # Multiclass classification
         elif np.all(labels[:10].astype(int) == labels[:10]):
             self.output_transform = lambda x: np.argmax(x, axis=-1)
             self.label_transform = lambda x: x
-            self.metrics = {"Accuracy": accuracy_score, "BalancedAccuracy": balanced_accuracy_score}
+            self.metrics = MLMetrics.MULTICLASS_CLASSIFICATION
 
+        # Regression
         else:
             if self.scaler is not None:  # We invert transform the labels and predictions if they were scaled.
                 self.output_transform = lambda x: self.scaler.inverse_transform(x.reshape(-1, 1))

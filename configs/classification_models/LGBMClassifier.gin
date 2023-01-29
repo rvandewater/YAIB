@@ -3,21 +3,22 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 
-preprocess.use_features = False
+base_classification_processor.generate_features = True
 
 # Train params
 train_common.model = @LGBMClassifier
-train_common.do_test = True
-train_common.patience = 10
+MLClassificationWrapper.patience = 10
 
-LGBMClassifier.model_args.n_estimators = 100000
-LGBMClassifier.model_args.min_child_samples = 1000
-LGBMClassifier.model_args.subsample_freq = 1
+model/hyperparameter.class_to_tune = @LGBMClassifier
+model/hyperparameter.colsample_bytree = (0.33, 1.0)
+model/hyperparameter.max_depth = (3, 7)
+model/hyperparameter.min_child_samples = 1000
+model/hyperparameter.n_estimators = 100000
+model/hyperparameter.num_leaves = (8, 128, "log-uniform", 2)
+model/hyperparameter.subsample = (0.33, 1.0)
+model/hyperparameter.subsample_freq = 1
 
-model/random_search.class_to_configure = "LGBMClassifier.model_args"
-model/random_search.max_depth = [3, 4, 5, 6, 7]
-model/random_search.num_leaves = [8, 16, 32, 64, 128]
-model/random_search.subsample = [0.33, 0.66, 1.00]
-model/random_search.colsample_bytree = [0.33, 0.66, 1.00]
-
-run_random_searches.scopes = ["model"]
+tune_hyperparameters.scopes = ["model"]
+tune_hyperparameters.n_initial_points = 10
+tune_hyperparameters.n_calls = 50
+tune_hyperparameters.folds_to_tune_on = 3

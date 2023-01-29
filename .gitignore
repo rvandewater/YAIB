@@ -121,3 +121,7 @@ lightning_logs
 
 # wandb logs
 wandb/
+# Cached data
+**/cache/
+.DS_Store
+.vscode/launch.json
