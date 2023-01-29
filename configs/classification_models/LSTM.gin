@@ -2,7 +2,7 @@ import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
-base_classification_processor.generate_features = False
+base_classification_preprocessor.generate_features = False
 
 # Train params
 train_common.model = @LSTMNet

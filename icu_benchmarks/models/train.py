@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from pathlib import Path
 
 from icu_benchmarks.data.loader import SICUDataset, ImputationDataset
-from icu_benchmarks.models.utils import save_config_file
+from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 
 
 @gin.configurable("train_common")
@@ -94,7 +94,7 @@ def train_common(
         do_test = True
     
     if not only_evaluate:
-        loggers = [TensorBoardLogger(log_dir)]
+        loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
         if use_wandb:
             run_name = f"{type(model).__name__}-{dataset_name}"
             loggers.append(WandbLogger(run_name, save_dir=log_dir, project="Data_Imputation"))

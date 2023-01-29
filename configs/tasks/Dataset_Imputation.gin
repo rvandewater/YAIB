@@ -19,7 +19,7 @@ preprocess.file_names = {
     "STATIC": "sta.parquet",
 }
 
-preprocess.preprocessor = @base_imputation_processor
+preprocess.preprocessor = @base_imputation_preprocessor
 
 preprocess.vars = %vars
 ImputationDataset.vars = %vars

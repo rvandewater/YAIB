@@ -17,4 +17,4 @@ wandb
 mypy
 flake8
 flake8-docstrings
-recipys@git+https://github.com/Snagnar/recipys.git
+recipys@git+https://github.com/rvandewater/recipys.git

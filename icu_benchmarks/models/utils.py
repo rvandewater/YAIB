@@ -161,14 +161,14 @@ def log_table_row(
     logging.log(level, table_row)
 
 
-class JSONMetricsLoggoer(Logger):
-    def __init__(self, *args, output_dir=None, **kwargs):
-        super().__init__(*args, **kwargs)
+class JSONMetricsLogger(Logger):
+    def __init__(self, output_dir=None, **kwargs):
+        super().__init__(**kwargs)
         if output_dir is None:
             output_dir = Path.cwd() / "metrics"
         logging.info(f"logging metrics to file: {str(output_dir.resolve())}")
-        self.output_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir = output_dir
+        self.output_dir.mkdir(parents=True, exist_ok=True)
     
     @property
     def name(self):
@@ -197,3 +197,11 @@ class JSONMetricsLoggoer(Logger):
                 old_metrics.update(metrics)
                 with output_file.open("w") as f:
                     json.dump(old_metrics, f, cls=JsonResultLoggingEncoder, indent=4)
+    
+    @property
+    def version(self):
+        return "0.1"
+
+    @rank_zero_only
+    def log_hyperparams(self, params):
+        pass

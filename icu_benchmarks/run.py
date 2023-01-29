@@ -34,11 +34,6 @@ def main(my_args=tuple(sys.argv[1:])):
         for key, value in sweep_config.items():
             args.hyperparams.append(f"{key}=" + (('\'' + value + '\'') if isinstance(value, str) else str(value)))
 
-    debug = args.debug
-    cache = args.cache
-    if debug and cache:
-        raise ValueError("Caching is not supported in debug mode.")
-
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
@@ -51,8 +46,6 @@ def main(my_args=tuple(sys.argv[1:])):
         name = args.data_dir.name
     task = args.task
     model = args.model
-    if isinstance(args.seed, int):
-        args.seed = [args.seed]
 
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()

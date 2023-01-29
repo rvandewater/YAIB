@@ -42,12 +42,12 @@ vars = {
 }
 
 
-preprocess.preprocessor = @base_classification_processor
+preprocess.preprocessor = @base_classification_preprocessor
 preprocess.vars = %vars
 ClassificationDataset.vars = %vars
 ClassificationDataset.ram_cache = True
 
-base_classification_processor.use_static_features = False
+base_classification_preprocessor.use_static_features = False
 
 execute_repeated_cv.cv_repetitions = 5
 execute_repeated_cv.cv_folds = 5

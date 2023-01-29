@@ -112,7 +112,7 @@ class SICUDataset(Dataset):
         if len(labels) == self.num_stays:
             # order of groups could be random, we make sure not to change it
             rep = rep.groupby(level=self.vars["GROUP"], sort=False).last()
-        rep = rep.to_numpy()
+        rep = rep.to_numpy().astype(float)
 
         return rep, labels
 

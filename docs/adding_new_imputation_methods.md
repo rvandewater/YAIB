@@ -44,8 +44,6 @@ import icu_benchmarks.data.preprocess
 # import here the file you created your New_Method class in
 import icu_benchmarks.imputation.new_model
 
-preprocess.use_features = False
-
 # Train params
 train_common.model = @newmethod # change this into the name of the gin configuration file
 train_common.do_test = True

@@ -3,7 +3,7 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 
-base_classification_processor.generate_features = True
+base_classification_preprocessor.generate_features = True
 
 # Train params
 train_common.model = @LogisticRegression

@@ -1,50 +1,29 @@
 import logging
 from typing import Dict, Any
 from typing import List, Optional, Union
-from torch.nn import Module, MSELoss, CrossEntropyLoss
+from torch.nn import MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 import inspect
 import inspect
-import json
 import logging
-import os
-from pathlib import Path
 
 import gin
-import joblib
 import lightgbm
 import numpy as np
 
-from sklearn.metrics import (
-    average_precision_score,
-    roc_auc_score,
-    accuracy_score,
-    balanced_accuracy_score,
-    mean_absolute_error,
-)
+from sklearn.metrics import mean_absolute_error
 
 import torch
-from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-from ignite.metrics import MeanAbsoluteError, Accuracy, RootMeanSquaredError
 from ignite.exceptions import NotComputableError
 
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
-from icu_benchmarks.models.metrics import BalancedAccuracy, MAE, CalibrationCurve, JSD
 
 from pytorch_lightning import LightningModule
 import torch
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import log_loss
-
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm, trange
 
 from icu_benchmarks.models.metric_constants import MLMetrics, DLMetrics
-from icu_benchmarks.models.encoders import LSTMNet
 from icu_benchmarks.models.metrics import MAE
-from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonResultLoggingEncoder
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
@@ -297,8 +276,6 @@ class MLClassificationWrapper(BaseModule):
 
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
             self.model.set_params(random_state=np.random.get_state()[1][0])
-            print("SHAPES")
-            print(train_label.shape, val_label.shape)
             
             self.model.fit(
                 train_rep,
@@ -323,8 +300,9 @@ class MLClassificationWrapper(BaseModule):
         self.log(f"val/loss", val_loss)
         self.log_dict({
             f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
-            for name, metric in self.metrics.items()
+            for name, metric in self.metrics.items() if "_Curve" not in name
         })
+        return 0.0
 
     def validation_step(self, val_dataset, _):
         val_rep, val_label = val_dataset
@@ -338,8 +316,9 @@ class MLClassificationWrapper(BaseModule):
 
         self.log_dict({
             f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
-            for name, metric in self.metrics.items()
+            for name, metric in self.metrics.items() if "_Curve" not in name
         })
+        return 0.0
 
     def test_step(self, dataset, _):
         test_rep, test_label = dataset
@@ -353,9 +332,10 @@ class MLClassificationWrapper(BaseModule):
         self.log(f"test/loss", 0.0)
         self.log_dict({
             f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
-            for name, metric in self.metrics.items()
+            for name, metric in self.metrics.items() if "_Curve" not in name
         })
-    
+        return 0.0    
+
     def configure_optimizers(self):
         return None
 
@@ -390,11 +370,7 @@ class ImputationWrapper(DLWrapper):
         self.optimizer = optimizer
 
     def set_metrics(self):
-        return {
-            "rmse": RootMeanSquaredError(),
-            "mae": MAE(),
-            "jsd": JSD(),
-        }
+        return DLMetrics.IMPUTATION
 
     def init_weights(self, init_type="normal", gain=0.02):
         def init_func(m):

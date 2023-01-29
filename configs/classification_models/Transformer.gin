@@ -4,7 +4,7 @@ import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.loader
 
-base_classification_processor.generate_features = False
+base_classification_preprocessor.generate_features = False
 
 # Train params
 train_common.model = @Transformer

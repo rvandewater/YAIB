@@ -1,5 +1,5 @@
 from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-from ignite.metrics import MeanAbsoluteError, Accuracy  # , ConfusionMatrix
+from ignite.metrics import MeanAbsoluteError, Accuracy, RootMeanSquaredError  # , ConfusionMatrix
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     average_precision_score,
@@ -15,7 +15,7 @@ from sklearn.metrics import (
     # f1_score,
 )
 
-from icu_benchmarks.models.metrics import CalibrationCurve, BalancedAccuracy
+from icu_benchmarks.models.metrics import CalibrationCurve, BalancedAccuracy, MAE, JSD
 
 
 # TODO: revise transformation for metrics in wrappers.py in order to handle metrics that can not handle a mix of binary and
@@ -27,8 +27,8 @@ class MLMetrics:
         # "Confusion_Matrix": confusion_matrix,
         # "F1": f1_score,
         "PR": average_precision_score,
-        "PRC": precision_recall_curve,
-        "ROC": roc_curve,
+        "PR_Curve": precision_recall_curve,
+        "RO_Curve": roc_curve,
     }
 
     MULTICLASS_CLASSIFICATION = {
@@ -54,8 +54,8 @@ class DLMetrics:
         "Calibration_Curve": CalibrationCurve(),
         # "Confusion_Matrix": ConfusionMatrix(num_classes=2),
         "PR": AveragePrecision(),
-        "PRC": PrecisionRecallCurve(),
-        "ROC": RocCurve(),
+        "PR_Curve": PrecisionRecallCurve(),
+        "RO_Curve": RocCurve(),
     }
 
     MULTICLASS_CLASSIFICATION = {
@@ -65,4 +65,10 @@ class DLMetrics:
 
     REGRESSION = {
         "MAE": MeanAbsoluteError(),
+    }
+    
+    IMPUTATION = {
+        "rmse": RootMeanSquaredError(),
+        "mae": MAE(),
+        "jsd": JSD(),
     }

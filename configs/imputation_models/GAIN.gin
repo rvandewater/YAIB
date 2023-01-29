@@ -5,8 +5,6 @@ import icu_benchmarks.models.utils
 import icu_benchmarks.imputation.baselines
 import icu_benchmarks.data.preprocess
 
-preprocess.use_features = False
-
 # Train params
 train_common.model = @GAIN
 train_common.do_test = True

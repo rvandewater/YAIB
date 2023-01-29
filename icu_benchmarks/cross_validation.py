@@ -84,7 +84,6 @@ def execute_repeated_cv(
                 log_dir=repetition_fold_dir,
                 load_weights=load_weights,
                 source_dir=source_dir,
-                seed=seed,
                 reproducible=reproducible,
                 test_on=test_on,
                 dataset_name=dataset_name,

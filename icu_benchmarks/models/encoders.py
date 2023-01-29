@@ -7,7 +7,6 @@ import lightgbm
 from sklearn import linear_model
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
 from icu_benchmarks.models.wrappers import DLClassificationWrapper, MLClassificationWrapper
-import inspect
 
 @gin.configurable
 class LGBMClassifier(MLClassificationWrapper):
