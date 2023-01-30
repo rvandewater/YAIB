@@ -24,7 +24,7 @@ preprocess.preprocessor = @base_imputation_preprocessor
 preprocess.vars = %vars
 ImputationDataset.vars = %vars
 ImputationDataset.ram_cache = True
-base_imputation_preprocessor.window_size = 73
-base_imputation_preprocessor.window_stride = 10
+base_imputation_preprocessor.window_size = 1500
+base_imputation_preprocessor.window_stride = 20
 
 EMB = 6

@@ -198,7 +198,7 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
     elif mechanism == "MCAR":
         mask = MCAR_mask(X, p_miss)
     else:
-        print("Not a valid amputation mechanism. Missing-data mechanisms to be used are MCAR, MAR or MNAR.")
+        logging.error("Not a valid amputation mechanism. Missing-data mechanisms to be used are MCAR, MAR or MNAR.")
 
     amputed_data = data.mask(mask)
     return amputed_data, mask

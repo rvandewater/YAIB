@@ -60,7 +60,6 @@ def execute_repeated_cv(
     for repetition in range(cv_repetitions_to_train):
         for fold_index in range(cv_folds_to_train):
             start_time = datetime.now()
-            print("now starting preprocessing")
             data = preprocess_data(
                 data_dir,
                 seed=seed,

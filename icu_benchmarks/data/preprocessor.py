@@ -127,7 +127,6 @@ class DefaultClassificationPreprocessor(Preprocessor):
         Returns:
             Preprocessed data.
         """
-        print("init preprocessor")
         self.generate_features = generate_features
         self.scaling = scaling
         self.use_static_features = use_static_features

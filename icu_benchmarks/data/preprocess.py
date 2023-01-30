@@ -132,7 +132,7 @@ def preprocess_data(
     if not use_static:
         file_names.pop("STATIC")
         vars.pop("STATIC")
-    print("preprocessing data")
+
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 
@@ -150,7 +150,6 @@ def preprocess_data(
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
     
     if load_cache:
-        print("loading cache")
         if cache_file.exists():
             with open(cache_file, "rb") as f:
                 logging.info(f"Loading cached data from {cache_file}.")

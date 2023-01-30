@@ -125,8 +125,8 @@ def choose_and_bind_hyperparameters(
             logging.log(TUNE, "Choosing hyperparameters randomly from bounds.")
             n_initial_points = 1
             n_calls = 1
-    if not debug:
-        logging.disable(level=INFO)
+    # if not debug:
+    #     logging.disable(level=INFO)
 
     # Call gaussian process. To choose a random set of hyperparameters this functions is also called.
     res = gp_minimize(

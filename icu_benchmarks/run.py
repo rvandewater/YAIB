@@ -52,7 +52,6 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.info(f"Task mode: {mode}")
     experiment = args.experiment
     
-    print("args.use_pretrained_imputation:", args.use_pretrained_imputation)
     if args.use_pretrained_imputation is not None and not Path(args.use_pretrained_imputation).exists():
         logging.info("the specified pretrained imputation model does not exist")
         args.use_pretrained_imputation = None
@@ -71,12 +70,14 @@ def main(my_args=tuple(sys.argv[1:])):
         pretrained_imputation_model = None
 
     if wandb.run is not None:
-        print("updating wandb config:", {"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
+        logging.info("updating wandb config:", {"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
         wandb.config.update({"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
     source_dir = None
     reproducible = False
     log_dir_name = args.log_dir / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / (args.task_name if args.task_name is not None else args.task) / model)
+    
+    logging.info("logging to " + str(log_dir))
     
     if args.preprocessor:
         # Import custom supplied preprocessor
