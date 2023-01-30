@@ -23,10 +23,10 @@ def choose_and_bind_hyperparameters(
     log_dir: Path,
     seed: int,
     checkpoint: str = None,
-    scopes: list[str] = gin.REQUIRED,
+    scopes: list[str] = [],
     n_initial_points: int = 3,
     n_calls: int = 20,
-    folds_to_tune_on: int = gin.REQUIRED,
+    folds_to_tune_on: int = None,
     checkpoint_file: str = "hyperparameter_tuning_logs.json",
     debug: bool = False,
 ):
@@ -49,6 +49,9 @@ def choose_and_bind_hyperparameters(
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
     hyperparams = {}
+    
+    if len(scopes) == 0 or folds_to_tune_on is None:
+        return
 
     # Collect hyperparameters.
     hyperparams_bounds, hyperparams_names = collect_bound_hyperparameters(hyperparams, scopes)

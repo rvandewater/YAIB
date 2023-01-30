@@ -24,6 +24,7 @@ class SICUDataset(Dataset):
         self.vars = vars
         self.outcome_df = data[split]["OUTCOME"].set_index(self.vars["GROUP"])
         self.features_df = data[split]["FEATURES"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+        self.features_df = self.features_df.loc[:, self.vars["DYNAMIC"]]
 
         # calculate basic info for the data
         self.num_stays = self.outcome_df.index.unique().shape[0]
@@ -140,7 +141,7 @@ class ImputationDataset(Dataset):
         self.split = split
         self.vars = vars
         self.static_df = data[split]["STATIC"]
-        self.dyn_df = data[split]["DYNAMIC"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+        self.dyn_df = data[split]["FEATURES"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
         self.dyn_df = self.dyn_df.loc[:, self.vars["DYNAMIC"]]
 
         # calculate basic info for the data

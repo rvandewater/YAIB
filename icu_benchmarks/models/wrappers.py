@@ -115,7 +115,12 @@ class DLWrapper(BaseModule):
         self.scaler = None
 
     def on_fit_start(self):
-        self.metrics = {step_name: self.set_metrics() for step_name in ["train", "val", "test"]}
+        self.metrics = {
+            step_name: {
+                metric_name: (metric() if isinstance(metric, type) else metric)
+                for metric_name, metric in self.set_metrics().items()
+            } for step_name in ["train", "val", "test"]
+        }
         return super().on_fit_start()
 
     def finalize_step(self, step_prefix = ""):
@@ -141,7 +146,7 @@ class DLWrapper(BaseModule):
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     def on_test_epoch_start(self) -> None:
-        self.metrics = {step_name: self.set_metrics() for step_name in ["train", "val", "test"]}
+        self.metrics = {step_name: {metric_name: metric() for metric_name, metric in self.set_metrics().items()} for step_name in ["train", "val", "test"]}
         return super().on_test_epoch_start()
 
 
@@ -172,7 +177,7 @@ class DLClassificationWrapper(DLWrapper):
         # output transform is not applied for contrib metrics so we do our own.
         if self.logit.out_features == 2:
             self.output_transform = softmax_binary_output_transform
-            self.metrics = DLMetrics.BINARY_CLASSIFICATION
+            metrics = DLMetrics.BINARY_CLASSIFICATION
 
         # Regression
         elif self.encoder.logit.out_features == 1:
@@ -180,12 +185,13 @@ class DLClassificationWrapper(DLWrapper):
             if self.scaler is not None:
                 metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
             else:
-                self.metrics = DLMetrics.REGRESSION
+                metrics = DLMetrics.REGRESSION
 
         # Multiclass classification
         else:
             self.output_transform = softmax_multi_output_transform
-            self.metrics = DLMetrics.MULTICLASS_CLASSIFICATION
+            metrics = DLMetrics.MULTICLASS_CLASSIFICATION
+        return metrics
 
 
     def step_fn(self, element, step_prefix = ""):
@@ -212,10 +218,10 @@ class DLClassificationWrapper(DLWrapper):
             out, aux_loss = out
         else:
             aux_loss = 0
-        prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1])
-        target = torch.masked_select(labels, mask)
+        prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
+        target = torch.masked_select(labels, mask).to(self.device)
         if prediction.shape[-1] > 1:
-            loss = self.loss(prediction, target.long(), weight=self.loss_weights) + aux_loss  # torch.long because NLL
+            loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss  # torch.long because NLL
         else:
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss  # Regression task
         
@@ -302,7 +308,6 @@ class MLClassificationWrapper(BaseModule):
             f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
             for name, metric in self.metrics.items() if "_Curve" not in name
         })
-        return 0.0
 
     def validation_step(self, val_dataset, _):
         val_rep, val_label = val_dataset
@@ -318,7 +323,6 @@ class MLClassificationWrapper(BaseModule):
             f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
             for name, metric in self.metrics.items() if "_Curve" not in name
         })
-        return 0.0
 
     def test_step(self, dataset, _):
         test_rep, test_label = dataset
@@ -334,7 +338,6 @@ class MLClassificationWrapper(BaseModule):
             f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
             for name, metric in self.metrics.items() if "_Curve" not in name
         })
-        return 0.0    
 
     def configure_optimizers(self):
         return None
@@ -396,6 +399,10 @@ class ImputationWrapper(DLWrapper):
 
     def on_fit_start(self) -> None:
         self.init_weights(self.hparams.initialization_method)
+        for metrics in self.metrics.values():
+            for metric in metrics.values():
+                metric.reset()
+        logging.info("RESET METRICS")
         return super().on_fit_start()
     
     def step_fn(self, batch, step_prefix=""):
@@ -407,7 +414,7 @@ class ImputationWrapper(DLWrapper):
         self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
         
         for metric in self.metrics[step_prefix].values():
-            metric.update((torch.flatten(amputated, start_dim=1), torch.flatten(target, start_dim=1)))
+            metric.update((torch.flatten(amputated.detach(), start_dim=1).clone(), torch.flatten(target.detach(), start_dim=1).clone()))
         return loss
     
     def predict_step(self, data, amputation_mask=None):

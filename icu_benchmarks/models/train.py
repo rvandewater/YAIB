@@ -50,6 +50,20 @@ def train_common(
         source_dir: If set to load weights, path to directory containing trained weights.
         seed: Common seed used for any random operation.
         reproducible: If set to true, set torch to run reproducibly.
+        only_evaluate: If set to true, only evaluate the model and do not train it.
+        mode: Mode of the model. Can be "Classification" or "Imputation".
+        dataset_name: Name of the dataset.
+        model: Model to be trained.
+        weight: Weight to be used for the loss function.
+        optimizer: Optimizer to be used for training.
+        do_test: If set to true, evaluate the model on the test set.
+        batch_size: Batch size to be used for training.
+        epochs: Number of epochs to train for.
+        patience: Number of epochs to wait before early stopping.
+        min_delta: Minimum change in loss to be considered an improvement.
+        test_on: If set to "test", evaluate the model on the test set. If set to "val", evaluate on the validation set.
+        use_wandb: If set to true, log to wandb.
+        num_workers: Number of workers to use for data loading.        
     """
     logging.info(f"Training model: {model.__name__}")
     DatasetClass = ImputationDataset if mode == "Imputation" else SICUDataset
@@ -130,13 +144,9 @@ def train_common(
                 )
             if not model.needs_training:
                 try:
-                    torch.save({
-                        "class": model.__class__,
-                        "state_dict": model.state_dict(),
-                        "hyper_parameters": model.hparams,
-                    }, log_dir / "model.ckpt")
+                    torch.save(model, log_dir / "last.ckpt")
                 except Exception as e:
-                    logging.error(f"cannot save model to path {str((log_dir / 'model.ckpt').resolve())}: {e}")
+                    logging.error(f"cannot save model to path {str((log_dir / 'last.ckpt').resolve())}: {e}")
             logging.info("fitting complete!")
 
         if model.needs_training:

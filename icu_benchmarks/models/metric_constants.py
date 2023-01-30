@@ -50,25 +50,25 @@ class MLMetrics:
 # TODO: add support for confusion matrix
 class DLMetrics:
     BINARY_CLASSIFICATION = {
-        "AUC": ROC_AUC(),
-        "Calibration_Curve": CalibrationCurve(),
+        "AUC": ROC_AUC,
+        "Calibration_Curve": CalibrationCurve,
         # "Confusion_Matrix": ConfusionMatrix(num_classes=2),
-        "PR": AveragePrecision(),
-        "PR_Curve": PrecisionRecallCurve(),
-        "RO_Curve": RocCurve(),
+        "PR": AveragePrecision,
+        "PR_Curve": PrecisionRecallCurve,
+        "RO_Curve": RocCurve,
     }
 
     MULTICLASS_CLASSIFICATION = {
-        "Accuracy": Accuracy(),
-        "BalancedAccuracy": BalancedAccuracy(),
+        "Accuracy": Accuracy,
+        "BalancedAccuracy": BalancedAccuracy,
     }
 
     REGRESSION = {
-        "MAE": MeanAbsoluteError(),
+        "MAE": MeanAbsoluteError,
     }
     
     IMPUTATION = {
-        "rmse": RootMeanSquaredError(),
-        "mae": MAE(),
-        "jsd": JSD(),
+        "rmse": RootMeanSquaredError,
+        "mae": MAE,
+        "jsd": JSD,
     }

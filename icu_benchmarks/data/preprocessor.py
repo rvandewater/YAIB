@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import torch
 import logging
 
@@ -47,34 +48,8 @@ class DefaultImputationPreprocessor(Preprocessor):
             Preprocessed data.
         """
         logging.info("Preprocessor static features.")
+        data = {step: self.process_dynamic_data(data[step], vars) for step in data}
         
-        maxlen = data["DYNAMIC"].groupby([vars["GROUP"]]).size().max()
-        if self.window_size >= maxlen:
-            rows_to_remove = data["DYNAMIC"][vars["DYNAMIC"]].isna().sum(axis=1) != 0
-            ids_to_remove = data["DYNAMIC"].loc[rows_to_remove][vars["GROUP"]].unique()
-            data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
-            logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
-        else:
-            # collect all stays with window size consecutive present values
-            data["DYNAMIC"]["OLD_GROUP"] = data["DYNAMIC"][vars["GROUP"]]
-            new_data = {name: pd.DataFrame(columns=table.columns) for name, table in data.items()}
-            grouped = data["DYNAMIC"].groupby([vars["GROUP"]])
-            slice_counter = 0
-            
-            for group_name, group in grouped:
-                for i in range(0, len(group) - self.window_size + 1, self.window_stride):
-                    if group.iloc[i:i+self.window_size][vars["DYNAMIC"]].isna().sum().sum() == 0:
-                        slice = group.iloc[i:i+self.window_size]
-                        slice[vars["GROUP"]] = slice_counter
-                        new_data["DYNAMIC"] = new_data["DYNAMIC"].append(slice)
-                        for table_name, table in data.items():
-                            if table_name != "DYNAMIC":
-                                new_slice_data = table.loc[table[vars["GROUP"]] == group_name]
-                                new_slice_data[vars["GROUP"]] = slice_counter
-                                new_data[table_name] = new_data[table_name].append(new_slice_data)
-                        slice_counter += 1
-            data = new_data
-            logging.info(f"Generated {slice_counter} slices with {self.window_size} consecutive present values from {len(grouped)} records.")
         dyn_rec = Recipe(data["train"]["DYNAMIC"], [], vars["DYNAMIC"], vars["GROUP"], vars["SEQUENCE"])
         
         if self.scaling:
@@ -105,6 +80,36 @@ class DefaultImputationPreprocessor(Preprocessor):
         data["test"][type] = recipe.bake(data["test"][type])
         return data
 
+    def process_dynamic_data(self, data, vars):
+        maxlen = data["DYNAMIC"].groupby([vars["GROUP"]]).size().max()
+        if self.window_size >= maxlen:
+            rows_to_remove = data["DYNAMIC"][vars["DYNAMIC"]].isna().sum(axis=1) != 0
+            ids_to_remove = data["DYNAMIC"].loc[rows_to_remove][vars["GROUP"]].unique()
+            data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
+            logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
+        else:
+            # collect all stays with window size consecutive present values
+            data["DYNAMIC"]["OLD_GROUP"] = data["DYNAMIC"][vars["GROUP"]]
+            new_data = {name: pd.DataFrame(columns=table.columns) for name, table in data.items()}
+            grouped = data["DYNAMIC"].groupby([vars["GROUP"]])
+            slice_counter = 0
+            
+            for group_name, group in tqdm(grouped):
+                for i in range(0, len(group) - self.window_size + 1, self.window_stride):
+                    if group.iloc[i:i+self.window_size][vars["DYNAMIC"]].isna().sum().sum() == 0:
+                        slice = group.iloc[i:i+self.window_size].copy()
+                        slice.loc[:, vars["GROUP"]] = slice_counter
+                        # use pandas.concat
+                        new_data["DYNAMIC"] = pd.concat([new_data["DYNAMIC"], slice])
+                        for table_name, table in data.items():
+                            if table_name != "DYNAMIC":
+                                new_slice_data = table.loc[table[vars["GROUP"]] == group_name].copy()
+                                new_slice_data.loc[:, vars["GROUP"]] = slice_counter
+                                new_data[table_name] = pd.concat([new_data[table_name], new_slice_data])
+                        slice_counter += 1
+            data = new_data
+            logging.info(f"Generated {slice_counter} slices with {self.window_size} consecutive present values from {len(grouped)} records.")
+        return data
 
 @gin.configurable("base_classification_preprocessor")
 class DefaultClassificationPreprocessor(Preprocessor):
@@ -122,6 +127,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         Returns:
             Preprocessed data.
         """
+        print("init preprocessor")
         self.generate_features = generate_features
         self.scaling = scaling
         self.use_static_features = use_static_features
@@ -183,7 +189,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         if self.scaling:
             dyn_rec.add_step(StepScale())
         if self.imputation_model is not None:
-            dyn_rec.add_step(StepImputeModel(self.model_impute, sel=all_of(vars["DYNAMIC"])))
+            dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars["DYNAMIC"])))
         else:
             dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars["DYNAMIC"]), in_place=False))
             dyn_rec.add_step(StepImputeFill(method="ffill"))

@@ -29,7 +29,7 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-tn", "--task-name", help="Name of the task.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
-    general_args.add_argument("-l", "--log-dir", required=True, type=Path, help="Log directory with model weights.")
+    general_args.add_argument("-l", "--log-dir", required=False, default=Path("../yaib_logs/"), type=Path, help="Log directory with model weights.")
     general_args.add_argument("-s", "--seed", default=1111, type=int, help="Random seed for processing, tuning and training.")
     general_args.add_argument(
         "-v",

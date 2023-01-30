@@ -52,6 +52,7 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.info(f"Task mode: {mode}")
     experiment = args.experiment
     
+    print("args.use_pretrained_imputation:", args.use_pretrained_imputation)
     if args.use_pretrained_imputation is not None and not Path(args.use_pretrained_imputation).exists():
         logging.info("the specified pretrained imputation model does not exist")
         args.use_pretrained_imputation = None
@@ -59,14 +60,12 @@ def main(my_args=tuple(sys.argv[1:])):
     if args.use_pretrained_imputation is not None:
         logging.info("using pretrained imputation from" + str(args.use_pretrained_imputation))
         pretrained_imputation_model_checkpoint = torch.load(args.use_pretrained_imputation, map_location=torch.device('cpu'))
-        # check if the loaded model is a pytorch lightning checkpoint
-        # if isinstance(pretrained_imputation_model, dict):
-        #     model_name = Path(args.use_pretrained_imputation).parent.parent.parent.name
-        #     model_class = name_mapping[model_name]
-        #     pretrained_imputation_model = model_class.load_from_checkpoint(args.use_pretrained_imputation)
-        imputation_model_class = pretrained_imputation_model_checkpoint["class"]
-        pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
-        pretrained_imputation_model.load_state_dict(pretrained_imputation_model_checkpoint["state_dict"])
+        if isinstance(pretrained_imputation_model_checkpoint, dict):
+            imputation_model_class = pretrained_imputation_model_checkpoint["class"]
+            pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
+            pretrained_imputation_model.load_state_dict(pretrained_imputation_model_checkpoint["state_dict"])
+        else:
+            pretrained_imputation_model = pretrained_imputation_model_checkpoint
         pretrained_imputation_model = pretrained_imputation_model.to("cuda" if torch.cuda.is_available() else "cpu")
     else:
         pretrained_imputation_model = None
@@ -77,8 +76,8 @@ def main(my_args=tuple(sys.argv[1:])):
     source_dir = None
     reproducible = False
     log_dir_name = args.log_dir / name
-    log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / args.task_name / model)
-
+    log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / (args.task_name if args.task_name is not None else args.task) / model)
+    
     if args.preprocessor:
         # Import custom supplied preprocessor
         try:

@@ -48,7 +48,7 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
-    stays = data["OUTCOME"][id]
+    stays = data["OUTCOME" if "OUTCOME" in data else "STATIC"][id]
     if debug:
         # Only use 1% of the data
         stays = stays.sample(frac=0.01, random_state=seed)
@@ -120,6 +120,7 @@ def preprocess_data(
         load_cache: Use cached preprocessed data if true.
         generate_cache: Generate cached preprocessed data if true.
         fold_index: Index of the fold to return.
+        pretrained_imputation_model: pretrained imputation model to use. if None, standard imputation is used.
 
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC) / DYNAMIC/ OUTCOME
@@ -131,7 +132,7 @@ def preprocess_data(
     if not use_static:
         file_names.pop("STATIC")
         vars.pop("STATIC")
-
+    print("preprocessing data")
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 
@@ -147,8 +148,9 @@ def preprocess_data(
     )
 
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
-
+    
     if load_cache:
+        print("loading cache")
         if cache_file.exists():
             with open(cache_file, "rb") as f:
                 logging.info(f"Loading cached data from {cache_file}.")
