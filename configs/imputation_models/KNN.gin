@@ -7,6 +7,5 @@ import icu_benchmarks.data.preprocess
 
 # Train params
 train_common.model = @KNN
-train_common.do_test = True
 
 KNN.n_neighbors = 10

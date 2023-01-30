@@ -7,7 +7,6 @@ import icu_benchmarks.data.preprocess
 
 # Train params
 train_common.model = @BRNN
-train_common.do_test = True
 train_common.epochs = 100
 train_common.batch_size = 64
 train_common.patience = 10

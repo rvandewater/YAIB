@@ -7,7 +7,6 @@ import icu_benchmarks.data.preprocess
 
 # Train params
 train_common.model = @NP
-train_common.do_test = True
 
 # Model params
 # Deterministic encoder params

@@ -46,7 +46,6 @@ import icu_benchmarks.imputation.new_model
 
 # Train params
 train_common.model = @newmethod # change this into the name of the gin configuration file
-train_common.do_test = True
 
 # here you can set some training parameters
 train_common.epochs = 1000

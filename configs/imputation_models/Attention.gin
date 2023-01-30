@@ -7,7 +7,6 @@ import icu_benchmarks.data.preprocess
 
 # Train params
 train_common.model = @Attention
-train_common.do_test = True
 
 # Model params
 Attention.n_layers = 2

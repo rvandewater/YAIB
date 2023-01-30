@@ -7,7 +7,6 @@ import icu_benchmarks.data.preprocess
 
 # Train params
 train_common.model = @BRITS
-train_common.do_test = True
 train_common.epochs = 100
 
 # Model params

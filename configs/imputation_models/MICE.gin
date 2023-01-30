@@ -7,7 +7,6 @@ import icu_benchmarks.data.preprocess
 
 # Train params
 train_common.model = @MICE
-train_common.do_test = True
 
 MICE.max_iter = 100
 MICE.verbose = 2
