@@ -9,6 +9,8 @@ from recipys.selector import all_numeric_predictors, has_type, all_of
 from recipys.step import StepScale, StepImputeFill, StepSklearn, StepHistorical, Accumulator, StepImputeModel
 from sklearn.impute import SimpleImputer, MissingIndicator
 from sklearn.preprocessing import LabelEncoder
+from multiprocessing import Pool
+import os
 
 from icu_benchmarks.data.loader import ImputationPredictionDataset
 import abc
@@ -23,6 +25,22 @@ class Preprocessor:
     def to_cache_string(self):
         return f"{self.__class__.__name__}"
 
+def window_process_group(data):
+    group_name, group, vars, slice_counter, new_data, old_data, window_size, window_stride = data
+    
+    for i in range(0, len(group) - window_size + 1, window_stride):
+        if group.iloc[i:i+window_size][vars["DYNAMIC"]].isna().sum().sum() == 0:
+            slice = group.iloc[i:i+window_size].copy()
+            slice.loc[:, vars["GROUP"]] = slice_counter
+            # use pandas.concat
+            new_data["DYNAMIC"] = pd.concat([new_data["DYNAMIC"], slice])
+            for table_name, table in old_data.items():
+                if table_name != "DYNAMIC":
+                    new_slice_data = table.loc[table[vars["GROUP"]] == group_name].copy()
+                    new_slice_data.loc[:, vars["GROUP"]] = slice_counter
+                    new_data[table_name] = pd.concat([new_data[table_name], new_slice_data])
+            slice_counter += 1
+    return slice_counter
 
 @gin.configurable("base_imputation_preprocessor")
 class DefaultImputationPreprocessor(Preprocessor):
@@ -80,6 +98,9 @@ class DefaultImputationPreprocessor(Preprocessor):
         data["test"][type] = recipe.bake(data["test"][type])
         return data
 
+    
+        
+
     def process_dynamic_data(self, data, vars):
         maxlen = data["DYNAMIC"].groupby([vars["GROUP"]]).size().max()
         if self.window_size >= maxlen:
@@ -94,19 +115,14 @@ class DefaultImputationPreprocessor(Preprocessor):
             grouped = data["DYNAMIC"].groupby([vars["GROUP"]])
             slice_counter = 0
             
-            for group_name, group in tqdm(grouped):
-                for i in range(0, len(group) - self.window_size + 1, self.window_stride):
-                    if group.iloc[i:i+self.window_size][vars["DYNAMIC"]].isna().sum().sum() == 0:
-                        slice = group.iloc[i:i+self.window_size].copy()
-                        slice.loc[:, vars["GROUP"]] = slice_counter
-                        # use pandas.concat
-                        new_data["DYNAMIC"] = pd.concat([new_data["DYNAMIC"], slice])
-                        for table_name, table in data.items():
-                            if table_name != "DYNAMIC":
-                                new_slice_data = table.loc[table[vars["GROUP"]] == group_name].copy()
-                                new_slice_data.loc[:, vars["GROUP"]] = slice_counter
-                                new_data[table_name] = pd.concat([new_data[table_name], new_slice_data])
-                        slice_counter += 1
+            parallel_execution_data = []
+            for idx, (group_name, group) in enumerate(grouped):
+                parallel_execution_data.append([group_name, group, vars, idx * (maxlen), new_data, data, self.window_size, self.window_stride])
+            max_workers = int(len(os.sched_getaffinity(0)))
+            with Pool(max_workers) as p:
+            # for i in tqdm(range(len(grouped))):
+                # window_process_group(parallel_execution_data[i])
+                list(tqdm(p.imap(window_process_group, iter(parallel_execution_data)), total=len(grouped)))
             data = new_data
             logging.info(f"Generated {slice_counter} slices with {self.window_size} consecutive present values from {len(grouped)} records.")
         return data
