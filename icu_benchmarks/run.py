@@ -7,7 +7,6 @@ import sys
 import torch
 import wandb
 from pathlib import Path
-from icu_benchmarks.imputation import name_mapping
 
 import importlib.util
 
