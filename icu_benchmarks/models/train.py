@@ -10,7 +10,7 @@ import wandb
 from typing import Dict
 from torch.optim import Adam
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torch.utils.data import DataLoader
 from pathlib import Path
@@ -32,7 +32,6 @@ def train_common(
     model: object = gin.REQUIRED,
     weight: str = None,
     optimizer: type = Adam,
-    do_test: bool = False,
     batch_size=64,
     epochs=1000,
     patience=20,
@@ -104,7 +103,6 @@ def train_common(
             model = model.load_state_dict(checkpoint["state_dict"])
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
-        do_test = True
     
     if not only_evaluate:
         loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
@@ -121,6 +119,7 @@ def train_common(
             callbacks=[
                 EarlyStopping(monitor=f"val/loss", min_delta=min_delta, patience=patience, strict=False),
                 ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
+                TQDMProgressBar(refresh_rate=100),
             ],
             # precision=16,
             accelerator="auto",
@@ -129,6 +128,7 @@ def train_common(
             benchmark=not reproducible,
             logger=loggers,
             num_sanity_val_steps=0,
+            log_every_n_steps=1 if model.needs_fit else 100,
         )
 
         if model.needs_fit:
@@ -155,26 +155,25 @@ def train_common(
      
 
     test_loss = 0.0
-    if only_evaluate or do_test:
-        logging.info("testing...")
-        test_dataset = DatasetClass(data, split=test_on)
-        
-        test_loader = DataLoader(
-            test_dataset,
-            batch_size=batch_size * 4,
-            shuffle=False,
-            num_workers=num_workers,
-            pin_memory=True,
+    logging.info("testing...")
+    test_dataset = DatasetClass(data, split=test_on)
+    
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size * 4,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
+    
+    if mode == "Classification":
+        model.set_weight("balanced", train_dataset)
+    test_loss = trainer.test(
+        model, 
+        dataloaders = (
+            test_loader if (mode == "Imputation" or model.needs_training) 
+            else DataLoader([test_dataset.get_data_and_labels()], batch_size=1)
         )
-        
-        if mode == "Classification":
-            model.set_weight("balanced", train_dataset)
-        test_loss = trainer.test(
-            model, 
-            dataloaders = (
-                test_loader if (mode == "Imputation" or model.needs_training) 
-                else DataLoader([test_dataset.get_data_and_labels()], batch_size=1)
-            )
-        )[0]["test/loss"]
+    )[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss

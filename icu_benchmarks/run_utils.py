@@ -94,10 +94,15 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
         if repetition.is_dir():
             aggregated[repetition.name] = {}
             for fold_iter in repetition.iterdir():
+                aggregated[repetition.name][fold_iter.name] = {}
                 if (fold_iter / "test_metrics.json").is_file():
                     with open(fold_iter / "test_metrics.json", "r") as f:
                         result = json.load(f)
-                        aggregated[repetition.name][fold_iter.name] = result
+                        aggregated[repetition.name][fold_iter.name].update(result)
+                elif (fold_iter / "val_metrics.csv").is_file():
+                    with open(fold_iter / "val_metrics.csv", "r") as f:
+                        result = json.load(f)
+                        aggregated[repetition.name][fold_iter.name].update(result)
                 # Add durations to metrics
                 if (fold_iter / "durations.json").is_file():
                     with open(fold_iter / "durations.json", "r") as f:
