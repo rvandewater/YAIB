@@ -12,7 +12,7 @@ train_common.model = @Diffusion
 train_common.do_test = True
 
 # here you can set some training parameters
-train_common.epochs = 1
+train_common.epochs = 5
 train_common.batch_size = 64
 train_common.patience = 10
 train_common.min_delta = 1e-4

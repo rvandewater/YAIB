@@ -27,8 +27,8 @@ class Simple_Diffusion_Model(ImputationWrapper):
     # Model Parameters
     n_onedirectional_conv = 3
     T = 300
-    min_noise = 0.01
-    max_noise = 0.05
+    min_noise = 0.0001
+    max_noise = 0.02
     noise_scheduler = 'linear'
 
     def __init__(self, *args, input_size, **kwargs):
@@ -79,25 +79,27 @@ class Simple_Diffusion_Model(ImputationWrapper):
         self.downs = nn.ModuleList()
         self.ups = nn.ModuleList()
 
-        for _ in range(self.n_onedirectional_conv):
-            self.downs.append(Block(input_size[2]))
-            self.ups.append(Block(input_size[2], up=True))
-            # self.ups.append(nn.Conv2d(1, 1, (4, 2)))
-            # self.downs.append(nn.ConvTranspose2d(1, 1, (4, 2)))
+        for i in range(self.n_onedirectional_conv):
+            self.downs.append(Block(input_size, i))
+            self.ups.append(Block(input_size, (self.n_onedirectional_conv - i), up=True))
 
     def forward(self, amputated, timestep):
         amputated = torch.nan_to_num(amputated, nan=0.0)
         amputated = amputated[:, None, :, :]
         x = amputated
 
-        # TODO: - Add Residual Connections and check if shapes are still working together
-
         # Embedd time
         t = self.time_mlp(timestep)
 
+        # Residual Connections
+        residuals = []
+
         for down in self.downs:
             x = down(x, t)
+            residuals.append(x)
         for up in self.ups:
+            residual = residuals.pop()
+            x = torch.cat((x, residual), dim=1)
             x = up(x, t)
         return x.squeeze()
 
@@ -105,6 +107,8 @@ class Simple_Diffusion_Model(ImputationWrapper):
     def training_step(self, batch):
         amputated, amputation_mask, target = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
+
+        self.input_size = amputated.shape
 
         # TODO: - Replace by amputated data
         # TODO: - Context / Target Split
@@ -125,17 +129,48 @@ class Simple_Diffusion_Model(ImputationWrapper):
         self.log("train/loss", loss.item(), prog_bar=True)
 
         # TODO: - Update Metrics ?? Does it make sense to update metrics based on the noise prediction or should we already calculate the new samples here?
-
+        # Answer: Updating metrics makes not really sense
         return loss
 
-    def val_test_step(self, batch, batch_idx, step_prefix=""):
+
+    def validation_step(self, batch, batch_idx):
         amputated, amputation_mask, target = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
+
+        self.input_size = amputated.shape
+
+        # TODO: - Replace by amputated data
+        # TODO: - Context / Target Split
+        x_0 = target
+        
+        # Take a random timestep
+        t = torch.randint(0, self.T, (self.input_size[0],)).long()
+
+        # Introduce Noise into the samples according
+        x_t, noise = self.forward_diffusion_sample(x_0, t)
+
+        # Let the model predict the noise in the noised sample
+        noise_pred = self(x_t, t)
+
+        # Calculate Loss: Difference between actual noise and noise prediction
+        loss = F.l1_loss(noise, noise_pred)
+
+        self.log("val/loss", loss.item(), prog_bar=True)
+        
+
+    def test_step(self, batch, batch_idx):
+        amputated, amputation_mask, target = batch
+        amputated = torch.nan_to_num(amputated, nan=0.0)
+
+        self.input_size = amputated.shape
 
         x_0 = amputated
 
         # Take a random timestep
-        t = torch.randint(0, self.T, (self.input_size[0],)).long()
+        # t = torch.randint(0, self.T, (self.input_size[0],)).long()
+
+        # Take the last timestep
+        t = torch.full((self.input_size[0],), self.T - 1)
 
         # Let the Model predict the noise
         noise_pred = self(x_0, t)
@@ -144,27 +179,21 @@ class Simple_Diffusion_Model(ImputationWrapper):
         # TODO: - Check if this is the correct way to do this
         x_t, _ = self.forward_diffusion_sample(x_0, t)
 
-        # Calculate the backward sample replacing the original x_0 and having imputed data
+        # Calculate the backward sample for timestep 0 replacing the original x_0 and having imputed data
         x_0 = self.backward_diffusion_sample(noise_pred, x_t, t)
+
+        # Use the prediction only where the original data is missing
+        x_0 = amputated.masked_scatter_(amputation_mask.bool(), x_0)
 
         # Calculate Loss: Difference between imputed and target
         # TODO: - Check different Loss functions
         loss = self.loss(x_0, target)
 
-        self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
+        self.log("test/loss", loss.item(), prog_bar=True)
 
-        # TODO: - Update Metrics
-
-        # TODO: - Is this return statement required?
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        return None
-        return self.val_test_step(batch, batch_idx, "val")
-
-    def test_step(self, batch, batch_idx):
-        return None
-        return self.val_test_step(batch, batch_idx, "test")
+        # Update Metrics
+        for metric in self.metrics["test"].values():
+            metric.update((torch.flatten(x_0, start_dim=1), torch.flatten(target, start_dim=1)))
     
 
     # Helper function to return a value for a specific timestep t from a list reformatted for the current input size
@@ -195,7 +224,7 @@ class Simple_Diffusion_Model(ImputationWrapper):
 
     # Function that takes a noised image at some timestep t and the noise prediction and tries to compute the original sample
     # The t here needs to be one specific timestamp -> always the same value, while it doesn't have to be like that in the forward diffusion sample function
-    def backward_diffusion_sample(self, noise_pred, x_t, t, t_index):
+    def backward_diffusion_sample(self, noise_pred, x_t, t, t_index = 0):
 
         betas_t = self.get_index_from_list(self.betas, t, x_t.shape)
         sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape)
@@ -211,12 +240,15 @@ class Simple_Diffusion_Model(ImputationWrapper):
             return model_mean + torch.sqrt(posterior_variance_t) * noise
 
 class Block(nn.Module):
-    def __init__(self, time_emb_dim, up=False):
+    def __init__(self, input_size, i, up=False):
         super().__init__()
-        self.time_mlp = nn.Linear(time_emb_dim, 25)
+
+        n_timestamps = input_size[1] - 3 * i
+
+        self.time_mlp = nn.Linear(input_size[2], n_timestamps)
         if up:
             # take 2 times the number of input channels because residuals were added in the upsampling process
-            self.conv1 = nn.ConvTranspose2d(1, 1, 3, padding=1)
+            self.conv1 = nn.ConvTranspose2d(2, 1, 3, padding=1)
             self.transform = nn.ConvTranspose2d(1, 1, (4, 2))
         else:
             self.conv1 = nn.Conv2d(1, 1, 3, padding=1)
@@ -232,12 +264,12 @@ class Block(nn.Module):
         # TODO: - Add Attention Layer before Time Embedding
 
         # Time Embedding
-        # TODO: - Bring to the same shape to enable adding it later (not working currently)
-        time_emb = self.relu(self.time_mlp(t))
+        # TODO: - Check if it is correct to use the same value for every feature (currently there are only differences between timesteps)
+        time_emb = self.relu(self.time_mlp(t[:, None, :]))
         # Extend last dimension
         time_emb = time_emb[(..., ) + (None, )]
         # Add time
-        # h += time_emb
+        h += time_emb
         # Second Convolution
         h = self.bnorm2(self.relu(self.conv2(h)))
         return self.transform(h)
@@ -248,10 +280,9 @@ class SinusoidalPositionEmbeddings(nn.Module):
         self.dim = dim
 
     def forward(self, time):
-        device = time.device
         half_dim = self.dim // 2
         embeddings = math.log(10000) / (half_dim - 1 + 0.05)
-        embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
+        embeddings = torch.exp(torch.arange(half_dim) * -embeddings)
         embeddings = time[:, None] * embeddings[None, :]
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
         return embeddings
