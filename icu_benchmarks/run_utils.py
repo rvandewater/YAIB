@@ -38,8 +38,12 @@ def build_parser() -> ArgumentParser:
         help="Whether to use verbose logging. Disable for clean logs.",
     )
     general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
-    general_args.add_argument("-lc", "--load_cache", default=False, action=BooleanOptionalAction, help="Set to load generated data cache.")
-    general_args.add_argument("-gc", "--generate_cache", default=False, action=BooleanOptionalAction, help="Set to generate data cache.")
+    general_args.add_argument(
+        "-lc", "--load_cache", default=False, action=BooleanOptionalAction, help="Set to load generated data cache."
+    )
+    general_args.add_argument(
+        "-gc", "--generate_cache", default=False, action=BooleanOptionalAction, help="Set to generate data cache."
+    )
     general_args.add_argument("-p", "--preprocessor", type=Path, help="Load custom preprocessor from file.")
     general_args.add_argument("-pl", "--plot", default=False, action=BooleanOptionalAction, help="Generate common plots.")
 
@@ -149,5 +153,3 @@ def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newl
         level,
         "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars),
     )
-
-

@@ -53,7 +53,6 @@ def main(my_args=tuple(sys.argv[1:])):
     else:
         from icu_benchmarks.data.preprocessor import DefaultPreprocessor as preprocessor
 
-
     if train_on_cpu:
         gin.bind_parameter("DLWrapper.device", "cpu")
     if load_weights:

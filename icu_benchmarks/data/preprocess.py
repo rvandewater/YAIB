@@ -11,6 +11,7 @@ from sklearn.model_selection import StratifiedKFold
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultPreprocessor
 from .constants import DataSplit as Split, DataSegment as Segment
 
+
 def make_single_split(
     data: dict[pd.DataFrame],
     vars: dict[str],
@@ -118,11 +119,9 @@ def preprocess_data(
         logging.log(logging.INFO, "Using user-supplied preprocessor.")
     preprocessor = preprocessor(use_static_features=use_static)
 
-    config_string = (f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{seed}{repetition_index}{fold_index}"
-                     f"{debug}".encode("utf-8"))
-
-    # TODO: Make readable
-    cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
+    hash_config = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{debug}".encode("utf-8")
+    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_{hashlib.md5(hash_config).hexdigest()}"
+    cache_file = cache_dir / cache_filename
 
     if load_cache:
         if cache_file.exists():
@@ -144,7 +143,7 @@ def preprocess_data(
     else:
         logging.info("Cache will not be saved.")
 
-    gin.bind_parameter("model/hyperparameter.input_dim", data[Split.train][Segment.features].shape[1]-2)
+    gin.bind_parameter("model/hyperparameter.input_dim", data[Split.train][Segment.features].shape[1] - 2)
 
     logging.info("Finished preprocessing.")
 

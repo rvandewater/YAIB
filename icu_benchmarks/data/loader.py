@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 
 from .constants import DataSegment as Segment, DataSplit as Split
 
+
 @gin.configurable("Dataset")
 class SICUDataset(Dataset):
     """Standardized ICU Dataset: subclass of Torch Dataset that represents the data to learn on.
@@ -20,7 +21,9 @@ class SICUDataset(Dataset):
         self.split = split
         self.vars = vars
         self.outcome_df = data[split][Segment.outcome].set_index(self.vars["GROUP"])
-        self.features_df = data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+        self.features_df = (
+            data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+        )
 
         # calculate basic info for the data
         self.num_stays = self.outcome_df.index.unique().shape[0]

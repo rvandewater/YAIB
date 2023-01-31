@@ -51,7 +51,17 @@ class GRUNet(nn.Module):
 @gin.configurable
 class Transformer(nn.Module):
     def __init__(
-        self, input_dim, hidden, heads, ff_hidden_mult, depth, num_classes, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0
+        self,
+        input_dim,
+        hidden,
+        heads,
+        ff_hidden_mult,
+        depth,
+        num_classes,
+        dropout=0.0,
+        l1_reg=0,
+        pos_encoding=True,
+        dropout_att=0.0,
     ):
         super().__init__()
         hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even

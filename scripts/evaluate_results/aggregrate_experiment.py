@@ -14,7 +14,7 @@ def aggregate_results(
     scale=100,
     sort=["Dataset", "Model"],
     datasets=["miiv", "aumc", "hirid", "eicu"],
-    results_file="accumulated_test_metrics.json"
+    results_file="accumulated_test_metrics.json",
 ):
     """
     Aggregate results from a log directory.

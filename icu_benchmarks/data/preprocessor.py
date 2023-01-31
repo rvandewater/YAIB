@@ -31,11 +31,7 @@ class Preprocessor:
 @gin.configurable("default_preprocessor")
 class DefaultPreprocessor(Preprocessor):
     def __init__(
-        self,
-        generate_features: bool = True,
-        scaling: bool = True,
-        use_static_features: bool = True,
-        vars: dict = None
+        self, generate_features: bool = True, scaling: bool = True, use_static_features: bool = True, vars: dict = None
     ):
         """
         Args:
@@ -70,9 +66,15 @@ class DefaultPreprocessor(Preprocessor):
             data[Split.test][Segment.static] = data[Split.test][Segment.static].set_index(vars["GROUP"])
 
             # Join static and dynamic data.
-            data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].join(data[Split.train][Segment.static], on=vars["GROUP"])
-            data[Split.val][Segment.dynamic] = data[Split.val][Segment.dynamic].join(data[Split.val][Segment.static], on=vars["GROUP"])
-            data[Split.test][Segment.dynamic] = data[Split.test][Segment.dynamic].join(data[Split.test][Segment.static], on=vars["GROUP"])
+            data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].join(
+                data[Split.train][Segment.static], on=vars["GROUP"]
+            )
+            data[Split.val][Segment.dynamic] = data[Split.val][Segment.dynamic].join(
+                data[Split.val][Segment.static], on=vars["GROUP"]
+            )
+            data[Split.test][Segment.dynamic] = data[Split.test][Segment.dynamic].join(
+                data[Split.test][Segment.static], on=vars["GROUP"]
+            )
 
             # Remove static features from splits
             data[Split.train][Segment.features] = data[Split.train].pop(Segment.static)
@@ -121,16 +123,17 @@ class DefaultPreprocessor(Preprocessor):
         return super().to_cache_string() + f"_{self.generate_features}_{self.scaling}"
 
     def calculate_input_dim(self):
-        if(self.generate_features):
+        if self.generate_features:
             len_dynamic = len(self.vars[Segment.dynamic]) * 6
         else:
             len_dynamic = len(self.vars[Segment.dynamic]) * 2
-        if(self.use_static_features):
+        if self.use_static_features:
             len_static = len(self.vars[Segment.static])
         else:
             len_static = 0
 
         return len_dynamic + len_static
+
     @staticmethod
     def apply_recipe_to_Splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
         """Fits and transforms the training features, then transforms the validation and test features with the recipe.
