@@ -3,7 +3,7 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 
-base_preprocessor.generate_features = False
+default_preprocessor.generate_features = False
 
 # Train params
 train_common.model = @DLWrapper()
@@ -23,7 +23,6 @@ optimizer/hyperparameter.lr = (1e-5, 3e-4)
 
 # Encoder params
 model/hyperparameter.class_to_tune = @TemporalConvNet
-model/hyperparameter.num_inputs = %EMB
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.max_seq_length = %HORIZON
 model/hyperparameter.num_channels = (32, 256, "log-uniform", 2)

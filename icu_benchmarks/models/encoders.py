@@ -51,11 +51,11 @@ class GRUNet(nn.Module):
 @gin.configurable
 class Transformer(nn.Module):
     def __init__(
-        self, emb, hidden, heads, ff_hidden_mult, depth, num_classes, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0
+        self, input_dim, hidden, heads, ff_hidden_mult, depth, num_classes, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0
     ):
         super().__init__()
         hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
-        self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
+        self.input_embedding = nn.Linear(input_dim, hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
         else:
@@ -93,7 +93,7 @@ class Transformer(nn.Module):
 class LocalTransformer(nn.Module):
     def __init__(
         self,
-        emb,
+        input_dim,
         hidden,
         heads,
         ff_hidden_mult,
@@ -108,7 +108,7 @@ class LocalTransformer(nn.Module):
         super().__init__()
 
         hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
-        self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
+        self.input_embedding = nn.Linear(input_dim, hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
         else:
@@ -146,7 +146,7 @@ class LocalTransformer(nn.Module):
 # From TCN original paper https://github.com/locuslab/TCN
 @gin.configurable
 class TemporalConvNet(nn.Module):
-    def __init__(self, num_inputs, num_channels, num_classes, max_seq_length=0, kernel_size=2, dropout=0.0):
+    def __init__(self, input_dim, num_channels, num_classes, max_seq_length=0, kernel_size=2, dropout=0.0):
         super(TemporalConvNet, self).__init__()
         layers = []
 
@@ -159,7 +159,7 @@ class TemporalConvNet(nn.Module):
         num_levels = len(num_channels)
         for i in range(num_levels):
             dilation_size = 2**i
-            in_channels = num_inputs if i == 0 else num_channels[i - 1]
+            in_channels = input_dim if i == 0 else num_channels[i - 1]
             out_channels = num_channels[i]
             layers += [
                 TemporalBlock(

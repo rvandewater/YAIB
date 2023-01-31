@@ -23,14 +23,19 @@ class Preprocessor:
     def to_cache_string(self):
         return f"{self.__class__.__name__}"
 
+    @abc.abstractmethod
+    def calculate_input_dim(self):
+        pass
 
-@gin.configurable("base_preprocessor")
+
+@gin.configurable("default_preprocessor")
 class DefaultPreprocessor(Preprocessor):
     def __init__(
         self,
         generate_features: bool = True,
         scaling: bool = True,
         use_static_features: bool = True,
+        vars: dict = None
     ):
         """
         Args:
@@ -43,6 +48,7 @@ class DefaultPreprocessor(Preprocessor):
         self.generate_features = generate_features
         self.scaling = scaling
         self.use_static_features = use_static_features
+        self.vars = vars
 
     def apply(self, data, vars):
         """
@@ -52,10 +58,10 @@ class DefaultPreprocessor(Preprocessor):
         Returns:
             Preprocessed data.
         """
-        logging.info("Preprocessing dynamic features.", logging.INFO)
+        logging.info("Preprocessing dynamic features.")
         data = self.process_dynamic(data, vars)
         if self.use_static_features:
-            logging.info("Preprocessing static features.", logging.INFO)
+            logging.info("Preprocessing static features.")
             data = self.process_static(data, vars)
 
             # Set index to grouping variable
@@ -114,6 +120,17 @@ class DefaultPreprocessor(Preprocessor):
     def to_cache_string(self):
         return super().to_cache_string() + f"_{self.generate_features}_{self.scaling}"
 
+    def calculate_input_dim(self):
+        if(self.generate_features):
+            len_dynamic = len(self.vars[Segment.dynamic]) * 6
+        else:
+            len_dynamic = len(self.vars[Segment.dynamic]) * 2
+        if(self.use_static_features):
+            len_static = len(self.vars[Segment.static])
+        else:
+            len_static = 0
+
+        return len_dynamic + len_static
     @staticmethod
     def apply_recipe_to_Splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
         """Fits and transforms the training features, then transforms the validation and test features with the recipe.

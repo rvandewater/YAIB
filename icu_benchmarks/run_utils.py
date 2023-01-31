@@ -6,7 +6,6 @@ from pathlib import Path
 import scipy.stats as stats
 import shutil
 from statistics import mean, stdev
-
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 
 
@@ -150,3 +149,5 @@ def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newl
         level,
         "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars),
     )
+
+

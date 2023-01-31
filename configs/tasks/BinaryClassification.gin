@@ -29,13 +29,16 @@ vars = {
        "temp", "tnt", "urine", "wbc"],
     "STATIC": ["age", "sex", "height", "weight"],
 }
+static_features = False
 
 preprocess.vars = %vars
-preprocess.use_static = False
+preprocess.use_static = %static_features
+
+default_preprocessor.use_static_features = %static_features
+default_preprocessor.vars = %vars
 
 Dataset.vars = %vars
 
 execute_repeated_cv.cv_repetitions = 5
 execute_repeated_cv.cv_folds = 5
 
-EMB = 100

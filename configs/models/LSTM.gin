@@ -2,7 +2,7 @@ import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
-base_preprocessor.generate_features = False
+default_preprocessor.generate_features = False
 
 # Train params
 train_common.model = @DLWrapper()
@@ -21,7 +21,6 @@ optimizer/hyperparameter.lr = (1e-5, 3e-4)
 
 # Encoder params
 model/hyperparameter.class_to_tune = @LSTMNet
-model/hyperparameter.input_dim = %EMB
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.hidden_dim = (32, 256, "log-uniform", 2)
 model/hyperparameter.layer_dim = (1, 3)

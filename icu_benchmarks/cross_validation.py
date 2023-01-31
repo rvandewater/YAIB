@@ -67,7 +67,6 @@ def execute_repeated_cv(
 
             repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
             repetition_fold_dir.mkdir(parents=True, exist_ok=True)
-
             preprocess_time = datetime.now() - start_time
             start_time = datetime.now()
             agg_loss += train_common(
@@ -92,3 +91,6 @@ def execute_repeated_cv(
         log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)
+
+
+

@@ -144,6 +144,8 @@ def preprocess_data(
     else:
         logging.info("Cache will not be saved.")
 
+    gin.bind_parameter("model/hyperparameter.input_dim", data[Split.train][Segment.features].shape[1]-2)
+
     logging.info("Finished preprocessing.")
 
     return data
