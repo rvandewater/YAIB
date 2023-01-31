@@ -40,7 +40,7 @@ def execute_repeated_cv(
         cv_folds_to_train: Number of folds to use during training. If None, all folds are trained on.
         reproducible: Whether to make torch reproducible.
         debug: Whether to load less data and enable more logging.
-        generate_cache: Whether to cache and use cached data.
+        generate_cache: Whether to generate and save cache.
         load_cache: Whether to load previously cached data.
         test_on: Dataset to test on. Can be "test" or "val" (e.g. for hyperparameter tuning).
         use_static: Whether to use static data.

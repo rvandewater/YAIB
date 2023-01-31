@@ -31,7 +31,7 @@ vars = {
 }
 
 preprocess.vars = %vars
-base_preprocessor.use_static_features = False
+base_preprocessor.use_static_features = True
 
 Dataset.vars = %vars
 

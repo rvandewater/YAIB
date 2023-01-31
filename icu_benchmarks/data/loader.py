@@ -4,6 +4,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
+from .constants import DataSegment as Segment, DataSplit as Split
 
 @gin.configurable("Dataset")
 class SICUDataset(Dataset):
@@ -15,11 +16,11 @@ class SICUDataset(Dataset):
         vars: Contains the names of columns in the data.
     """
 
-    def __init__(self, data: dict, split: str = "train", vars: dict[str] = gin.REQUIRED):
+    def __init__(self, data: dict, split: str = Split.train, vars: dict[str] = gin.REQUIRED):
         self.split = split
         self.vars = vars
-        self.outcome_df = data[split]["OUTCOME"].set_index(self.vars["GROUP"])
-        self.features_df = data[split]["FEATURES"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+        self.outcome_df = data[split][Segment.outcome].set_index(self.vars["GROUP"])
+        self.features_df = data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
 
         # calculate basic info for the data
         self.num_stays = self.outcome_df.index.unique().shape[0]

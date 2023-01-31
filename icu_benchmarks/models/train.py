@@ -24,7 +24,6 @@ def train_common(
     model: object = MLWrapper,
     weight: str = None,
     test_on: str = "test",
-    use_static: bool = True,
 ):
     """Common wrapper to train all benchmarked models.
 

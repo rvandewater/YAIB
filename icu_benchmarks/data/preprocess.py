@@ -6,11 +6,10 @@ import pandas as pd
 import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
-
 from sklearn.model_selection import StratifiedKFold
 
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultPreprocessor
-
+from .constants import DataSplit as Split, DataSegment as Segment
 
 def make_single_split(
     data: dict[pd.DataFrame],
@@ -38,11 +37,11 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
-    stays = data["OUTCOME"][id]
+    stays = data[Segment.outcome][id]
     if debug:
         # Only use 1% of the data
         stays = stays.sample(frac=0.01, random_state=seed)
-    labels = data["OUTCOME"][vars["LABEL"]].loc[stays.index]
+    labels = data[Segment.outcome][vars["LABEL"]].loc[stays.index]
 
     outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
     inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
@@ -53,14 +52,14 @@ def make_single_split(
     train, val = list(inner_CV.split(dev_stays, dev_labels))[fold_index]
 
     split = {
-        "train": dev_stays.iloc[train],
-        "val": dev_stays.iloc[val],
-        "test": stays.iloc[test],
+        Split.train: dev_stays.iloc[train],
+        Split.val: dev_stays.iloc[val],
+        Split.test: stays.iloc[test],
     }
     data_split = {}
 
-    for fold in split.keys():  # Loop through train / val / test
-        # Loop through DYNAMIC / STATIC / OUTCOME
+    for fold in split.keys():  # Loop through splits (train / val / test)
+        # Loop through segments (DYNAMIC / STATIC / OUTCOME)
         # set sort to true to make sure that IDs are reordered after scrambling earlier
         data_split[fold] = {
             data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
@@ -109,8 +108,8 @@ def preprocess_data(
     cache_dir = data_dir / "cache"
 
     if not use_static:
-        file_names.pop("STATIC")
-        vars.pop("STATIC")
+        file_names.pop(Segment.static)
+        vars.pop(Segment.static)
 
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
@@ -119,11 +118,8 @@ def preprocess_data(
         logging.log(logging.INFO, "Using user-supplied preprocessor.")
     preprocessor = preprocessor()
 
-    config_string = (
-        f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{seed}{repetition_index}{fold_index}{debug}".encode(
-            "utf-8"
-        )
-    )
+    config_string = (f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{seed}{repetition_index}{fold_index}"
+                     f"{debug}".encode("utf-8"))
 
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
