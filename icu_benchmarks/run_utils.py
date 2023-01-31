@@ -37,6 +37,7 @@ def build_parser() -> ArgumentParser:
         action=BooleanOptionalAction,
         help="Whether to use verbose logging. Disable for clean logs.",
     )
+    general_args.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to use CPU.")
     general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
     general_args.add_argument(
         "-lc", "--load_cache", default=False, action=BooleanOptionalAction, help="Set to load generated data cache."
@@ -50,7 +51,6 @@ def build_parser() -> ArgumentParser:
     # MODEL TRAINING ARGUMENTS
     prep_and_train = subparsers.add_parser("train", help="Preprocess features and train model.", parents=[parent_parser])
     prep_and_train.add_argument("--reproducible", default=True, action=BooleanOptionalAction, help="Make torch reproducible.")
-    prep_and_train.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train on CPU.")
     prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
     prep_and_train.add_argument("--tune", default=False, action=BooleanOptionalAction, help="Find best hyperparameters.")
     prep_and_train.add_argument("--checkpoint", type=Path, help="Use previous checkpoint.")
