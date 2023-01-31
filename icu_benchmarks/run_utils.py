@@ -39,10 +39,10 @@ def build_parser() -> ArgumentParser:
         help="Whether to use verbose logging. Disable for clean logs.",
     )
     general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
-    general_args.add_argument("-lc", "--load_cache", action=BooleanOptionalAction, help="Set to load generated data cache.")
-    general_args.add_argument("-gc", "--generate_cache", action=BooleanOptionalAction, help="Set to generate data cache.")
+    general_args.add_argument("-lc", "--load_cache", default=False, action=BooleanOptionalAction, help="Set to load generated data cache.")
+    general_args.add_argument("-gc", "--generate_cache", default=False, action=BooleanOptionalAction, help="Set to generate data cache.")
     general_args.add_argument("-p", "--preprocessor", type=Path, help="Load custom preprocessor from file.")
-    general_args.add_argument("-pl", "--plot", action=BooleanOptionalAction, help="Generate common plots.")
+    general_args.add_argument("-pl", "--plot", default=False, action=BooleanOptionalAction, help="Generate common plots.")
 
     # MODEL TRAINING ARGUMENTS
     prep_and_train = subparsers.add_parser("train", help="Preprocess features and train model.", parents=[parent_parser])

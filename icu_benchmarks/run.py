@@ -33,6 +33,7 @@ def main(my_args=tuple(sys.argv[1:])):
     model = args.model
     experiment = args.experiment
     source_dir = None
+    # todo:check if this is correct
     reproducible = False
     log_dir_name = args.log_dir / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / args.task_name / model)
@@ -66,7 +67,16 @@ def main(my_args=tuple(sys.argv[1:])):
         )
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         run_dir = create_run_dir(log_dir)
-        choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, args.seed, checkpoint=checkpoint, debug=args.debug)
+        choose_and_bind_hyperparameters(
+            args.tune,
+            args.data_dir,
+            run_dir,
+            args.seed,
+            checkpoint=checkpoint,
+            debug=args.debug,
+            generate_cache=args.generate_cache,
+            load_cache=args.load_cache,
+        )
 
     logging.info(f"Logging to {run_dir.resolve()}")
     log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)

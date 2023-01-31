@@ -116,11 +116,12 @@ def preprocess_data(
 
     if preprocessor is not DefaultPreprocessor:
         logging.log(logging.INFO, "Using user-supplied preprocessor.")
-    preprocessor = preprocessor()
+    preprocessor = preprocessor(use_static_features=use_static)
 
     config_string = (f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{seed}{repetition_index}{fold_index}"
                      f"{debug}".encode("utf-8"))
 
+    # TODO: Make readable
     cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
 
     if load_cache:

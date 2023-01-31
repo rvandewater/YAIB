@@ -52,17 +52,28 @@ class DefaultPreprocessor(Preprocessor):
         Returns:
             Preprocessed data.
         """
-        logging.info("Preprocessor static features.")
+        logging.info("Preprocessing dynamic features.", logging.INFO)
         data = self.process_dynamic(data, vars)
         if self.use_static_features:
+            logging.info("Preprocessing static features.", logging.INFO)
             data = self.process_static(data, vars)
+
+            # Set index to grouping variable
             data[Split.train][Segment.static] = data[Split.train][Segment.static].set_index(vars["GROUP"])
             data[Split.val][Segment.static] = data[Split.val][Segment.static].set_index(vars["GROUP"])
             data[Split.test][Segment.static] = data[Split.test][Segment.static].set_index(vars["GROUP"])
 
-            data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].join(data[Segment.train][Segment.static], on=vars["GROUP"])
+            # Join static and dynamic data.
+            data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].join(data[Split.train][Segment.static], on=vars["GROUP"])
             data[Split.val][Segment.dynamic] = data[Split.val][Segment.dynamic].join(data[Split.val][Segment.static], on=vars["GROUP"])
             data[Split.test][Segment.dynamic] = data[Split.test][Segment.dynamic].join(data[Split.test][Segment.static], on=vars["GROUP"])
+
+            # Remove static features from splits
+            data[Split.train][Segment.features] = data[Split.train].pop(Segment.static)
+            data[Split.val][Segment.features] = data[Split.val].pop(Segment.static)
+            data[Split.test][Segment.features] = data[Split.test].pop(Segment.static)
+
+        # Create feature splits
         data[Split.train][Segment.features] = data[Split.train].pop(Segment.dynamic)
         data[Split.val][Segment.features] = data[Split.val].pop(Segment.dynamic)
         data[Split.test][Segment.features] = data[Split.test].pop(Segment.dynamic)

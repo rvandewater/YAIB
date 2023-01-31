@@ -25,8 +25,7 @@ def execute_repeated_cv(
     debug: bool = False,
     generate_cache: bool = False,
     load_cache: bool = False,
-    test_on: str = "test",
-    use_static: bool = True,
+    test_on: str = "test"
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -43,7 +42,6 @@ def execute_repeated_cv(
         generate_cache: Whether to generate and save cache.
         load_cache: Whether to load previously cached data.
         test_on: Dataset to test on. Can be "test" or "val" (e.g. for hyperparameter tuning).
-        use_static: Whether to use static data.
     Returns:
         The average loss of all folds.
     """
@@ -65,7 +63,6 @@ def execute_repeated_cv(
                 repetition_index=repetition,
                 cv_folds=cv_folds,
                 fold_index=fold_index,
-                use_static=use_static,
             )
 
             repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
