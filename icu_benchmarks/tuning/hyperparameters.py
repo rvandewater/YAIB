@@ -28,6 +28,8 @@ def choose_and_bind_hyperparameters(
     n_calls: int = 20,
     folds_to_tune_on: int = None,
     checkpoint_file: str = "hyperparameter_tuning_logs.json",
+    generate_cache: bool = False,
+    load_cache: bool = False,
     debug: bool = False,
 ):
     """Choose hyperparameters to tune and bind them to gin.
@@ -92,8 +94,8 @@ def choose_and_bind_hyperparameters(
                 seed,
                 cv_repetitions_to_train=1,
                 cv_folds_to_train=folds_to_tune_on,
-                generate_cache=True,
-                load_cache=True,
+                generate_cache=generate_cache,
+                load_cache=load_cache,
                 test_on="val",
                 debug=debug,
             )

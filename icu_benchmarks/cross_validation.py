@@ -27,10 +27,10 @@ def execute_repeated_cv(
     generate_cache: bool = False,
     load_cache: bool = False,
     test_on: str = "test",
-    use_static: bool = True,
     mode: str = "Classification",
     pretrained_imputation_model: object = None,
     dataset_name: str = "",
+    cpu: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -44,10 +44,9 @@ def execute_repeated_cv(
         cv_folds_to_train: Number of folds to use during training. If None, all folds are trained on.
         reproducible: Whether to make torch reproducible.
         debug: Whether to load less data and enable more logging.
-        generate_cache: Whether to cache and use cached data.
+        generate_cache: Whether to generate and save cache.
         load_cache: Whether to load previously cached data.
         test_on: Dataset to test on. Can be "test" or "val" (e.g. for hyperparameter tuning).
-        use_static: Whether to use static data.
     Returns:
         The average loss of all folds.
     """
@@ -70,13 +69,11 @@ def execute_repeated_cv(
                 repetition_index=repetition,
                 cv_folds=cv_folds,
                 fold_index=fold_index,
-                use_static=use_static,
                 pretrained_imputation_model=pretrained_imputation_model,
             )
 
             repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
             repetition_fold_dir.mkdir(parents=True, exist_ok=True)
-
             preprocess_time = datetime.now() - start_time
             start_time = datetime.now()
             agg_loss += train_common(
@@ -88,6 +85,7 @@ def execute_repeated_cv(
                 test_on=test_on,
                 dataset_name=dataset_name,
                 mode=mode,
+                cpu=cpu,
             )
             train_time = datetime.now() - start_time
 

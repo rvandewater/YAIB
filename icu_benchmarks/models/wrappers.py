@@ -180,7 +180,7 @@ class DLClassificationWrapper(DLWrapper):
             metrics = DLMetrics.BINARY_CLASSIFICATION
 
         # Regression
-        elif self.encoder.logit.out_features == 1:
+        elif self.logit.out_features == 1:
             self.output_transform = lambda x: x
             if self.scaler is not None:
                 metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}

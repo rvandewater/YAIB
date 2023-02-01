@@ -38,7 +38,8 @@ def train_common(
     min_delta=1e-5,
     test_on: str = "test",
     use_wandb: bool = True,
-    num_workers: int = min(len(os.sched_getaffinity(0)), torch.cuda.device_count() * 8 if torch.cuda.is_available() else 16),
+    cpu: bool = False,
+    num_workers: int = min(len(os.sched_getaffinity(0)), torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 16),
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -122,7 +123,7 @@ def train_common(
                 TQDMProgressBar(refresh_rate=100),
             ],
             # precision=16,
-            accelerator="auto",
+            accelerator="auto" if not cpu else "cpu",
             devices=max(torch.cuda.device_count(), 1),
             deterministic=reproducible,
             benchmark=not reproducible,

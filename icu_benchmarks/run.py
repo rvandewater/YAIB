@@ -72,6 +72,7 @@ def main(my_args=tuple(sys.argv[1:])):
         logging.info("updating wandb config:", {"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
         wandb.config.update({"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
     source_dir = None
+    # todo:check if this is correct
     reproducible = False
     log_dir_name = args.log_dir / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / (args.task_name if args.task_name is not None else args.task) / model)
@@ -90,11 +91,13 @@ def main(my_args=tuple(sys.argv[1:])):
             logging.error(f"Could not import custom preprocessor from {args.preprocessor}: {e}")
 
     if load_weights:
+        # Evaluate
         log_dir /= f"from_{args.source_name}"
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
         gin.parse_config_file(source_dir / "train_config.gin")
     else:
+        # Train
         reproducible = args.reproducible
         checkpoint = log_dir / args.checkpoint if args.checkpoint else None
         model_path = Path("configs") / ("imputation_models" if mode == "Imputation" else "classification_models") / f"{model}.gin"
@@ -104,8 +107,18 @@ def main(my_args=tuple(sys.argv[1:])):
             else [model_path, Path(f"configs/tasks/{task}.gin")]
         )
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
+
         run_dir = create_run_dir(log_dir)
-        choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, args.seed, checkpoint=checkpoint, debug=args.debug)
+        choose_and_bind_hyperparameters(
+            args.tune,
+            args.data_dir,
+            run_dir,
+            args.seed,
+            checkpoint=checkpoint,
+            debug=args.debug,
+            generate_cache=args.generate_cache,
+            load_cache=args.load_cache,
+        )
 
     logging.info(f"Logging to {run_dir.resolve()}")
     log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)
@@ -123,6 +136,7 @@ def main(my_args=tuple(sys.argv[1:])):
         mode=mode,
         pretrained_imputation_model=pretrained_imputation_model,
         dataset_name=name,
+        cpu=args.cpu,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)

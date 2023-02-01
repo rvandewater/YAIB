@@ -6,18 +6,12 @@ import pandas as pd
 import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
-import wandb
-from typing import Dict, List
 
-from recipys.recipe import Recipe
-from recipys.selector import all_of
-from recipys.step import Accumulator, StepHistorical, StepImputeFill, StepImputeModel, StepScale
-import torch
 from sklearn.model_selection import StratifiedKFold, KFold
 
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
 
-from icu_benchmarks.data.loader import ImputationPredictionDataset
+from .constants import DataSplit as Split, DataSegment as Segment
 
 
 def make_single_split(
@@ -48,14 +42,14 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
-    stays = data["OUTCOME" if "OUTCOME" in data else "STATIC"][id]
+    stays = data[Segment.outcome if Segment.outcome in data else Segment.static][id]
     if debug:
         # Only use 1% of the data
         stays = stays.sample(frac=0.01, random_state=seed)
 
     if "LABEL" in vars:
         # If there are labels, use stratified k-fold
-        labels = data["OUTCOME"][vars["LABEL"]].loc[stays.index]
+        labels = data[Segment.outcome][vars["LABEL"]].loc[stays.index]
 
         outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
         inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
@@ -73,14 +67,14 @@ def make_single_split(
         train, val = list(inner_CV.split(dev_stays))[fold_index]
 
     split = {
-        "train": dev_stays.iloc[train],
-        "val": dev_stays.iloc[val],
-        "test": stays.iloc[test],
+        Split.train: dev_stays.iloc[train],
+        Split.val: dev_stays.iloc[val],
+        Split.test: stays.iloc[test],
     }
     data_split = {}
 
-    for fold in split.keys():  # Loop through train / val / test
-        # Loop through DYNAMIC / STATIC / OUTCOME
+    for fold in split.keys():  # Loop through splits (train / val / test)
+        # Loop through segments (DYNAMIC / STATIC / OUTCOME)
         # set sort to true to make sure that IDs are reordered after scrambling earlier
         data_split[fold] = {
             data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
@@ -130,24 +124,20 @@ def preprocess_data(
     cache_dir = data_dir / "cache"
 
     if not use_static:
-        file_names.pop("STATIC")
-        vars.pop("STATIC")
+        file_names.pop(Segment.static)
+        vars.pop(Segment.static)
 
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 
     logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
-    preprocessor = preprocessor()
+    preprocessor = preprocessor(use_static_features=use_static)
     if isinstance(preprocessor, DefaultClassificationPreprocessor):
         preprocessor.set_imputation_model(pretrained_imputation_model)
 
-    config_string = (
-        f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{seed}{repetition_index}{fold_index}{debug}".encode(
-            "utf-8"
-        )
-    )
-
-    cache_file = cache_dir / hashlib.md5(config_string).hexdigest()
+    hash_config = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{debug}".encode("utf-8")
+    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_{hashlib.md5(hash_config).hexdigest()}"
+    cache_file = cache_dir / cache_filename
     
     if load_cache:
         if cache_file.exists():

@@ -8,6 +8,8 @@ from typing import Dict, Tuple
 from torch.utils.data import Dataset
 
 from icu_benchmarks.imputation.amputations import ampute_data
+from .constants import DataSegment as Segment, DataSplit as Split
+
 
 @gin.configurable("ClassificationDataset")
 class SICUDataset(Dataset):
@@ -22,9 +24,8 @@ class SICUDataset(Dataset):
     def __init__(self, data: dict, split: str = "train", vars: Dict[str, str] = gin.REQUIRED, ram_cache: bool = False):
         self.split = split
         self.vars = vars
-        self.outcome_df = data[split]["OUTCOME"].set_index(self.vars["GROUP"])
-        self.features_df = data[split]["FEATURES"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
-        self.features_df = self.features_df.loc[:, self.vars["DYNAMIC"]]
+        self.outcome_df = data[split][Segment.outcome].set_index(self.vars["GROUP"])
+        self.features_df = data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
 
         # calculate basic info for the data
         self.num_stays = self.outcome_df.index.unique().shape[0]
@@ -63,7 +64,7 @@ class SICUDataset(Dataset):
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id].to_numpy()
-        labels = self.outcome_df.loc[stay_id:stay_id]["label"].to_numpy(dtype=float)
+        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -97,7 +98,7 @@ class SICUDataset(Dataset):
         Returns:
             Weights for each label.
         """
-        counts = self.outcome_df["label"].value_counts()
+        counts = self.outcome_df[self.vars["LABEL"]].value_counts()
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
     def get_data_and_labels(self) -> Tuple[np.array, np.array]:
@@ -108,7 +109,7 @@ class SICUDataset(Dataset):
         Returns:
             A Tuple containing data points and label for the split.
         """
-        labels = self.outcome_df["label"].to_numpy().astype(float)
+        labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(float)
         rep = self.features_df
         if len(labels) == self.num_stays:
             # order of groups could be random, we make sure not to change it
@@ -140,9 +141,8 @@ class ImputationDataset(Dataset):
     ):
         self.split = split
         self.vars = vars
-        self.static_df = data[split]["STATIC"]
-        self.dyn_df = data[split]["FEATURES"].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
-        self.dyn_df = self.dyn_df.loc[:, self.vars["DYNAMIC"]]
+        self.static_df = data[split][Segment.static]
+        self.dyn_df = data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
 
         # calculate basic info for the data
         self.num_stays = self.static_df.shape[0]
@@ -153,7 +153,7 @@ class ImputationDataset(Dataset):
         self.amputated_values, self.amputation_mask = ampute_data(
             self.dyn_df, mask_method, mask_proportion, mask_observation_proportion
         )
-        self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars["DYNAMIC"])
+        self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars[Segment.dynamic])
         self.amputation_mask[self.vars["GROUP"]] = self.dyn_df.index
         self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
         
@@ -186,9 +186,9 @@ class ImputationDataset(Dataset):
         stay_id = self.static_df.iloc[idx][self.vars["GROUP"]]
 
         # slice to make sure to always return a DF
-        window = self.dyn_df.loc[stay_id:stay_id, self.vars["DYNAMIC"]]
-        amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars["DYNAMIC"]]
-        amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars["DYNAMIC"]]
+        window = self.dyn_df.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
+        amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
+        amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
 
         return (
             torch.from_numpy(amputated_window.values).to(torch.float32),
