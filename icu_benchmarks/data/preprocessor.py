@@ -112,8 +112,8 @@ class DefaultImputationPreprocessor(Preprocessor):
 
             for group_name, group in tqdm(grouped):
                 for i in range(0, len(group) - self.window_size + 1, self.window_stride):
-                    if group.iloc[i : i + self.window_size][vars[Segment.dynamic]].isna().sum().sum() == 0:
-                        slice = group.iloc[i : i + self.window_size].copy()
+                    if group.iloc[i:i + self.window_size][vars[Segment.dynamic]].isna().sum().sum() == 0:
+                        slice = group.iloc[i:i + self.window_size].copy()
                         slice.loc[:, vars["GROUP"]] = slice_counter
                         # use pandas.concat
                         new_data[Segment.dynamic] = pd.concat([new_data[Segment.dynamic], slice])
@@ -125,7 +125,8 @@ class DefaultImputationPreprocessor(Preprocessor):
                         slice_counter += 1
             data = new_data
             logging.info(
-                f"Generated {slice_counter} slices with {self.window_size} consecutive present values from {len(grouped)} records."
+                f"Generated {slice_counter} slices with {self.window_size} consecutive "
+                f"present values from {len(grouped)} records."
             )
         return data
 

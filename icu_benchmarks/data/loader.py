@@ -8,7 +8,7 @@ from typing import Dict, Tuple
 from torch.utils.data import Dataset
 
 from icu_benchmarks.imputation.amputations import ampute_data
-from .constants import DataSegment as Segment, DataSplit as Split
+from .constants import DataSegment as Segment
 
 
 @gin.configurable("ClassificationDataset")

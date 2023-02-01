@@ -1,13 +1,9 @@
 import os
-import random
-import sys
 import gin
 import torch
 import logging
-import numpy as np
 import pandas as pd
 import wandb
-from typing import Dict
 from torch.optim import Adam
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
@@ -118,7 +114,7 @@ def train_common(
             # model=model,
             max_epochs=epochs if model.needs_training else 1,
             callbacks=[
-                EarlyStopping(monitor=f"val/loss", min_delta=min_delta, patience=patience, strict=False),
+                EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
                 ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
                 TQDMProgressBar(refresh_rate=100),
             ],

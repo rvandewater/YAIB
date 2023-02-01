@@ -4,7 +4,6 @@
 """The setup script."""
 
 from pathlib import Path
-from typing import Union
 from setuptools import setup, find_packages
 
 

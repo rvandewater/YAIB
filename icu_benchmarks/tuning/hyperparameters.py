@@ -1,7 +1,7 @@
 import json
 import gin
 import logging
-from logging import INFO, NOTSET
+from logging import NOTSET
 import numpy as np
 from pathlib import Path
 from skopt import gp_minimize

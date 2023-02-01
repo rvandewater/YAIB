@@ -1,7 +1,5 @@
 import torch
-from pandas import DataFrame
 from hyperimpute.plugins.imputers import Imputers
-from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import KNNImputer, SimpleImputer, IterativeImputer
 from sklearn.linear_model import LinearRegression
 

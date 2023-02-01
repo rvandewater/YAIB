@@ -5,8 +5,6 @@ from torch.nn import MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 import inspect
-import inspect
-import logging
 
 import gin
 import lightgbm
@@ -20,7 +18,6 @@ from ignite.exceptions import NotComputableError
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 
 from pytorch_lightning import LightningModule
-import torch
 
 from icu_benchmarks.models.metric_constants import MLMetrics, DLMetrics
 from icu_benchmarks.models.metrics import MAE
@@ -310,8 +307,8 @@ class MLClassificationWrapper(BaseModule):
         else:
             train_pred = self.model.predict_proba(train_rep)
 
-        self.log(f"train/loss", 0.0)
-        self.log(f"val/loss", val_loss)
+        self.log("train/loss", 0.0)
+        self.log("val/loss", val_loss)
         self.log_dict(
             {
                 f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
@@ -347,7 +344,7 @@ class MLClassificationWrapper(BaseModule):
         else:
             test_pred = self.model.predict_proba(test_rep)
 
-        self.log(f"test/loss", 0.0)
+        self.log("test/loss", 0.0)
         self.log_dict(
             {
                 f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))

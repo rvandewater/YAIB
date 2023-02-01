@@ -1,4 +1,4 @@
-"""This file implements amputation mechanisms (MCAR, MAR (logisitc) and MNAR (logistic)) for missing data generation. 
+"""This file implements amputation mechanisms (MCAR, MAR (logisitc) and MNAR (logistic)) for missing data generation.
 It was inspired from: https://rmisstastic.netlify.app/how-to/python/generate_html/how%20to%20generate%20missing%20values
 Original code: https://github.com/BorisMuzellec/MissingDataOT/blob/master/utils.py
 """
@@ -137,7 +137,8 @@ def MNAR_logistic_mask(X, p, p_params=0.3, exclude_inputs=True):
     ber = torch.rand(n, d_na)
     mask[:, idxs_nas] = ber < ps
 
-    # If the inputs of the logistic model are excluded from MNAR missingness, mask some values used in the logistic model at random
+    # If the inputs of the logistic model are excluded from MNAR missingness, mask some
+    # values used in the logistic model at random
     # This makes the missingness of other variables potentially dependent on masked values
 
     if exclude_inputs:
@@ -181,7 +182,8 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
     p_miss : float
         Proportion of missing values to generate for variables which will have missing values.
     p_obs : float
-            If mecha = "MAR" or "MNAR", proportion of variables with *no* missing values that will be used for the logistic masking model.
+            If mecha = "MAR" or "MNAR", proportion of variables with *no* missing values
+            that will be used for the logistic masking model.
 
     Returns
     ----------

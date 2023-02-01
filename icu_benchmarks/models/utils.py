@@ -9,11 +9,11 @@ import logging
 import numpy as np
 import torch
 
-from pytorch_lightning.loggers.logger import Logger, rank_zero_experiment
+from pytorch_lightning.loggers.logger import Logger
 from pytorch_lightning.utilities import rank_zero_only
 from torch.nn import Module
 from torch.optim import Optimizer, Adam, SGD, RAdam
-from typing import Optional, List, Union
+from typing import Optional, Union
 from torch.optim.lr_scheduler import _LRScheduler, CosineAnnealingLR, MultiStepLR, ExponentialLR
 
 
