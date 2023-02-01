@@ -25,7 +25,9 @@ class SICUDataset(Dataset):
         self.split = split
         self.vars = vars
         self.outcome_df = data[split][Segment.outcome].set_index(self.vars["GROUP"])
-        self.features_df = data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+        self.features_df = (
+            data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+        )
 
         # calculate basic info for the data
         self.num_stays = self.outcome_df.index.unique().shape[0]
@@ -58,7 +60,7 @@ class SICUDataset(Dataset):
         """
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
-        
+
         pad_value = 0.0
         stay_id = self.outcome_df.index.unique()[idx]  # [self.vars["GROUP"]]
 
@@ -156,7 +158,7 @@ class ImputationDataset(Dataset):
         self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars[Segment.dynamic])
         self.amputation_mask[self.vars["GROUP"]] = self.dyn_df.index
         self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
-        
+
         self._cached_dataset = None
         if ram_cache:
             logging.info("caching dataset in ram....")
@@ -236,7 +238,7 @@ class ImputationPredictionDataset(Dataset):
         self.num_measurements = self.dyn_df.shape[0]
         self.dyn_measurements = self.dyn_df.shape[1]
         self.maxlen = self.dyn_df.groupby(grouping_column).size().max()
-        
+
         self._cached_dataset = None
         if ram_cache:
             logging.info("caching dataset in ram....")

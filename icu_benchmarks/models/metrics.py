@@ -53,17 +53,18 @@ def mae_with_invert_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, i
     y_pred = invert_fn(y_preds.numpy().reshape(-1, 1))[:, 0]
     return mean_absolute_error(y_true, y_pred)
 
-def JSD_fn (y_preds: torch.Tensor, y_targets: torch.Tensor):
+
+def JSD_fn(y_preds: torch.Tensor, y_targets: torch.Tensor):
     try:
         from scipy.spatial.distance import jensenshannon
     except ImportError:
         raise RuntimeError("This contrib module requires scipy to be installed.")
-    
-    return jensenshannon(abs(y_preds).flatten(),abs(y_targets).flatten()) ** 2
-    #return jensenshannon(abs(y_preds),abs(y_targets)) ** 2
-    
 
-#def KLD_fn(output, targets) -> float:
+    return jensenshannon(abs(y_preds).flatten(), abs(y_targets).flatten()) ** 2
+    # return jensenshannon(abs(y_preds),abs(y_targets)) ** 2
+
+
+# def KLD_fn(output, targets) -> float:
 #   return np.sum(np.where(output != 0, output * np.log(output / targets), 0))
 
 
@@ -94,8 +95,9 @@ class MAE(EpochMetric):
             check_compute_fn=check_compute_fn,
         )
 
+
 class JSD(EpochMetric):
-    def __init__( 
+    def __init__(
         self,
         output_transform: Callable = lambda x: x,
         check_compute_fn: bool = False,

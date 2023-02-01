@@ -66,7 +66,7 @@ class DLMetrics:
     REGRESSION = {
         "MAE": MeanAbsoluteError,
     }
-    
+
     IMPUTATION = {
         "rmse": RootMeanSquaredError,
         "mae": MAE,

@@ -103,6 +103,7 @@ def create_scheduler(
     else:
         raise ValueError(f"no scheduler with name {scheduler_name} found!")
 
+
 class JsonResultLoggingEncoder(JSONEncoder):
     """JSON converter for objects that are not serializable by default."""
 
@@ -169,11 +170,11 @@ class JSONMetricsLogger(Logger):
         logging.info(f"logging metrics to file: {str(output_dir.resolve())}")
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     @property
     def name(self):
         return "json_metrics_logger"
-    
+
     @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
         old_metrics = {}
@@ -193,11 +194,11 @@ class JSONMetricsLogger(Logger):
                         logging.debug(f"updating {stage} metrics file...")
                     except json.decoder.JSONDecodeError:
                         logging.warning("could not decode json file, overwriting...")
-                
+
                 old_metrics.update(metrics)
                 with output_file.open("w") as f:
                     json.dump(old_metrics, f, cls=JsonResultLoggingEncoder, indent=4)
-    
+
     @property
     def version(self):
         return "0.1"

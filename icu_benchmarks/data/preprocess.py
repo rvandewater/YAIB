@@ -82,6 +82,7 @@ def make_single_split(
 
     return data_split
 
+
 @gin.configurable("preprocess")
 def preprocess_data(
     data_dir: Path,
@@ -138,7 +139,7 @@ def preprocess_data(
     hash_config = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{debug}".encode("utf-8")
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_{hashlib.md5(hash_config).hexdigest()}"
     cache_file = cache_dir / cache_filename
-    
+
     if load_cache:
         if cache_file.exists():
             with open(cache_file, "rb") as f:

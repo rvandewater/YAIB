@@ -4,6 +4,7 @@ from hyperimpute.plugins.imputers import Imputers
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import KNNImputer, SimpleImputer, IterativeImputer
 from sklearn.linear_model import LinearRegression
+
 # from icu_benchmarks.data.loader impor
 from icu_benchmarks.models.wrappers import ImputationWrapper
 from pypots.imputation import BRITS, SAITS, Transformer
@@ -12,7 +13,6 @@ import gin
 
 @gin.configurable("KNN")
 class KNNImputation(ImputationWrapper):
-
     needs_training = False
     needs_fit = True
 
@@ -34,12 +34,13 @@ class KNNImputation(ImputationWrapper):
 
 @gin.configurable("MICE")
 class MICEImputation(ImputationWrapper):
-
     needs_training = False
     needs_fit = True
 
     def __init__(self, *args, max_iter=100, verbose=2, imputation_order="random", random_state=0, **kwargs) -> None:
-        super().__init__(*args, max_iter=max_iter, verbose=verbose, imputation_order=imputation_order, random_state=random_state, **kwargs)
+        super().__init__(
+            *args, max_iter=max_iter, verbose=verbose, imputation_order=imputation_order, random_state=random_state, **kwargs
+        )
         self.imputer = IterativeImputer(
             estimator=LinearRegression(),
             max_iter=max_iter,
@@ -62,7 +63,6 @@ class MICEImputation(ImputationWrapper):
 
 @gin.configurable("Mean")
 class MeanImputation(ImputationWrapper):
-
     needs_training = False
     needs_fit = True
 
@@ -84,7 +84,6 @@ class MeanImputation(ImputationWrapper):
 
 @gin.configurable("Median")
 class MedianImputation(ImputationWrapper):
-
     needs_training = False
     needs_fit = True
 
@@ -106,7 +105,6 @@ class MedianImputation(ImputationWrapper):
 
 @gin.configurable("Zero")
 class ZeroImputation(ImputationWrapper):
-
     needs_training = False
     needs_fit = True
 
@@ -128,7 +126,6 @@ class ZeroImputation(ImputationWrapper):
 
 @gin.configurable("MostFrequent")
 class MostFrequentImputation(ImputationWrapper):
-
     needs_training = False
     needs_fit = True
 
@@ -150,7 +147,6 @@ class MostFrequentImputation(ImputationWrapper):
 
 @gin.configurable("MissForest")
 class MissForestImputation(ImputationWrapper):
-
     needs_training = False
     needs_fit = True
 
@@ -172,7 +168,6 @@ class MissForestImputation(ImputationWrapper):
 
 @gin.configurable("GAIN")
 class GAINImputation(ImputationWrapper):
-
     needs_training = False
     needs_fit = True
 
@@ -194,12 +189,13 @@ class GAINImputation(ImputationWrapper):
 
 @gin.configurable("BRITS")
 class BRITSImputation(ImputationWrapper):
-
     needs_training = False
     needs_fit = True
 
     def __init__(self, *args, input_size, epochs=1, rnn_hidden_size=64, batch_size=256, **kwargs) -> None:
-        super().__init__(*args, input_size=input_size, epochs=epochs, rnn_hidden_size=rnn_hidden_size, batch_size=batch_size, **kwargs)
+        super().__init__(
+            *args, input_size=input_size, epochs=epochs, rnn_hidden_size=rnn_hidden_size, batch_size=batch_size, **kwargs
+        )
         print("brits, setting epochs", epochs)
         self.imputer = BRITS(
             n_steps=input_size[1],
@@ -224,12 +220,23 @@ class BRITSImputation(ImputationWrapper):
 
 @gin.configurable("SAITS")
 class SAITSImputation(ImputationWrapper):
-
     needs_training = False
     needs_fit = True
 
     def __init__(self, *args, input_size, epochs, n_layers, d_model, d_inner, n_head, d_k, d_v, dropout, **kwargs) -> None:
-        super().__init__(*args, input_size=input_size, epochs=epochs, n_layers=n_layers, d_model=d_model, d_inner=d_inner, n_head=n_head, d_k=d_k, d_v=d_v, dropout=dropout, **kwargs)
+        super().__init__(
+            *args,
+            input_size=input_size,
+            epochs=epochs,
+            n_layers=n_layers,
+            d_model=d_model,
+            d_inner=d_inner,
+            n_head=n_head,
+            d_k=d_k,
+            d_v=d_v,
+            dropout=dropout,
+            **kwargs
+        )
         self.imputer = SAITS(
             n_steps=input_size[1],
             n_features=input_size[2],
@@ -257,12 +264,23 @@ class SAITSImputation(ImputationWrapper):
 
 @gin.configurable("Attention")
 class AttentionImputation(ImputationWrapper):
-
     needs_training = False
     needs_fit = True
 
     def __init__(self, *args, input_size, epochs, n_layers, d_model, d_inner, n_head, d_k, d_v, dropout, **kwargs) -> None:
-        super().__init__(*args, input_size=input_size, epochs=epochs, n_layers=n_layers, d_model=d_model, d_inner=d_inner, n_head=n_head, d_k=d_k, d_v=d_v, dropout=dropout, **kwargs)
+        super().__init__(
+            *args,
+            input_size=input_size,
+            epochs=epochs,
+            n_layers=n_layers,
+            d_model=d_model,
+            d_inner=d_inner,
+            n_head=n_head,
+            d_k=d_k,
+            d_v=d_v,
+            dropout=dropout,
+            **kwargs
+        )
         self.imputer = Transformer(
             n_steps=input_size[1],
             n_features=input_size[2],

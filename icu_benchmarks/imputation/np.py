@@ -1,4 +1,4 @@
-# The following code is largerly (stolen) copied from: 
+# The following code is largerly (stolen) copied from:
 # https://github.com/EmilienDupont/neural-processes/
 
 import math
@@ -18,24 +18,17 @@ from numpy.random import permutation
 
 from icu_benchmarks.models.wrappers import ImputationWrapper
 
+
 @gin.configurable("NP")
 class NPImputation(ImputationWrapper):
-    """A wrapper for the NeuralProcess class that allows for imputation.
-    """
+    """A wrapper for the NeuralProcess class that allows for imputation."""
+
     needs_training = True
     needs_fit = False
+
     def __init__(
-        self, 
-        input_size, 
-        encoder_layers,
-        encoder_h_dim,
-        decoder_layers, 
-        decoder_h_dim,
-        r_dim,
-        z_dim,
-        *args, 
-        **kwargs
-        ) -> None:
+        self, input_size, encoder_layers, encoder_h_dim, decoder_layers, decoder_h_dim, r_dim, z_dim, *args, **kwargs
+    ) -> None:
         super().__init__(
             *args,
             input_size=input_size,
@@ -53,17 +46,10 @@ class NPImputation(ImputationWrapper):
         self.z_dim = z_dim
 
         self.model = NeuralProcess(
-                    self.x_dim, 
-                    self.y_dim, 
-                    encoder_layers, 
-                    encoder_h_dim, 
-                    decoder_layers, 
-                    decoder_h_dim, 
-                    r_dim, 
-                    z_dim
-                )
-        
-    def forward(self, x_context, y_context, x_target, y_target = None):
+            self.x_dim, self.y_dim, encoder_layers, encoder_h_dim, decoder_layers, decoder_h_dim, r_dim, z_dim
+        )
+
+    def forward(self, x_context, y_context, x_target, y_target=None):
         return self.model(x_context, y_context, x_target, y_target)
 
     # Override the training step - needed for the custom loss calculation
@@ -82,16 +68,14 @@ class NPImputation(ImputationWrapper):
         # Resulting size is [batch size, number of timesteps, number of observed variables]
 
         # For now, do the most basic thing - train on complete data
-        x_context, y_context, x_target, y_target =\
-            self._context_target_split(x, complete)
+        x_context, y_context, x_target, y_target = self._context_target_split(x, complete)
 
         # Get the predicted probability distribution
-        p_y_pred, q_context, q_target =\
-            self(x_context, y_context, x_target, y_target)
+        p_y_pred, q_context, q_target = self(x_context, y_context, x_target, y_target)
 
         loss = self._loss(p_y_pred, y_target, q_target, q_context)
 
-        self.log("train/loss", loss.item(), prog_bar = True)
+        self.log("train/loss", loss.item(), prog_bar=True)
         return loss
 
     # Do a sanity check when training ends for any nans
@@ -99,7 +83,7 @@ class NPImputation(ImputationWrapper):
         try:
             finite_checks.detect_nan_parameters(self.model)
         except ValueError:
-            logging.error('Found nan values in the model gradients:')
+            logging.error("Found nan values in the model gradients:")
             finite_checks.print_nan_gradients(self.model)
             quit()
         return super().on_train_end()
@@ -111,7 +95,7 @@ class NPImputation(ImputationWrapper):
         # Unpack batch into three values
         amputed, mask, complete = batch
         batch_size, num_timesteps, num_obs_var = complete.shape
-        
+
         # Create and rearrange x to be the same shape as variables (x is timesteps)
         x = torch.arange(0, num_timesteps).to(self.device)
         x = x.repeat(batch_size)
@@ -120,16 +104,14 @@ class NPImputation(ImputationWrapper):
         # Resulting size is [batch size, number of timesteps, number of observed variables]
 
         # For now, do the most basic thing - put 0s instead of nans
-        amputed = torch.nan_to_num(amputed, nan = 0.0).to(self.device)
+        amputed = torch.nan_to_num(amputed, nan=0.0).to(self.device)
 
-        x_context, y_context, _, _ =\
-            self._context_target_split(x, amputed)
+        x_context, y_context, _, _ = self._context_target_split(x, amputed)
 
         x_target = x.to(self.device)
 
         # Get the predicted probability distribution
-        p_y_pred =\
-            self(x_context, y_context, x_target)
+        p_y_pred = self(x_context, y_context, x_target)
 
         # Sample the distribution to put the values from it into the amputed dataset
         generated = p_y_pred.sample()
@@ -139,7 +121,7 @@ class NPImputation(ImputationWrapper):
         # In val/test loops, use the MSE loss - KL divergence can't be calculated without target distribution
         loss = self.loss(amputed, complete)
 
-        self.log("val/loss", loss.item(), prog_bar = True)
+        self.log("val/loss", loss.item(), prog_bar=True)
 
         # Update the metrics
         for metric in self.metrics["val"].values():
@@ -151,25 +133,23 @@ class NPImputation(ImputationWrapper):
         # Unpack batch into three values
         amputed, mask, complete = batch
         batch_size, num_timesteps, num_obs_var = amputed.shape
-        
+
         # Create and rearrange x to be the same shape as variables (x is timesteps)
         x = torch.arange(0, num_timesteps).to(self.device)
         x = x.repeat(batch_size)
         x = x.repeat(num_obs_var)
         x = x.reshape(batch_size, num_timesteps, num_obs_var)
         # Resulting size is [batch size, number of timesteps, number of observed variables]
-        
-        # For now, do the most basic thing - put 0s instead of nans
-        amputed = torch.nan_to_num(amputed, nan = 0.0).to(self.device)
 
-        x_context, y_context, _, _ =\
-            self._context_target_split(x, amputed)
+        # For now, do the most basic thing - put 0s instead of nans
+        amputed = torch.nan_to_num(amputed, nan=0.0).to(self.device)
+
+        x_context, y_context, _, _ = self._context_target_split(x, amputed)
 
         x_target = x.to(self.device)
 
         # Get the predicted probability distribution
-        p_y_pred =\
-            self(x_context, y_context, x_target)
+        p_y_pred = self(x_context, y_context, x_target)
 
         # Sample the distribution to put the values from it into the amputed dataset
         generated = p_y_pred.sample()
@@ -179,7 +159,7 @@ class NPImputation(ImputationWrapper):
         # In val/test loops, use the MSE loss - KL divergence can't be calculated without target distribution
         loss = self.loss(amputed, complete)
 
-        self.log("test/loss", loss.item(), prog_bar = True)
+        self.log("test/loss", loss.item(), prog_bar=True)
 
         # Update the metrics
         for metric in self.metrics["test"].values():
@@ -190,11 +170,11 @@ class NPImputation(ImputationWrapper):
 
     # Loss function - with KL divergence
     def _loss(self, p_y_pred, y_target, q_context, q_target):
-        log_likelihood = p_y_pred.log_prob(y_target).mean(dim = 0).sum()
+        log_likelihood = p_y_pred.log_prob(y_target).mean(dim=0).sum()
         # KL Divergence
-        kl = kl_divergence(q_target, q_context).mean(dim = 0).sum()
+        kl = kl_divergence(q_target, q_context).mean(dim=0).sum()
         return -log_likelihood + kl
- 
+
     def _context_target_split(self, x, y):
         # Calculate how many points we can have for context/target split
         num_points = x.shape[1]
@@ -209,15 +189,16 @@ class NPImputation(ImputationWrapper):
 
         return x_context, y_context, x_target, y_target
 
+
 # Actual class that implements neural processes
 class NeuralProcess(nn.Module):
     def __init__(
-        self, 
+        self,
         x_dim,
-        y_dim, 
+        y_dim,
         encoder_layers,
         encoder_h_dim,
-        decoder_layers, 
+        decoder_layers,
         decoder_h_dim,
         r_dim,
         z_dim,
@@ -230,28 +211,13 @@ class NeuralProcess(nn.Module):
         self.z_dim = z_dim
 
         # Initialize encoders/decoder
-        self.encoder = MLPEncoder(
-            x_dim,
-            y_dim,
-            encoder_h_dim,
-            encoder_layers,
-            r_dim
-        )
+        self.encoder = MLPEncoder(x_dim, y_dim, encoder_h_dim, encoder_layers, r_dim)
 
-        self.latent_encoder = MuEncoder(
-            r_dim = r_dim,
-            z_dim = z_dim
-        )
+        self.latent_encoder = MuEncoder(r_dim=r_dim, z_dim=z_dim)
 
-        self.decoder = Decoder(
-            decoder_h_dim,
-            decoder_layers,
-            x_dim,
-            y_dim,
-            z_dim
-        )
+        self.decoder = Decoder(decoder_h_dim, decoder_layers, x_dim, y_dim, z_dim)
 
-    def forward(self, x_context, y_context, x_target, y_target = None):
+    def forward(self, x_context, y_context, x_target, y_target=None):
         if self.training:
             # Encode target and context (context needs to be encoded to
             # calculate kl term)
@@ -279,7 +245,7 @@ class NeuralProcess(nn.Module):
             return p_y_pred
 
     def _aggregate(self, r_i):
-        return torch.mean(r_i, dim = 1)
+        return torch.mean(r_i, dim=1)
 
     def _encode(self, x, y):
         # Encode each point into a representation r_i
@@ -289,45 +255,33 @@ class NeuralProcess(nn.Module):
         # Return parameters of distribution
         return self.latent_encoder(r)
 
-# This class describes the deterministic encoder 
+
+# This class describes the deterministic encoder
 #   The encoding is (x_i, y_i) to representation r_i
 class MLPEncoder(nn.Module):
-    def __init__(
-        self,
-        x_dim,
-        y_dim,
-        h_dim,
-        h_layers,
-        r_dim
-    ):
+    def __init__(self, x_dim, y_dim, h_dim, h_layers, r_dim):
         super().__init__()
-        
+
         # Define the first input layer
-        layers = [
-            nn.Linear(x_dim + y_dim, h_dim),
-            nn.ReLU(inplace = True)
-        ]       
+        layers = [nn.Linear(x_dim + y_dim, h_dim), nn.ReLU(inplace=True)]
         # Define the multilayer structure
         for _ in range(h_layers):
             layers.append(nn.Linear(h_dim, h_dim))
-            layers.append(nn.ReLU(inplace = True))
+            layers.append(nn.ReLU(inplace=True))
         # Add the final layer (without ReLU)
         layers.append(nn.Linear(h_dim, r_dim))
 
         self.model = nn.Sequential(*layers)
 
     def forward(self, x, y):
-        input_pairs = torch.cat((x, y), dim = 2)
+        input_pairs = torch.cat((x, y), dim=2)
         return self.model(input_pairs)
 
-# This class describes the latent encoder 
+
+# This class describes the latent encoder
 #   The encoding is r_i to mu and sigma of the distribution from which to sample latent variable z
 class MuEncoder(nn.Module):
-    def __init__(
-        self,
-        r_dim,
-        z_dim
-    ):
+    def __init__(self, r_dim, z_dim):
         super().__init__()
 
         self.model_hidden = nn.Linear(r_dim, r_dim)
@@ -342,33 +296,24 @@ class MuEncoder(nn.Module):
         sigma = 0.1 + 0.9 * torch.sigmoid(self.model_sigma(hidden))
         return mu, sigma
 
+
 # This class describes the decoder
 #   The encoding is from x_target and z to y_target (i.e. making a prediction of y)
 class Decoder(nn.Module):
-    def __init__(
-        self,
-        h_dim,
-        h_layers,
-        x_dim,
-        y_dim,
-        z_dim
-        ):
+    def __init__(self, h_dim, h_layers, x_dim, y_dim, z_dim):
         super().__init__()
 
         self.x_dim = x_dim
         self.y_dim = y_dim
         self.z_dim = z_dim
 
-        layers = [
-            nn.Linear(x_dim + z_dim, h_dim),
-            nn.ReLU(inplace = True)
-        ]
+        layers = [nn.Linear(x_dim + z_dim, h_dim), nn.ReLU(inplace=True)]
 
         for _ in range(h_layers):
             layers.append(nn.Linear(h_dim, h_dim))
-            layers.append(nn.ReLU(inplace = True))
+            layers.append(nn.ReLU(inplace=True))
         self.model_hidden = nn.Sequential(*layers)
-        
+
         self.model_mu = nn.Linear(h_dim, y_dim)
         self.model_sigma = nn.Linear(h_dim, y_dim)
 

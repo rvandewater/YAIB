@@ -6,12 +6,13 @@ import gin
 
 @gin.configurable("MLP")
 class MLPImputation(ImputationWrapper):
-
     needs_training = True
     needs_fit = False
 
     def __init__(self, *args, input_size, num_hidden_layers=3, hidden_layer_size=10, **kwargs) -> None:
-        super().__init__(*args, input_size=input_size, num_hidden_layers=num_hidden_layers, hidden_layer_size=hidden_layer_size, **kwargs)
+        super().__init__(
+            *args, input_size=input_size, num_hidden_layers=num_hidden_layers, hidden_layer_size=hidden_layer_size, **kwargs
+        )
         self.model = [
             Flatten(),
             Linear(input_size[1] * input_size[2], hidden_layer_size),

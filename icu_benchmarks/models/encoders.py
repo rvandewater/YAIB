@@ -8,12 +8,13 @@ from sklearn import linear_model
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
 from icu_benchmarks.models.wrappers import DLClassificationWrapper, MLClassificationWrapper
 
+
 @gin.configurable
 class LGBMClassifier(MLClassificationWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
-    
+
     @gin.configurable(module="LGBMClassifier")
     def model_args(self, *args, **kwargs):
         return lightgbm.LGBMClassifier(*args, **kwargs)
@@ -24,30 +25,33 @@ class LGBMRegressor(MLClassificationWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
-    
+
     @gin.configurable(module="LGBMRegressor")
     def model_args(self, *args, **kwargs):
         return lightgbm.LGBMRegressor(*args, **kwargs)
-    
+
+
 @gin.configurable
 class LogisticRegression(MLClassificationWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
-    
+
     @gin.configurable(module="LogisticRegression")
     def model_args(self, *args, **kwargs):
         return linear_model.LogisticRegression(*args, **kwargs)
 
+
 @gin.configurable
 class LSTMNet(DLClassificationWrapper):
-    
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
-        super().__init__(input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs)
+        super().__init__(
+            input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
+        )
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
         self.rnn = nn.LSTM(input_size[2], hidden_dim, layer_dim, batch_first=True)
-        self.logit = nn.Linear(hidden_dim, num_classes)        
+        self.logit = nn.Linear(hidden_dim, num_classes)
 
     def init_hidden(self, x):
         h0 = x.new_zeros(self.layer_dim, x.size(0), self.hidden_dim)
@@ -63,9 +67,10 @@ class LSTMNet(DLClassificationWrapper):
 
 @gin.configurable
 class GRUNet(DLClassificationWrapper):
-
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
-        super().__init__(input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs)
+        super().__init__(
+            input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
+        )
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
         self.rnn = nn.GRU(input_size[2], hidden_dim, layer_dim, batch_first=True)
@@ -85,7 +90,6 @@ class GRUNet(DLClassificationWrapper):
 
 @gin.configurable
 class Transformer(DLClassificationWrapper):
-
     def __init__(
         self,
         input_size,
@@ -152,7 +156,6 @@ class Transformer(DLClassificationWrapper):
 
 @gin.configurable
 class LocalTransformer(DLClassificationWrapper):
-
     def __init__(
         self,
         input_size,
@@ -225,7 +228,16 @@ class LocalTransformer(DLClassificationWrapper):
 @gin.configurable
 class TemporalConvNet(DLClassificationWrapper):
     def __init__(self, input_size, num_channels, num_classes, *args, max_seq_length=0, kernel_size=2, dropout=0.0, **kwargs):
-        super().__init__(input_size=input_size, num_channels=num_channels, num_classes=num_classes, *args, max_seq_length=max_seq_length, kernel_size=kernel_size, dropout=dropout, **kwargs)
+        super().__init__(
+            input_size=input_size,
+            num_channels=num_channels,
+            num_classes=num_classes,
+            *args,
+            max_seq_length=max_seq_length,
+            kernel_size=kernel_size,
+            dropout=dropout,
+            **kwargs,
+        )
         layers = []
 
         # We compute automatically the depth based on the desired seq_length.

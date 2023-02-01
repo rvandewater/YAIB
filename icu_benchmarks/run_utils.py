@@ -28,7 +28,9 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-tn", "--task-name", help="Name of the task.")
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
-    general_args.add_argument("-l", "--log-dir", required=False, default=Path("../yaib_logs/"), type=Path, help="Log directory with model weights.")
+    general_args.add_argument(
+        "-l", "--log-dir", required=False, default=Path("../yaib_logs/"), type=Path, help="Log directory with model weights."
+    )
     general_args.add_argument("-s", "--seed", default=1111, type=int, help="Random seed for processing, tuning and training.")
     general_args.add_argument(
         "-v",
@@ -48,7 +50,9 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-p", "--preprocessor", type=Path, help="Load custom preprocessor from file.")
     general_args.add_argument("-pl", "--plot", action=BooleanOptionalAction, help="Generate common plots.")
     general_args.add_argument("--wandb-sweep", action="store_true", help="activates wandb hyper parameter sweep")
-    general_args.add_argument("--use_pretrained_imputation", required=False, type=str, help="Path to pretrained imputation model.")
+    general_args.add_argument(
+        "--use_pretrained_imputation", required=False, type=str, help="Path to pretrained imputation model."
+    )
 
     # MODEL TRAINING ARGUMENTS
     prep_and_train = subparsers.add_parser("train", help="Preprocess features and train model.", parents=[parent_parser])

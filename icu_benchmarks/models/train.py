@@ -24,7 +24,7 @@ def train_common(
     data: dict[str, pd.DataFrame],
     log_dir: Path,
     load_weights: bool = False,
-    only_evaluate = False,
+    only_evaluate=False,
     source_dir: Path = None,
     reproducible: bool = True,
     mode: str = "Classification",
@@ -63,7 +63,7 @@ def train_common(
         min_delta: Minimum change in loss to be considered an improvement.
         test_on: If set to "test", evaluate the model on the test set. If set to "val", evaluate on the validation set.
         use_wandb: If set to true, log to wandb.
-        num_workers: Number of workers to use for data loading.        
+        num_workers: Number of workers to use for data loading.
     """
     logging.info(f"Training model: {model.__name__}")
     DatasetClass = ImputationDataset if mode == "Imputation" else SICUDataset
@@ -104,7 +104,7 @@ def train_common(
             model = model.load_state_dict(checkpoint["state_dict"])
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
-    
+
     if not only_evaluate:
         loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
         if use_wandb:
@@ -139,8 +139,10 @@ def train_common(
             else:
                 trainer.fit(
                     model,
-                    train_dataloaders=DataLoader([train_dataset.get_data_and_labels() + val_dataset.get_data_and_labels()], batch_size=1),
-                    val_dataloaders=DataLoader([val_dataset.get_data_and_labels()], batch_size=1)
+                    train_dataloaders=DataLoader(
+                        [train_dataset.get_data_and_labels() + val_dataset.get_data_and_labels()], batch_size=1
+                    ),
+                    val_dataloaders=DataLoader([val_dataset.get_data_and_labels()], batch_size=1),
                 )
             if not model.needs_training:
                 try:
@@ -153,12 +155,11 @@ def train_common(
             logging.info("training model on data...")
             trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
             logging.info("training complete!")
-     
 
     test_loss = 0.0
     logging.info("testing...")
     test_dataset = DatasetClass(data, split=test_on)
-    
+
     test_loader = DataLoader(
         test_dataset,
         batch_size=batch_size * 4,
@@ -166,15 +167,16 @@ def train_common(
         num_workers=num_workers,
         pin_memory=True,
     )
-    
+
     if mode == "Classification":
         model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(
-        model, 
-        dataloaders = (
-            test_loader if (mode == "Imputation" or model.needs_training) 
+        model,
+        dataloaders=(
+            test_loader
+            if (mode == "Imputation" or model.needs_training)
             else DataLoader([test_dataset.get_data_and_labels()], batch_size=1)
-        )
+        ),
     )[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss

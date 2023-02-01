@@ -51,7 +51,7 @@ def choose_and_bind_hyperparameters(
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
     hyperparams = {}
-    
+
     if len(scopes) == 0 or folds_to_tune_on is None:
         return
 

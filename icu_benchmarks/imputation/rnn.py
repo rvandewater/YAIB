@@ -7,11 +7,10 @@ import gin
 
 @gin.configurable("RNN")
 class RNNImputation(ImputationWrapper):
-    
     needs_training = True
     needs_fit = False
 
-    def __init__(self, *args, input_size, hidden_size=64, state_init='zero', cell='gru', **kwargs) -> None:
+    def __init__(self, *args, input_size, hidden_size=64, state_init="zero", cell="gru", **kwargs) -> None:
         super().__init__(*args, input_size=input_size, hidden_size=hidden_size, state_init=state_init, cell=cell, **kwargs)
         self.input_size = input_size
         self.n_features = input_size[2]
@@ -19,9 +18,9 @@ class RNNImputation(ImputationWrapper):
         self.state_init = state_init
         self.cell = cell
 
-        if cell == 'gru':
+        if cell == "gru":
             cell = nn.GRUCell
-        elif cell == 'lstm':
+        elif cell == "lstm":
             cell = nn.LSTMCell
         else:
             raise NotImplementedError(f'"{cell}" cell not implemented.')
@@ -30,9 +29,9 @@ class RNNImputation(ImputationWrapper):
         self.fn = nn.Linear(self.hidden_size, self.n_features)
 
     def init_hidden_state(self, x):
-        if self.state_init == 'zero':
+        if self.state_init == "zero":
             return torch.zeros((x.size(0), self.hidden_size), device=x.device, dtype=x.dtype)
-        if self.state_init == 'noise':
+        if self.state_init == "noise":
             return torch.randn(x.size(0), self.hidden_size, device=x.device, dtype=x.dtype)
 
     def forward(self, amputated, amputation_mask, return_hidden=False):
@@ -46,9 +45,9 @@ class RNNImputation(ImputationWrapper):
         preds = [output]
         for s in range(steps - 1):
             x_t = torch.where(amputation_mask[:, s].bool(), output, amputated[:, s])
-            if self.cell == 'gru':
+            if self.cell == "gru":
                 h = self.rnn(x_t, h)
-            elif self.cell == 'lstm':
+            elif self.cell == "lstm":
                 h, c = self.rnn(x_t, (h, c))
             output = self.fn(h)
             hs.append(h)
@@ -64,12 +63,13 @@ class RNNImputation(ImputationWrapper):
 
 @gin.configurable("BRNN")
 class BRNNImputation(ImputationWrapper):
-    
     needs_training = True
     needs_fit = False
-    
-    def __init__(self, *args, input_size, hidden_size=64, state_init='zero', dropout=0., cell='gru', **kwargs) -> None:
-        super().__init__(*args, input_size=input_size, hidden_size=hidden_size, state_init=state_init, dropout=dropout, cell=cell, **kwargs)
+
+    def __init__(self, *args, input_size, hidden_size=64, state_init="zero", dropout=0.0, cell="gru", **kwargs) -> None:
+        super().__init__(
+            *args, input_size=input_size, hidden_size=hidden_size, state_init=state_init, dropout=dropout, cell=cell, **kwargs
+        )
         self.hidden_size = hidden_size
         self.fwd_rnn = RNNImputation(input_size=input_size, hidden_size=hidden_size, state_init=state_init, cell=cell)
         self.bwd_rnn = RNNImputation(input_size=input_size, hidden_size=hidden_size, state_init=state_init, cell=cell)
@@ -78,16 +78,14 @@ class BRNNImputation(ImputationWrapper):
 
     def forward(self, amputated, amputation_mask):
         _, h_fwd = self.fwd_rnn(amputated, amputation_mask, return_hidden=True)
-        _, h_bwd = self.bwd_rnn(self.reverse_tensor(amputated, 1),
-                                self.reverse_tensor(amputation_mask, 1),
-                                return_hidden=True)
+        _, h_bwd = self.bwd_rnn(self.reverse_tensor(amputated, 1), self.reverse_tensor(amputation_mask, 1), return_hidden=True)
         h_bwd = self.reverse_tensor(h_bwd, 1)
 
         h = self.dropout(torch.cat([h_fwd, h_bwd], -1))
         output = self.fn(h)
-        
+
         return output
-    
+
     @staticmethod
     def reverse_tensor(tensor=None, axis=-1):
         if tensor is None:

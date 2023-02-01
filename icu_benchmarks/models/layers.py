@@ -139,7 +139,6 @@ class SelfAttention(nn.Module):
                     dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(dot.device)).view(bs * h, n, n)
 
                 elif self.mask_aggregation == "split":
-
                     dot_list = list(torch.split(dot, dot.shape[0] // len(self.att_type), dim=0))
                     for i, att_type in enumerate(self.att_type):
                         mask_tensor = parallel_recomb(

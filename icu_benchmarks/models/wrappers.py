@@ -29,12 +29,12 @@ gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
 
+
 @gin.configurable("BaseModule")
 class BaseModule(LightningModule):
-    
     needs_training = False
     needs_fit = False
-    
+
     weight = None
     logdir = None
     metrics = {}
@@ -42,13 +42,13 @@ class BaseModule(LightningModule):
 
     def get_seed(self):
         return np.random.get_state()[1][0]
-    
+
     def set_logdir(self, logdir):
         self.logdir = logdir
 
     def set_scaler(self, scaler):
         self.scaler = scaler
-    
+
     def forward(self, *args, **kwargs):
         raise NotImplementedError()
 
@@ -57,13 +57,13 @@ class BaseModule(LightningModule):
 
     def finalize_step(self, step_prefix=""):
         pass
-    
+
     def set_metrics(self, *args, **kwargs):
         self.metrics = {}
-    
+
     def set_weight(self, weight, *args, **kwargs):
         pass
-    
+
     def training_step(self, batch, batch_idx):
         return self.step_fn(batch, "train")
 
@@ -81,7 +81,7 @@ class BaseModule(LightningModule):
 
     def on_test_epoch_end(self) -> None:
         self.finalize_step("test")
-    
+
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         checkpoint["class"] = self.__class__
         return super().on_save_checkpoint(checkpoint)
@@ -89,7 +89,6 @@ class BaseModule(LightningModule):
 
 @gin.configurable("DLWrapper")
 class DLWrapper(BaseModule):
-    
     needs_training = True
     needs_fit = False
 
@@ -119,13 +118,20 @@ class DLWrapper(BaseModule):
             step_name: {
                 metric_name: (metric() if isinstance(metric, type) else metric)
                 for metric_name, metric in self.set_metrics().items()
-            } for step_name in ["train", "val", "test"]
+            }
+            for step_name in ["train", "val", "test"]
         }
         return super().on_fit_start()
 
-    def finalize_step(self, step_prefix = ""):
+    def finalize_step(self, step_prefix=""):
         try:
-            self.log_dict({f"{step_prefix}/{name}": metric.compute() for name, metric in self.metrics[step_prefix].items() if "_Curve" not in name})
+            self.log_dict(
+                {
+                    f"{step_prefix}/{name}": metric.compute()
+                    for name, metric in self.metrics[step_prefix].items()
+                    if "_Curve" not in name
+                }
+            )
             for metric in self.metrics[step_prefix].values():
                 metric.reset()
         except (NotComputableError, ValueError):
@@ -137,7 +143,7 @@ class DLWrapper(BaseModule):
             optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
         else:
             optimizer = self.optimizer(self.parameters())
-        
+
         if self.hparams.lr_scheduler is None:
             return optimizer
         scheduler = create_scheduler(
@@ -146,13 +152,15 @@ class DLWrapper(BaseModule):
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     def on_test_epoch_start(self) -> None:
-        self.metrics = {step_name: {metric_name: metric() for metric_name, metric in self.set_metrics().items()} for step_name in ["train", "val", "test"]}
+        self.metrics = {
+            step_name: {metric_name: metric() for metric_name, metric in self.set_metrics().items()}
+            for step_name in ["train", "val", "test"]
+        }
         return super().on_test_epoch_start()
 
 
 @gin.configurable("DLClassificationWrapper")
 class DLClassificationWrapper(DLWrapper):
-    
     def set_weight(self, weight, dataset):
         if isinstance(weight, list):
             weight = torch.FloatTensor(weight).to(self.device)
@@ -193,8 +201,7 @@ class DLClassificationWrapper(DLWrapper):
             metrics = DLMetrics.MULTICLASS_CLASSIFICATION
         return metrics
 
-
-    def step_fn(self, element, step_prefix = ""):
+    def step_fn(self, element, step_prefix=""):
         if len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
             if isinstance(data, list):
@@ -221,22 +228,24 @@ class DLClassificationWrapper(DLWrapper):
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
         target = torch.masked_select(labels, mask).to(self.device)
         if prediction.shape[-1] > 1:
-            loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss  # torch.long because NLL
+            loss = (
+                self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
+            )  # torch.long because NLL
         else:
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss  # Regression task
-        
+
         transformed_output = self.output_transform((prediction, target))
         for metric in self.metrics[step_prefix].values():
             metric.update(transformed_output)
         self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True)
         return loss
 
+
 @gin.configurable("MLClassificationWrapper")
 class MLClassificationWrapper(BaseModule):
-    
     needs_training = False
     needs_fit = True
-    
+
     def __init__(self, *args, model=None, patience=10, **kwargs):
         super().__init__()
         self.save_hyperparameters()
@@ -244,7 +253,6 @@ class MLClassificationWrapper(BaseModule):
         self.scaler = None
 
     def set_metrics(self, labels):
-
         # Binary classification
         if len(np.unique(labels)) == 2:
             if isinstance(self.model, lightgbm.basic.Booster):
@@ -270,19 +278,19 @@ class MLClassificationWrapper(BaseModule):
                 self.output_transform = lambda x: x
                 self.label_transform = lambda x: x
             self.metrics = {"MAE": mean_absolute_error}
-    
+
     def training_step(self, dataset):
         train_rep, train_label, val_rep, val_label = dataset
         train_rep, train_label = train_rep.squeeze().cpu().numpy(), train_label.squeeze().cpu().numpy()
         val_rep, val_label = val_rep.squeeze().cpu().numpy(), val_label.squeeze().cpu().numpy()
         self.set_metrics(train_label)
-        
+
         if "class_weight" in self.model.get_params().keys():  # Set class weights
             self.model.set_params(class_weight=self.weight)
 
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
             self.model.set_params(random_state=np.random.get_state()[1][0])
-            
+
             self.model.fit(
                 train_rep,
                 train_label,
@@ -296,18 +304,21 @@ class MLClassificationWrapper(BaseModule):
         else:
             val_loss = 0.0
             self.model.fit(train_rep, train_label)
-        
+
         if "MAE" in self.metrics.keys():
             train_pred = self.model.predict(train_rep)
         else:
             train_pred = self.model.predict_proba(train_rep)
-        
+
         self.log(f"train/loss", 0.0)
         self.log(f"val/loss", val_loss)
-        self.log_dict({
-            f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
-            for name, metric in self.metrics.items() if "_Curve" not in name
-        })
+        self.log_dict(
+            {
+                f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
+                for name, metric in self.metrics.items()
+                if "_Curve" not in name
+            }
+        )
 
     def validation_step(self, val_dataset, _):
         val_rep, val_label = val_dataset
@@ -319,10 +330,13 @@ class MLClassificationWrapper(BaseModule):
         else:
             val_pred = self.model.predict_proba(val_rep)
 
-        self.log_dict({
-            f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
-            for name, metric in self.metrics.items() if "_Curve" not in name
-        })
+        self.log_dict(
+            {
+                f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
+                for name, metric in self.metrics.items()
+                if "_Curve" not in name
+            }
+        )
 
     def test_step(self, dataset, _):
         test_rep, test_label = dataset
@@ -334,10 +348,13 @@ class MLClassificationWrapper(BaseModule):
             test_pred = self.model.predict_proba(test_rep)
 
         self.log(f"test/loss", 0.0)
-        self.log_dict({
-            f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
-            for name, metric in self.metrics.items() if "_Curve" not in name
-        })
+        self.log_dict(
+            {
+                f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
+                for name, metric in self.metrics.items()
+                if "_Curve" not in name
+            }
+        )
 
     def configure_optimizers(self):
         return None
@@ -348,9 +365,9 @@ class MLClassificationWrapper(BaseModule):
         del state["output_transform"]
         return state
 
+
 @gin.configurable("ImputationWrapper")
 class ImputationWrapper(DLWrapper):
-
     needs_training = True
     needs_fit = False
 
@@ -404,7 +421,7 @@ class ImputationWrapper(DLWrapper):
                 metric.reset()
         logging.info("RESET METRICS")
         return super().on_fit_start()
-    
+
     def step_fn(self, batch, step_prefix=""):
         amputated, amputation_mask, target = batch
         imputated = self(amputated, amputation_mask)
@@ -412,11 +429,13 @@ class ImputationWrapper(DLWrapper):
 
         loss = self.loss(amputated, target)
         self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
-        
+
         for metric in self.metrics[step_prefix].values():
-            metric.update((torch.flatten(amputated.detach(), start_dim=1).clone(), torch.flatten(target.detach(), start_dim=1).clone()))
+            metric.update(
+                (torch.flatten(amputated.detach(), start_dim=1).clone(), torch.flatten(target.detach(), start_dim=1).clone())
+            )
         return loss
-    
+
     def predict_step(self, data, amputation_mask=None):
         return self(data, amputation_mask)
 

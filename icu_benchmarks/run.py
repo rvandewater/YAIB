@@ -20,9 +20,11 @@ from icu_benchmarks.run_utils import (
     log_full_line,
 )
 
+
 @gin.configurable("Run")
 def get_mode(mode: gin.REQUIRED):
     return mode
+
 
 def main(my_args=tuple(sys.argv[1:])):
     args, _ = build_parser().parse_known_args(my_args)
@@ -31,12 +33,11 @@ def main(my_args=tuple(sys.argv[1:])):
         sweep_config = wandb.config
         args.__dict__.update(sweep_config)
         for key, value in sweep_config.items():
-            args.hyperparams.append(f"{key}=" + (('\'' + value + '\'') if isinstance(value, str) else str(value)))
+            args.hyperparams.append(f"{key}=" + (("'" + value + "'") if isinstance(value, str) else str(value)))
 
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
     logging.getLogger().setLevel(logging.INFO)
-
 
     load_weights = args.command == "evaluate"
     args.data_dir = Path(args.data_dir)
@@ -50,14 +51,14 @@ def main(my_args=tuple(sys.argv[1:])):
     mode = get_mode()
     logging.info(f"Task mode: {mode}")
     experiment = args.experiment
-    
+
     if args.use_pretrained_imputation is not None and not Path(args.use_pretrained_imputation).exists():
         logging.info("the specified pretrained imputation model does not exist")
         args.use_pretrained_imputation = None
-    
+
     if args.use_pretrained_imputation is not None:
         logging.info("using pretrained imputation from" + str(args.use_pretrained_imputation))
-        pretrained_imputation_model_checkpoint = torch.load(args.use_pretrained_imputation, map_location=torch.device('cpu'))
+        pretrained_imputation_model_checkpoint = torch.load(args.use_pretrained_imputation, map_location=torch.device("cpu"))
         if isinstance(pretrained_imputation_model_checkpoint, dict):
             imputation_model_class = pretrained_imputation_model_checkpoint["class"]
             pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
@@ -69,16 +70,33 @@ def main(my_args=tuple(sys.argv[1:])):
         pretrained_imputation_model = None
 
     if wandb.run is not None:
-        logging.info("updating wandb config:", {"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
-        wandb.config.update({"pretrained_imputation_model": pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"})
+        logging.info(
+            "updating wandb config:",
+            {
+                "pretrained_imputation_model": pretrained_imputation_model.__class__.__name__
+                if pretrained_imputation_model is not None
+                else "None"
+            },
+        )
+        wandb.config.update(
+            {
+                "pretrained_imputation_model": pretrained_imputation_model.__class__.__name__
+                if pretrained_imputation_model is not None
+                else "None"
+            }
+        )
     source_dir = None
     # todo:check if this is correct
     reproducible = False
     log_dir_name = args.log_dir / name
-    log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / (args.task_name if args.task_name is not None else args.task) / model)
-    
+    log_dir = (
+        (log_dir_name / experiment)
+        if experiment
+        else (log_dir_name / (args.task_name if args.task_name is not None else args.task) / model)
+    )
+
     logging.info("logging to " + str(log_dir))
-    
+
     if args.preprocessor:
         # Import custom supplied preprocessor
         try:
@@ -100,7 +118,9 @@ def main(my_args=tuple(sys.argv[1:])):
         # Train
         reproducible = args.reproducible
         checkpoint = log_dir / args.checkpoint if args.checkpoint else None
-        model_path = Path("configs") / ("imputation_models" if mode == "Imputation" else "classification_models") / f"{model}.gin"
+        model_path = (
+            Path("configs") / ("imputation_models" if mode == "Imputation" else "classification_models") / f"{model}.gin"
+        )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]
             if args.experiment

@@ -28,7 +28,14 @@ class Preprocessor:
 
 @gin.configurable("base_imputation_preprocessor")
 class DefaultImputationPreprocessor(Preprocessor):
-    def __init__(self, scaling: bool = True, use_static_features: bool = True, window_size: int = 25, window_stride: int = 1, vars: dict = None):
+    def __init__(
+        self,
+        scaling: bool = True,
+        use_static_features: bool = True,
+        window_size: int = 25,
+        window_stride: int = 1,
+        vars: dict = None,
+    ):
         """
         Args:
             scaling: Scaling of dynamic and static data.
@@ -41,7 +48,7 @@ class DefaultImputationPreprocessor(Preprocessor):
         self.window_size = window_size
         self.window_stride = window_stride
         self.vars = vars
-    
+
     def apply(self, data, vars):
         """
         Args:
@@ -52,15 +59,21 @@ class DefaultImputationPreprocessor(Preprocessor):
         """
         logging.info("Preprocessor static features.")
         data = {step: self.process_dynamic_data(data[step], vars) for step in data}
-        
+
         dyn_rec = Recipe(data[Split.train][Segment.dynamic], [], vars[Segment.dynamic], vars["GROUP"], vars["SEQUENCE"])
         if self.scaling:
             dyn_rec.add_step(StepScale())
         data = self.apply_recipe_to_splits(dyn_rec, data, Segment.dynamic)
-    
-        data[Split.train][Segment.features] = data[Split.train].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
-        data[Split.val][Segment.features] = data[Split.val].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
-        data[Split.test][Segment.features] = data[Split.test].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
+
+        data[Split.train][Segment.features] = (
+            data[Split.train].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
+        )
+        data[Split.val][Segment.features] = (
+            data[Split.val].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
+        )
+        data[Split.test][Segment.features] = (
+            data[Split.test].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
+        )
         return data
 
     def to_cache_string(self):
@@ -96,11 +109,11 @@ class DefaultImputationPreprocessor(Preprocessor):
             new_data = {name: pd.DataFrame(columns=table.columns) for name, table in data.items()}
             grouped = data[Segment.dynamic].groupby([vars["GROUP"]])
             slice_counter = 0
-            
+
             for group_name, group in tqdm(grouped):
                 for i in range(0, len(group) - self.window_size + 1, self.window_stride):
-                    if group.iloc[i:i+self.window_size][vars[Segment.dynamic]].isna().sum().sum() == 0:
-                        slice = group.iloc[i:i+self.window_size].copy()
+                    if group.iloc[i : i + self.window_size][vars[Segment.dynamic]].isna().sum().sum() == 0:
+                        slice = group.iloc[i : i + self.window_size].copy()
                         slice.loc[:, vars["GROUP"]] = slice_counter
                         # use pandas.concat
                         new_data[Segment.dynamic] = pd.concat([new_data[Segment.dynamic], slice])
@@ -111,8 +124,11 @@ class DefaultImputationPreprocessor(Preprocessor):
                                 new_data[table_name] = pd.concat([new_data[table_name], new_slice_data])
                         slice_counter += 1
             data = new_data
-            logging.info(f"Generated {slice_counter} slices with {self.window_size} consecutive present values from {len(grouped)} records.")
+            logging.info(
+                f"Generated {slice_counter} slices with {self.window_size} consecutive present values from {len(grouped)} records."
+            )
         return data
+
 
 @gin.configurable("base_classification_preprocessor")
 class DefaultClassificationPreprocessor(Preprocessor):
@@ -132,7 +148,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         self.use_static_features = use_static_features
         self.imputation_model = None
         self.vars = vars
-    
+
     def set_imputation_model(self, imputation_model):
         self.imputation_model = imputation_model
         if self.imputation_model is not None and wandb.run is not None:
@@ -216,9 +232,15 @@ class DefaultClassificationPreprocessor(Preprocessor):
         if self.generate_features:
             dyn_rec = self.dynamic_feature_generation(dyn_rec, all_of(vars[Segment.dynamic]))
         data = self.apply_recipe_to_Splits(dyn_rec, data, Segment.dynamic)
-        data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
-        data[Split.val][Segment.dynamic] = data[Split.val][Segment.dynamic].loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
-        data[Split.test][Segment.dynamic] = data[Split.test][Segment.dynamic].loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
+        data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].loc[
+            :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
+        ]
+        data[Split.val][Segment.dynamic] = data[Split.val][Segment.dynamic].loc[
+            :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
+        ]
+        data[Split.test][Segment.dynamic] = data[Split.test][Segment.dynamic].loc[
+            :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
+        ]
         return data
 
     def dynamic_feature_generation(self, data, dynamic_vars):
@@ -229,7 +251,10 @@ class DefaultClassificationPreprocessor(Preprocessor):
         return data
 
     def to_cache_string(self):
-        return super().to_cache_string() + f"_classification_{self.generate_features}_{self.scaling}_{self.imputation_model.__class__.__name__}"
+        return (
+            super().to_cache_string()
+            + f"_classification_{self.generate_features}_{self.scaling}_{self.imputation_model.__class__.__name__}"
+        )
 
     @staticmethod
     def apply_recipe_to_Splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
