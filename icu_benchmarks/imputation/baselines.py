@@ -1,9 +1,9 @@
 import torch
 from hyperimpute.plugins.imputers import Imputers
+from sklearn.experimental import enable_iterative_imputer  # noqa: F401
 from sklearn.impute import KNNImputer, SimpleImputer, IterativeImputer
 from sklearn.linear_model import LinearRegression
 
-# from icu_benchmarks.data.loader impor
 from icu_benchmarks.models.wrappers import ImputationWrapper
 from pypots.imputation import BRITS, SAITS, Transformer
 import gin

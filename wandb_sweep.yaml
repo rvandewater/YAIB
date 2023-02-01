@@ -6,7 +6,7 @@ command:
   - "-d"
   - "../data/miiv"
   - "-t"
-  - "Dataset_Imputation"
+  - "DatasetImputation"
   - "-c"
   - "--wandb-sweep"
   - "--wandb"

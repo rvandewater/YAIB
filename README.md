@@ -213,6 +213,73 @@ icu-benchmarks evaluate \
     --source-dir ../yaib_logs/mimic_demo/Mortality24/LGBMClassifier/2022-12-12T15-24-46/fold_0
 ```
 
+## Imputation
+
+Below is an example call for training an imputation model
+```
+icu-benchmarks train \
+    -d demo_data/mortality24/mimic_demo \
+    -n mimic_demo \
+    -t DatasetImputation \
+    -m Mean \
+    -lc -gc \
+    -s 2222 \
+    -l ../yaib_logs/ 
+```
+
+For more details on how to implement new imputation methods, visit [this document](docs/adding_new_imputation_methods.md).
+
+## Hyperparameter Optimization using Weights and Biases Sweeps
+
+[This sweep file](wandb_sweep.yaml) shows an example on how to run a hyperparameter sweep with W&B. The general structure of the YAML should look like this:
+``` yaml
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+# .... other program parameters ....
+  - "--wandb-sweep"
+method: grid
+parameters:
+  # gin config parameter name:
+    # values: [a, b, etc...]
+  # example:
+  ImputationDataset.mask_method:
+    values: ["MCAR", "MAR", "MNAR"]
+```
+
+You can then create a sweep with 
+``` bash
+wandb sweep path/to/sweep_file.yaml
+```
+which will give you a sweep id.
+
+and start an agent to perform the optimization using the following command:
+``` bash
+wandb agent YOUR_SWEEP_ID
+```
+
+## Training a Classification model using a pretrained imputation model
+
+Below is an example call to train a classification model using a pretrained imputation model:
+``` bash
+icu-benchmarks train \
+    -d demo_data/mortality24/mimic_demo \
+    -n mimic_demo \
+    -t BinaryClassificationPretrainedImputation \
+    -tn Mortality24 \
+    -m LGBMClassifier \
+    -hp LGBMClassifier.min_child_samples=10 \
+    -c \
+    -s 2222 \
+    -l ../yaib_logs/ \
+    --use_pretrained_imputation path/to/pretrained/imputation_model.ckpt
+    --tune
+```
+
+Where `path/to/pretrained/imputation_model.ckpt` is the path to the `model.ckpt` created by training an imputation model with our framework.
+
 ## Metrics
 
 Several metrics are defined for this benchmark:
