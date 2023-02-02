@@ -53,11 +53,11 @@ def main(my_args=tuple(sys.argv[1:])):
     experiment = args.experiment
 
     if args.use_pretrained_imputation is not None and not Path(args.use_pretrained_imputation).exists():
-        logging.info("the specified pretrained imputation model does not exist")
+        logging.warning("the specified pretrained imputation model does not exist")
         args.use_pretrained_imputation = None
 
     if args.use_pretrained_imputation is not None:
-        logging.info("using pretrained imputation from" + str(args.use_pretrained_imputation))
+        logging.info("Using pretrained imputation from" + str(args.use_pretrained_imputation))
         pretrained_imputation_model_checkpoint = torch.load(args.use_pretrained_imputation, map_location=torch.device("cpu"))
         if isinstance(pretrained_imputation_model_checkpoint, dict):
             imputation_model_class = pretrained_imputation_model_checkpoint["class"]

@@ -241,7 +241,7 @@ class ImputationPredictionDataset(Dataset):
 
         self._cached_dataset = None
         if ram_cache:
-            logging.info("caching dataset in ram....")
+            logging.info("Caching dataset in ram.")
             self._cached_dataset = [self[i] for i in range(len(self))]
 
     def __len__(self) -> int:
@@ -280,7 +280,7 @@ class ImputationPredictionDataset(Dataset):
         Returns:
             A Tuple containing data points and label for the split.
         """
-        logging.info("Gathering the samples for split " + self.split)
+        logging.info(f"Gathering the samples for split {self.split}")
         rep: DataFrame = self.dyn_df.to_numpy()
 
         return self.amputated_values, rep
