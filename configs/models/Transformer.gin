@@ -4,7 +4,7 @@ import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.loader
 
-preprocess.use_features = False
+default_preprocessor.generate_features = False
 
 # Train params
 train_common.model = @DLWrapper()
@@ -24,7 +24,6 @@ optimizer/hyperparameter.lr = (1e-5, 3e-4)
 
 # Encoder params
 model/hyperparameter.class_to_tune = @Transformer
-model/hyperparameter.emb = %EMB
 model/hyperparameter.ff_hidden_mult = 2
 model/hyperparameter.l1_reg = 0.0
 model/hyperparameter.num_classes = %NUM_CLASSES

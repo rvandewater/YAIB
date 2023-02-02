@@ -1,5 +1,5 @@
 from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-from ignite.metrics import MeanAbsoluteError, Accuracy, ConfusionMatrix
+from ignite.metrics import MeanAbsoluteError, Accuracy  # , ConfusionMatrix
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     average_precision_score,
@@ -9,21 +9,23 @@ from sklearn.metrics import (
     mean_absolute_error,
     precision_recall_curve,
     roc_curve,
-    confusion_matrix,
+    # confusion_matrix,
     r2_score,
     mean_squared_error,
-    f1_score,
+    # f1_score,
 )
 
 from icu_benchmarks.models.metrics import CalibrationCurve, BalancedAccuracy
 
 
+# TODO: revise transformation for metrics in wrappers.py in order to handle metrics that can not handle a mix of binary and
+#  continuous targets
 class MLMetrics:
     BINARY_CLASSIFICATION = {
         "AUC": roc_auc_score,
         "Calibration_Curve": calibration_curve,
-        "Confusion_Matrix": confusion_matrix,
-        "F1": f1_score,
+        # "Confusion_Matrix": confusion_matrix,
+        # "F1": f1_score,
         "PR": average_precision_score,
         "PRC": precision_recall_curve,
         "ROC": roc_curve,
@@ -33,8 +35,8 @@ class MLMetrics:
         "Accuracy": accuracy_score,
         "AUC": roc_auc_score,
         "Balanced_Accuracy": balanced_accuracy_score,
-        "Confusion_Matrix": confusion_matrix,
-        "F1": f1_score,
+        # "Confusion_Matrix": confusion_matrix,
+        # "F1": f1_score,
         "PR": average_precision_score,
     }
 
@@ -45,11 +47,12 @@ class MLMetrics:
     }
 
 
+# TODO: add support for confusion matrix
 class DLMetrics:
     BINARY_CLASSIFICATION = {
         "AUC": ROC_AUC(),
         "Calibration_Curve": CalibrationCurve(),
-        "Confusion_Matrix": ConfusionMatrix(num_classes=2),
+        # "Confusion_Matrix": ConfusionMatrix(num_classes=2),
         "PR": AveragePrecision(),
         "PRC": PrecisionRecallCurve(),
         "ROC": RocCurve(),

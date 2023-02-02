@@ -3,7 +3,7 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 
-preprocess.use_features = True
+default_preprocessor.generate_features = True
 
 # Train params
 train_common.model = @MLWrapper()
@@ -13,6 +13,7 @@ MLWrapper.train.patience = 10
 
 model/hyperparameter.class_to_tune = @LogisticRegression
 model/hyperparameter.solver = "saga"
+model/hyperparameter.n_jobs = 8
 model/hyperparameter.max_iter = 100000
 model/hyperparameter.C = (1e-3, 1e1, "log-uniform")
 model/hyperparameter.penalty = ["l1", "l2", "elasticnet"]
@@ -20,5 +21,5 @@ model/hyperparameter.l1_ratio = (0.0, 1.0)
 
 tune_hyperparameters.scopes = ["model"]
 tune_hyperparameters.n_initial_points = 10
-tune_hyperparameters.n_calls = 150
+tune_hyperparameters.n_calls = 50
 tune_hyperparameters.folds_to_tune_on = 3
