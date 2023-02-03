@@ -6,7 +6,6 @@ from pathlib import Path
 import scipy.stats as stats
 import shutil
 from statistics import mean, stdev
-
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 
 
@@ -38,14 +37,20 @@ def build_parser() -> ArgumentParser:
         action=BooleanOptionalAction,
         help="Whether to use verbose logging. Disable for clean logs.",
     )
+    general_args.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to use CPU.")
     general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
-    general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
-    general_args.add_argument("-pl", "--plot", action=BooleanOptionalAction, help="Generate common plots.")
+    general_args.add_argument(
+        "-lc", "--load_cache", default=False, action=BooleanOptionalAction, help="Set to load generated data cache."
+    )
+    general_args.add_argument(
+        "-gc", "--generate_cache", default=False, action=BooleanOptionalAction, help="Set to generate data cache."
+    )
+    general_args.add_argument("-p", "--preprocessor", type=Path, help="Load custom preprocessor from file.")
+    general_args.add_argument("-pl", "--plot", default=False, action=BooleanOptionalAction, help="Generate common plots.")
 
     # MODEL TRAINING ARGUMENTS
-    prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
+    prep_and_train = subparsers.add_parser("train", help="Preprocess features and train model.", parents=[parent_parser])
     prep_and_train.add_argument("--reproducible", default=True, action=BooleanOptionalAction, help="Make torch reproducible.")
-    prep_and_train.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train on CPU.")
     prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
     prep_and_train.add_argument("--tune", default=False, action=BooleanOptionalAction, help="Find best hyperparameters.")
     prep_and_train.add_argument("--checkpoint", type=Path, help="Use previous checkpoint.")

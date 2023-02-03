@@ -5,6 +5,7 @@ import gin
 import logging
 import sys
 from pathlib import Path
+import importlib.util
 
 from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters
 from scripts.plotting.utils import plot_aggregated_results
@@ -32,19 +33,39 @@ def main(my_args=tuple(sys.argv[1:])):
     model = args.model
     experiment = args.experiment
     source_dir = None
+    # todo:check if this is correct
     reproducible = False
     log_dir_name = args.log_dir / name
     log_dir = (log_dir_name / experiment) if experiment else (log_dir_name / args.task_name / model)
     train_on_cpu = args.cpu
 
+    if args.preprocessor:
+        # Import custom supplied preprocessor
+        try:
+            spec = importlib.util.spec_from_file_location("CustomPreprocessor", args.preprocessor)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["preprocessor"] = module
+            spec.loader.exec_module(module)
+            gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
+        except Exception as e:
+            logging.error(f"Could not import custom preprocessor from {args.preprocessor}: {e}")
+    else:
+        from icu_benchmarks.data.preprocessor import DefaultPreprocessor as preprocessor
+
     if train_on_cpu:
         gin.bind_parameter("DLWrapper.device", "cpu")
     if load_weights:
+        # Evaluate
         log_dir /= f"from_{args.source_name}"
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
         gin.parse_config_file(source_dir / "train_config.gin")
+        if gin.query_parameter("train_common.model").selector == "DLWrapper":
+            # Calculate input dimensions for deep learning models based on preprocessing operations
+            gin.bind_parameter("model/hyperparameter.input_dim", preprocessor().calculate_input_dim())
+
     else:
+        # Train
         reproducible = args.reproducible
         checkpoint = log_dir / args.checkpoint if args.checkpoint else None
         gin_config_files = (
@@ -53,8 +74,22 @@ def main(my_args=tuple(sys.argv[1:])):
             else [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
         )
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
+
+        if gin.query_parameter("train_common.model").selector == "DLWrapper":
+            # Calculate input dimensions for deep learning models based on preprocessing operations
+            gin.bind_parameter("model/hyperparameter.input_dim", preprocessor().calculate_input_dim())
+
         run_dir = create_run_dir(log_dir)
-        choose_and_bind_hyperparameters(args.tune, args.data_dir, run_dir, args.seed, checkpoint=checkpoint, debug=args.debug)
+        choose_and_bind_hyperparameters(
+            args.tune,
+            args.data_dir,
+            run_dir,
+            args.seed,
+            checkpoint=checkpoint,
+            debug=args.debug,
+            generate_cache=args.generate_cache,
+            load_cache=args.load_cache,
+        )
 
     logging.info(f"Logging to {run_dir.resolve()}")
     log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)
@@ -67,7 +102,8 @@ def main(my_args=tuple(sys.argv[1:])):
         source_dir=source_dir,
         reproducible=reproducible,
         debug=args.debug,
-        use_cache=args.cache,
+        load_cache=args.load_cache,
+        generate_cache=args.generate_cache,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
