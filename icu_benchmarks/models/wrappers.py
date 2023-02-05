@@ -88,6 +88,7 @@ class BaseModule(LightningModule):
 class DLWrapper(BaseModule):
     needs_training = True
     needs_fit = False
+    _metrics_warning_printed = set()
 
     def __init__(
         self,
@@ -132,7 +133,9 @@ class DLWrapper(BaseModule):
             for metric in self.metrics[step_prefix].values():
                 metric.reset()
         except (NotComputableError, ValueError):
-            logging.warning(f"Metrics for {step_prefix} not computable")
+            if step_prefix not in self._metrics_warning_printed:
+                self._metrics_warning_printed.add(step_prefix)
+                logging.warning(f"Metrics for {step_prefix} not computable")
             pass
 
     def configure_optimizers(self):
