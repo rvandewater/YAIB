@@ -5,10 +5,8 @@ command:
   - "train"
   - "-d"
   - "../data/miiv"
-  - "-n"
-  - "miiv"
   - "-t"
-  - "Dataset_Imputation"
+  - "DatasetImputation"
   - "-c"
   - "--wandb-sweep"
   - "--wandb"
@@ -20,3 +18,5 @@ parameters:
     values: ["MCAR", "MAR", "MNAR"]
   seed:
     values: [1111, 2222, 3333]
+  data_dir:
+    values: ["../data/miiv", "../data/eicu", "../data/hirid"]

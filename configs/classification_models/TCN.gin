@@ -3,33 +3,30 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 
-RES = 1
-RES_LAB = 1
-
-preprocess.use_features = False
+base_classification_preprocessor.generate_features = False
 
 # Train params
 train_common.model = @TemporalConvNet
-train_common.do_test = True
 train_common.optimizer = @Adam
-
 train_common.epochs = 1000
 train_common.batch_size = 64
 train_common.patience = 10
 train_common.min_delta = 1e-4
 
 # Optimizer params
-Adam.weight_decay = 1e-6
-optimizer/random_search.class_to_configure = @Adam
-optimizer/random_search.lr = [3e-4, 1e-4, 3e-5, 1e-5]
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = (1e-5, 3e-4)
 
 # Encoder params
-TemporalConvNet.num_inputs = %EMB
-TemporalConvNet.num_classes = %NUM_CLASSES
-TemporalConvNet.max_seq_length = %HORIZON
-model/random_search.class_to_configure = @TemporalConvNet
-model/random_search.num_channels = [32, 64, 128, 256]
-model/random_search.kernel_size = [2, 4, 8, 16, 32]
-model/random_search.dropout = [0.0, 0.1, 0.2, 0.3, 0.4]
+model/hyperparameter.class_to_tune = @TemporalConvNet
+model/hyperparameter.num_classes = %NUM_CLASSES
+model/hyperparameter.max_seq_length = %HORIZON
+model/hyperparameter.num_channels = (32, 256, "log-uniform", 2)
+model/hyperparameter.kernel_size = (2, 32, "log-uniform", 2)
+model/hyperparameter.dropout = (0.0, 0.4)
 
-run_random_searches.scopes = ["model", "optimizer"]
+tune_hyperparameters.scopes = ["model", "optimizer"]
+tune_hyperparameters.n_initial_points = 5
+tune_hyperparameters.n_calls = 30
+tune_hyperparameters.folds_to_tune_on = 2

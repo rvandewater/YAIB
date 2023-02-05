@@ -3,7 +3,6 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.data.preprocess
 
-TASK = "Dataset_Imputation"
 MODE = "Imputation"
 
 Run.mode = %MODE
@@ -20,10 +19,12 @@ preprocess.file_names = {
     "STATIC": "sta.parquet",
 }
 
-# loading.vars = %vars
-preprocess.vars = %vars
-preprocess.use_features = False
-ImputationDataset.vars = %vars
-# ImputationDataset.ram_cache = False
+preprocess.preprocessor = @base_imputation_preprocessor
 
-EMB = 48
+preprocess.vars = %vars
+ImputationDataset.vars = %vars
+ImputationDataset.ram_cache = True
+base_imputation_preprocessor.window_size = 1500
+base_imputation_preprocessor.window_stride = 20
+
+EMB = 6

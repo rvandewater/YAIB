@@ -1,20 +1,20 @@
 import gin
+from numbers import Integral
 import numpy as np
-import torch
 import torch.nn as nn
 import lightgbm
 
 from sklearn import linear_model
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
 from icu_benchmarks.models.wrappers import DLClassificationWrapper, MLClassificationWrapper
-import inspect
+
 
 @gin.configurable
 class LGBMClassifier(MLClassificationWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
-    
+
     @gin.configurable(module="LGBMClassifier")
     def model_args(self, *args, **kwargs):
         return lightgbm.LGBMClassifier(*args, **kwargs)
@@ -25,35 +25,38 @@ class LGBMRegressor(MLClassificationWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
-    
+
     @gin.configurable(module="LGBMRegressor")
     def model_args(self, *args, **kwargs):
         return lightgbm.LGBMRegressor(*args, **kwargs)
-    
+
+
 @gin.configurable
 class LogisticRegression(MLClassificationWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
-    
+
     @gin.configurable(module="LogisticRegression")
     def model_args(self, *args, **kwargs):
         return linear_model.LogisticRegression(*args, **kwargs)
 
+
 @gin.configurable
 class LSTMNet(DLClassificationWrapper):
-    
-    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
+        super().__init__(
+            input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
+        )
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
-        self.rnn = nn.LSTM(input_dim, hidden_dim, layer_dim, batch_first=True)
-        self.logit = nn.Linear(hidden_dim, num_classes)        
+        self.rnn = nn.LSTM(input_size[2], hidden_dim, layer_dim, batch_first=True)
+        self.logit = nn.Linear(hidden_dim, num_classes)
 
     def init_hidden(self, x):
-        h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
-        c0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
-        return [t.to(self.device) for t in (h0, c0)]
+        h0 = x.new_zeros(self.layer_dim, x.size(0), self.hidden_dim)
+        c0 = x.new_zeros(self.layer_dim, x.size(0), self.hidden_dim)
+        return [t for t in (h0, c0)]
 
     def forward(self, x):
         h0, c0 = self.init_hidden(x)
@@ -64,16 +67,17 @@ class LSTMNet(DLClassificationWrapper):
 
 @gin.configurable
 class GRUNet(DLClassificationWrapper):
-
-    def __init__(self, input_dim, hidden_dim, layer_dim, num_classes, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
+        super().__init__(
+            input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
+        )
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
-        self.rnn = nn.GRU(input_dim, hidden_dim, layer_dim, batch_first=True)
+        self.rnn = nn.GRU(input_size[2], hidden_dim, layer_dim, batch_first=True)
         self.logit = nn.Linear(hidden_dim, num_classes)
 
     def init_hidden(self, x):
-        h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim).to(self.device)
+        h0 = x.new_zeros(self.layer_dim, x.size(0), self.hidden_dim)
         return h0
 
     def forward(self, x):
@@ -86,13 +90,37 @@ class GRUNet(DLClassificationWrapper):
 
 @gin.configurable
 class Transformer(DLClassificationWrapper):
-
     def __init__(
-        self, emb, hidden, heads, ff_hidden_mult, depth, num_classes, *args, dropout=0.0, l1_reg=0, pos_encoding=True, dropout_att=0.0, **kwargs
+        self,
+        input_size,
+        hidden,
+        heads,
+        ff_hidden_mult,
+        depth,
+        num_classes,
+        *args,
+        dropout=0.0,
+        l1_reg=0,
+        pos_encoding=True,
+        dropout_att=0.0,
+        **kwargs,
     ):
-        super().__init__(*args, **kwargs)
-
-        self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
+        super().__init__(
+            input_size=input_size,
+            hidden=hidden,
+            heads=heads,
+            ff_hidden_mult=ff_hidden_mult,
+            depth=depth,
+            num_classes=num_classes,
+            *args,
+            dropout=dropout,
+            l1_reg=l1_reg,
+            pos_encoding=pos_encoding,
+            dropout_att=dropout_att,
+            **kwargs,
+        )
+        hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
+        self.input_embedding = nn.Linear(input_size[2], hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
         else:
@@ -128,10 +156,9 @@ class Transformer(DLClassificationWrapper):
 
 @gin.configurable
 class LocalTransformer(DLClassificationWrapper):
-
     def __init__(
         self,
-        emb,
+        input_size,
         hidden,
         heads,
         ff_hidden_mult,
@@ -145,9 +172,24 @@ class LocalTransformer(DLClassificationWrapper):
         dropout_att=0.0,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            input_size=input_size,
+            hidden=hidden,
+            heads=heads,
+            ff_hidden_mult=ff_hidden_mult,
+            depth=depth,
+            num_classes=num_classes,
+            *args,
+            dropout=dropout,
+            l1_reg=l1_reg,
+            pos_encoding=pos_encoding,
+            local_context=local_context,
+            dropout_att=dropout_att,
+            **kwargs,
+        )
 
-        self.input_embedding = nn.Linear(emb, hidden)  # This acts as a time-distributed layer by defaults
+        hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
+        self.input_embedding = nn.Linear(input_size[2], hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
         else:
@@ -185,24 +227,29 @@ class LocalTransformer(DLClassificationWrapper):
 # From TCN original paper https://github.com/locuslab/TCN
 @gin.configurable
 class TemporalConvNet(DLClassificationWrapper):
-    
-    needs_training = True
-    needs_fit = False
-    
-    def __init__(self, num_inputs, num_channels, num_classes, *args, max_seq_length=0, kernel_size=2, dropout=0.0, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, input_size, num_channels, num_classes, *args, max_seq_length=0, kernel_size=2, dropout=0.0, **kwargs):
+        super().__init__(
+            input_size=input_size,
+            num_channels=num_channels,
+            num_classes=num_classes,
+            *args,
+            max_seq_length=max_seq_length,
+            kernel_size=kernel_size,
+            dropout=dropout,
+            **kwargs,
+        )
         layers = []
 
         # We compute automatically the depth based on the desired seq_length.
-        if isinstance(num_channels, int) and max_seq_length:
+        if isinstance(num_channels, Integral) and max_seq_length:
             num_channels = [num_channels] * int(np.ceil(np.log(max_seq_length / 2) / np.log(kernel_size)))
-        elif isinstance(num_channels, int) and not max_seq_length:
+        elif isinstance(num_channels, Integral) and not max_seq_length:
             raise Exception("a maximum sequence length needs to be provided if num_channels is int")
 
         num_levels = len(num_channels)
         for i in range(num_levels):
             dilation_size = 2**i
-            in_channels = num_inputs if i == 0 else num_channels[i - 1]
+            in_channels = input_size[2] if i == 0 else num_channels[i - 1]
             out_channels = num_channels[i]
             layers += [
                 TemporalBlock(

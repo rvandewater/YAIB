@@ -5,12 +5,9 @@ import icu_benchmarks.models.utils
 import icu_benchmarks.imputation.rnn
 import icu_benchmarks.data.preprocess
 
-preprocess.use_features = False
-
 # Train params
 train_common.model = @RNN
-train_common.do_test = True
-train_common.epochs = 10
+train_common.epochs = 100
 train_common.batch_size = 64
 train_common.patience = 10
 train_common.min_delta = 1e-4

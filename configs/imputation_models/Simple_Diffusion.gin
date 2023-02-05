@@ -5,11 +5,8 @@ import icu_benchmarks.models.utils
 import icu_benchmarks.data.preprocess
 import icu_benchmarks.imputation.simple_diffusion
 
-preprocess.use_features = False
-
 # Train params
 train_common.model = @Simple_Diffusion
-train_common.do_test = True
 
 # here you can set some training parameters
 train_common.epochs = 1000
