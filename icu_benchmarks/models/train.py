@@ -113,7 +113,7 @@ def train_common(
         callbacks=[
             EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
             ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
-            TQDMProgressBar(refresh_rate=100),
+            TQDMProgressBar(refresh_rate=1),
         ],
         # precision=16,
         accelerator="auto" if not cpu else "cpu",

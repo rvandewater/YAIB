@@ -250,10 +250,10 @@ class CSDI(ImputationWrapper):
     def get_randmask(self, observed_mask):
         rand_for_mask = torch.rand_like(observed_mask) * observed_mask
         rand_for_mask = rand_for_mask.reshape(len(rand_for_mask), -1)
+        sample_ratios = torch.rand((len(observed_mask), ), device=self.device)
         for i in range(len(observed_mask)):
-            sample_ratio = np.random.rand()  # missing ratio
             num_observed = observed_mask[i].sum().item()
-            num_masked = round(num_observed * sample_ratio)
+            num_masked = round(num_observed * sample_ratios[i].item())
             rand_for_mask[i][rand_for_mask[i].topk(num_masked).indices] = -1
         cond_mask = (rand_for_mask > 0).reshape(observed_mask.shape).float()
         return cond_mask

@@ -10,7 +10,7 @@ train_common.model = @CSDI
 
 # here you can set some training parameters
 train_common.epochs = 2
-train_common.batch_size = 128
+train_common.batch_size = 64
 train_common.patience = 10
 train_common.min_delta = 1e-4
 train_common.use_wandb = True
