@@ -102,7 +102,7 @@ def train_common(
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
     if use_wandb:
         run_name = f"{type(model).__name__}-{dataset_name}"
-        loggers.append(WandbLogger(run_name, save_dir=log_dir, project="Data_Imputation"))
+        loggers.append(WandbLogger(run_name, save_dir=log_dir))
         wandb.config.update({"run-name": run_name})
         wandb.run.name = run_name
         wandb.run.save()
