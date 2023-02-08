@@ -32,6 +32,8 @@ def main(my_args=tuple(sys.argv[1:])):
         wandb.init()
         sweep_config = wandb.config
         args.__dict__.update(sweep_config)
+        if args.hyperparams is None:
+            args.hyperparams = []
         for key, value in sweep_config.items():
             args.hyperparams.append(f"{key}=" + (("'" + value + "'") if isinstance(value, str) else str(value)))
 

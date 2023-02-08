@@ -102,7 +102,7 @@ def train_common(
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
     if use_wandb:
         run_name = f"{type(model).__name__}-{dataset_name}"
-        loggers.append(WandbLogger(run_name, save_dir=log_dir, project="Data_Imputation"))
+        loggers.append(WandbLogger(run_name, save_dir=log_dir))
         wandb.config.update({"run-name": run_name})
         wandb.run.name = run_name
         wandb.run.save()
@@ -113,7 +113,7 @@ def train_common(
         callbacks=[
             EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
             ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
-            TQDMProgressBar(refresh_rate=100),
+            TQDMProgressBar(refresh_rate=50),
         ],
         # precision=16,
         accelerator="auto" if not cpu else "cpu",
