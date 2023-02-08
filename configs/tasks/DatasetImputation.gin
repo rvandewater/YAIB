@@ -28,3 +28,6 @@ base_imputation_preprocessor.window_size = 1500
 base_imputation_preprocessor.window_stride = 20
 
 EMB = 6
+
+execute_repeated_cv.cv_repetitions = 1
+execute_repeated_cv.cv_folds = 1
