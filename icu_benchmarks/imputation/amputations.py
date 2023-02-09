@@ -36,6 +36,32 @@ def MCAR_mask(X, p):
     return mask
 
 
+def BO_mask(X, p):
+    """
+    Black out missing mechanism. Removes values across dimensions.
+
+    Parameters
+    ----------
+    X : torch.FloatTensor, shape (n, d)
+        Data for which missing values will be simulated.
+    p : float
+        Proportion of missing values to generate for variables which will have missing values.
+
+    Returns
+    -------
+    mask : torch.BoolTensor
+        Mask of generated missing values (True if the value is missing).
+    """
+
+    n, d = X.shape
+    
+    indices = torch.randperm(n)[:int(n*p)]
+    mask = torch.zeros(n, d).bool()
+    mask[indices, :] = True
+
+    return mask
+
+
 def MAR_logistic_mask(X, p, p_obs):
     """
     Missing at random mechanism with a logistic masking model. First, a subset of variables with *no* missing values is
@@ -147,6 +173,8 @@ def MNAR_logistic_mask(X, p, p_params=0.3, exclude_inputs=True):
     return mask
 
 
+
+
 def pick_coeffs(X, idxs_obs=None, idxs_nas=None):
     d_obs = len(idxs_obs)
     d_na = len(idxs_nas)
@@ -199,6 +227,8 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
         mask = MNAR_logistic_mask(X, p_miss, p_obs)
     elif mechanism == "MCAR":
         mask = MCAR_mask(X, p_miss)
+    elif mechanism == "BO":
+        mask = BO_mask(X, p_miss)
     else:
         logging.error("Not a valid amputation mechanism. Missing-data mechanisms to be used are MCAR, MAR or MNAR.")
 
