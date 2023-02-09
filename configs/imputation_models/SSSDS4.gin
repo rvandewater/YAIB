@@ -21,3 +21,18 @@ ImputationWrapper.lr_scheduler = "cosine"
 # Optimizer params
 Adam.lr = 0.001
 Adam.weight_decay = 1e-6
+
+# Model params
+SSSDS4.in_channels = 14
+SSSDS4.out_channels = 14
+SSSDS4.res_channels = 256
+SSSDS4.skip_channels = 256
+SSSDS4.num_res_layers = 36
+SSSDS4.diffusion_step_embed_dim_in = 128
+SSSDS4.diffusion_step_embed_dim_mid = 512
+SSSDS4.diffusion_step_embed_dim_out = 512
+SSSDS4.s4_lmax = 100
+SSSDS4.s4_d_state = 64
+SSSDS4.s4_dropout = 0.0
+SSSDS4.s4_bidirectional = 1
+SSSDS4.s4_layernorm = 1

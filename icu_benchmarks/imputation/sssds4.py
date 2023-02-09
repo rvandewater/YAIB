@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch import nn
 from icu_benchmarks.models.wrappers import ImputationWrapper
-from layers.s4layer import S4Layer
+from icu_benchmarks.imputation.layers.s4layer import S4Layer
 
 @gin.configurable("SSSDS4")
 class SSSDS4(ImputationWrapper):
@@ -21,8 +21,8 @@ class SSSDS4(ImputationWrapper):
         s4_dropout,
         s4_bidirectional,
         s4_layernorm,
-        *args, **kwargs: str) -> None:
-        super(SSSDS4, self).__init__(args, **kwargs)
+        *args, **kwargs: str):
+        super(SSSDS4, self).__init__(*args, **kwargs)
         
         self.init_conv = nn.Sequential(Conv(in_channels, res_channels, kernel_size=1), nn.ReLU())
         
