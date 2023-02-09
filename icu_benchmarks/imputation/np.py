@@ -18,7 +18,6 @@ from numpy.random import permutation
 
 from icu_benchmarks.models.wrappers import ImputationWrapper
 
-
 @gin.configurable("NP")
 class NPImputation(ImputationWrapper):
     """A wrapper for the NeuralProcess class that allows for imputation."""
@@ -57,8 +56,10 @@ class NPImputation(ImputationWrapper):
         self.model.train(True)
 
         # Unpack batch into three values
-        _, _, complete = batch
-        batch_size, num_timesteps, num_obs_var = complete.shape
+        amputed, mask, _ = batch
+        batch_size, num_timesteps, num_obs_var = amputed.shape
+
+        amputed = torch.nan_to_num(amputed, nan=0.0).to(self.device)
 
         # Create and rearrange x to be the same shape as variables (x is timesteps)
         x = torch.arange(0, num_timesteps).to(self.device)
@@ -67,13 +68,14 @@ class NPImputation(ImputationWrapper):
         x = x.reshape(batch_size, num_timesteps, num_obs_var)
         # Resulting size is [batch size, number of timesteps, number of observed variables]
 
-        # For now, do the most basic thing - train on complete data
-        x_context, y_context, x_target, y_target = self._context_target_split(x, complete)
+        # Do a context/target split with mask - see CSDI implemnetation - line 56
+        # https://github.com/ermongroup/CSDI/blob/main/main_model.py
+        x_context, y_context, x_target, y_target = self._context_target_split(x, amputed, mask)
 
         # Get the predicted probability distribution
         p_y_pred, q_context, q_target = self(x_context, y_context, x_target, y_target)
 
-        loss = self._loss(p_y_pred, y_target, q_target, q_context)
+        loss = self.loss(p_y_pred.rsample(), y_target)
 
         self.log("train/loss", loss.item(), prog_bar=True)
         return loss
@@ -94,7 +96,9 @@ class NPImputation(ImputationWrapper):
         self.model.eval()
         # Unpack batch into three values
         amputed, mask, complete = batch
-        batch_size, num_timesteps, num_obs_var = complete.shape
+        batch_size, num_timesteps, num_obs_var = amputed.shape
+
+        amputed = torch.nan_to_num(amputed, nan=0.0).to(self.device)
 
         # Create and rearrange x to be the same shape as variables (x is timesteps)
         x = torch.arange(0, num_timesteps).to(self.device)
@@ -103,11 +107,18 @@ class NPImputation(ImputationWrapper):
         x = x.reshape(batch_size, num_timesteps, num_obs_var)
         # Resulting size is [batch size, number of timesteps, number of observed variables]
 
-        # For now, do the most basic thing - put 0s instead of nans
-        amputed = torch.nan_to_num(amputed, nan=0.0).to(self.device)
+        # Do a context/target split with mask - see CSDI implemnetation - line 56
+        # https://github.com/ermongroup/CSDI/blob/main/main_model.py
+        x_context, y_context, x_target, y_target = self._context_target_split(x, amputed, mask)
 
-        x_context, y_context, _, _ = self._context_target_split(x, amputed)
+        # Get the predicted probability distribution
+        p_y_pred, q_context, q_target = self(x_context, y_context, x_target, y_target)
 
+        loss = self.loss(p_y_pred.rsample(), y_target)
+
+        self.log("val/loss", loss.item(), prog_bar=True)
+
+        # Do metric calculations - take x_target to be the full size now
         x_target = x.to(self.device)
 
         # Get the predicted probability distribution
@@ -117,11 +128,6 @@ class NPImputation(ImputationWrapper):
         generated = p_y_pred.sample()
         # Use the indexing functionality of tensor to impute values into the indicies specified by the mask
         amputed[mask > 0] = generated[mask > 0]
-
-        # In val/test loops, use the MSE loss - KL divergence can't be calculated without target distribution
-        loss = self.loss(amputed, complete)
-
-        self.log("val/loss", loss.item(), prog_bar=True)
 
         # Update the metrics
         for metric in self.metrics["val"].values():
@@ -144,7 +150,7 @@ class NPImputation(ImputationWrapper):
         # For now, do the most basic thing - put 0s instead of nans
         amputed = torch.nan_to_num(amputed, nan=0.0).to(self.device)
 
-        x_context, y_context, _, _ = self._context_target_split(x, amputed)
+        x_context, y_context, _, _ = self._context_target_split(x, amputed, mask)
 
         x_target = x.to(self.device)
 
@@ -165,27 +171,52 @@ class NPImputation(ImputationWrapper):
         for metric in self.metrics["test"].values():
             metric.update((torch.flatten(amputed, start_dim=1), torch.flatten(complete, start_dim=1)))
 
-    def predict_step(self, batch, _):
-        raise NotImplementedError()
+    def predict(self, data):
+        self.model.eval()
 
-    # Loss function - with KL divergence
-    def _loss(self, p_y_pred, y_target, q_context, q_target):
-        log_likelihood = p_y_pred.log_prob(y_target).mean(dim=0).sum()
-        # KL Divergence
-        kl = kl_divergence(q_target, q_context).mean(dim=0).sum()
-        return -log_likelihood + kl
+        data = data.to(self.device)
+        batch_size, num_timesteps, num_obs_var = data.shape
 
-    def _context_target_split(self, x, y):
-        # Calculate how many points we can have for context/target split
-        num_points = x.shape[1]
-        num_context = math.floor(num_points / 2)
-        # Randomly rearrange the indexes (so that the split is not on the same locations every time)
-        locations = permutation(num_points)
-        # Sample locations of context and target points
-        x_context = x[:, locations[:num_context], :]
-        y_context = y[:, locations[:num_context], :]
-        x_target = x[:, locations, :]
-        y_target = y[:, locations, :]
+        # Take an inverse of missingness mask for a mask of observed values
+        observation_mask = ~(torch.isnan(data))
+
+        # Create and rearrange x to be the same shape as variables (x is timesteps)
+        x = torch.arange(0, num_timesteps).to(self.device)
+        x = x.repeat(batch_size)
+        x = x.repeat(num_obs_var)
+        x = x.reshape(batch_size, num_timesteps, num_obs_var) 
+
+        x_context = x * observation_mask
+        y_context = torch.nan_to_num(data, nan=0.0).to(self.device)
+
+        x_target = x.to(self.device)
+
+        p_y_pred = self(x_context, y_context, x_target)
+
+        generated = p_y_pred.sample()
+        data[observation_mask == 0] = generated[observation_mask == 0]
+
+        return data
+
+    def _context_target_split(self, x, y, amputed_mask):
+        # Take an inverse of the amputed mask - to get the observation mask
+        observed_mask = (~(amputed_mask > 0)).float()
+
+        # Generate a random tensor with the same dimensions as mask and multiply mask by it
+        # This removes all missing values from the following calculations
+        rand_for_mask = torch.rand_like(observed_mask) * observed_mask
+        # Create a context mask - the selection of the elements is so that only 50% of all observed values are selected
+        context_mask = (rand_for_mask > 0.5).float()
+        # Create a target mask - the selection of the elements is so that all values not selected by the context mask 
+        #  but are still observed are selected
+        target_mask = (~(rand_for_mask > 0.5)).float() * observed_mask
+
+        # Multiply x and y by masks to get the context/target split
+        x_context = x * context_mask
+        y_context = y * context_mask
+
+        x_target = x * target_mask
+        y_target = y * target_mask        
 
         return x_context, y_context, x_target, y_target
 
@@ -218,7 +249,7 @@ class NeuralProcess(nn.Module):
         self.decoder = Decoder(decoder_h_dim, decoder_layers, x_dim, y_dim, z_dim)
 
     def forward(self, x_context, y_context, x_target, y_target=None):
-        if self.training:
+        if y_target is not None:
             # Encode target and context (context needs to be encoded to
             # calculate kl term)
             mu_target, sigma_target = self._encode(x_target, y_target)

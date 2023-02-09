@@ -1,3 +1,4 @@
+import wandb
 import json
 from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime, timedelta
@@ -137,7 +138,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
         "avg": averaged_scores,
         "std": std_scores,
         "CI_0.95": confidence_interval,
-        "execution_time": execution_time,
+        "execution_time": execution_time.total_seconds(),
     }
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
@@ -147,6 +148,9 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
         json.dump(accumulated_metrics, f, cls=JsonResultLoggingEncoder)
 
     logging.info(f"Accumulated results: {accumulated_metrics}")
+    
+    if wandb.run is not None:
+        wandb.log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
 
 
 def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
