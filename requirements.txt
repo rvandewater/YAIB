@@ -19,3 +19,4 @@ flake8
 flake8-docstrings
 recipys@git+https://github.com/rvandewater/recipys.git
 scikit-optimize
+einops

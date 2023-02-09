@@ -655,9 +655,9 @@ class SSKernelNPLR(nn.Module):
         # z = z[None, None, None, ...]  # (1, 1, 1, L)
 
         # Calculate resolvent at omega
-        if has_cauchy_extension and z.dtype == torch.cfloat:
-            r = cauchy_mult(v, z, w, symmetric=True)
-        elif has_pykeops:
+        # if has_cauchy_extension and z.dtype == torch.cfloat:
+        #     r = cauchy_mult(v, z, w, symmetric=True)
+        if has_pykeops:
             r = cauchy_conj(v, z, w)
         else:
             r = cauchy_slow(v, z, w)

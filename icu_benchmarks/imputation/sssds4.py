@@ -11,7 +11,10 @@ from icu_benchmarks.imputation.layers.s4layer import S4Layer
 class SSSDS4(ImputationWrapper):
     def __init__(
         self,
-        in_channels, res_channels, skip_channels, out_channels, 
+        in_channels,
+        res_channels,
+        skip_channels,
+        out_channels, 
         num_res_layers,
         diffusion_step_embed_dim_in, 
         diffusion_step_embed_dim_mid,
@@ -21,8 +24,28 @@ class SSSDS4(ImputationWrapper):
         s4_dropout,
         s4_bidirectional,
         s4_layernorm,
+        diffusion_time_steps=1000,
+        beta_0=1e-4,
+        beta_T=2e-2,
         *args, **kwargs: str):
-        super(SSSDS4, self).__init__(*args, **kwargs)
+        super(SSSDS4, self).__init__(
+            in_channels=in_channels,
+            res_channels=res_channels,
+            skip_channels=skip_channels,
+            out_channels=out_channels,
+            num_res_layers=num_res_layers,
+            diffusion_step_embed_dim_in=diffusion_step_embed_dim_in,
+            diffusion_step_embed_dim_mid=diffusion_step_embed_dim_mid,
+            diffusion_step_embed_dim_out=diffusion_step_embed_dim_out,
+            s4_lmax=s4_lmax,
+            s4_d_state=s4_d_state,
+            s4_dropout=s4_dropout,
+            s4_bidirectional=s4_bidirectional,
+            s4_layernorm=s4_layernorm,
+            diffusion_time_steps=diffusion_time_steps,
+            beta_0=beta_0,
+            beta_T=beta_T,
+            *args, **kwargs)
         
         self.init_conv = nn.Sequential(Conv(in_channels, res_channels, kernel_size=1), nn.ReLU())
         
@@ -43,13 +66,18 @@ class SSSDS4(ImputationWrapper):
                                         nn.ReLU(),
                                         ZeroConv1d(skip_channels, out_channels))
 
+        self.diffusion_parameters = calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T)
+
+    def on_fit_start(self) -> None:
+        self.diffusion_parameters = {k: v.to(self.device) for k, v in self.diffusion_parameters.items() if isinstance(v, torch.Tensor)}
+        return super().on_fit_start()
+
     def forward(self, input_data):
         
         # TODO: - How to hand over conditional ???
         # TODO: - How to hand over data in general ???
         noise, conditional, mask, diffusion_steps = input_data 
 
-        conditional = conditional * mask
         conditional = torch.cat([conditional, mask.float()], dim=1)
 
         x = noise
@@ -58,7 +86,81 @@ class SSSDS4(ImputationWrapper):
         y = self.final_conv(x)
 
         return y
+    
+    def step_fn(self, batch, step_prefix=""):
+        amputated_data, amputation_mask, target = batch
 
+        amputated_data = amputated_data.permute(0, 2, 1)
+        amputation_mask = amputation_mask.permute(0, 2, 1)
+        observed_mask = 1 - amputation_mask.float()
+        
+        if step_prefix in ["train", "val"]:
+            T, Alpha_bar = self.hparams.diffusion_time_steps, self.diffusion_parameters["Alpha_bar"]
+
+            B, C, L = amputated_data.shape  # B is batchsize, C=1, L is audio length
+            diffusion_steps = torch.randint(T, size=(B, 1, 1)).to(self.device)  # randomly sample diffusion steps from 1~T
+
+            z = std_normal(amputated_data.shape, self.device)
+            z = amputated_data * observed_mask.float() + z * (1 - observed_mask).float()
+            transformed_X = torch.sqrt(Alpha_bar[diffusion_steps]) * amputated_data + torch.sqrt(
+                1 - Alpha_bar[diffusion_steps]) * z  # compute x_t from q(x_t|x_0)
+            epsilon_theta = self(
+                (transformed_X, amputated_data, observed_mask, diffusion_steps.view(B, 1),))  # predict \epsilon according to \epsilon_\theta
+
+            loss = self.loss(epsilon_theta[amputation_mask], z[amputation_mask])
+        else:
+            imputed_data = self.sampling(amputated_data, observed_mask)
+            amputated_data[amputation_mask] = imputed_data[amputation_mask]
+            loss = self.loss(amputated_data, target)
+            for metric in self.metrics[step_prefix].values():
+                metric.update((torch.flatten(amputated_data, start_dim=1).clone(), torch.flatten(target, start_dim=1).clone()))
+
+        self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
+        return loss
+
+    def sampling(self, cond, mask):
+        """
+        Perform the complete sampling step according to p(x_0|x_T) = \prod_{t=1}^T p_{\theta}(x_{t-1}|x_t)
+
+        Parameters:
+        net (torch network):            the wavenet model
+        size (tuple):                   size of tensor to be generated, 
+                                        usually is (number of audios to generate, channels=1, length of audio)
+        diffusion_hyperparams (dict):   dictionary of diffusion hyperparameters returned by calc_diffusion_hyperparams
+                                        note, the tensors need to be cuda tensors 
+        
+        Returns:
+        the generated audio(s) in torch.tensor, shape=size
+        """
+
+        T, Alpha, Alpha_bar, Sigma = self.diffusion_parameters["T"], self.diffusion_parameters["Alpha"], self.diffusion_parameters["Alpha_bar"], self.diffusion_parameters["Sigma"]
+        assert len(Alpha) == T
+        assert len(Alpha_bar) == T
+        assert len(Sigma) == T
+
+        print('begin sampling, total number of reverse steps = %s' % T)
+
+        B, _, _ = cond.shape
+        x = std_normal(cond.shape, self.device)
+
+        for t in range(T - 1, -1, -1):
+            x = x * (1 - mask).float() + cond * mask.float()
+            diffusion_steps = (t * torch.ones((B, 1))).to(self.device)  # use the corresponding reverse step
+            epsilon_theta = self((x, cond, mask, diffusion_steps,))  # predict \epsilon according to \epsilon_\theta
+            # update x_{t-1} to \mu_\theta(x_t)
+            x = (x - (1 - Alpha[t]) / torch.sqrt(1 - Alpha_bar[t]) * epsilon_theta) / torch.sqrt(Alpha[t])
+            if t > 0:
+                x = x + Sigma[t] * std_normal(cond.shape)  # add the variance term to x_{t-1}
+
+        return x
+        
+
+def std_normal(size, device):
+    """
+    Generate the standard Gaussian variable of a certain size
+    """
+
+    return torch.normal(0, 1, size=size).to(device)
 
 def swish(x):
     return x * torch.sigmoid(x)
@@ -184,11 +286,13 @@ class Residual_group(nn.Module):
                                                        s4_bidirectional=s4_bidirectional,
                                                        s4_layernorm=s4_layernorm))
 
+    def get_device(self):
+        return next(self.parameters()).device
             
     def forward(self, input_data):
         noise, conditional, diffusion_steps = input_data
 
-        diffusion_step_embed = calc_diffusion_step_embedding(diffusion_steps, self.diffusion_step_embed_dim_in)
+        diffusion_step_embed = calc_diffusion_step_embedding(diffusion_steps, self.diffusion_step_embed_dim_in, self.get_device())
         diffusion_step_embed = swish(self.fc_t1(diffusion_step_embed))
         diffusion_step_embed = swish(self.fc_t2(diffusion_step_embed))
 
@@ -200,7 +304,7 @@ class Residual_group(nn.Module):
 
         return skip * math.sqrt(1.0 / self.num_res_layers)  
 
-def calc_diffusion_step_embedding(diffusion_steps, diffusion_step_embed_dim_in):
+def calc_diffusion_step_embedding(diffusion_steps, diffusion_step_embed_dim_in, device):
     """
     Embed a diffusion step $t$ into a higher dimensional space
     E.g. the embedding vector in the 128-dimensional space is
@@ -219,9 +323,41 @@ def calc_diffusion_step_embedding(diffusion_steps, diffusion_step_embed_dim_in):
 
     half_dim = diffusion_step_embed_dim_in // 2
     _embed = np.log(10000) / (half_dim - 1)
-    _embed = torch.exp(torch.arange(half_dim) * -_embed).cuda()
+    _embed = torch.exp(torch.arange(half_dim) * -_embed).to(device)
     _embed = diffusion_steps * _embed
     diffusion_step_embed = torch.cat((torch.sin(_embed),
                                       torch.cos(_embed)), 1)
 
     return diffusion_step_embed
+
+
+def calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T):
+    """
+    Compute diffusion process hyperparameters
+
+    Parameters:
+    T (int):                    number of diffusion steps
+    beta_0 and beta_T (float):  beta schedule start/end value, 
+                                where any beta_t in the middle is linearly interpolated
+    
+    Returns:
+    a dictionary of diffusion hyperparameters including:
+        T (int), Beta/Alpha/Alpha_bar/Sigma (torch.tensor on cpu, shape=(T, ))
+        These cpu tensors are changed to cuda tensors on each individual gpu
+    """
+
+    Beta = torch.linspace(beta_0, beta_T, diffusion_time_steps)  # Linear schedule
+    Alpha = 1 - Beta
+    Alpha_bar = Alpha + 0
+    Beta_tilde = Beta + 0
+    for t in range(1, diffusion_time_steps):
+        Alpha_bar[t] *= Alpha_bar[t - 1]  # \bar{\alpha}_t = \prod_{s=1}^t \alpha_s
+        Beta_tilde[t] *= (1 - Alpha_bar[t - 1]) / (
+                1 - Alpha_bar[t])  # \tilde{\beta}_t = \beta_t * (1-\bar{\alpha}_{t-1})
+        # / (1-\bar{\alpha}_t)
+    Sigma = torch.sqrt(Beta_tilde)  # \sigma_t^2  = \tilde{\beta}_t
+
+    _dh = {}
+    _dh["T"], _dh["Beta"], _dh["Alpha"], _dh["Alpha_bar"], _dh["Sigma"] = diffusion_time_steps, Beta, Alpha, Alpha_bar, Sigma
+    diffusion_hyperparams = _dh
+    return diffusion_hyperparams
