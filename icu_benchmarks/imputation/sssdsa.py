@@ -669,6 +669,8 @@ def calc_diffusion_step_embedding(diffusion_steps, diffusion_step_embed_dim_in, 
     diffusion_step_embed = torch.cat((torch.sin(_embed),
                                       torch.cos(_embed)), 1)
 
+    return diffusion_step_embed
+
 def calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T):
     """
     Compute diffusion process hyperparameters
