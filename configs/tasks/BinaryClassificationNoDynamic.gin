@@ -31,13 +31,15 @@ vars = {
        "temp", "tnt", "urine", "wbc"],
     "STATIC": ["age", "sex", "height", "weight"],
 }
-static_features = False
+static_features = True
+
 
 preprocess.vars = %vars
 preprocess.use_static = %static_features
 
 default_preprocessor.use_static_features = %static_features
 default_preprocessor.vars = %vars
+default_preprocessor.generate_features = False
 
 Dataset.vars = %vars
 
