@@ -24,9 +24,9 @@ class SSSDS4(ImputationWrapper):
         s4_dropout,
         s4_bidirectional,
         s4_layernorm,
-        diffusion_time_steps=1000,
-        beta_0=1e-4,
-        beta_T=2e-2,
+        diffusion_time_steps,
+        beta_0,
+        beta_T,
         *args, **kwargs: str):
         super(SSSDS4, self).__init__(
             in_channels=in_channels,
@@ -74,8 +74,6 @@ class SSSDS4(ImputationWrapper):
 
     def forward(self, input_data):
         
-        # TODO: - How to hand over conditional ???
-        # TODO: - How to hand over data in general ???
         noise, conditional, mask, diffusion_steps = input_data 
 
         conditional = torch.cat([conditional, mask.float()], dim=1)

@@ -3,10 +3,10 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.preprocess
-import icu_benchmarks.imputation.sssds4
+import icu_benchmarks.imputation.diffwave
 
 # Train params
-train_common.model = @SSSDS4
+train_common.model = @DiffWave
 
 # here you can set some training parameters
 train_common.epochs = 2
@@ -23,19 +23,17 @@ Adam.lr = 0.001
 Adam.weight_decay = 1e-6
 
 # Model params
-SSSDS4.in_channels = 6
-SSSDS4.out_channels = 6
-SSSDS4.res_channels = 256
-SSSDS4.skip_channels = 256
-SSSDS4.num_res_layers = 36
-SSSDS4.diffusion_step_embed_dim_in = 128
-SSSDS4.diffusion_step_embed_dim_mid = 512
-SSSDS4.diffusion_step_embed_dim_out = 512
-SSSDS4.s4_lmax = 100
-SSSDS4.s4_d_state = 64
-SSSDS4.s4_dropout = 0.0
-SSSDS4.s4_bidirectional = 1
-SSSDS4.s4_layernorm = 1
-SSSDS4.diffusion_time_steps = 1000
-SSSDS4.beta_0 = 1e-4
-SSSDS4.beta_T = 2e-2
+DiffWave.in_channels = 6
+DiffWave.res_channels = 256
+DiffWave.out_channels = 6
+DiffWave.skip_channels = 256
+DiffWave.num_res_layers = 36
+DiffWave.dilation_cycle = 12
+DiffWave.diffusion_step_embed_dim_in = 128
+DiffWave.diffusion_step_embed_dim_mid = 512
+DiffWave.diffusion_step_embed_dim_out = 512
+
+# Probably also needed
+DiffWave.diffusion_time_steps = 1000
+DiffWave.beta_0 = 1e-4
+DiffWave.beta_T = 2e-2
