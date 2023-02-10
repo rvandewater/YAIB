@@ -1,4 +1,5 @@
 # Source: https://github.com/AI4HealthUOL/SSSD
+from tqdm import tqdm
 import gin
 import math
 import numpy as np
@@ -11,10 +12,9 @@ from icu_benchmarks.imputation.layers.s4layer import S4Layer
 class SSSDS4(ImputationWrapper):
     def __init__(
         self,
-        in_channels,
+        input_size,
         res_channels,
         skip_channels,
-        out_channels, 
         num_res_layers,
         diffusion_step_embed_dim_in, 
         diffusion_step_embed_dim_mid,
@@ -29,10 +29,9 @@ class SSSDS4(ImputationWrapper):
         beta_T,
         *args, **kwargs: str):
         super(SSSDS4, self).__init__(
-            in_channels=in_channels,
+            input_size=input_size,
             res_channels=res_channels,
             skip_channels=skip_channels,
-            out_channels=out_channels,
             num_res_layers=num_res_layers,
             diffusion_step_embed_dim_in=diffusion_step_embed_dim_in,
             diffusion_step_embed_dim_mid=diffusion_step_embed_dim_mid,
@@ -47,7 +46,8 @@ class SSSDS4(ImputationWrapper):
             beta_T=beta_T,
             *args, **kwargs)
         
-        self.init_conv = nn.Sequential(Conv(in_channels, res_channels, kernel_size=1), nn.ReLU())
+        num_channels = input_size[2]
+        self.init_conv = nn.Sequential(Conv(num_channels, res_channels, kernel_size=1), nn.ReLU())
         
         self.residual_layer = Residual_group(res_channels=res_channels, 
                                              skip_channels=skip_channels, 
@@ -55,7 +55,7 @@ class SSSDS4(ImputationWrapper):
                                              diffusion_step_embed_dim_in=diffusion_step_embed_dim_in,
                                              diffusion_step_embed_dim_mid=diffusion_step_embed_dim_mid,
                                              diffusion_step_embed_dim_out=diffusion_step_embed_dim_out,
-                                             in_channels=in_channels,
+                                             in_channels=num_channels,
                                              s4_lmax=s4_lmax,
                                              s4_d_state=s4_d_state,
                                              s4_dropout=s4_dropout,
@@ -64,7 +64,7 @@ class SSSDS4(ImputationWrapper):
 
         self.final_conv = nn.Sequential(Conv(skip_channels, skip_channels, kernel_size=1),
                                         nn.ReLU(),
-                                        ZeroConv1d(skip_channels, out_channels))
+                                        ZeroConv1d(skip_channels, num_channels))
 
         self.diffusion_parameters = calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T)
 
@@ -88,9 +88,10 @@ class SSSDS4(ImputationWrapper):
     def step_fn(self, batch, step_prefix=""):
         amputated_data, amputation_mask, target = batch
 
-        amputated_data = amputated_data.permute(0, 2, 1)
+        amputated_data = torch.nan_to_num(amputated_data).permute(0, 2, 1)
         amputation_mask = amputation_mask.permute(0, 2, 1)
         observed_mask = 1 - amputation_mask.float()
+        amputation_mask = amputation_mask.bool()
         
         if step_prefix in ["train", "val"]:
             T, Alpha_bar = self.hparams.diffusion_time_steps, self.diffusion_parameters["Alpha_bar"]
@@ -107,6 +108,7 @@ class SSSDS4(ImputationWrapper):
 
             loss = self.loss(epsilon_theta[amputation_mask], z[amputation_mask])
         else:
+            target = target.permute(0, 2, 1)
             imputed_data = self.sampling(amputated_data, observed_mask)
             amputated_data[amputation_mask] = imputed_data[amputation_mask]
             loss = self.loss(amputated_data, target)
@@ -131,7 +133,9 @@ class SSSDS4(ImputationWrapper):
         the generated audio(s) in torch.tensor, shape=size
         """
 
-        T, Alpha, Alpha_bar, Sigma = self.diffusion_parameters["T"], self.diffusion_parameters["Alpha"], self.diffusion_parameters["Alpha_bar"], self.diffusion_parameters["Sigma"]
+        Alpha, Alpha_bar, Sigma = self.diffusion_parameters["Alpha"], self.diffusion_parameters["Alpha_bar"], self.diffusion_parameters["Sigma"]
+        
+        T = self.hparams.diffusion_time_steps
         assert len(Alpha) == T
         assert len(Alpha_bar) == T
         assert len(Sigma) == T
@@ -141,14 +145,14 @@ class SSSDS4(ImputationWrapper):
         B, _, _ = cond.shape
         x = std_normal(cond.shape, self.device)
 
-        for t in range(T - 1, -1, -1):
+        for t in tqdm(range(T - 1, -1, -1)):
             x = x * (1 - mask).float() + cond * mask.float()
             diffusion_steps = (t * torch.ones((B, 1))).to(self.device)  # use the corresponding reverse step
             epsilon_theta = self((x, cond, mask, diffusion_steps,))  # predict \epsilon according to \epsilon_\theta
             # update x_{t-1} to \mu_\theta(x_t)
             x = (x - (1 - Alpha[t]) / torch.sqrt(1 - Alpha_bar[t]) * epsilon_theta) / torch.sqrt(Alpha[t])
             if t > 0:
-                x = x + Sigma[t] * std_normal(cond.shape)  # add the variance term to x_{t-1}
+                x = x + Sigma[t] * std_normal(cond.shape, self.device)  # add the variance term to x_{t-1}
 
         return x
         

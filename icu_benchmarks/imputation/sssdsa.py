@@ -533,9 +533,10 @@ class SSSDSA(ImputationWrapper):
     def step_fn(self, batch, step_prefix=""):
         amputated_data, amputation_mask, target = batch
 
-        amputated_data = amputated_data.permute(0, 2, 1)
+        amputated_data = torch.nan_to_num(amputated_data).permute(0, 2, 1)
         amputation_mask = amputation_mask.permute(0, 2, 1)
         observed_mask = 1 - amputation_mask.float()
+        amputation_mask = amputation_mask.bool()
         
         if step_prefix in ["train", "val"]:
             T, Alpha_bar = self.hparams.diffusion_time_steps, self.diffusion_parameters["Alpha_bar"]
@@ -552,6 +553,7 @@ class SSSDSA(ImputationWrapper):
 
             loss = self.loss(epsilon_theta[amputation_mask], z[amputation_mask])
         else:
+            target = target.permute(0, 2, 1)
             imputed_data = self.sampling(amputated_data, observed_mask)
             amputated_data[amputation_mask] = imputed_data[amputation_mask]
             loss = self.loss(amputated_data, target)
