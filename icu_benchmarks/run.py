@@ -5,11 +5,11 @@ import gin
 import logging
 import sys
 import torch
-import wandb
 from pathlib import Path
 
 import importlib.util
 
+from icu_benchmarks.wandb_utils import update_wandb_config, apply_wandb_sweep
 from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters
 from scripts.plotting.utils import plot_aggregated_results
 from icu_benchmarks.cross_validation import execute_repeated_cv
@@ -19,23 +19,19 @@ from icu_benchmarks.run_utils import (
     aggregate_results,
     log_full_line,
 )
+from icu_benchmarks.contants import RunMode
 
 
 @gin.configurable("Run")
 def get_mode(mode: gin.REQUIRED):
+    assert mode in RunMode.__dict__.values()
     return mode
 
 
 def main(my_args=tuple(sys.argv[1:])):
     args, _ = build_parser().parse_known_args(my_args)
     if args.wandb_sweep:
-        wandb.init()
-        sweep_config = wandb.config
-        args.__dict__.update(sweep_config)
-        if args.hyperparams is None:
-            args.hyperparams = []
-        for key, value in sweep_config.items():
-            args.hyperparams.append(f"{key}=" + (("'" + value + "'") if isinstance(value, str) else str(value)))
+        args = apply_wandb_sweep(args)
 
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
@@ -71,22 +67,11 @@ def main(my_args=tuple(sys.argv[1:])):
     else:
         pretrained_imputation_model = None
 
-    if wandb.run is not None:
-        logging.info(
-            "updating wandb config:",
-            {
-                "pretrained_imputation_model": pretrained_imputation_model.__class__.__name__
-                if pretrained_imputation_model is not None
-                else "None"
-            },
-        )
-        wandb.config.update(
-            {
-                "pretrained_imputation_model": pretrained_imputation_model.__class__.__name__
-                if pretrained_imputation_model is not None
-                else "None"
-            }
-        )
+    update_wandb_config({
+        "pretrained_imputation_model": pretrained_imputation_model.__class__.__name__
+        if pretrained_imputation_model is not None
+        else "None"
+    })
     source_dir = None
     # todo:check if this is correct
     reproducible = False
@@ -121,7 +106,7 @@ def main(my_args=tuple(sys.argv[1:])):
         reproducible = args.reproducible
         checkpoint = log_dir / args.checkpoint if args.checkpoint else None
         model_path = (
-            Path("configs") / ("imputation_models" if mode == "Imputation" else "classification_models") / f"{model}.gin"
+            Path("configs") / ("imputation_models" if mode == RunMode.imputation else "classification_models") / f"{model}.gin"
         )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]

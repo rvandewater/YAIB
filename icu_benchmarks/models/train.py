@@ -3,7 +3,6 @@ import gin
 import torch
 import logging
 import pandas as pd
-import wandb
 from torch.optim import Adam
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
@@ -11,8 +10,10 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torch.utils.data import DataLoader
 from pathlib import Path
 
+from icu_benchmarks.wandb_utils import set_wandb_run_name
 from icu_benchmarks.data.loader import SICUDataset, ImputationDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
+from icu_benchmarks.contants import RunMode
 
 
 @gin.configurable("train_common")
@@ -22,7 +23,7 @@ def train_common(
     load_weights: bool = False,
     source_dir: Path = None,
     reproducible: bool = True,
-    mode: str = "Classification",
+    mode: str = RunMode.classification,
     dataset_name: str = "",
     model: object = gin.REQUIRED,
     weight: str = None,
@@ -45,7 +46,7 @@ def train_common(
         source_dir: If set to load weights, path to directory containing trained weights.
         seed: Common seed used for any random operation.
         reproducible: If set to true, set torch to run reproducibly.
-        mode: Mode of the model. Can be "Classification" or "Imputation".
+        mode: Mode of the model. Can be one of the values of RunMode.
         dataset_name: Name of the dataset.
         model: Model to be trained.
         weight: Weight to be used for the loss function.
@@ -60,7 +61,7 @@ def train_common(
         num_workers: Number of workers to use for data loading.
     """
     logging.info(f"Training model: {model.__name__}")
-    DatasetClass = ImputationDataset if mode == "Imputation" else SICUDataset
+    DatasetClass = ImputationDataset if mode == RunMode.imputation else SICUDataset
 
     logging.info(f"Logging to directory: {log_dir}")
     save_config_file(log_dir)  # We save the operative config before and also after training
@@ -88,8 +89,7 @@ def train_common(
     logging.info(f"performing task on model {model.__name__}...")
 
     model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs)
-    if mode == "Classification":
-        model.set_weight(weight, train_dataset)
+    model.set_weight(weight, train_dataset)
     if load_weights:
         if source_dir.exists():
             # if not model.needs_training:
@@ -98,14 +98,14 @@ def train_common(
             model = model.load_state_dict(checkpoint["state_dict"])
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
+    
+    model.set_trained_variables(train_dataset.get_feature_names())
 
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
     if use_wandb:
         run_name = f"{type(model).__name__}-{dataset_name}"
         loggers.append(WandbLogger(run_name, save_dir=log_dir))
-        wandb.config.update({"run-name": run_name})
-        wandb.run.name = run_name
-        wandb.run.save()
+        set_wandb_run_name(run_name)
 
     trainer = Trainer(
         # model=model,
@@ -127,24 +127,11 @@ def train_common(
 
     if model.needs_fit:
         logging.info("fitting model to data...")
-        # Only for classical ML models.
-        if mode == "Imputation":
-            model.fit(train_dataset)
-        else:
-            # For classification ML models.
-            trainer.fit(
-                model,
-                train_dataloaders=DataLoader(
-                    [train_dataset.get_data_and_labels() + val_dataset.get_data_and_labels()], batch_size=1
-                ),
-                val_dataloaders=DataLoader([val_dataset.get_data_and_labels()], batch_size=1),
-            )
-        # todo: remove check
-        if not model.needs_training:
-            try:
-                torch.save(model, log_dir / "last.ckpt")
-            except Exception as e:
-                logging.error(f"Cannot save model to path {str((log_dir / 'last.ckpt').resolve())}: {e}")
+        model.fit(train_dataset, val_dataset)
+        try:
+            torch.save(model, log_dir / "last.ckpt")
+        except Exception as e:
+            logging.error(f"Cannot save model to path {str((log_dir / 'last.ckpt').resolve())}: {e}")
         logging.info("fitting complete!")
 
     if model.needs_training:
@@ -152,29 +139,20 @@ def train_common(
         trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
         logging.info("Training complete.")
 
-    test_loss = 0.0
-    logging.info("Testing started.")
-    test_dataset = DatasetClass(data, split=test_on)
 
+    test_dataset = DatasetClass(data, split=test_on)
     test_loader = DataLoader(
         test_dataset,
         batch_size=batch_size * 4,
         shuffle=False,
         num_workers=num_workers,
         pin_memory=True,
-    )
+    ) if model.needs_training else DataLoader([test_dataset], batch_size=1)
 
-    # TODO: explain
-    if mode == "Classification":
-        model.set_weight("balanced", train_dataset)
-    #
+    model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(
         model,
-        dataloaders=(
-            test_loader
-            if (mode == "Imputation" or model.needs_training)
-            else DataLoader([test_dataset.get_data_and_labels()], batch_size=1)
-        ),
+        dataloaders=test_loader,
     )[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss

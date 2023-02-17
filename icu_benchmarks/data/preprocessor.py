@@ -4,13 +4,13 @@ import logging
 
 import gin
 import pandas as pd
-import wandb
 from recipys.recipe import Recipe
 from recipys.selector import all_numeric_predictors, has_type, all_of
 from recipys.step import StepScale, StepImputeFill, StepSklearn, StepHistorical, Accumulator, StepImputeModel
 from sklearn.impute import SimpleImputer, MissingIndicator
 from sklearn.preprocessing import LabelEncoder
 
+from icu_benchmarks.wandb_utils import update_wandb_config
 from icu_benchmarks.data.loader import ImputationPredictionDataset
 from .constants import DataSplit as Split, DataSegment as Segment
 import abc
@@ -152,8 +152,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
 
     def set_imputation_model(self, imputation_model):
         self.imputation_model = imputation_model
-        if self.imputation_model is not None and wandb.run is not None:
-            wandb.run.summary["imputation_model"] = self.imputation_model.__class__.__name__
+        if self.imputation_model is not None:
+            update_wandb_config({"imputation_model": self.imputation_model.__class__.__name__})
 
     def apply(self, data, vars):
         """
@@ -210,7 +210,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         return data
 
     def model_impute(self, data, group=None):
-        dataset = ImputationPredictionDataset(data, group)
+        dataset = ImputationPredictionDataset(data, group, self.imputation_model.trained_columns)
         data = torch.cat([data_point.unsqueeze(0) for data_point in dataset], dim=0)
         self.imputation_model.eval()
         with torch.no_grad():
@@ -218,7 +218,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
             imputation = self.imputation_model.predict(data)
             logging.info("done predicting")
         assert imputation.isnan().sum() == 0
-        return imputation.flatten(end_dim=1).to("cpu")
+        data[self.imputation_model.trained_columns] = imputation.flatten(end_dim=1).to("cpu")
+        return data
 
     def process_dynamic(self, data, vars):
         dyn_rec = Recipe(data[Split.train][Segment.dynamic], [], vars[Segment.dynamic], vars["GROUP"], vars["SEQUENCE"])
@@ -226,10 +227,9 @@ class DefaultClassificationPreprocessor(Preprocessor):
             dyn_rec.add_step(StepScale())
         if self.imputation_model is not None:
             dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[Segment.dynamic])))
-        else:
-            dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars[Segment.dynamic]), in_place=False))
-            dyn_rec.add_step(StepImputeFill(method="ffill"))
-            dyn_rec.add_step(StepImputeFill(value=0))
+        dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars[Segment.dynamic]), in_place=False))
+        dyn_rec.add_step(StepImputeFill(method="ffill"))
+        dyn_rec.add_step(StepImputeFill(value=0))
         if self.generate_features:
             dyn_rec = self.dynamic_feature_generation(dyn_rec, all_of(vars[Segment.dynamic]))
         data = self.apply_recipe_to_Splits(dyn_rec, data, Segment.dynamic)

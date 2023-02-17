@@ -33,18 +33,8 @@ class BaseModule(LightningModule):
     needs_fit = False
 
     weight = None
-    logdir = None
     metrics = {}
-    scaler = None
-
-    def get_seed(self):
-        return np.random.get_state()[1][0]
-
-    def set_logdir(self, logdir):
-        self.logdir = logdir
-
-    def set_scaler(self, scaler):
-        self.scaler = scaler
+    trained_columns = None
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError()
@@ -57,6 +47,9 @@ class BaseModule(LightningModule):
 
     def set_metrics(self, *args, **kwargs):
         self.metrics = {}
+
+    def set_trained_columns(self, columns: List[str]):
+        self.trained_columns = columns
 
     def set_weight(self, weight, *args, **kwargs):
         pass
@@ -279,8 +272,9 @@ class MLClassificationWrapper(BaseModule):
                 self.label_transform = lambda x: x
             self.metrics = {"MAE": mean_absolute_error}
 
-    def training_step(self, dataset):
-        train_rep, train_label, val_rep, val_label = dataset
+    def fit(self, train_dataset, val_dataset):
+        train_rep, train_label = train_dataset.get_data_and_labels()
+        val_rep, val_label = val_dataset.get_data_and_labels()
         train_rep, train_label = train_rep.squeeze().cpu().numpy(), train_label.squeeze().cpu().numpy()
         val_rep, val_label = val_rep.squeeze().cpu().numpy(), val_label.squeeze().cpu().numpy()
         self.set_metrics(train_label)
@@ -435,6 +429,9 @@ class ImputationWrapper(DLWrapper):
                 (torch.flatten(amputated.detach(), start_dim=1).clone(), torch.flatten(target.detach(), start_dim=1).clone())
             )
         return loss
+    
+    def fit(self, train_dataset, val_dataset):
+        raise NotImplementedError()
 
     def predict_step(self, data, amputation_mask=None):
         return self(data, amputation_mask)

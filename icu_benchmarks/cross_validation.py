@@ -9,6 +9,7 @@ from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import log_full_line
+from icu_benchmarks.contants import RunMode
 
 
 @gin.configurable
@@ -27,7 +28,7 @@ def execute_repeated_cv(
     generate_cache: bool = False,
     load_cache: bool = False,
     test_on: str = "test",
-    mode: str = "Classification",
+    mode: str = RunMode.classification,
     pretrained_imputation_model: object = None,
     dataset_name: str = "",
     cpu: bool = False,

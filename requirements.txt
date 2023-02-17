@@ -1,7 +1,7 @@
-torch
-numpy
-pytorch-ignite
-gin-config
+torch==1.13.1
+numpy==1.24.2
+pytorch-ignite==0.4.10
+gin-config==0.5.0
 pathos
 sklearn
 lightgbm

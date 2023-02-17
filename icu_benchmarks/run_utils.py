@@ -1,4 +1,3 @@
-import wandb
 import json
 from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime, timedelta
@@ -8,6 +7,7 @@ import scipy.stats as stats
 import shutil
 from statistics import mean, stdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
+from icu_benchmarks.wandb_utils import wandb_log
 
 
 def build_parser() -> ArgumentParser:
@@ -149,8 +149,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
 
     logging.info(f"Accumulated results: {accumulated_metrics}")
     
-    if wandb.run is not None:
-        wandb.log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
+    wandb_log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
 
 
 def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
