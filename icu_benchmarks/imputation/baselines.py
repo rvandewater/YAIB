@@ -1,3 +1,5 @@
+"""Baseline imputation methods. These methods imported from other framewors
+and are used as baselines for comparison."""
 import torch
 from hyperimpute.plugins.imputers import Imputers
 from sklearn.experimental import enable_iterative_imputer  # noqa: F401

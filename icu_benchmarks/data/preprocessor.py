@@ -32,21 +32,17 @@ class DefaultImputationPreprocessor(Preprocessor):
         self,
         scaling: bool = True,
         use_static_features: bool = True,
-        window_size: int = 25,
-        window_stride: int = 1,
         vars: dict = None,
     ):
-        """
+        """Preprocesses data for imputation.
+
         Args:
-            scaling: Scaling of dynamic and static data.
-            use_static_features: Use static features.
-        Returns:
-            Preprocessed data.
+            scaling (bool, optional): if the values in each column should be normalized. Defaults to True.
+            use_static_features (bool, optional): if static features should be included in the dataset. Defaults to True.
+            vars (dict, optional): dict containing column names in the data. Defaults to None.
         """
         self.scaling = scaling
         self.use_static_features = use_static_features
-        self.window_size = window_size
-        self.window_stride = window_stride
         self.vars = vars
 
     def apply(self, data, vars):
@@ -77,7 +73,7 @@ class DefaultImputationPreprocessor(Preprocessor):
         return data
 
     def to_cache_string(self):
-        return super().to_cache_string() + f"_imputation_{self.use_static_features}_{self.scaling}_{self.window_size}"
+        return super().to_cache_string() + f"_imputation_{self.use_static_features}_{self.scaling}"
 
     @staticmethod
     def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
@@ -97,37 +93,10 @@ class DefaultImputationPreprocessor(Preprocessor):
         return data
 
     def process_dynamic_data(self, data, vars):
-        maxlen = data[Segment.dynamic].groupby([vars["GROUP"]]).size().max()
-        if self.window_size >= maxlen:
-            rows_to_remove = data[Segment.dynamic][vars[Segment.dynamic]].isna().sum(axis=1) != 0
-            ids_to_remove = data[Segment.dynamic].loc[rows_to_remove][vars["GROUP"]].unique()
-            data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
-            logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
-        else:
-            # collect all stays with window size consecutive present values
-            data[Segment.dynamic]["OLD_GROUP"] = data[Segment.dynamic][vars["GROUP"]]
-            new_data = {name: pd.DataFrame(columns=table.columns) for name, table in data.items()}
-            grouped = data[Segment.dynamic].groupby([vars["GROUP"]])
-            slice_counter = 0
-
-            for group_name, group in tqdm(grouped):
-                for i in range(0, len(group) - self.window_size + 1, self.window_stride):
-                    if group.iloc[i:i + self.window_size][vars[Segment.dynamic]].isna().sum().sum() == 0:
-                        slice = group.iloc[i:i + self.window_size].copy()
-                        slice.loc[:, vars["GROUP"]] = slice_counter
-                        # use pandas.concat
-                        new_data[Segment.dynamic] = pd.concat([new_data[Segment.dynamic], slice])
-                        for table_name, table in data.items():
-                            if table_name != Segment.dynamic:
-                                new_slice_data = table.loc[table[vars["GROUP"]] == group_name].copy()
-                                new_slice_data.loc[:, vars["GROUP"]] = slice_counter
-                                new_data[table_name] = pd.concat([new_data[table_name], new_slice_data])
-                        slice_counter += 1
-            data = new_data
-            logging.info(
-                f"Generated {slice_counter} slices with {self.window_size} consecutive "
-                f"present values from {len(grouped)} records."
-            )
+        rows_to_remove = data[Segment.dynamic][vars[Segment.dynamic]].isna().sum(axis=1) != 0
+        ids_to_remove = data[Segment.dynamic].loc[rows_to_remove][vars["GROUP"]].unique()
+        data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
+        logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
         return data
 
 

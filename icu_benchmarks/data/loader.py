@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 
 from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
+from .constants import DataSplit as Split
 
 class SICUDataset(Dataset):
     """Standardized ICU Dataset: subclass of Torch Dataset that represents the data to learn on.
@@ -18,9 +19,10 @@ class SICUDataset(Dataset):
         data: Dict of the different splits of the data.
         split: Either 'train','val' or 'test'.
         vars: Contains the names of columns in the data.
+        static_segment: str, optional: The segment of the data contains the grouping column with only unique values. Defaults to Segment.outcome.
     """
 
-    def __init__(self, data: dict, split: str = "train", vars: Dict[str, str] = gin.REQUIRED, static_segment: str = Segment.outcome):
+    def __init__(self, data: dict, split: str = Split.train, vars: Dict[str, str] = gin.REQUIRED, static_segment: str = Segment.outcome):
         self.split = split
         self.vars = vars
         self.static_df = data[split][static_segment].set_index(self.vars["GROUP"])
@@ -50,6 +52,11 @@ class SICUDataset(Dataset):
         return self.features_df.columns
 
 class ClassificationDataset(SICUDataset):
+    """Subclass of SICU dataset for classification tasks.
+
+    Args:
+        ram_cache (bool, optional): wether the complete dataset should be stored in ram. Defaults to True.
+    """
     
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
         super().__init__(*args, static_segment=Segment.outcome, **kwargs)
@@ -131,18 +138,22 @@ class ClassificationDataset(SICUDataset):
 
 @gin.configurable("ImputationDataset")
 class ImputationDataset(SICUDataset):
-    """Subclass of torch Dataset that represents the data to learn on.
+    """Subclass of SICU Dataset that contains data for imputation models
 
     Args:
-        data: Dict of the different splits of the data.
-        split: Either 'train','val' or 'test'.
-        vars: Contains the names of columns in the data.
+        data (Dict[str, DataFrame]): data to use
+        split (str, optional): split to apply. Defaults to Split.train.
+        vars (Dict[str, str], optional): contains names of columns in the data. Defaults to gin.REQUIRED.
+        mask_proportion (float, optional): proportion to artificially mask for amputation. Defaults to 0.3.
+        mask_method (str, optional): masking mechanism. Defaults to "MCAR".
+        mask_observation_proportion (float, optional): poportion of the observed data to be masked. Defaults to 0.3.
+        ram_cache (bool, optional): if the dataset should be completely stored in ram and not generated on the fly during training. Defaults to True.
     """
 
     def __init__(
         self,
         data: Dict[str, DataFrame],
-        split: str = "train",
+        split: str = Split.train,
         vars: Dict[str, str] = gin.REQUIRED,
         mask_proportion=0.3,
         mask_method="MCAR",
@@ -188,12 +199,13 @@ class ImputationDataset(SICUDataset):
 
 @gin.configurable("ImputationPredictionDataset")
 class ImputationPredictionDataset(Dataset):
-    """Subclass of torch Dataset that represents the data to learn on.
+    """Subclass of torch dataset that represents data with missingness for imputation.
 
     Args:
-        data: Dict of the different splits of the data.
-        split: Either 'train','val' or 'test'.
-        vars: Contains the names of columns in the data.
+        data (DataFrame): dict of the different splits of the data
+        grouping_column (str, optional): column that is used for grouping. Defaults to "stay_id".
+        select_columns (List[str], optional): the columns to serve as input for the imputation model. Defaults to None.
+        ram_cache (bool, optional): wether the dataset should be stored in ram. Defaults to True.
     """
 
     def __init__(
@@ -203,6 +215,7 @@ class ImputationPredictionDataset(Dataset):
         select_columns: List[str] = None,
         ram_cache: bool = True,
     ):
+        
         self.dyn_df = data
         
         if select_columns is not None:

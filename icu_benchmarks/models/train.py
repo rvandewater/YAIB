@@ -14,6 +14,7 @@ from icu_benchmarks.wandb_utils import set_wandb_run_name
 from icu_benchmarks.data.loader import SICUDataset, ImputationDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
+from icu_benchmarks.data.constants import DataSplit as Split
 
 
 @gin.configurable("train_common")
@@ -24,7 +25,6 @@ def train_common(
     source_dir: Path = None,
     reproducible: bool = True,
     mode: str = RunMode.classification,
-    dataset_name: str = "",
     model: object = gin.REQUIRED,
     weight: str = None,
     optimizer: type = Adam,
@@ -32,7 +32,7 @@ def train_common(
     epochs=1000,
     patience=20,
     min_delta=1e-5,
-    test_on: str = "test",
+    test_on: str = Split.test,
     use_wandb: bool = True,
     cpu: bool = False,
     num_workers: int = min(len(os.sched_getaffinity(0)), torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 16),
@@ -47,7 +47,6 @@ def train_common(
         seed: Common seed used for any random operation.
         reproducible: If set to true, set torch to run reproducibly.
         mode: Mode of the model. Can be one of the values of RunMode.
-        dataset_name: Name of the dataset.
         model: Model to be trained.
         weight: Weight to be used for the loss function.
         optimizer: Optimizer to be used for training.
@@ -66,8 +65,8 @@ def train_common(
     logging.info(f"Logging to directory: {log_dir}")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
-    train_dataset = DatasetClass(data, split="train")
-    val_dataset = DatasetClass(data, split="val")
+    train_dataset = DatasetClass(data, split=Split.train)
+    val_dataset = DatasetClass(data, split=Split.val)
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -103,7 +102,7 @@ def train_common(
 
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
     if use_wandb:
-        run_name = f"{type(model).__name__}-{dataset_name}"
+        run_name = f"{type(model).__name__}"
         loggers.append(WandbLogger(run_name, save_dir=log_dir))
         set_wandb_run_name(run_name)
 

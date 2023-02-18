@@ -30,7 +30,6 @@ def execute_repeated_cv(
     test_on: str = "test",
     mode: str = RunMode.classification,
     pretrained_imputation_model: object = None,
-    dataset_name: str = "",
     cpu: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
@@ -48,6 +47,8 @@ def execute_repeated_cv(
         generate_cache: Whether to generate and save cache.
         load_cache: Whether to load previously cached data.
         test_on: Dataset to test on. Can be "test" or "val" (e.g. for hyperparameter tuning).
+        mode: Run mode. Can be one of the values of RunMode
+        cpu: Whether to run on CPU.
     Returns:
         The average loss of all folds.
     """
@@ -84,7 +85,6 @@ def execute_repeated_cv(
                 source_dir=source_dir,
                 reproducible=reproducible,
                 test_on=test_on,
-                dataset_name=dataset_name,
                 mode=mode,
                 cpu=cpu,
             )

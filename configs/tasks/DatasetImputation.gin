@@ -3,9 +3,7 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 import icu_benchmarks.data.preprocess
 
-MODE = "Imputation"
-
-Run.mode = %MODE
+Run.mode = "Imputation"
 
 vars = {
     "GROUP": "stay_id",
@@ -24,8 +22,6 @@ preprocess.preprocessor = @base_imputation_preprocessor
 preprocess.vars = %vars
 ImputationDataset.vars = %vars
 ImputationDataset.ram_cache = True
-base_imputation_preprocessor.window_size = 1500
-base_imputation_preprocessor.window_stride = 20
 
 EMB = 6
 

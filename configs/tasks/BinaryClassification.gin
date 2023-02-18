@@ -3,9 +3,7 @@ import icu_benchmarks.data.loader
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
-MODE = "Classification"
-
-Run.mode = %MODE
+Run.mode = "Classification"
 
 NUM_CLASSES = 2
 HORIZON = 24

@@ -142,7 +142,6 @@ def main(my_args=tuple(sys.argv[1:])):
         generate_cache=args.generate_cache,
         mode=mode,
         pretrained_imputation_model=pretrained_imputation_model,
-        dataset_name=name,
         cpu=args.cpu,
     )
 
