@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from pathlib import Path
 
 from icu_benchmarks.wandb_utils import set_wandb_run_name
-from icu_benchmarks.data.loader import SICUDataset, ImputationDataset
+from icu_benchmarks.data.loader import ClassificationDataset, ImputationDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
@@ -60,7 +60,7 @@ def train_common(
         num_workers: Number of workers to use for data loading.
     """
     logging.info(f"Training model: {model.__name__}")
-    DatasetClass = ImputationDataset if mode == RunMode.imputation else SICUDataset
+    DatasetClass = ImputationDataset if mode == RunMode.imputation else ClassificationDataset
 
     logging.info(f"Logging to directory: {log_dir}")
     save_config_file(log_dir)  # We save the operative config before and also after training
@@ -98,7 +98,7 @@ def train_common(
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
     
-    model.set_trained_variables(train_dataset.get_feature_names())
+    model.set_trained_columns(train_dataset.get_feature_names())
 
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
     if use_wandb:
@@ -146,7 +146,7 @@ def train_common(
         shuffle=False,
         num_workers=num_workers,
         pin_memory=True,
-    ) if model.needs_training else DataLoader([test_dataset], batch_size=1)
+    ) if model.needs_training else DataLoader([test_dataset.to_tensor()], batch_size=1)
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(

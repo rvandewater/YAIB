@@ -51,6 +51,16 @@ class SICUDataset(Dataset):
     def get_feature_names(self):
         return self.features_df.columns
 
+    def to_tensor(self):
+        values = []
+        for entry in self:
+            for i, value in enumerate(entry):
+                if len(values) <= i:
+                    values.append([])
+                values[i].append(value.unsqueeze(0))
+        return [torch.cat(value, dim=0) for value in values]
+
+@gin.configurable("ClassificationDataset")
 class ClassificationDataset(SICUDataset):
     """Subclass of SICU dataset for classification tasks.
 
@@ -160,7 +170,7 @@ class ImputationDataset(SICUDataset):
         mask_observation_proportion=0.3,
         ram_cache: bool = True,
     ):
-        super().__init__(data, split, vars, static_segment=Segment.static, ram_cache=False)
+        super().__init__(data, split, vars, static_segment=Segment.static)
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion
         )
@@ -183,7 +193,7 @@ class ImputationDataset(SICUDataset):
         """
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
-        stay_id = self.static_df.iloc[idx][self.vars["GROUP"]]
+        stay_id = self.static_df.iloc[idx].name
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id, self.vars[Segment.dynamic]]

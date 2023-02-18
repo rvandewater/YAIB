@@ -214,6 +214,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         return data
 
     def dynamic_feature_generation(self, data, dynamic_vars):
+        print("adding feature generation")
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.COUNT, suffix="count_hist"))
