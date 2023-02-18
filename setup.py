@@ -2,30 +2,44 @@
 # -*- coding: utf-8 -*-
 
 """The setup script."""
-
+import sys
 from pathlib import Path
 from setuptools import setup, find_packages
-import yaml
 
 
 root_path = Path(__file__).resolve().parent
 
 def parse_environment_yml():
     """Parse the environment.yml file and extract the package names."""
+    # here we cannot use pyyaml because it is not installed yet
     with open(root_path / "environment.yml") as f:
-        environment = yaml.safe_load(f)
+        lines = f.readlines()
+    
+    lines = [line.strip() for line in lines]
     dependencies = []
-    for entry in environment["dependencies"]:
-        if isinstance(entry, dict):
-            for key, value in entry.items():
-                if key == "pip":
-                    dependencies += value
-        else:
-            dependencies.append(entry)
-    # dependencies = ["==".join(dep.split("=")) for dep in dependencies]
+    inside_dependencies = False
+    for entry in lines:
+        print("entry:", entry)
+        if entry == "dependencies:":
+            print("found dependencies")
+            inside_dependencies = True
+            continue
+        if inside_dependencies:
+            print("parsing dependencies:", entry)
+            if not entry.startswith("-"):
+                break
+            dependency_name = entry.strip().split(" ")[-1]
+            if dependency_name != "pip:":
+                dependencies.append(dependency_name)
+            print("now dependencies:", dependencies)
     
     sanitized_dependencies = []
     for dependency in dependencies:
+        # conda package ignite is named pytorch-ignite on pypi
+        if "ignite" in dependency:
+            dependency = "pytorch-" + dependency
+        if dependency.startswith("pytorch="):
+            dependency = dependency.replace("pytorch", "torch")
         dependency = "==".join(dependency.split("="))
         if "http://" in dependency or "https://" in dependency:
             package_name = dependency.split("/")[-1].split(".")[0]
