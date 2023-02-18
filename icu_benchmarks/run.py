@@ -18,8 +18,10 @@ from icu_benchmarks.run_utils import (
     create_run_dir,
     aggregate_results,
     log_full_line,
+    load_pretrained_imputation_model,
 )
 from icu_benchmarks.contants import RunMode
+
 
 
 @gin.configurable("Run")
@@ -50,22 +52,8 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.info(f"Task mode: {mode}")
     experiment = args.experiment
 
-    if args.use_pretrained_imputation is not None and not Path(args.use_pretrained_imputation).exists():
-        logging.warning("the specified pretrained imputation model does not exist")
-        args.use_pretrained_imputation = None
-
-    if args.use_pretrained_imputation is not None:
-        logging.info("Using pretrained imputation from" + str(args.use_pretrained_imputation))
-        pretrained_imputation_model_checkpoint = torch.load(args.use_pretrained_imputation, map_location=torch.device("cpu"))
-        if isinstance(pretrained_imputation_model_checkpoint, dict):
-            imputation_model_class = pretrained_imputation_model_checkpoint["class"]
-            pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
-            pretrained_imputation_model.load_state_dict(pretrained_imputation_model_checkpoint["state_dict"])
-        else:
-            pretrained_imputation_model = pretrained_imputation_model_checkpoint
-        pretrained_imputation_model = pretrained_imputation_model.to("cuda" if torch.cuda.is_available() else "cpu")
-    else:
-        pretrained_imputation_model = None
+    
+    pretrained_imputation_model = load_pretrained_imputation_model(args.use_pretrained_imputation)
 
     update_wandb_config({
         "pretrained_imputation_model": pretrained_imputation_model.__class__.__name__

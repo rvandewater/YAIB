@@ -224,12 +224,12 @@ class ImputationPredictionDataset(Dataset):
         grouping_column: str = "stay_id",
         select_columns: List[str] = None,
         ram_cache: bool = True,
-    ):
+    ): 
         
         self.dyn_df = data
         
         if select_columns is not None:
-            self.dyn_df = self.dyn_df[select_columns]
+            self.dyn_df = self.dyn_df[list(select_columns) + grouping_column]
         
         if grouping_column is not None:
             self.dyn_df = self.dyn_df.set_index(grouping_column)

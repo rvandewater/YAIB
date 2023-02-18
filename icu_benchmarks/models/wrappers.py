@@ -74,6 +74,7 @@ class BaseModule(LightningModule):
 
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         checkpoint["class"] = self.__class__
+        checkpoint["trained_columns"] = self.trained_columns
         return super().on_save_checkpoint(checkpoint)
 
 

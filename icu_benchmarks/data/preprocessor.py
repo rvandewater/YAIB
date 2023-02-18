@@ -180,14 +180,17 @@ class DefaultClassificationPreprocessor(Preprocessor):
 
     def model_impute(self, data, group=None):
         dataset = ImputationPredictionDataset(data, group, self.imputation_model.trained_columns)
-        data = torch.cat([data_point.unsqueeze(0) for data_point in dataset], dim=0)
+        input_data = torch.cat([data_point.unsqueeze(0) for data_point in dataset], dim=0)
         self.imputation_model.eval()
         with torch.no_grad():
             logging.info("predicting...")
-            imputation = self.imputation_model.predict(data)
+            imputation = self.imputation_model.predict(input_data)
             logging.info("done predicting")
         assert imputation.isnan().sum() == 0
-        data[self.imputation_model.trained_columns] = imputation.flatten(end_dim=1).to("cpu")
+        data = data.copy()
+        data.loc[:, self.imputation_model.trained_columns] = imputation.flatten(end_dim=1).to("cpu")
+        if group is not None:
+            data.drop(columns=group, inplace=True)
         return data
 
     def process_dynamic(self, data, vars):
