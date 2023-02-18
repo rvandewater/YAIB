@@ -47,7 +47,7 @@ This paper can also be found on arxiv: TBD
 
 # Installation
 
-YAIB currently requires an installation of Conda. Below you will find the three CLI commands to install YAIB.
+YAIB can be installed using conda or pip. Below you will find the three CLI commands to install YAIB using conda.
 The
 
 The first command will install an environment based on Python 3.10 (currently).
@@ -63,6 +63,18 @@ We then activate the environment and install a package called `icu-benchmarks`, 
 ```
 conda activate yaib
 pip install -e .
+```
+
+If you want to install the icu-benchmarks package with pip, execute the command below:
+
+```
+pip install torch numpy && pip install -e .
+```
+
+If you are on a Mac with Metal Performance Shader, install the package with the following command:
+
+```
+pip install torch numpy && pip install -e .[mps]
 ```
 
 # Usage

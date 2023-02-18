@@ -68,6 +68,7 @@ setup(
     entry_points={"console_scripts": ["icu-benchmarks = icu_benchmarks.run:main"]},
     # install_requires=["recipys@git+https://github.com/rvandewater/recipys.git"],
     install_requires=parse_environment_yml(),
+    extras_require={"mps": ["mkl < 2022"]},
     license="MIT license",
     long_description=readme,
     include_package_data=True,
