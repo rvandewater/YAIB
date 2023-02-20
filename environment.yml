@@ -1,4 +1,4 @@
-name: yaib_impute2
+name: yaib
 channels:
   - pytorch
   - conda-forge
