@@ -83,3 +83,4 @@ def aggregate_results(
     # Exclude datasets
     results = results[results["Model"].isin(models)]
     return results
+print(aggregate_results(Path(r"C:\Users\Robin\Downloads\2023-02-12T15-46-31"), decimals=1))
