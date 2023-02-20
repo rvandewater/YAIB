@@ -5,7 +5,6 @@ import gin
 import logging
 import sys
 from pathlib import Path
-
 import importlib.util
 
 from icu_benchmarks.wandb_utils import update_wandb_config, apply_wandb_sweep
@@ -25,7 +24,8 @@ from icu_benchmarks.contants import RunMode
 
 @gin.configurable("Run")
 def get_mode(mode: gin.REQUIRED):
-    assert mode in RunMode.__dict__.values()
+    # Check if enum is mode.
+    assert RunMode(mode)
     return mode
 
 

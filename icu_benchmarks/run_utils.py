@@ -149,7 +149,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
         json.dump(accumulated_metrics, f, cls=JsonResultLoggingEncoder)
 
     logging.info(f"Accumulated results: {accumulated_metrics}")
-    
+
     wandb_log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
 
 
@@ -169,9 +169,15 @@ def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newl
         "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars),
     )
 
+
 def load_pretrained_imputation_model(use_pretrained_imputation):
+    """Loads a pretrained imputation model.
+
+    Args:
+        use_pretrained_imputation: Path to the pretrained imputation model.
+    """
     if use_pretrained_imputation is not None and not Path(use_pretrained_imputation).exists():
-        logging.warning("the specified pretrained imputation model does not exist")
+        logging.warning("The specified pretrained imputation model does not exist.")
         use_pretrained_imputation = None
 
     if use_pretrained_imputation is not None:
@@ -187,5 +193,5 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
         pretrained_imputation_model = pretrained_imputation_model.to("cuda" if torch.cuda.is_available() else "cpu")
     else:
         pretrained_imputation_model = None
-    
+
     return pretrained_imputation_model

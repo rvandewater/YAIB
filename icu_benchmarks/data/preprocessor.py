@@ -26,78 +26,6 @@ class Preprocessor:
         return f"{self.__class__.__name__}"
 
 
-@gin.configurable("base_imputation_preprocessor")
-class DefaultImputationPreprocessor(Preprocessor):
-    def __init__(
-        self,
-        scaling: bool = True,
-        use_static_features: bool = True,
-        vars: dict = None,
-    ):
-        """Preprocesses data for imputation.
-
-        Args:
-            scaling (bool, optional): if the values in each column should be normalized. Defaults to True.
-            use_static_features (bool, optional): if static features should be included in the dataset. Defaults to True.
-            vars (dict, optional): dict containing column names in the data. Defaults to None.
-        """
-        self.scaling = scaling
-        self.use_static_features = use_static_features
-        self.vars = vars
-
-    def apply(self, data, vars):
-        """
-        Args:
-            data: Train, validation and test data dictionary. Further divided in static, dynamic, and outcome.
-            vars: Variables for static, dynamic, outcome.
-        Returns:
-            Preprocessed data.
-        """
-        logging.info("Preprocessor static features.")
-        data = {step: self.process_dynamic_data(data[step], vars) for step in data}
-
-        dyn_rec = Recipe(data[Split.train][Segment.dynamic], [], vars[Segment.dynamic], vars["GROUP"], vars["SEQUENCE"])
-        if self.scaling:
-            dyn_rec.add_step(StepScale())
-        data = self.apply_recipe_to_splits(dyn_rec, data, Segment.dynamic)
-
-        data[Split.train][Segment.features] = (
-            data[Split.train].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
-        )
-        data[Split.val][Segment.features] = (
-            data[Split.val].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
-        )
-        data[Split.test][Segment.features] = (
-            data[Split.test].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
-        )
-        return data
-
-    def to_cache_string(self):
-        return super().to_cache_string() + f"_imputation_{self.use_static_features}_{self.scaling}"
-
-    @staticmethod
-    def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
-        """Fits and transforms the training features, then transforms the validation and test features with the recipe.
-
-        Args:
-            recipe: Object containing info about the features and steps.
-            data: Dict containing 'train', 'val', and 'test' and types of features per split.
-            type: Whether to apply recipe to dynamic features, static features or outcomes.
-
-        Returns:
-            Transformed features divided into 'train', 'val', and 'test'.
-        """
-        data[Split.train][type] = recipe.prep()
-        data[Split.val][type] = recipe.bake(data[Split.val][type])
-        data[Split.test][type] = recipe.bake(data[Split.test][type])
-        return data
-
-    def process_dynamic_data(self, data, vars):
-        rows_to_remove = data[Segment.dynamic][vars[Segment.dynamic]].isna().sum(axis=1) != 0
-        ids_to_remove = data[Segment.dynamic].loc[rows_to_remove][vars["GROUP"]].unique()
-        data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
-        logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
-        return data
 
 
 @gin.configurable("base_classification_preprocessor")
@@ -217,7 +145,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         return data
 
     def dynamic_feature_generation(self, data, dynamic_vars):
-        print("adding feature generation")
+        logging.debug("Adding dynamic feature generation.")
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.COUNT, suffix="count_hist"))
@@ -245,4 +173,77 @@ class DefaultClassificationPreprocessor(Preprocessor):
         data[Split.train][type] = recipe.prep()
         data[Split.val][type] = recipe.bake(data[Split.val][type])
         data[Split.test][type] = recipe.bake(data[Split.test][type])
+        return data
+
+@gin.configurable("base_imputation_preprocessor")
+class DefaultImputationPreprocessor(Preprocessor):
+    def __init__(
+        self,
+        scaling: bool = True,
+        use_static_features: bool = True,
+        vars: dict = None,
+    ):
+        """Preprocesses data for imputation.
+
+        Args:
+            scaling (bool, optional): If the values in each column should be normalized. Defaults to True.
+            use_static_features (bool, optional): If static features should be included in the dataset. Defaults to True.
+            vars (dict, optional): Dict containing column names in the data. Defaults to None.
+        """
+        self.scaling = scaling
+        self.use_static_features = use_static_features
+        self.vars = vars
+
+    def apply(self, data, vars):
+        """
+        Args:
+            data: Train, validation and test data dictionary. Further divided in static, dynamic, and outcome.
+            vars: Variables for static, dynamic, outcome.
+        Returns:
+            Preprocessed data.
+        """
+        logging.info("Preprocessor static features.")
+        data = {step: self.process_dynamic_data(data[step], vars) for step in data}
+
+        dyn_rec = Recipe(data[Split.train][Segment.dynamic], [], vars[Segment.dynamic], vars["GROUP"], vars["SEQUENCE"])
+        if self.scaling:
+            dyn_rec.add_step(StepScale())
+        data = self.apply_recipe_to_splits(dyn_rec, data, Segment.dynamic)
+
+        data[Split.train][Segment.features] = (
+            data[Split.train].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
+        )
+        data[Split.val][Segment.features] = (
+            data[Split.val].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
+        )
+        data[Split.test][Segment.features] = (
+            data[Split.test].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
+        )
+        return data
+
+    def to_cache_string(self):
+        return super().to_cache_string() + f"_imputation_{self.use_static_features}_{self.scaling}"
+
+    @staticmethod
+    def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
+        """Fits and transforms the training features, then transforms the validation and test features with the recipe.
+
+        Args:
+            recipe: Object containing info about the features and steps.
+            data: Dict containing 'train', 'val', and 'test' and types of features per split.
+            type: Whether to apply recipe to dynamic features, static features or outcomes.
+
+        Returns:
+            Transformed features divided into 'train', 'val', and 'test'.
+        """
+        data[Split.train][type] = recipe.prep()
+        data[Split.val][type] = recipe.bake(data[Split.val][type])
+        data[Split.test][type] = recipe.bake(data[Split.test][type])
+        return data
+
+    def process_dynamic_data(self, data, vars):
+        rows_to_remove = data[Segment.dynamic][vars[Segment.dynamic]].isna().sum(axis=1) != 0
+        ids_to_remove = data[Segment.dynamic].loc[rows_to_remove][vars["GROUP"]].unique()
+        data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
+        logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
         return data
