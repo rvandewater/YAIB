@@ -1,4 +1,4 @@
-name: yaib
+name: yaib_impute
 channels:
   - pytorch
   - conda-forge
@@ -24,6 +24,6 @@ dependencies:
   - scikit-optimize=0.9.0
   - pip:
       - git+https://github.com/rvandewater/recipys.git
-      - hyperimpute=0.1.16
-      - pypots=0.0.9
+      - hyperimpute==0.1.16
+      - pypots==0.0.9
 

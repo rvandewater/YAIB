@@ -25,4 +25,5 @@ dependencies:
   - scikit-optimize=0.9.0
   - pip:
       - git+https://github.com/rvandewater/recipys.git
-      - hyperimpute
+      - hyperimpute==0.1.16
+      - pypots==0.0.9
