@@ -125,8 +125,9 @@ icu-benchmarks train \
     -tn Mortality24 \
     -m LGBMClassifier \
     -hp LGBMClassifier.min_child_samples=10 \
-    -c \
-    -s 2222 \
+    --generate_cache
+    --load_cache \
+    --seed 2222 \
     -l ../yaib_logs/ \
     --tune
 ```
