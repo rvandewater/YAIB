@@ -1,22 +1,15 @@
 # The following code is largerly (stolen) copied from:
 # https://github.com/EmilienDupont/neural-processes/
 
-import math
+import gin
 
 import torch
-import gin
-import logging
-
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
-from torch.distributions.kl import kl_divergence
-
-from pytorch_lightning.utilities import finite_checks
-
-from numpy.random import permutation
 
 from icu_benchmarks.models.wrappers import ImputationWrapper
+
 
 @gin.configurable("NP")
 class NPImputation(ImputationWrapper):
@@ -26,10 +19,22 @@ class NPImputation(ImputationWrapper):
     needs_fit = False
 
     def __init__(
-        self, input_size, encoder_layers, encoder_h_dim, decoder_layers, decoder_h_dim, r_dim, z_dim, *args, **kwargs
+        self,
+        input_size,
+        encoder_layers,
+        encoder_h_dim,
+        decoder_layers,
+        decoder_h_dim,
+        r_dim,
+        z_dim,
+        train_sample_times,
+        val_sample_times,
+        test_sample_times,
+        predict_sample_times,
+        *args,
+        **kwargs
     ) -> None:
         super().__init__(
-            *args,
             input_size=input_size,
             encoder_layers=encoder_layers,
             encoder_h_dim=encoder_h_dim,
@@ -37,6 +42,11 @@ class NPImputation(ImputationWrapper):
             decoder_h_dim=decoder_h_dim,
             r_dim=r_dim,
             z_dim=z_dim,
+            train_sample_times=train_sample_times,
+            val_sample_times=val_sample_times,
+            test_sample_times=test_sample_times,
+            predict_sample_times=predict_sample_times,
+            *args,
             **kwargs
         )
 
@@ -44,8 +54,20 @@ class NPImputation(ImputationWrapper):
         self.y_dim = input_size[2]
         self.z_dim = z_dim
 
+        self.train_sample_times = train_sample_times
+        self.val_sample_times = val_sample_times
+        self.test_sample_times = test_sample_times
+        self.predict_sample_times = predict_sample_times
+
         self.model = NeuralProcess(
-            self.x_dim, self.y_dim, encoder_layers, encoder_h_dim, decoder_layers, decoder_h_dim, r_dim, z_dim
+            self.x_dim,
+            self.y_dim,
+            encoder_layers,
+            encoder_h_dim,
+            decoder_layers,
+            decoder_h_dim,
+            r_dim,
+            z_dim,
         )
 
     def forward(self, x_context, y_context, x_target, y_target=None):
@@ -62,7 +84,7 @@ class NPImputation(ImputationWrapper):
         amputed = torch.nan_to_num(amputed, nan=0.0).to(self.device)
 
         # Create and rearrange x to be the same shape as variables (x is timesteps)
-        x = torch.arange(0, num_timesteps).to(self.device)
+        x = torch.arange(0, num_timesteps, device=self.device)
         x = x.repeat(batch_size)
         x = x.repeat(num_obs_var)
         x = x.reshape(batch_size, num_timesteps, num_obs_var)
@@ -70,25 +92,23 @@ class NPImputation(ImputationWrapper):
 
         # Do a context/target split with mask - see CSDI implemnetation - line 56
         # https://github.com/ermongroup/CSDI/blob/main/main_model.py
-        x_context, y_context, x_target, y_target = self._context_target_split(x, amputed, mask)
+        x_context, y_context, x_target, y_target = self._context_target_split(
+            x, amputed, mask
+        )
 
         # Get the predicted probability distribution
-        p_y_pred, q_context, q_target = self(x_context, y_context, x_target, y_target)
+        p_y_pred, _, _ = self(x_context, y_context, x_target, y_target)
 
-        loss = self.loss(p_y_pred.rsample(), y_target)
+        # Sample K times to ensure that we select the best sample for gradient descent
+        best_loss = self.loss(p_y_pred.rsample(), y_target)
 
-        self.log("train/loss", loss.item(), prog_bar=True)
-        return loss
+        for _ in range(0, self.train_sample_times):
+            loss = self.loss(p_y_pred.rsample(), y_target)
+            if best_loss < loss:
+                best_loss = loss
 
-    # Do a sanity check when training ends for any nans
-    def on_train_end(self) -> None:
-        try:
-            finite_checks.detect_nan_parameters(self.model)
-        except ValueError:
-            logging.error("Found nan values in the model gradients:")
-            finite_checks.print_nan_gradients(self.model)
-            quit()
-        return super().on_train_end()
+        self.log("train/loss", best_loss.item(), prog_bar=True)
+        return best_loss
 
     # Override the validation step - needed for the custom loss calculation
     @torch.no_grad()
@@ -101,7 +121,7 @@ class NPImputation(ImputationWrapper):
         amputed = torch.nan_to_num(amputed, nan=0.0).to(self.device)
 
         # Create and rearrange x to be the same shape as variables (x is timesteps)
-        x = torch.arange(0, num_timesteps).to(self.device)
+        x = torch.arange(0, num_timesteps, device=self.device)
         x = x.repeat(batch_size)
         x = x.repeat(num_obs_var)
         x = x.reshape(batch_size, num_timesteps, num_obs_var)
@@ -109,29 +129,50 @@ class NPImputation(ImputationWrapper):
 
         # Do a context/target split with mask - see CSDI implemnetation - line 56
         # https://github.com/ermongroup/CSDI/blob/main/main_model.py
-        x_context, y_context, x_target, y_target = self._context_target_split(x, amputed, mask)
+        x_context, y_context, x_target, y_target = self._context_target_split(
+            x, amputed, mask
+        )
 
         # Get the predicted probability distribution
-        p_y_pred, q_context, q_target = self(x_context, y_context, x_target, y_target)
+        p_y_pred, _, _ = self(x_context, y_context, x_target, y_target)
 
-        loss = self.loss(p_y_pred.rsample(), y_target)
+        # Sample K times to ensure that we select the best sample for gradient descent
+        best_loss = self.loss(p_y_pred.rsample(), y_target)
 
-        self.log("val/loss", loss.item(), prog_bar=True)
+        for _ in range(0, self.val_sample_times):
+            loss = self.loss(p_y_pred.rsample(), y_target)
+            if best_loss < loss:
+                best_loss = loss
+
+        self.log("val/loss", best_loss.item(), prog_bar=True)
 
         # Do metric calculations - take x_target to be the full size now
-        x_target = x.to(self.device)
+        x_target = x
 
         # Get the predicted probability distribution
         p_y_pred = self(x_context, y_context, x_target)
 
-        # Sample the distribution to put the values from it into the amputed dataset
-        generated = p_y_pred.sample()
-        # Use the indexing functionality of tensor to impute values into the indicies specified by the mask
+        # Sample the distribution K times to put the values from it into the amputed dataset
+        generated_list = []
+        for _ in range(0, self.val_sample_times):
+            generated = p_y_pred.sample()
+            generated_list.append(generated)
+
+        # Calculate mean of all K samples - dim = 0 is required to do a element-wise mean
+        #   calculation on multidimensional tensor stack
+        generated = torch.mean(torch.stack(generated_list), dim=0).to(self.device)
+        # Use the indexing functionality of tensor to impute values into the indicies
+        # specified by the mask
         amputed[mask > 0] = generated[mask > 0]
 
         # Update the metrics
         for metric in self.metrics["val"].values():
-            metric.update((torch.flatten(amputed, start_dim=1), torch.flatten(complete, start_dim=1)))
+            metric.update(
+                (
+                    torch.flatten(amputed, start_dim=1),
+                    torch.flatten(complete, start_dim=1),
+                )
+            )
 
     @torch.no_grad()
     def test_step(self, batch, _):
@@ -141,7 +182,7 @@ class NPImputation(ImputationWrapper):
         batch_size, num_timesteps, num_obs_var = amputed.shape
 
         # Create and rearrange x to be the same shape as variables (x is timesteps)
-        x = torch.arange(0, num_timesteps).to(self.device)
+        x = torch.arange(0, num_timesteps, device=self.device)
         x = x.repeat(batch_size)
         x = x.repeat(num_obs_var)
         x = x.reshape(batch_size, num_timesteps, num_obs_var)
@@ -152,24 +193,38 @@ class NPImputation(ImputationWrapper):
 
         x_context, y_context, _, _ = self._context_target_split(x, amputed, mask)
 
-        x_target = x.to(self.device)
+        x_target = x
 
         # Get the predicted probability distribution
         p_y_pred = self(x_context, y_context, x_target)
 
-        # Sample the distribution to put the values from it into the amputed dataset
-        generated = p_y_pred.sample()
-        # Use the indexing functionality of tensor to impute values into the indicies specified by the mask
+        # Sample the distribution K times to put the values from it into the amputed dataset
+        generated_list = []
+        for _ in range(0, self.test_sample_times):
+            generated = p_y_pred.sample()
+            generated_list.append(generated)
+
+        # Calculate mean of all K samples - dim = 0 is required to do a element-wise mean
+        #   calculation on multidimensional tensor stack
+        generated = torch.mean(torch.stack(generated_list), dim=0).to(self.device)
+        # Use the indexing functionality of tensor to impute values into the indicies
+        # specified by the mask
         amputed[mask > 0] = generated[mask > 0]
 
-        # In val/test loops, use the MSE loss - KL divergence can't be calculated without target distribution
+        # In val/test loops, use the MSE loss - KL divergence can't be calculated
+        # without target distribution
         loss = self.loss(amputed, complete)
 
         self.log("test/loss", loss.item(), prog_bar=True)
 
         # Update the metrics
         for metric in self.metrics["test"].values():
-            metric.update((torch.flatten(amputed, start_dim=1), torch.flatten(complete, start_dim=1)))
+            metric.update(
+                (
+                    torch.flatten(amputed, start_dim=1),
+                    torch.flatten(complete, start_dim=1),
+                )
+            )
 
     def predict(self, data):
         self.model.eval()
@@ -181,10 +236,10 @@ class NPImputation(ImputationWrapper):
         observation_mask = ~(torch.isnan(data))
 
         # Create and rearrange x to be the same shape as variables (x is timesteps)
-        x = torch.arange(0, num_timesteps).to(self.device)
+        x = torch.arange(0, num_timesteps, device=self.device)
         x = x.repeat(batch_size)
         x = x.repeat(num_obs_var)
-        x = x.reshape(batch_size, num_timesteps, num_obs_var) 
+        x = x.reshape(batch_size, num_timesteps, num_obs_var)
 
         x_context = x * observation_mask
         y_context = torch.nan_to_num(data, nan=0.0).to(self.device)
@@ -193,7 +248,15 @@ class NPImputation(ImputationWrapper):
 
         p_y_pred = self(x_context, y_context, x_target)
 
-        generated = p_y_pred.sample()
+        # Sample the distribution K times to put the values from it into the amputed dataset
+        generated_list = []
+        for _ in range(0, self.predict_sample_times):
+            generated = p_y_pred.sample()
+            generated_list.append(generated)
+
+        # Calculate mean of all K samples - dim = 0 is required to do a element-wise mean calculation on
+        #   multidimensional tensor stack
+        generated = torch.mean(torch.stack(generated_list), dim=0).to(self.device)
         data[observation_mask == 0] = generated[observation_mask == 0]
 
         return data
@@ -205,10 +268,11 @@ class NPImputation(ImputationWrapper):
         # Generate a random tensor with the same dimensions as mask and multiply mask by it
         # This removes all missing values from the following calculations
         rand_for_mask = torch.rand_like(observed_mask) * observed_mask
-        # Create a context mask - the selection of the elements is so that only 50% of all observed values are selected
+        # Create a context mask - the selection of the elements is so that only
+        # 50% of all observed values are selected
         context_mask = (rand_for_mask > 0.5).float()
-        # Create a target mask - the selection of the elements is so that all values not selected by the context mask 
-        #  but are still observed are selected
+        # Create a target mask - the selection of the elements is so that all values
+        # not selected by the context mask but are still observed are selected
         target_mask = (~(rand_for_mask > 0.5)).float() * observed_mask
 
         # Multiply x and y by masks to get the context/target split
@@ -216,7 +280,7 @@ class NPImputation(ImputationWrapper):
         y_context = y * context_mask
 
         x_target = x * target_mask
-        y_target = y * target_mask        
+        y_target = y * target_mask
 
         return x_context, y_context, x_target, y_target
 
