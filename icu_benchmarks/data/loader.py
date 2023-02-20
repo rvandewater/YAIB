@@ -2,11 +2,10 @@ from typing import List
 from pandas import DataFrame
 import gin
 import numpy as np
-import torch
-from torch import Tensor
+from torch import Tensor, cat, from_numpy, float32
+from torch.utils.data import Dataset
 import logging
 from typing import Dict, Tuple
-from torch.utils.data import Dataset
 
 from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
@@ -58,7 +57,7 @@ class SICUDataset(Dataset):
                 if len(values) <= i:
                     values.append([])
                 values[i].append(value.unsqueeze(0))
-        return [torch.cat(value, dim=0) for value in values]
+        return [cat(value, dim=0) for value in values]
 
 @gin.configurable("ClassificationDataset")
 class ClassificationDataset(SICUDataset):
@@ -118,7 +117,7 @@ class ClassificationDataset(SICUDataset):
         labels = labels.astype(np.float32)
         data = window.astype(np.float32)
 
-        return torch.from_numpy(data), torch.from_numpy(labels), torch.from_numpy(pad_mask)
+        return from_numpy(data), from_numpy(labels), from_numpy(pad_mask)
 
     def get_balance(self) -> list:
         """Return the weight balance for the split of interest.
@@ -201,9 +200,9 @@ class ImputationDataset(SICUDataset):
         amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
 
         return (
-            torch.from_numpy(amputated_window.values).to(torch.float32),
-            torch.from_numpy(amputation_mask.values).to(torch.float32),
-            torch.from_numpy(window.values).to(torch.float32),
+            from_numpy(amputated_window.values).to(float32),
+            from_numpy(amputation_mask.values).to(float32),
+            from_numpy(window.values).to(float32),
         )
 
 
@@ -271,4 +270,4 @@ class ImputationPredictionDataset(Dataset):
         # slice to make sure to always return a DF
         window = self.dyn_df.loc[stay_id:stay_id, :]
 
-        return torch.from_numpy(window.values).to(torch.float32)
+        return from_numpy(window.values).to(float32)

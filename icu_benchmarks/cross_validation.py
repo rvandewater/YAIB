@@ -48,6 +48,7 @@ def execute_repeated_cv(
         load_cache: Whether to load previously cached data.
         test_on: Dataset to test on. Can be "test" or "val" (e.g. for hyperparameter tuning).
         mode: Run mode. Can be one of the values of RunMode
+        pretrained_imputation_model: Use a pretrained imputation model.
         cpu: Whether to run on CPU.
     Returns:
         The average loss of all folds.

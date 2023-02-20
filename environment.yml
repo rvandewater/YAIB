@@ -1,9 +1,10 @@
-name: yaib_impute
+name: yaib_impute2
 channels:
   - pytorch
   - conda-forge
   - anaconda
 dependencies:
+  - python=3.10
   - black=22.10.0
   - coverage=6.5.0
   - flake8=5.0.4
