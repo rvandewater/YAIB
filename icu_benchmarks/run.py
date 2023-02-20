@@ -4,7 +4,6 @@ from datetime import datetime
 import gin
 import logging
 import sys
-import torch
 from pathlib import Path
 
 import importlib.util
