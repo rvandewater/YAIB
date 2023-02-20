@@ -35,7 +35,7 @@ def train_common(
     test_on: str = Split.test,
     use_wandb: bool = True,
     cpu: bool = False,
-    num_workers: int = min(torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 16),
+    num_workers: int = min(len(os.sched_getaffinity(0)), torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 16),
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -44,11 +44,13 @@ def train_common(
         log_dir: Path to directory where model output should be saved.
         load_weights: If set to true, skip training and load weights from source_dir instead.
         source_dir: If set to load weights, path to directory containing trained weights.
+        seed: Common seed used for any random operation.
         reproducible: If set to true, set torch to run reproducibly.
         mode: Mode of the model. Can be one of the values of RunMode.
         model: Model to be trained.
         weight: Weight to be used for the loss function.
         optimizer: Optimizer to be used for training.
+        do_test: If set to true, evaluate the model on the test set.
         batch_size: Batch size to be used for training.
         epochs: Number of epochs to train for.
         patience: Number of epochs to wait before early stopping.

@@ -169,8 +169,6 @@ def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newl
         "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars),
     )
 
-# aggregate_results(Path(r"C:\Users\Robin\Downloads\2023-02-12T15-46-31"))
-
 def load_pretrained_imputation_model(use_pretrained_imputation):
     if use_pretrained_imputation is not None and not Path(use_pretrained_imputation).exists():
         logging.warning("the specified pretrained imputation model does not exist")

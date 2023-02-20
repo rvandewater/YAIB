@@ -4,6 +4,7 @@ from datetime import datetime
 import gin
 import logging
 import sys
+import torch
 from pathlib import Path
 
 import importlib.util
@@ -36,7 +37,7 @@ def main(my_args=tuple(sys.argv[1:])):
 
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
     logging.basicConfig(format=log_fmt)
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
 
     load_weights = args.command == "evaluate"
     args.data_dir = Path(args.data_dir)
@@ -140,6 +141,6 @@ def main(my_args=tuple(sys.argv[1:])):
         plot_aggregated_results(run_dir, "aggregated_test_metrics.json")
 
 
-# """Main module."""
-# if __name__ == "__main__":
-#     main()
+"""Main module."""
+if __name__ == "__main__":
+    main()
