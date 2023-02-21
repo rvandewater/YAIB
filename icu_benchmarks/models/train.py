@@ -16,6 +16,7 @@ from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 
+cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 
 @gin.configurable("train_common")
 def train_common(
@@ -35,7 +36,7 @@ def train_common(
     test_on: str = Split.test,
     use_wandb: bool = True,
     cpu: bool = False,
-    num_workers: int = min(len(os.sched_getaffinity(0)), torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 16),
+    num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -66,6 +67,7 @@ def train_common(
 
     train_dataset = dataset_class(data, split=Split.train)
     val_dataset = dataset_class(data, split=Split.val)
+    batch_size = min(batch_size, len(train_dataset), len(val_dataset))
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -140,7 +142,7 @@ def train_common(
     test_dataset = dataset_class(data, split=test_on)
     test_loader = DataLoader(
         test_dataset,
-        batch_size=batch_size * 4,
+        batch_size=min(batch_size * 4, len(test_dataset)),
         shuffle=False,
         num_workers=num_workers,
         pin_memory=True,

@@ -23,7 +23,5 @@ preprocess.vars = %vars
 ImputationDataset.vars = %vars
 ImputationDataset.ram_cache = True
 
-EMB = 6
-
 execute_repeated_cv.cv_repetitions = 5
 execute_repeated_cv.cv_folds = 5

@@ -18,19 +18,20 @@ class SICUDataset(Dataset):
         data: Dict of the different splits of the data.
         split: Either 'train','val' or 'test'.
         vars: Contains the names of columns in the data.
-        static_segment: str, optional: The segment of the data contains the grouping column with only unique values. Defaults to Segment.outcome.
+        grouping_segment: str, optional: The segment of the data contains the grouping column with only unique values. Defaults to Segment.outcome.
+            Is used to calculate the number of stays in the data.
     """
 
-    def __init__(self, data: dict, split: str = Split.train, vars: Dict[str, str] = gin.REQUIRED, static_segment: str = Segment.outcome):
+    def __init__(self, data: dict, split: str = Split.train, vars: Dict[str, str] = gin.REQUIRED, grouping_segment: str = Segment.outcome):
         self.split = split
         self.vars = vars
-        self.static_df = data[split][static_segment].set_index(self.vars["GROUP"])
+        self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
         self.features_df = (
             data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
         )
 
         # calculate basic info for the data
-        self.num_stays = self.static_df.index.unique().shape[0]
+        self.num_stays = self.grouping_df.index.unique().shape[0]
         self.maxlen = self.features_df.groupby([self.vars["GROUP"]]).size().max()
     
     def ram_cache(self, cache: bool = True):
@@ -68,8 +69,8 @@ class ClassificationDataset(SICUDataset):
     """
     
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
-        super().__init__(*args, static_segment=Segment.outcome, **kwargs)
-        self.outcome_df = self.static_df
+        super().__init__(*args, grouping_segment=Segment.outcome, **kwargs)
+        self.outcome_df = self.grouping_df
         self.ram_cache(ram_cache)
     
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
@@ -169,7 +170,7 @@ class ImputationDataset(SICUDataset):
         mask_observation_proportion=0.3,
         ram_cache: bool = True,
     ):
-        super().__init__(data, split, vars, static_segment=Segment.static)
+        super().__init__(data, split, vars, grouping_segment=Segment.static)
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion
         )
@@ -192,7 +193,7 @@ class ImputationDataset(SICUDataset):
         """
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
-        stay_id = self.static_df.iloc[idx].name
+        stay_id = self.grouping_df.iloc[idx].name
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
