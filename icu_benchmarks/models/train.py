@@ -4,10 +4,10 @@ import torch
 import logging
 import pandas as pd
 from torch.optim import Adam
+from torch.utils.data import DataLoader
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
-from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
-from torch.utils.data import DataLoader
 from pathlib import Path
 
 from icu_benchmarks.wandb_utils import set_wandb_run_name
@@ -55,16 +55,17 @@ def train_common(
         min_delta: Minimum change in loss to be considered an improvement.
         test_on: If set to "test", evaluate the model on the test set. If set to "val", evaluate on the validation set.
         use_wandb: If set to true, log to wandb.
+        cpu: If set to true, run on cpu.
         num_workers: Number of workers to use for data loading.
     """
     logging.info(f"Training model: {model.__name__}")
-    DatasetClass = ImputationDataset if mode == RunMode.imputation else ClassificationDataset
+    dataset_class = ImputationDataset if mode == RunMode.imputation else ClassificationDataset
 
     logging.info(f"Logging to directory: {log_dir}")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
-    train_dataset = DatasetClass(data, split=Split.train)
-    val_dataset = DatasetClass(data, split=Split.val)
+    train_dataset = dataset_class(data, split=Split.train)
+    val_dataset = dataset_class(data, split=Split.val)
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -95,7 +96,7 @@ def train_common(
             model = model.load_state_dict(checkpoint["state_dict"])
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
-    
+
     model.set_trained_columns(train_dataset.get_feature_names())
 
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
@@ -136,8 +137,7 @@ def train_common(
         trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
         logging.info("Training complete.")
 
-
-    test_dataset = DatasetClass(data, split=test_on)
+    test_dataset = dataset_class(data, split=test_on)
     test_loader = DataLoader(
         test_dataset,
         batch_size=batch_size * 4,
