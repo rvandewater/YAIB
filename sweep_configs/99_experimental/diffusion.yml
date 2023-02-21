@@ -1,0 +1,22 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/miiv"
+  - "-t"
+  - "DatasetImputation"
+  - "-c"
+  - "--wandb-sweep"
+  - "--wandb"
+method: grid
+parameters:
+  model:
+    values: ["MostFrequent", "Simple_Diffusion", "Diffusion", "CSDI", "SSSDS4", "SSSDSA"] # DiffWave not working yet
+  ImputationDataset.mask_method:
+    values: ["MCAR", "MAR", "MNAR"]
+  seed:
+    values: [1111, 2222, 3333]
+  data_dir:
+    values: ["../data/miiv", "../data/eicu", "../data/hirid"]
