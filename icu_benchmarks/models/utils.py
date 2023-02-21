@@ -125,7 +125,7 @@ class JsonResultLoggingEncoder(JSONEncoder):
         return JSONEncoder.default(self, obj)
 
 
-class Align(Enum):
+class Align(str, Enum):
     LEFT = "<"
     CENTER = "^"
     RIGHT = ">"
