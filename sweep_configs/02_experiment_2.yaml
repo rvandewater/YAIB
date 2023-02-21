@@ -1,0 +1,20 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/window_preprocessed"
+  - "-t"
+  - "DatasetImputation"
+  - "-c"
+  - "--wandb-sweep"
+  - "--wandb"
+method: grid
+parameters:
+  model:
+    values: ["Mean", "Median", "Zero", "MostFrequent"]
+  ImputationDataset.mask_method:
+    values: ["MCAR", "MAR", "MNAR"]
+  seed:
+    values: [1111, 2222, 3333]
