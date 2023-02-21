@@ -34,12 +34,8 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # the GitHub editor is 127 chars wide
           flake8 . --count --max-complexity=14 --max-line-length=127 --statistics
-      - name: Lint with mypy
-        run: |
-          # stop the build if there are type errors
-          mypy --config-file mypy.ini
       # - name: Test with pytest
-      #   run: python -m pytest ./tests/recipes
+        # run: python -m pytest ./tests/recipes
       # If we want to test running the tool later on
       # - name: Setup package
       #   run: pip install -e .

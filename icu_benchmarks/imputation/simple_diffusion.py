@@ -1,4 +1,4 @@
-# Source: 
+# Source:
 # https://colab.research.google.com/drive/1sjy9odlSSy0RBVgMTgP7s99NXsqglsUL?usp=sharing#scrollTo=qWw50ui9IZ5q
 # Tutorial:
 # https://m.youtube.com/watch?v=a4Yfz2FxXiY
@@ -10,16 +10,16 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+
 @gin.configurable("Simple_Diffusion")
 class Simple_Diffusion_Model(ImputationWrapper):
-
     needs_training = True
     needs_fit = False
 
     input_size = []
 
     def __init__(self, *args, input_size, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, input_size=input_size, **kwargs)
 
         down_channels = (25, 20, 18, 15)
         up_channels = (15, 18, 20, 25)
@@ -29,23 +29,24 @@ class Simple_Diffusion_Model(ImputationWrapper):
 
         # Time embedding
         self.time_mlp = nn.Sequential(
-            SinusoidalPositionEmbeddings(time_emb_dim),
-            nn.Linear(time_emb_dim, time_emb_dim),
-            nn.ReLU()
+            SinusoidalPositionEmbeddings(time_emb_dim), nn.Linear(time_emb_dim, time_emb_dim), nn.ReLU()
         )
 
         # Initial projection
         self.conv0 = nn.Conv1d(input_size[1], down_channels[0], 2)
 
         # Downsample
-        self.downs = nn.ModuleList([Block(down_channels[i], down_channels[i+1], time_emb_dim) for i in range(len(down_channels) - 1)])
+        self.downs = nn.ModuleList(
+            [Block(down_channels[i], down_channels[i + 1], time_emb_dim) for i in range(len(down_channels) - 1)]
+        )
 
         # Upsample
-        self.ups = nn.ModuleList([Block(up_channels[i], up_channels[i+1], time_emb_dim, up=True) for i in range(len(up_channels) - 1)])
+        self.ups = nn.ModuleList(
+            [Block(up_channels[i], up_channels[i + 1], time_emb_dim, up=True) for i in range(len(up_channels) - 1)]
+        )
 
         # Final Output
         self.output = nn.ConvTranspose1d(up_channels[-1], input_size[1], 2)
-
 
     def forward(self, amputated, timestep):
         amputated = torch.nan_to_num(amputated, nan=0.0)
@@ -79,54 +80,62 @@ class Simple_Diffusion_Model(ImputationWrapper):
         return torch.linspace(start, end, timesteps)
 
     def get_index_from_list(self, vals, t, x_shape):
-        """ 
+        """
         Returns a specific index t of a passed list of values vals
         while considering the batch dimension.
         """
         batch_size = t.shape[0]
-        out = vals.gather(-1, t.cpu())
+        # print(t.device, vals.device)
+        out = vals.gather(-1, t)
         return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
 
-    def forward_diffusion_sample(self, x_0, t, device="cpu"):
-        """ 
-        Takes an image and a timestep as input and 
+    def forward_diffusion_sample(self, x_0, t):
+        """
+        Takes an image and a timestep as input and
         returns the noisy version of it
         """
         noise = torch.randn_like(x_0)
         sqrt_alphas_cumprod_t = self.get_index_from_list(self.sqrt_alphas_cumprod, t, x_0.shape)
-        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(
-            self.sqrt_one_minus_alphas_cumprod, t, x_0.shape
-        )
+        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, x_0.shape)
         # mean + variance
-        return sqrt_alphas_cumprod_t.to(device) * x_0.to(device) \
-        + sqrt_one_minus_alphas_cumprod_t.to(device) * noise.to(device), noise.to(device)
+        return sqrt_alphas_cumprod_t * x_0 + sqrt_one_minus_alphas_cumprod_t * noise, noise
 
     # Define beta schedule
     T = 300
     betas = linear_beta_schedule(timesteps=T)
 
     # Pre-calculate different terms for closed form
-    alphas = 1. - betas
+    alphas = 1.0 - betas
     alphas_cumprod = torch.cumprod(alphas, axis=0)
     alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
     sqrt_recip_alphas = torch.sqrt(1.0 / alphas)
     sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
-    sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - alphas_cumprod)
-    posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
+    sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
+    posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
 
     def get_loss(self, x_0, t):
-        x_noisy, noise = self.forward_diffusion_sample(x_0, t, self.device)
+        x_noisy, noise = self.forward_diffusion_sample(x_0, t)
         noise_pred = self(x_noisy, t)
         return F.l1_loss(noise, noise_pred)
 
-    def training_step(self, batch):
+    def on_fit_start(self) -> None:
+        self.betas = self.betas.to(self.device)
+        self.alphas = self.alphas.to(self.device)
+        self.alphas_cumprod = self.alphas_cumprod.to(self.device)
+        self.alphas_cumprod_prev = self.alphas_cumprod_prev.to(self.device)
+        self.sqrt_recip_alphas = self.sqrt_recip_alphas.to(self.device)
+        self.sqrt_alphas_cumprod = self.sqrt_alphas_cumprod.to(self.device)
+        self.sqrt_one_minus_alphas_cumprod = self.sqrt_one_minus_alphas_cumprod.to(self.device)
+        self.posterior_variance = self.posterior_variance.to(self.device)
+        super().on_fit_start()
 
+    def training_step(self, batch):
         amputated, amputation_mask, target = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
 
         t = torch.randint(0, self.T, (self.input_size[0],), device=self.device).long()
         loss = self.get_loss(target, t)
-        
+
         self.log("train/loss", loss.item(), prog_bar=True)
 
         for metric in self.metrics["train"].values():
@@ -135,7 +144,6 @@ class Simple_Diffusion_Model(ImputationWrapper):
         return loss
 
     def validation_step(self, batch, batch_index):
-
         amputated, amputation_mask, target = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
         # imputated = self(amputated, amputation_mask)
@@ -163,9 +171,8 @@ class Simple_Diffusion_Model(ImputationWrapper):
 
         for metric in self.metrics["val"].values():
             metric.update((torch.flatten(imputated, start_dim=1), torch.flatten(target, start_dim=1)))
-            
-    def test_step(self, batch, batch_index):
 
+    def test_step(self, batch, batch_index):
         amputated, amputation_mask, target = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
         # imputated = self(amputated, amputation_mask)
@@ -233,7 +240,7 @@ class Block(nn.Module):
         # Time Embedding
         time_emb = self.relu(self.time_mlp(t))
         # Extend last dimension
-        time_emb = time_emb[(..., ) + (None, )]
+        time_emb = time_emb[(...,) + (None,)]
         # Add time
         h += time_emb
         # Second Convolution

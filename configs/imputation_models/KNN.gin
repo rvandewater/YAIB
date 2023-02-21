@@ -5,10 +5,7 @@ import icu_benchmarks.models.utils
 import icu_benchmarks.imputation.baselines
 import icu_benchmarks.data.preprocess
 
-preprocess.use_features = False
-
 # Train params
 train_common.model = @KNN
-train_common.do_test = True
 
 KNN.n_neighbors = 10

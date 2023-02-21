@@ -7,7 +7,7 @@ from torch.nn.utils import weight_norm
 
 
 @gin.configurable("masking")
-def parrallel_recomb(q_t, kv_t, att_type="all", local_context=3, bin_size=None):
+def parallel_recomb(q_t, kv_t, att_type="all", local_context=3, bin_size=None):
     """Return mask of attention matrix (ts_q, ts_kv)"""
     with torch.no_grad():
         q_t[q_t == -1.0] = float("inf")  # We want padded to attend to everyone to avoid any nan.
@@ -35,7 +35,7 @@ def parrallel_recomb(q_t, kv_t, att_type="all", local_context=3, bin_size=None):
 
 
 class PositionalEncoding(nn.Module):
-    "Positiona Encoding, mostly from: https://pytorch.org/tutorials/beginner/transformer_tutorial.html"
+    "Positional Encoding, mostly from: https://pytorch.org/tutorials/beginner/transformer_tutorial.html"
 
     def __init__(self, emb, max_len=3000):
         super().__init__()
@@ -54,18 +54,18 @@ class PositionalEncoding(nn.Module):
 
 class SelfAttention(nn.Module):
     """Multi Head Attention block from Attention is All You Need.
-    Input has shape (batch_size, n_timestemps, emb).
+    Input has shape (batch_size, n_timestamps, emb).
 
     ----------
     emb:
         Dimension of the input vector.
     hidden:
-        Dimension of query, key, value matrixes.
+        Dimension of query, key, value matrices.
     heads:
         Number of heads.
 
     mask:
-        Mask the future timestemps
+        Mask the future timestamps
     """
 
     def __init__(
@@ -79,13 +79,6 @@ class SelfAttention(nn.Module):
         self.hidden = hidden
         self.mask = mask
         self.drop_att = nn.Dropout(dropout_att)
-
-        if torch.cuda.is_available():
-            self.device = torch.device("cuda:0")
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            self.device = torch.device("mps:0")
-        else:
-            self.device = torch.device("cpu")
 
         # Sparse transformer specific params
         self.att_type = att_type
@@ -136,20 +129,19 @@ class SelfAttention(nn.Module):
                 if self.mask_aggregation == "union":
                     mask_tensor = 0
                     for att_type in self.att_type:
-                        mask_tensor += parrallel_recomb(
+                        mask_tensor += parallel_recomb(
                             torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
                             torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
                             att_type,
                             self.local_context,
                         )[0]
                     mask_tensor = torch.clamp(mask_tensor, 0, 1)
-                    dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(self.device)).view(bs * h, n, n)
+                    dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(dot.device)).view(bs * h, n, n)
 
                 elif self.mask_aggregation == "split":
-
                     dot_list = list(torch.split(dot, dot.shape[0] // len(self.att_type), dim=0))
                     for i, att_type in enumerate(self.att_type):
-                        mask_tensor = parrallel_recomb(
+                        mask_tensor = parallel_recomb(
                             torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
                             torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
                             att_type,
@@ -157,17 +149,17 @@ class SelfAttention(nn.Module):
                         )[0]
 
                         dot_list[i] = torch.where(
-                            mask_tensor.bool(), dot_list[i], torch.tensor(float("-inf")).to(self.device)
+                            mask_tensor.bool(), dot_list[i], torch.tensor(float("-inf")).to(dot.device)
                         ).view(*dot_list[i].shape)
                     dot = torch.cat(dot_list, dim=0)
             else:  # Full causal masking
-                mask_tensor = parrallel_recomb(
+                mask_tensor = parallel_recomb(
                     torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
                     torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
                     self.att_type,
                     self.local_context,
                 )[0]
-                dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(self.device)).view(bs * h, n, n)
+                dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(dot.device)).view(bs * h, n, n)
 
         # dot now has row-wise self-attention probabilities
         dot = F.softmax(dot, dim=2)

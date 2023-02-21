@@ -1,7 +1,7 @@
-include "configs/tasks/Mortality_At24Hours.gin"
+include "configs/tasks/BinaryClassification.gin"
 include "configs/models/LGBMClassifier.gin"
 
-LGBMClassifier.model_args.max_depth = 7
-LGBMClassifier.model_args.num_leaves = 32
-LGBMClassifier.model_args.subsample = 1
-LGBMClassifier.model_args.colsample_bytree = 0.66
+model/hyperparameter.max_depth = 7
+model/hyperparameter.num_leaves = 32
+model/hyperparameter.subsample = 1
+model/hyperparameter.colsample_bytree = 0.66

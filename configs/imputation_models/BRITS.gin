@@ -5,13 +5,10 @@ import icu_benchmarks.models.utils
 import icu_benchmarks.imputation.baselines
 import icu_benchmarks.data.preprocess
 
-preprocess.use_features = False
-
 # Train params
 train_common.model = @BRITS
-train_common.do_test = True
+train_common.epochs = 100
 
 # Model params
 BRITS.rnn_hidden_size = 64
 BRITS.batch_size = 256
-BRITS.epochs = 10

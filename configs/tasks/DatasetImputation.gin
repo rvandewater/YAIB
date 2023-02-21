@@ -1,0 +1,33 @@
+
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.data.preprocess
+
+MODE = "Imputation"
+
+Run.mode = %MODE
+
+vars = {
+    "GROUP": "stay_id",
+    "SEQUENCE": "time",
+    "DYNAMIC": ["hr","map","sbp", "dbp", "resp", "o2sat"],
+    "STATIC": ["age", "sex", "height", "weight"],
+}
+
+preprocess.file_names = {
+    "DYNAMIC": "dyn.parquet",
+    "STATIC": "sta.parquet",
+}
+
+preprocess.preprocessor = @base_imputation_preprocessor
+
+preprocess.vars = %vars
+ImputationDataset.vars = %vars
+ImputationDataset.ram_cache = True
+base_imputation_preprocessor.window_size = 1500
+base_imputation_preprocessor.window_stride = 20
+
+EMB = 6
+
+execute_repeated_cv.cv_repetitions = 5
+execute_repeated_cv.cv_folds = 5
