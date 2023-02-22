@@ -5,7 +5,6 @@ from torch.nn import MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 import inspect
-
 import gin
 import lightgbm
 import numpy as np
@@ -15,11 +14,12 @@ from sklearn.metrics import mean_absolute_error
 import torch
 from ignite.exceptions import NotComputableError
 
+from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 
 from pytorch_lightning import LightningModule
 
-from icu_benchmarks.models.metric_constants import MLMetrics, DLMetrics
+from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.models.metrics import MAE
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
@@ -85,19 +85,19 @@ class DLWrapper(BaseModule):
     _metrics_warning_printed = set()
 
     def __init__(
-        self,
-        loss=CrossEntropyLoss(),
-        optimizer=torch.optim.Adam,
-        input_shape=None,
-        lr: float = 0.002,
-        momentum: float = 0.9,
-        lr_scheduler: Optional[str] = None,
-        lr_factor: float = 0.99,
-        lr_steps: Optional[List[int]] = None,
-        epochs: int = 100,
-        input_size: torch.Tensor = None,
-        initialization_method: str = "normal",
-        **kwargs,
+            self,
+            loss=CrossEntropyLoss(),
+            optimizer=torch.optim.Adam,
+            input_shape=None,
+            lr: float = 0.002,
+            momentum: float = 0.9,
+            lr_scheduler: Optional[str] = None,
+            lr_factor: float = 0.99,
+            lr_steps: Optional[List[int]] = None,
+            epochs: int = 100,
+            input_size: torch.Tensor = None,
+            initialization_method: str = "normal",
+            **kwargs,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])
@@ -223,7 +223,7 @@ class DLClassificationWrapper(DLWrapper):
         target = torch.masked_select(labels, mask).to(self.device)
         if prediction.shape[-1] > 1:
             loss = (
-                self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
+                    self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
             )  # torch.long because NLL
         else:
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss  # Regression task
@@ -367,17 +367,17 @@ class ImputationWrapper(DLWrapper):
     needs_fit = False
 
     def __init__(
-        self,
-        loss: _Loss = MSELoss(),
-        optimizer: Union[str, Optimizer] = "adam",
-        lr: float = 0.002,
-        momentum: float = 0.9,
-        lr_scheduler: Optional[str] = None,
-        lr_factor: float = 0.99,
-        lr_steps: Optional[List[int]] = None,
-        input_size: torch.Tensor = None,
-        initialization_method: str = "normal",
-        **kwargs: str,
+            self,
+            loss: _Loss = MSELoss(),
+            optimizer: Union[str, Optimizer] = "adam",
+            lr: float = 0.002,
+            momentum: float = 0.9,
+            lr_scheduler: Optional[str] = None,
+            lr_factor: float = 0.99,
+            lr_steps: Optional[List[int]] = None,
+            input_size: torch.Tensor = None,
+            initialization_method: ImputationInit = ImputationInit.NORMAL,
+            **kwargs: str,
     ) -> None:
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])
@@ -391,16 +391,16 @@ class ImputationWrapper(DLWrapper):
         def init_func(m):
             classname = m.__class__.__name__
             if hasattr(m, "weight") and (classname.find("Conv") != -1 or classname.find("Linear") != -1):
-                if init_type == "normal":
+                if init_type == ImputationInit.NORMAL:
                     torch.nn.init.normal_(m.weight.data, 0.0, gain)
-                elif init_type == "xavier":
+                elif init_type == ImputationInit.XAVIER:
                     torch.nn.init.xavier_normal_(m.weight.data, gain=gain)
-                elif init_type == "kaiming":
+                elif init_type == ImputationInit.KAIMING:
                     torch.nn.init.kaiming_normal_(m.weight.data, a=0, mode="fan_out")
-                elif init_type == "orthogonal":
+                elif init_type == ImputationInit.ORTHOGONAL:
                     torch.nn.init.orthogonal_(m.weight.data, gain=gain)
                 else:
-                    raise NotImplementedError("initialization method [%s] is not implemented" % init_type)
+                    raise NotImplementedError(f"Initialization method {init_type} is not implemented")
                 if hasattr(m, "bias") and m.bias is not None:
                     torch.nn.init.constant_(m.bias.data, 0.0)
             elif classname.find("BatchNorm2d") != -1:
@@ -414,7 +414,7 @@ class ImputationWrapper(DLWrapper):
         for metrics in self.metrics.values():
             for metric in metrics.values():
                 metric.reset()
-        logging.info("RESET METRICS")
+        logging.info("IMPUTATION METRICS RESET.")
         return super().on_fit_start()
 
     def step_fn(self, batch, step_prefix=""):

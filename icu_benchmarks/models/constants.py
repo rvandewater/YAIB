@@ -14,6 +14,7 @@ from sklearn.metrics import (
     mean_squared_error,
     # f1_score,
 )
+from enum import Enum
 
 from icu_benchmarks.models.metrics import CalibrationCurve, BalancedAccuracy, MAE, JSD
 
@@ -72,3 +73,12 @@ class DLMetrics:
         "mae": MAE,
         "jsd": JSD,
     }
+
+
+class ImputationInit(str, Enum):
+    """Type of initialization to use for the imputation model."""
+    NORMAL = "normal"
+    UNIFORM = "uniform"
+    XAVIER = "xavier"
+    KAIMING = "kaiming"
+    ORTHOGONAL = "orthogonal"

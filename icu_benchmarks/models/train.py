@@ -35,7 +35,7 @@ def train_common(
     patience=20,
     min_delta=1e-5,
     test_on: str = Split.test,
-    use_wandb: bool = True,
+    use_wandb: bool = False,
     cpu: bool = False,
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
@@ -60,10 +60,10 @@ def train_common(
         cpu: If set to true, run on cpu.
         num_workers: Number of workers to use for data loading.
     """
-    logging.info(f"Training model: {model.__name__}")
+    logging.info(f"Training model: {model.__name__}.")
     dataset_class = ImputationDataset if mode == RunMode.imputation else ClassificationDataset
 
-    logging.info(f"Logging to directory: {log_dir}")
+    logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
     train_dataset = dataset_class(data, split=Split.train)
@@ -87,7 +87,6 @@ def train_common(
     )
 
     data_shape = next(iter(train_loader))[0].shape
-    logging.info(f"performing task on model {model.__name__}...")
 
     model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs)
     model.set_weight(weight, train_dataset)

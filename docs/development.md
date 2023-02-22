@@ -13,9 +13,14 @@ The following libraries are important to the operation of YAIB:
 - [Pytorch Ignite](https://github.com/pytorch/ignite): Library for training and evaluating neural networks in Pytorch.
 - [Cuda Toolkit](https://developer.nvidia.com/cuda-toolkit): GPU acceleration used for deep learning models.
 - [Scikit-learn](https://github.com/scikit-learn/scikit-learn): Machine learning library.
+- [Scikit-optimize](https://scikit-optimize.github.io/stable/): Used for Bayesian optimization.
 - [LightGBM](https://github.com/microsoft/LightGBM): Gradient boosting framework.
 - [GIN](https://github.com/google/gin-config): Provides a lightweight configuration framework for Python.
-
+- [Wandb](https://wandb.ai/): A tool for visualizing and tracking machine learning experiments.
+- [Pytest](https://docs.pytest.org/en/stable/): A testing framework for Python.
+### Imputation
+- [HyperImpute](https://github.com/vanderschaarlab/hyperimpute): Imputation library for MissForest and GAIN.
+- [PyPOTS](https://github.com/WenjieDu/PyPOTS): Imputation library.
 ## Run Tests
 
 ```
