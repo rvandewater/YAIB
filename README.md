@@ -113,9 +113,9 @@ for `Akute Kidney Injury`, `Mortality at 24h` and `Sepsis`.
 
 ## Preprocess and Train
 
-The following command will run training and evaluation on the MIMIC demo dataset for Mortality prediction at 24h with the
-LGBMClassifier.
-Child samples are reduced due to the small amount of training data.
+The following command will run training and evaluation on the MIMIC demo dataset for (Binary) Mortality prediction at 24h with the
+LGBMClassifier. Child samples are reduced due to the small amount of training data. We load available cache and, if available, load 
+existing cache files.
 
 ```
 icu-benchmarks train \
@@ -128,6 +128,7 @@ icu-benchmarks train \
     --generate_cache
     --load_cache \
     --seed 2222 \
+    -s 2222 \
     -l ../yaib_logs/ \
     --tune
 ```
@@ -219,7 +220,8 @@ icu-benchmarks evaluate \
     -t BinaryClassification \
     -tn Mortality24 \
     -m LGBMClassifier \
-    -c \
+    --generate_cache
+    --load_cache \
     -s 2222 \
     -l ../yaib_logs \
     -sn mimic \
