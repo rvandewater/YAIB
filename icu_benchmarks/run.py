@@ -21,7 +21,6 @@ from icu_benchmarks.run_utils import (
 from icu_benchmarks.contants import RunMode
 
 
-
 @gin.configurable("Run")
 def get_mode(mode: gin.REQUIRED):
     # Check if enum is mode.
@@ -51,14 +50,15 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.info(f"Task mode: {mode}")
     experiment = args.experiment
 
-    
     pretrained_imputation_model = load_pretrained_imputation_model(args.use_pretrained_imputation)
 
-    update_wandb_config({
-        "pretrained_imputation_model": pretrained_imputation_model.__class__.__name__
-        if pretrained_imputation_model is not None
-        else "None"
-    })
+    update_wandb_config(
+        {
+            "pretrained_imputation_model": pretrained_imputation_model.__class__.__name__
+            if pretrained_imputation_model is not None
+            else "None"
+        }
+    )
     source_dir = None
     # todo:check if this is correct
     reproducible = False

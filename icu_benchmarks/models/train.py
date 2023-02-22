@@ -18,6 +18,7 @@ from icu_benchmarks.data.constants import DataSplit as Split
 
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 
+
 @gin.configurable("train_common")
 def train_common(
     data: dict[str, pd.DataFrame],
@@ -140,18 +141,21 @@ def train_common(
         logging.info("Training complete.")
 
     test_dataset = dataset_class(data, split=test_on)
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=min(batch_size * 4, len(test_dataset)),
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=True,
-    ) if model.needs_training else DataLoader([test_dataset.to_tensor()], batch_size=1)
+    test_loader = (
+        DataLoader(
+            test_dataset,
+            batch_size=min(batch_size * 4, len(test_dataset)),
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=True,
+        )
+        if model.needs_training
+        else DataLoader([test_dataset.to_tensor()], batch_size=1)
+    )
 
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(
-        model,
-        dataloaders=test_loader,
-    )[0]["test/loss"]
+    test_loss = trainer.test(model, dataloaders=test_loader,)[
+        0
+    ]["test/loss"]
     save_config_file(log_dir)
     return test_loss

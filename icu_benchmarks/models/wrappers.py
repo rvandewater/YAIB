@@ -430,7 +430,7 @@ class ImputationWrapper(DLWrapper):
                 (torch.flatten(amputated.detach(), start_dim=1).clone(), torch.flatten(target.detach(), start_dim=1).clone())
             )
         return loss
-    
+
     def fit(self, train_dataset, val_dataset):
         raise NotImplementedError()
 

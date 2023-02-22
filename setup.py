@@ -9,12 +9,13 @@ from setuptools import setup, find_packages
 
 root_path = Path(__file__).resolve().parent
 
+
 def parse_environment_yml():
     """Parse the environment.yml file and extract the package names."""
     # here we cannot use pyyaml because it is not installed yet
     with open(root_path / "environment.yml") as f:
         lines = f.readlines()
-    
+
     lines = [line.strip() for line in lines]
     dependencies = []
     inside_dependencies = False
@@ -32,7 +33,7 @@ def parse_environment_yml():
             if dependency_name != "pip:":
                 dependencies.append(dependency_name)
             print("now dependencies:", dependencies)
-    
+
     sanitized_dependencies = []
     for dependency in dependencies:
         # conda package ignite is named pytorch-ignite on pypi
@@ -47,6 +48,7 @@ def parse_environment_yml():
         sanitized_dependencies.append(dependency)
     print("extraced dependencies:", sanitized_dependencies)
     return sanitized_dependencies
+
 
 with open("README.md") as readme_file:
     readme = readme_file.read()
