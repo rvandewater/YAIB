@@ -20,3 +20,9 @@ NP.decoder_h_dim = 72
 # Additional params
 NP.r_dim = 6    # Dimension of output representation r
 NP.z_dim = 6    # Dimension of latent variable z
+
+# Sampling params
+NP.train_sample_times = 100
+NP.val_sample_times = 500
+NP.test_sample_times = 500
+NP.predict_sample_times = 100

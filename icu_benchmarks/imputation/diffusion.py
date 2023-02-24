@@ -1,4 +1,4 @@
-# Source: 
+# Source:
 # https://colab.research.google.com/drive/1sjy9odlSSy0RBVgMTgP7s99NXsqglsUL?usp=sharing#scrollTo=qWw50ui9IZ5q
 # https://colab.research.google.com/github/huggingface/notebooks/blob/main/examples/annotated_diffusion.ipynb#scrollTo=290edb0b
 # Tutorial:
@@ -14,6 +14,7 @@ import math
 import torch
 from torch import nn
 import torch.nn.functional as F
+
 
 @gin.configurable("Diffusion")
 class Diffusion(ImputationWrapper):
@@ -52,43 +53,44 @@ class Diffusion(ImputationWrapper):
 
         ## Noise Schedulers ##
         # Linear
-        if self.noise_scheduler == 'linear':
+        if self.noise_scheduler == "linear":
             self.betas = torch.linspace(self.min_noise, self.max_noise, self.T)
         # Quadratic
-        elif self.noise_scheduler == 'quadratic':
-            self.betas = torch.linspace(self.min_noise ** 0.5, self.max_noise ** 0.5, self.T) ** 2
+        elif self.noise_scheduler == "quadratic":
+            self.betas = torch.linspace(self.min_noise**0.5, self.max_noise**0.5, self.T) ** 2
         # Cosine
-        elif self.noise_scheduler == 'cosine': 
+        elif self.noise_scheduler == "cosine":
             x = torch.linspace(0, self.T, self.T + 1)
             alphas_cumprod = torch.cos(((x / self.T) + 0.008) / (1 + 0.008) * torch.pi * 0.5) ** 2
             alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
             betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
             self.betas = torch.clip(betas, 0.0001, 0.9999)
         # Sigmoid
-        elif self.noise_scheduler == 'sigmoid':
+        elif self.noise_scheduler == "sigmoid":
             betas = torch.linspace(-6, 6, self.T)
             self.betas = torch.sigmoid(betas) * (self.max_noise - self.min_noise) + self.min_noise
         # Error
         else:
-            raise NotImplementedError("Noise Scheduler must be linear, quadratic, cosine or sigmoid.\n Your Entry: [%s] is not implemented" % self.noise_scheduler)
+            raise NotImplementedError(
+                "Noise Scheduler must be linear, quadratic, cosine or sigmoid.\n Your Entry: [%s] is not implemented"
+                % self.noise_scheduler
+            )
 
         # Helper Values
-        self.alphas = 1. - self.betas
+        self.alphas = 1.0 - self.betas
         self.alphas_cumprod = torch.cumprod(self.alphas, axis=0)
         self.alphas_cumprod_prev = F.pad(self.alphas_cumprod[:-1], (1, 0), value=1.0)
         self.sqrt_recip_alphas = torch.sqrt(1.0 / self.alphas)
         self.sqrt_alphas_cumprod = torch.sqrt(self.alphas_cumprod)
-        self.sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - self.alphas_cumprod)
-        self.posterior_variance = self.betas * (1. - self.alphas_cumprod_prev) / (1. - self.alphas_cumprod)
-        
+        self.sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - self.alphas_cumprod)
+        self.posterior_variance = self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+
         # Store Input Size
         self.input_size = input_size
 
         # Time embedding
         self.time_mlp = nn.Sequential(
-            SinusoidalPositionEmbeddings(input_size[2]),
-            nn.Linear(input_size[2], input_size[2]),
-            nn.ReLU()
+            SinusoidalPositionEmbeddings(input_size[2]), nn.Linear(input_size[2], input_size[2]), nn.ReLU()
         )
 
         # Blocks
@@ -118,7 +120,6 @@ class Diffusion(ImputationWrapper):
             x = torch.cat((x, residual), dim=1)
             x = up(x, t)
         return x.squeeze()
-
 
     def training_step(self, batch):
         amputated, amputation_mask, target = batch
@@ -164,7 +165,6 @@ class Diffusion(ImputationWrapper):
 
         return loss
 
-
     def validation_step(self, batch, batch_idx):
         amputated, amputation_mask, target = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
@@ -187,7 +187,6 @@ class Diffusion(ImputationWrapper):
         loss = F.l1_loss(noise, noise_pred)
 
         self.log("val/loss", loss.item(), prog_bar=True)
-        
 
     def test_step(self, batch, batch_idx):
         amputated, amputation_mask, target = batch
@@ -220,7 +219,6 @@ class Diffusion(ImputationWrapper):
         # Update Metrics
         for metric in self.metrics["test"].values():
             metric.update((torch.flatten(x_0, start_dim=1), torch.flatten(target, start_dim=1)))
-    
 
     # Helper function to return a value for a specific timestep t from a list reformatted for the current input size
     def get_index_from_list(self, values, t, x_shape):
@@ -250,7 +248,7 @@ class Diffusion(ImputationWrapper):
 
     # Function that takes a noised image at some timestep t and the noise prediction and tries to compute the original sample
     # The t here needs to be one specific timestamp -> always the same value, while it doesn't have to be like that in the forward diffusion sample function
-    def backward_diffusion_sample(self, noise_pred, x_t, t, t_index = 0):
+    def backward_diffusion_sample(self, noise_pred, x_t, t, t_index=0):
 
         betas_t = self.get_index_from_list(self.betas, t, x_t.shape)
         sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape)
@@ -264,6 +262,7 @@ class Diffusion(ImputationWrapper):
         else:
             noise = torch.randn_like(x_t)
             return model_mean + torch.sqrt(posterior_variance_t) * noise
+
 
 class Block(nn.Module):
     def __init__(self, input_size, i, up=False):
@@ -292,12 +291,13 @@ class Block(nn.Module):
         # Time Embedding
         time_emb = self.relu(self.time_mlp(t[:, None, :]))
         # Extend last dimension
-        time_emb = time_emb[(..., ) + (None, )]
+        time_emb = time_emb[(...,) + (None,)]
         # Add time
         h += time_emb
         # Second Convolution
         h = self.bnorm2(self.relu(self.conv2(h)))
         return self.transform(h)
+
 
 class SinusoidalPositionEmbeddings(nn.Module):
     def __init__(self, dim):

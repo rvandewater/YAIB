@@ -9,6 +9,7 @@ from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import log_full_line
+from icu_benchmarks.contants import RunMode
 
 
 @gin.configurable
@@ -27,9 +28,8 @@ def execute_repeated_cv(
     generate_cache: bool = False,
     load_cache: bool = False,
     test_on: str = "test",
-    mode: str = "Classification",
+    mode: str = RunMode.classification,
     pretrained_imputation_model: object = None,
-    dataset_name: str = "",
     cpu: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
@@ -47,6 +47,9 @@ def execute_repeated_cv(
         generate_cache: Whether to generate and save cache.
         load_cache: Whether to load previously cached data.
         test_on: Dataset to test on. Can be "test" or "val" (e.g. for hyperparameter tuning).
+        mode: Run mode. Can be one of the values of RunMode
+        pretrained_imputation_model: Use a pretrained imputation model.
+        cpu: Whether to run on CPU.
     Returns:
         The average loss of all folds.
     """
@@ -83,7 +86,6 @@ def execute_repeated_cv(
                 source_dir=source_dir,
                 reproducible=reproducible,
                 test_on=test_on,
-                dataset_name=dataset_name,
                 mode=mode,
                 cpu=cpu,
             )

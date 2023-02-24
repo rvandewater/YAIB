@@ -54,8 +54,8 @@ def BO_mask(X, p):
     """
 
     n, d = X.shape
-    
-    indices = torch.randperm(n)[:int(n*p)]
+
+    indices = torch.randperm(n)[: int(n * p)]
     mask = torch.zeros(n, d).bool()
     mask[indices, :] = True
 
@@ -171,8 +171,6 @@ def MNAR_logistic_mask(X, p, p_params=0.3, exclude_inputs=True):
         mask[:, idxs_params] = torch.rand(n, d_params) < p
 
     return mask
-
-
 
 
 def pick_coeffs(X, idxs_obs=None, idxs_nas=None):

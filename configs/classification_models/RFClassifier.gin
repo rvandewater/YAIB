@@ -1,0 +1,24 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.encoders
+import icu_benchmarks.models.utils
+
+base_classification_preprocessor.generate_features = False
+
+# Train params
+train_common.model = @RFClassifier
+MLClassificationWrapper.patience = 10
+
+model/hyperparameter.class_to_tune = @RFClassifier
+model/hyperparameter.n_estimators = (10, 50, 100, 200, 500)
+model/hyperparameter.max_depth = (None, 5, 10, 20)
+model/hyperparameter.min_samples_split = (2, 5, 10)
+model/hyperparameter.min_samples_leaf = (1, 2, 4)
+model/hyperparameter.max_features = ('sqrt', 'log2', None)
+model/hyperparameter.bootstrap = (True, False)
+model/hyperparameter.class_weight = (None, 'balanced')
+
+tune_hyperparameters.scopes = ["model"]
+tune_hyperparameters.n_initial_points = 10
+tune_hyperparameters.n_calls = 50
+tune_hyperparameters.folds_to_tune_on = 3
