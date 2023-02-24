@@ -276,8 +276,8 @@ class MLClassificationWrapper(BaseModule):
     def fit(self, train_dataset, val_dataset):
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
-        train_rep, train_label = train_rep.squeeze().cpu().numpy(), train_label.squeeze().cpu().numpy()
-        val_rep, val_label = val_rep.squeeze().cpu().numpy(), val_label.squeeze().cpu().numpy()
+        train_rep, train_label = torch.from_numpy(train_rep).to(self.device), torch.from_numpy(train_label).to(self.device)
+        val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(train_label)
 
         if "class_weight" in self.model.get_params().keys():  # Set class weights
@@ -316,8 +316,8 @@ class MLClassificationWrapper(BaseModule):
         )
 
     def validation_step(self, val_dataset, _):
-        val_rep, val_label = val_dataset
-        val_rep, val_label = val_rep.squeeze().cpu(), val_label.squeeze().cpu()
+        val_rep, val_label = val_dataset.get_data_and_labels()
+        val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(val_label)
 
         if "MAE" in self.metrics.keys():
@@ -335,7 +335,8 @@ class MLClassificationWrapper(BaseModule):
 
     def test_step(self, dataset, _):
         test_rep, test_label = dataset
-        test_rep, test_label = test_rep.squeeze().cpu(), test_label.squeeze().cpu()
+        test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
+        # test_rep, test_label = torch.from_numpy(test_rep).to(self.device), torch.from_numpy(test_label).to(self.device)
         self.set_metrics(test_label)
         if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
             test_pred = self.model.predict(test_rep)
