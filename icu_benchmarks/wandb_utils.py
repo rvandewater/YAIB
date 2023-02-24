@@ -2,9 +2,11 @@ from argparse import Namespace
 import logging
 import wandb
 
+
 def wandb_running() -> bool:
     """Check if wandb is running."""
     return wandb.run is not None
+
 
 def update_wandb_config(config: dict) -> None:
     """updates wandb config if wandb is running
@@ -15,6 +17,7 @@ def update_wandb_config(config: dict) -> None:
     logging.info(f"updating config: {config}")
     if wandb_running():
         wandb.config.update(config)
+
 
 def apply_wandb_sweep(args: Namespace) -> Namespace:
     """applies the wandb sweep configuration to the namespace object
@@ -32,8 +35,9 @@ def apply_wandb_sweep(args: Namespace) -> Namespace:
         args.hyperparams = []
     for key, value in sweep_config.items():
         args.hyperparams.append(f"{key}=" + (("'" + value + "'") if isinstance(value, str) else str(value)))
-    
+
     return args
+
 
 def wandb_log(log_dict):
     """logs metrics to wandb
@@ -43,6 +47,7 @@ def wandb_log(log_dict):
     """
     if wandb_running():
         wandb.log(log_dict)
+
 
 def set_wandb_run_name(run_name):
     """stores the run name in wandb config

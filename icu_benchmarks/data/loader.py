@@ -11,6 +11,7 @@ from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
 from .constants import DataSplit as Split
 
+
 class SICUDataset(Dataset):
     """Standardized ICU Dataset: subclass of Torch Dataset that represents the data to learn on.
 
@@ -22,7 +23,13 @@ class SICUDataset(Dataset):
             Is used to calculate the number of stays in the data.
     """
 
-    def __init__(self, data: dict, split: str = Split.train, vars: Dict[str, str] = gin.REQUIRED, grouping_segment: str = Segment.outcome):
+    def __init__(
+        self,
+        data: dict,
+        split: str = Split.train,
+        vars: Dict[str, str] = gin.REQUIRED,
+        grouping_segment: str = Segment.outcome,
+    ):
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
@@ -33,7 +40,7 @@ class SICUDataset(Dataset):
         # calculate basic info for the data
         self.num_stays = self.grouping_df.index.unique().shape[0]
         self.maxlen = self.features_df.groupby([self.vars["GROUP"]]).size().max()
-    
+
     def ram_cache(self, cache: bool = True):
         self._cached_dataset = None
         if cache:
@@ -60,6 +67,7 @@ class SICUDataset(Dataset):
                 values[i].append(value.unsqueeze(0))
         return [cat(value, dim=0) for value in values]
 
+
 @gin.configurable("ClassificationDataset")
 class ClassificationDataset(SICUDataset):
     """Subclass of SICU dataset for classification tasks.
@@ -67,12 +75,12 @@ class ClassificationDataset(SICUDataset):
     Args:
         ram_cache (bool, optional): wether the complete dataset should be stored in ram. Defaults to True.
     """
-    
+
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
         super().__init__(*args, grouping_segment=Segment.outcome, **kwargs)
         self.outcome_df = self.grouping_df
         self.ram_cache(ram_cache)
-    
+
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice.
 
@@ -150,6 +158,7 @@ class ClassificationDataset(SICUDataset):
         data, labels = self.get_data_and_labels()
         return from_numpy(data), from_numpy(labels)
 
+
 @gin.configurable("ImputationDataset")
 class ImputationDataset(SICUDataset):
     """Subclass of SICU Dataset that contains data for imputation models
@@ -182,7 +191,6 @@ class ImputationDataset(SICUDataset):
         self.amputation_mask[self.vars["GROUP"]] = self.features_df.index
         self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
         self.ram_cache(ram_cache)
-
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice.
@@ -228,13 +236,13 @@ class ImputationPredictionDataset(Dataset):
         grouping_column: str = "stay_id",
         select_columns: List[str] = None,
         ram_cache: bool = True,
-    ): 
-        
+    ):
+
         self.dyn_df = data
-        
+
         if select_columns is not None:
             self.dyn_df = self.dyn_df[list(select_columns) + grouping_column]
-        
+
         if grouping_column is not None:
             self.dyn_df = self.dyn_df.set_index(grouping_column)
         else:

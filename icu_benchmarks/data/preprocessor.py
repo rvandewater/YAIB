@@ -25,6 +25,7 @@ class Preprocessor:
     def to_cache_string(self):
         return f"{self.__class__.__name__}"
 
+
 @gin.configurable("base_classification_preprocessor")
 class DefaultClassificationPreprocessor(Preprocessor):
     def __init__(
@@ -171,6 +172,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         data[Split.val][type] = recipe.bake(data[Split.val][type])
         data[Split.test][type] = recipe.bake(data[Split.test][type])
         return data
+
 
 @gin.configurable("base_imputation_preprocessor")
 class DefaultImputationPreprocessor(Preprocessor):

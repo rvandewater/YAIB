@@ -18,6 +18,7 @@ from icu_benchmarks.data.constants import DataSplit as Split
 
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 
+
 @gin.configurable("train_common")
 def train_common(
     data: dict[str, pd.DataFrame],
@@ -34,7 +35,7 @@ def train_common(
     patience=20,
     min_delta=1e-5,
     test_on: str = Split.test,
-    use_wandb: bool = True,
+    use_wandb: bool = False,
     cpu: bool = False,
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
@@ -59,10 +60,10 @@ def train_common(
         cpu: If set to true, run on cpu.
         num_workers: Number of workers to use for data loading.
     """
-    logging.info(f"Training model: {model.__name__}")
+    logging.info(f"Training model: {model.__name__}.")
     dataset_class = ImputationDataset if mode == RunMode.imputation else ClassificationDataset
 
-    logging.info(f"Logging to directory: {log_dir}")
+    logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
     train_dataset = dataset_class(data, split=Split.train)
@@ -86,7 +87,6 @@ def train_common(
     )
 
     data_shape = next(iter(train_loader))[0].shape
-    logging.info(f"performing task on model {model.__name__}...")
 
     model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs)
     model.set_weight(weight, train_dataset)
@@ -140,18 +140,21 @@ def train_common(
         logging.info("Training complete.")
 
     test_dataset = dataset_class(data, split=test_on)
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=min(batch_size * 4, len(test_dataset)),
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=True,
-    ) if model.needs_training else DataLoader([test_dataset.to_tensor()], batch_size=1)
+    test_loader = (
+        DataLoader(
+            test_dataset,
+            batch_size=min(batch_size * 4, len(test_dataset)),
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=True,
+        )
+        if model.needs_training
+        else DataLoader([test_dataset.to_tensor()], batch_size=1)
+    )
 
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(
-        model,
-        dataloaders=test_loader,
-    )[0]["test/loss"]
+    test_loss = trainer.test(model, dataloaders=test_loader,)[
+        0
+    ]["test/loss"]
     save_config_file(log_dir)
     return test_loss
