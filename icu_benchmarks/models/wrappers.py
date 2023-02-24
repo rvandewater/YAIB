@@ -85,19 +85,19 @@ class DLWrapper(BaseModule):
     _metrics_warning_printed = set()
 
     def __init__(
-            self,
-            loss=CrossEntropyLoss(),
-            optimizer=torch.optim.Adam,
-            input_shape=None,
-            lr: float = 0.002,
-            momentum: float = 0.9,
-            lr_scheduler: Optional[str] = None,
-            lr_factor: float = 0.99,
-            lr_steps: Optional[List[int]] = None,
-            epochs: int = 100,
-            input_size: torch.Tensor = None,
-            initialization_method: str = "normal",
-            **kwargs,
+        self,
+        loss=CrossEntropyLoss(),
+        optimizer=torch.optim.Adam,
+        input_shape=None,
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        epochs: int = 100,
+        input_size: torch.Tensor = None,
+        initialization_method: str = "normal",
+        **kwargs,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])
@@ -223,7 +223,7 @@ class DLClassificationWrapper(DLWrapper):
         target = torch.masked_select(labels, mask).to(self.device)
         if prediction.shape[-1] > 1:
             loss = (
-                    self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
+                self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
             )  # torch.long because NLL
         else:
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss  # Regression task
@@ -367,17 +367,17 @@ class ImputationWrapper(DLWrapper):
     needs_fit = False
 
     def __init__(
-            self,
-            loss: _Loss = MSELoss(),
-            optimizer: Union[str, Optimizer] = "adam",
-            lr: float = 0.002,
-            momentum: float = 0.9,
-            lr_scheduler: Optional[str] = None,
-            lr_factor: float = 0.99,
-            lr_steps: Optional[List[int]] = None,
-            input_size: torch.Tensor = None,
-            initialization_method: ImputationInit = ImputationInit.NORMAL,
-            **kwargs: str,
+        self,
+        loss: _Loss = MSELoss(),
+        optimizer: Union[str, Optimizer] = "adam",
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        input_size: torch.Tensor = None,
+        initialization_method: ImputationInit = ImputationInit.NORMAL,
+        **kwargs: str,
     ) -> None:
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])

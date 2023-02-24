@@ -77,6 +77,7 @@ class DLMetrics:
 
 class ImputationInit(str, Enum):
     """Type of initialization to use for the imputation model."""
+
     NORMAL = "normal"
     UNIFORM = "uniform"
     XAVIER = "xavier"
