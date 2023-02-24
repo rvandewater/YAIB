@@ -3,7 +3,7 @@ from numbers import Integral
 import numpy as np
 import torch.nn as nn
 import lightgbm
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression as sklearn_LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
 from icu_benchmarks.models.wrappers import DLClassificationWrapper, MLClassificationWrapper
@@ -39,7 +39,7 @@ class LogisticRegression(MLClassificationWrapper):
 
     @gin.configurable(module="LogisticRegression")
     def model_args(self, *args, **kwargs):
-        return LogisticRegression(*args, **kwargs)
+        return sklearn_LogisticRegression(*args, **kwargs)
 
 
 @gin.configurable
@@ -73,6 +73,7 @@ class RNNet(DLClassificationWrapper):
         out, hn = self.rnn(x, h0)
         pred = self.logit(out)
         return pred
+
 @gin.configurable
 class LSTMNet(DLClassificationWrapper):
     """Torch standard LSTM model."""
