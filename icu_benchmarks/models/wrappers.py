@@ -287,9 +287,9 @@ class MLClassificationWrapper(BaseModule):
             self.model.set_params(random_state=np.random.get_state()[1][0])
 
             self.model.fit(
-                train_rep,
-                train_label,
-                eval_set=(val_rep, val_label),
+                train_rep.cpu().numpy(),
+                train_label.cpu().numpy(),
+                eval_set=(val_rep.cpu().numpy(), val_label.cpu().numpy()),
                 callbacks=[
                     lightgbm.early_stopping(self.hparams.patience, verbose=False),
                     lightgbm.log_evaluation(period=-1, show_stdv=False),
