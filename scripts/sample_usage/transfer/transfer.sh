@@ -14,6 +14,6 @@ do
             -sn ${names[$i]} \
             --source-dir $5${names[$i]}/${source_dirs[$i]} \
             -c \
-            -s 1111 2222 3333 4444 5555
+            -s 1111
     done
 done

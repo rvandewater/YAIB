@@ -1,16 +1,12 @@
 import json
 from argparse import ArgumentParser, BooleanOptionalAction
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
-import gin
 from pathlib import Path
 import scipy.stats as stats
 import shutil
 from statistics import mean, stdev
-
-from icu_benchmarks.data.preprocess import preprocess_data
-from icu_benchmarks.models.train import train_common
-from icu_benchmarks.models.utils import JsonNumpyEncoder
+from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 
 
 def build_parser() -> ArgumentParser:
@@ -33,17 +29,28 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument("-l", "--log-dir", required=True, type=Path, help="Log directory with model weights.")
+    general_args.add_argument("-s", "--seed", default=1111, type=int, help="Random seed for processing, tuning and training.")
     general_args.add_argument(
-        "-s", "--seeds", default=[1111], nargs="+", type=int, help="Random seed for processing, tuning and training."
+        "-v",
+        "--verbose",
+        default=True,
+        action=BooleanOptionalAction,
+        help="Whether to use verbose logging. Disable for clean logs.",
     )
+    general_args.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to use CPU.")
     general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
-    general_args.add_argument("-c", "--cache", action=BooleanOptionalAction, help="Set to cache and use preprocessed data.")
-    general_args.add_argument("-pl", "--plot", action=BooleanOptionalAction, help="Generate common plots.")
+    general_args.add_argument(
+        "-lc", "--load_cache", default=False, action=BooleanOptionalAction, help="Set to load generated data cache."
+    )
+    general_args.add_argument(
+        "-gc", "--generate_cache", default=False, action=BooleanOptionalAction, help="Set to generate data cache."
+    )
+    general_args.add_argument("-p", "--preprocessor", type=Path, help="Load custom preprocessor from file.")
+    general_args.add_argument("-pl", "--plot", default=False, action=BooleanOptionalAction, help="Generate common plots.")
 
     # MODEL TRAINING ARGUMENTS
-    prep_and_train = subparsers.add_parser("train", help="Preprocess data and train model.", parents=[parent_parser])
+    prep_and_train = subparsers.add_parser("train", help="Preprocess features and train model.", parents=[parent_parser])
     prep_and_train.add_argument("--reproducible", default=True, action=BooleanOptionalAction, help="Make torch reproducible.")
-    prep_and_train.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to train on CPU.")
     prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
     prep_and_train.add_argument("--tune", default=False, action=BooleanOptionalAction, help="Find best hyperparameters.")
     prep_and_train.add_argument("--checkpoint", type=Path, help="Use previous checkpoint.")
@@ -76,81 +83,31 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     return log_dir_run
 
 
-@gin.configurable
-def preprocess_and_train_for_folds(
-    data_dir: Path,
-    log_dir: Path,
-    seed: int,
-    load_weights: bool = False,
-    source_dir: Path = None,
-    num_folds: int = gin.REQUIRED,
-    num_folds_to_train: int = None,
-    reproducible: bool = True,
-    debug: bool = False,
-    use_cache: bool = False,
-    test_on: str = "test",
-) -> float:
-    """Preprocesses data and trains a model for each fold.
-
-    Args:
-        data_dir: Path to the data directory.
-        log_dir: Path to the log directory.
-        seed: Random seed.
-        load_weights: Whether to load weights from source_dir.
-        source_dir: Path to the source directory.
-        num_folds: Number of folds for preprocessing.
-        num_folds_to_train: Number of folds to train on. If None, all folds are trained on.
-        reproducible: Whether to make torch reproducible.
-        debug: Whether to load less data and enable more logging.
-        use_cache: Whether to cache and use cached data.
-        test_on: Dataset to test on.
-
-    Returns:
-        The average loss of all folds.
-    """
-    if not num_folds_to_train:
-        num_folds_to_train = num_folds
-    agg_loss = 0
-    for fold_index in range(num_folds_to_train):
-        data = preprocess_data(
-            data_dir, seed=seed, debug=debug, use_cache=use_cache, num_folds=num_folds, fold_index=fold_index
-        )
-
-        run_dir_seed = log_dir / f"seed_{seed}" / f"fold_{fold_index}"
-        run_dir_seed.mkdir(parents=True, exist_ok=True)
-
-        agg_loss += train_common(
-            data,
-            log_dir=run_dir_seed,
-            load_weights=load_weights,
-            source_dir=source_dir,
-            seed=seed,
-            reproducible=reproducible,
-            test_on=test_on,
-        )
-        log_full_line(f"FINISHED FOLD {fold_index}", level=logging.INFO)
-
-    return agg_loss / num_folds
-
-
-def aggregate_results(log_dir: Path):
+def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
     """Aggregates results from all folds and writes to JSON file.
 
     Args:
         log_dir: Path to the log directory.
+        execution_time: Overall execution time.
     """
     aggregated = {}
-    for seed in log_dir.iterdir():
-        if seed.is_dir():
-            aggregated[seed.name] = {}
-            for fold in seed.iterdir():
-                with open(fold / "test_metrics.json", "r") as f:
-                    result = json.load(f)
-                    aggregated[seed.name][fold.name] = result
+    for repetition in log_dir.iterdir():
+        if repetition.is_dir():
+            aggregated[repetition.name] = {}
+            for fold_iter in repetition.iterdir():
+                if (fold_iter / "test_metrics.json").is_file():
+                    with open(fold_iter / "test_metrics.json", "r") as f:
+                        result = json.load(f)
+                        aggregated[repetition.name][fold_iter.name] = result
+                # Add durations to metrics
+                if (fold_iter / "durations.json").is_file():
+                    with open(fold_iter / "durations.json", "r") as f:
+                        result = json.load(f)
+                        aggregated[repetition.name][fold_iter.name].update(result)
 
     # Aggregate results per metric
     list_scores = {}
-    for seed, folds in aggregated.items():
+    for repetition, folds in aggregated.items():
         for fold, result in folds.items():
             for metric, score in result.items():
                 if isinstance(score, (float, int)):
@@ -165,13 +122,18 @@ def aggregate_results(log_dir: Path):
         for metric, list in list_scores.items()
     }
 
-    accumulated_metrics = {"avg": averaged_scores, "std": std_scores, "CI_0.95": confidence_interval}
+    accumulated_metrics = {
+        "avg": averaged_scores,
+        "std": std_scores,
+        "CI_0.95": confidence_interval,
+        "execution_time": execution_time,
+    }
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
-        json.dump(aggregated, f, cls=JsonNumpyEncoder)
+        json.dump(aggregated, f, cls=JsonResultLoggingEncoder)
 
     with open(log_dir / "accumulated_test_metrics.json", "w") as f:
-        json.dump(accumulated_metrics, f, cls=JsonNumpyEncoder)
+        json.dump(accumulated_metrics, f, cls=JsonResultLoggingEncoder)
 
     logging.info(f"Accumulated results: {accumulated_metrics}")
 

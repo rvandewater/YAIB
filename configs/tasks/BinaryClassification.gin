@@ -3,14 +3,16 @@ import icu_benchmarks.data.loader
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.encoders
 
+# CLASSIFICATION
 NUM_CLASSES = 2
 HORIZON = 24
 
 train_common.weight = "balanced"
 
-# DL
+# DEEP LEARNING
 DLWrapper.loss = @cross_entropy
 
+# DATASET AND PREPROCESSING
 preprocess.file_names = {
     "DYNAMIC": "dyn.parquet",
     "OUTCOME": "outc.parquet",
@@ -19,6 +21,7 @@ preprocess.file_names = {
 
 vars = {
     "GROUP": "stay_id",
+    "LABEL": "label",
     "SEQUENCE": "time",
     "DYNAMIC": ["alb", "alp", "alt", "ast", "be", "bicar", "bili",
        "bili_dir", "bnd", "bun", "ca", "cai", "ck", "ckmb", "cl", "crea",
@@ -28,11 +31,18 @@ vars = {
        "temp", "tnt", "urine", "wbc"],
     "STATIC": ["age", "sex", "height", "weight"],
 }
+static_features = True
 
 preprocess.vars = %vars
+preprocess.use_static = %static_features
+
+default_preprocessor.use_static_features = %static_features
+default_preprocessor.vars = %vars
+
 Dataset.vars = %vars
-Dataset.use_static = True
 
-preprocess_and_train_for_folds.num_folds = 5
+# CROSS VALIDATION
 
-EMB = 100
+execute_repeated_cv.cv_repetitions = 5
+execute_repeated_cv.cv_folds = 5
+
