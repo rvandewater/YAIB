@@ -25,16 +25,32 @@ class SimpleDiffusionModel(ImputationWrapper):
 
     input_size = []
 
-    # TODO: - Transfer to Gin File and Create a Sweep Config for Hyperparameter Tuning
-    # Model Parameters
-    n_onedirectional_conv = 3
-    T = 300
-    min_noise = 0.0001
-    max_noise = 0.02
-    noise_scheduler = "linear"
+    def __init__(
+            self,
+            input_size,
+            n_onedirectional_conv,
+            T,
+            min_noise,
+            max_noise,
+            noise_scheduler,
+            *args,
+            **kwargs
+        ):
+        super().__init__(
+                n_onedirectional_conv = n_onedirectional_conv,
+                T = T,
+                min_noise = min_noise,
+                max_noise = max_noise,
+                noise_scheduler = noise_scheduler,
+                *args,
+                **kwargs
+        )
 
-    def __init__(self, *args, input_size, **kwargs):
-        super().__init__(*args, **kwargs)
+        self.n_onedirectional_conv = n_onedirectional_conv
+        self.T = T
+        self.min_noise = min_noise
+        self.max_noise = max_noise
+        self.noise_scheduler = noise_scheduler
 
         ## Noise Schedulers ##
         # Linear
@@ -112,10 +128,28 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         self.input_size = amputated.shape
 
-        # TODO: - Replace by amputated data
-        # TODO: - Context / Target Split
-        x_0 = target
+        # # Context / Target Split (Credits @Allie)
+        # # Take an inverse of the amputed mask - to get the observation mask
+        # observed_mask = (~(amputation_mask > 0)).float()
+        
+        # # Generate a random tensor with the same dimensions as mask and multiply mask by it
+        # # This removes all missing values from the following calculations
+        # rand_for_mask = torch.rand_like(observed_mask) * observed_mask
+        
+        # # Create a context mask - the selection of the elements is so that only 50% of all observed values are selected
+        # context_mask = (rand_for_mask > 0.5).float()
+        
+        # # Create a target mask - the selection of the elements is so that all values not selected by the context mask 
+        # # but are still observed are selected
+        # target_mask = (~(rand_for_mask > 0.5)).float() * observed_mask
+        
+        # context = amputated * context_mask
+        # target = amputated * target_mask
+        
+        # x_0 = context
 
+        x_0 = amputated
+        
         # Take a random timestep
         t = torch.randint(0, self.T, (self.input_size[0],)).long()
 
@@ -130,8 +164,6 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         self.log("train/loss", loss.item(), prog_bar=True)
 
-        # TODO: - Update Metrics ?? Does it make sense to update metrics based on the noise prediction or should we already calculate the new samples here?
-        # Answer: Updating metrics makes not really sense
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -140,10 +172,9 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         self.input_size = amputated.shape
 
-        # TODO: - Replace by amputated data
         # TODO: - Context / Target Split
-        x_0 = target
-
+        x_0 = amputated
+        
         # Take a random timestep
         t = torch.randint(0, self.T, (self.input_size[0],)).long()
 
@@ -166,9 +197,6 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         x_0 = amputated
 
-        # Take a random timestep
-        # t = torch.randint(0, self.T, (self.input_size[0],)).long()
-
         # Take the last timestep
         t = torch.full((self.input_size[0],), self.T - 1)
 
@@ -176,7 +204,6 @@ class SimpleDiffusionModel(ImputationWrapper):
         noise_pred = self(x_0, t)
 
         # Calculate the forward sample
-        # TODO: - Check if this is the correct way to do this
         x_t, _ = self.forward_diffusion_sample(x_0, t)
 
         # Calculate the backward sample for timestep 0 replacing the original x_0 and having imputed data
@@ -186,7 +213,6 @@ class SimpleDiffusionModel(ImputationWrapper):
         x_0 = amputated.masked_scatter_(amputation_mask.bool(), x_0)
 
         # Calculate Loss: Difference between imputed and target
-        # TODO: - Check different Loss functions
         loss = self.loss(x_0, target)
 
         self.log("test/loss", loss.item(), prog_bar=True)
@@ -264,7 +290,6 @@ class Block(nn.Module):
         # TODO: - Add Attention Layer before Time Embedding
 
         # Time Embedding
-        # TODO: - Check if it is correct to use the same value for every feature (currently there are only differences between timesteps)
         time_emb = self.relu(self.time_mlp(t[:, None, :]))
         # Extend last dimension
         time_emb = time_emb[(...,) + (None,)]
