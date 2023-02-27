@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 import logging
 import gin
+import warnings
 from pathlib import Path
 from pytorch_lightning import seed_everything
 
@@ -31,6 +32,7 @@ def execute_repeated_cv(
     mode: str = RunMode.classification,
     pretrained_imputation_model: object = None,
     cpu: bool = False,
+    verbose: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -53,6 +55,7 @@ def execute_repeated_cv(
     Returns:
         The average loss of all folds.
     """
+    
     if not cv_repetitions_to_train:
         cv_repetitions_to_train = cv_repetitions
     if not cv_folds_to_train:
@@ -61,6 +64,10 @@ def execute_repeated_cv(
     seed_everything(seed, reproducible)
     for repetition in range(cv_repetitions_to_train):
         for fold_index in range(cv_folds_to_train):
+            if not verbose:
+                logging.getLogger().setLevel(logging.ERROR)
+                logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+                warnings.filterwarnings("ignore")
             start_time = datetime.now()
             data = preprocess_data(
                 data_dir,
@@ -91,6 +98,10 @@ def execute_repeated_cv(
             )
             train_time = datetime.now() - start_time
 
+            if not verbose:
+                logging.getLogger().setLevel(logging.INFO)
+                logging.getLogger("pytorch_lightning").setLevel(logging.INFO)
+                warnings.filterwarnings("default")
             log_full_line(
                 f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| TRAINING DURATION {train_time}",
                 level=logging.INFO,

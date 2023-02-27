@@ -9,8 +9,6 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
 from pathlib import Path
-import warnings
-
 
 from icu_benchmarks.wandb_utils import set_wandb_run_name
 from icu_benchmarks.data.loader import ClassificationDataset, ImputationDataset
@@ -43,7 +41,6 @@ def train_common(
     test_on: str = Split.test,
     use_wandb: bool = False,
     cpu: bool = False,
-    verbose: bool = False,
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
@@ -67,11 +64,6 @@ def train_common(
         cpu: If set to true, run on cpu.
         num_workers: Number of workers to use for data loading.
     """
-    if not verbose:
-        logging.getLogger().setLevel(logging.ERROR)
-        logging.getLogger("lightning").setLevel(logging.ERROR)
-        logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
-        warnings.filterwarnings("ignore")
 
     logging.info(f"Training model: {model.__name__}.")
     dataset_class = ImputationDataset if mode == RunMode.imputation else ClassificationDataset
