@@ -371,6 +371,10 @@ class SSSDSA(ImputationWrapper):
         self.d_model = H = d_model
         self.unet = unet
         best_pool_factor = largets_component(input_size[1])
+        max_pool_depth = round(math.log(input_size[1]) / math.log(best_pool_factor))
+        if max_pool_depth < 3:
+            raise ValueError(f"Sequence length must be a power of form l = p^n for some prime p with n > 2. Otherwise pooling does not work.\n"
+                             f"Got sequence length {input_size[1]} with p = {best_pool_factor} and n = {max_pool_depth}.")
         pool = [best_pool_factor] * min(4, round(math.log(input_size[1]) / math.log(best_pool_factor)))
 
         def s4_block(dim, stride):
