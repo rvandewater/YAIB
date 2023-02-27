@@ -11,7 +11,9 @@ command:
   - "--wandb-sweep"
   - "--wandb"
 method: bayes
-metric: avg.jsd
+metric:
+  name: avg.jsd
+  goal: minimize
 name: csdi hyperparameter sweep
 parameters:
   model:
