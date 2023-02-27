@@ -1,8 +1,3 @@
-# Source:
-# https://colab.research.google.com/drive/1sjy9odlSSy0RBVgMTgP7s99NXsqglsUL?usp=sharing#scrollTo=qWw50ui9IZ5q
-# Tutorial:
-# https://m.youtube.com/watch?v=a4Yfz2FxXiY
-
 from icu_benchmarks.models.wrappers import ImputationWrapper
 import gin
 import math
@@ -12,7 +7,9 @@ import torch.nn.functional as F
 
 
 @gin.configurable("Simple_Diffusion")
-class Simple_Diffusion_Model(ImputationWrapper):
+class SimpleDiffusionModel(ImputationWrapper):
+    """Imputation model based on a Simple Diffusion Model.
+    Adapted from https://colab.research.google.com/drive/1sjy9odlSSy0RBVgMTgP7s99NXsqglsUL."""
     needs_training = True
     needs_fit = False
 

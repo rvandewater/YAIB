@@ -52,9 +52,11 @@ class RFClassifier(MLClassificationWrapper):
     def model_args(self, *args, **kwargs):
         return RandomForestClassifier(*args, **kwargs)
 
+
 @gin.configurable
 class RNNet(DLClassificationWrapper):
     """Torch standard RNN model"""
+
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
         super().__init__(
             input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
@@ -74,9 +76,11 @@ class RNNet(DLClassificationWrapper):
         pred = self.logit(out)
         return pred
 
+
 @gin.configurable
 class LSTMNet(DLClassificationWrapper):
     """Torch standard LSTM model."""
+
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
         super().__init__(
             input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
@@ -101,6 +105,7 @@ class LSTMNet(DLClassificationWrapper):
 @gin.configurable
 class GRUNet(DLClassificationWrapper):
     """Torch standard GRU model."""
+
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
         super().__init__(
             input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
@@ -125,6 +130,7 @@ class GRUNet(DLClassificationWrapper):
 @gin.configurable
 class Transformer(DLClassificationWrapper):
     """Transformer model as defined by the HiRID-Benchmark (https://github.com/ratschlab/HIRID-ICU-Benchmark)."""
+
     def __init__(
         self,
         input_size,

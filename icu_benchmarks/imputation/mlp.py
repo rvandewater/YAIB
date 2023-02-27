@@ -6,6 +6,7 @@ import gin
 
 @gin.configurable("MLP")
 class MLPImputation(ImputationWrapper):
+    """Imputation model based on a Multi-Layer Perceptron (MLP)."""
     needs_training = True
     needs_fit = False
 

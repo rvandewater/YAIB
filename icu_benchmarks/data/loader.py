@@ -153,7 +153,7 @@ class ClassificationDataset(SICUDataset):
         rep = rep.to_numpy().astype(float)
 
         return rep, labels
-    
+
     def to_tensor(self):
         data, labels = self.get_data_and_labels()
         return from_numpy(data), from_numpy(labels)

@@ -12,6 +12,8 @@ import gin
 
 @gin.configurable("KNN")
 class KNNImputation(ImputationWrapper):
+    """Imputation using Scikit-Learn K-Nearest Neighbour."""
+
     needs_training = False
     needs_fit = True
 
@@ -33,6 +35,8 @@ class KNNImputation(ImputationWrapper):
 
 @gin.configurable("MICE")
 class MICEImputation(ImputationWrapper):
+    """Imputation using Scikit-Learn MICE."""
+
     needs_training = False
     needs_fit = True
 
@@ -62,6 +66,8 @@ class MICEImputation(ImputationWrapper):
 
 @gin.configurable("Mean")
 class MeanImputation(ImputationWrapper):
+    """Mean imputation using Scikit-Learn SimpleImputer."""
+
     needs_training = False
     needs_fit = True
 
@@ -104,6 +110,8 @@ class MedianImputation(ImputationWrapper):
 
 @gin.configurable("Zero")
 class ZeroImputation(ImputationWrapper):
+    """Zero imputation using Scikit-Learn SimpleImputer."""
+
     needs_training = False
     needs_fit = True
 
@@ -125,6 +133,8 @@ class ZeroImputation(ImputationWrapper):
 
 @gin.configurable("MostFrequent")
 class MostFrequentImputation(ImputationWrapper):
+    """Most frequent imputation using Scikit-Learn SimpleImputer."""
+
     needs_training = False
     needs_fit = True
 
@@ -146,6 +156,8 @@ class MostFrequentImputation(ImputationWrapper):
 
 @gin.configurable("MissForest")
 class MissForestImputation(ImputationWrapper):
+    """MissForest imputation using HyperImpute."""
+
     needs_training = False
     needs_fit = True
 
@@ -167,6 +179,8 @@ class MissForestImputation(ImputationWrapper):
 
 @gin.configurable("GAIN")
 class GAINImputation(ImputationWrapper):
+    """Generative Adversarial Imputation Nets (GAIN) imputation using HyperImpute package."""
+
     needs_training = False
     needs_fit = True
 
@@ -188,6 +202,8 @@ class GAINImputation(ImputationWrapper):
 
 @gin.configurable("BRITS")
 class BRITSImputation(ImputationWrapper):
+    """Bidirectional Recurrent Imputation for Time Series (BRITS) imputation using PyPots package."""
+
     needs_training = False
     needs_fit = True
 
@@ -223,6 +239,8 @@ class BRITSImputation(ImputationWrapper):
 
 @gin.configurable("SAITS")
 class SAITSImputation(ImputationWrapper):
+    """Self-Attention based Imputation for Time Series (SAITS) imputation using PyPots package."""
+
     needs_training = False
     needs_fit = True
 
@@ -271,6 +289,8 @@ class SAITSImputation(ImputationWrapper):
 
 @gin.configurable("Attention")
 class AttentionImputation(ImputationWrapper):
+    """Attention based Imputation (Transformer) imputation using PyPots package."""
+
     needs_training = False
     needs_fit = True
 

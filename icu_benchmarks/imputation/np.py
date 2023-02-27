@@ -1,6 +1,3 @@
-# The following code is largerly (stolen) copied from:
-# https://github.com/EmilienDupont/neural-processes/
-
 import gin
 
 import torch
@@ -13,7 +10,8 @@ from icu_benchmarks.models.wrappers import ImputationWrapper
 
 @gin.configurable("NP")
 class NPImputation(ImputationWrapper):
-    """A wrapper for the NeuralProcess class that allows for imputation."""
+    """Imputation using Neural Processes. Implementation adapted from https://github.com/EmilienDupont/neural-processes/.
+    Provides imputation wrapper for NeuralProcess class."""
 
     needs_training = True
     needs_fit = False
@@ -283,6 +281,7 @@ class NPImputation(ImputationWrapper):
 
 # Actual class that implements neural processes
 class NeuralProcess(nn.Module):
+    """Class that implements neural processes."""
     def __init__(
         self,
         x_dim,

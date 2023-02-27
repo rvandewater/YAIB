@@ -122,7 +122,8 @@ class DLWrapper(BaseModule):
                     f"{step_prefix}/{name}": metric.compute()
                     for name, metric in self.metrics[step_prefix].items()
                     if "_Curve" not in name
-                }, sync_dist=True,
+                },
+                sync_dist=True,
             )
             for metric in self.metrics[step_prefix].values():
                 metric.reset()
@@ -312,7 +313,8 @@ class MLClassificationWrapper(BaseModule):
                 f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
                 for name, metric in self.metrics.items()
                 if "_Curve" not in name
-            }, sync_dist=True,
+            },
+            sync_dist=True,
         )
 
     def validation_step(self, val_dataset, _):
@@ -330,7 +332,8 @@ class MLClassificationWrapper(BaseModule):
                 f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
                 for name, metric in self.metrics.items()
                 if "_Curve" not in name
-            }, sync_dist=True
+            },
+            sync_dist=True,
         )
 
     def test_step(self, dataset, _):
@@ -349,7 +352,8 @@ class MLClassificationWrapper(BaseModule):
                 f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
                 for name, metric in self.metrics.items()
                 if "_Curve" not in name
-            }, sync_dist=True
+            },
+            sync_dist=True,
         )
 
     def configure_optimizers(self):

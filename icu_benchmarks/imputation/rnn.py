@@ -7,6 +7,7 @@ import gin
 
 @gin.configurable("RNN")
 class RNNImputation(ImputationWrapper):
+    """Imputation model with Gated Recurrent Units (GRU) or Long-Short Term Memory Network (LSTM). Defaults to GRU."""
     needs_training = True
     needs_fit = False
 
@@ -63,6 +64,8 @@ class RNNImputation(ImputationWrapper):
 
 @gin.configurable("BRNN")
 class BRNNImputation(ImputationWrapper):
+    """Imputation model with Bidirectional Gated Recurrent Units (GRU) or Long-Short Term Memory Network (LSTM). Defaults to
+    GRU."""
     needs_training = True
     needs_fit = False
 

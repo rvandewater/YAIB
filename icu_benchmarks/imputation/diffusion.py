@@ -17,7 +17,8 @@ import torch.nn.functional as F
 
 
 @gin.configurable("Diffusion")
-class Simple_Diffusion_Model(ImputationWrapper):
+class SimpleDiffusionModel(ImputationWrapper):
+    """Simple Diffusion Model for Imputation. See https://arxiv.org/abs/2006.11239 for more details."""
 
     needs_training = True
     needs_fit = False
