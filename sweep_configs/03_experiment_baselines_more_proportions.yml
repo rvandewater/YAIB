@@ -20,6 +20,6 @@ parameters:
   seed:
     values: [2222]
   ImputationDataset.mask_proportion:
-    values: [0.3, 0.5, 0.7]
+    values: [0.5, 0.7]
   data_dir:
     values: ["../data/miiv", "../data/eicu", "../data/hirid"]
