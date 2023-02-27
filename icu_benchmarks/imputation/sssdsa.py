@@ -1,5 +1,6 @@
 # Source: https://github.com/AI4HealthUOL/SSSD/blob/main/src/imputers/SSSDSAImputer.py
 
+import math
 import numpy as np
 import gin
 import torch
@@ -276,6 +277,15 @@ class ResidualBlock(nn.Module):
 
         return x, state
 
+def largets_component(number):
+    """
+    returns the prime number that divides number the most times.
+    """
+    for i in range(2, int(number**0.5) + 1):
+        if number % i == 0:
+            return i
+    return number
+
 @gin.configurable('SSSDSA')
 class SSSDSA(ImputationWrapper):
     def __init__(
@@ -303,6 +313,7 @@ class SSSDSA(ImputationWrapper):
         diffusion_time_steps,
         beta_0,
         beta_T,
+        input_size,
         *args, **kwargs,
     ):
         
@@ -353,11 +364,14 @@ class SSSDSA(ImputationWrapper):
             diffusion_time_steps=diffusion_time_steps,
             beta_0=beta_0,
             beta_T=beta_T,
+            input_size=input_size,
             *args, **kwargs
         )
         self.diffusion_parameters = calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T)
         self.d_model = H = d_model
         self.unet = unet
+        best_pool_factor = largets_component(input_size[1])
+        pool = [best_pool_factor] * min(4, round(math.log(input_size[1]) / math.log(best_pool_factor)))
 
         def s4_block(dim, stride):
           

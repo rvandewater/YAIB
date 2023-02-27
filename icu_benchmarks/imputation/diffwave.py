@@ -268,10 +268,10 @@ class DiffWaveImputer(ImputationWrapper):
             epsilon_theta = self(
                 (transformed_X, amputated_data, observed_mask, diffusion_steps.view(B, 1),))  # predict \epsilon according to \epsilon_\theta
 
-            loss = self.loss(epsilon_theta[amputation_mask], z[amputation_mask])
+            loss = self.loss(epsilon_theta[amputation_mask.bool()], z[amputation_mask.bool()])
         else:
             imputed_data = self.sampling(amputated_data, observed_mask)
-            amputated_data[amputation_mask] = imputed_data[amputation_mask]
+            amputated_data[amputation_mask.pool()] = imputed_data[amputation_mask.pool()]
             loss = self.loss(amputated_data, target)
             for metric in self.metrics[step_prefix].values():
                 metric.update((torch.flatten(amputated_data, start_dim=1).clone(), torch.flatten(target, start_dim=1).clone()))

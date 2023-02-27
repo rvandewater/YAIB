@@ -23,7 +23,7 @@ Adam.lr = 0.001
 Adam.weight_decay = 1e-6
 
 # Model params
-SSSDSA.d_model = 128
+SSSDSA.d_model = 64
 SSSDSA.n_layers = 6
 SSSDSA.pool = [2, 2]
 SSSDSA.expand = 2
