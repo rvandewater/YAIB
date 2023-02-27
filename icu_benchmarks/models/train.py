@@ -113,7 +113,7 @@ def train_common(
         callbacks=[
             EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
             ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
-            TQDMProgressBar(refresh_rate=min(50, len(train_loader) // 2)),
+            TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)),
         ],
         # precision=16,
         accelerator="auto" if not cpu else "cpu",
@@ -122,7 +122,6 @@ def train_common(
         benchmark=not reproducible,
         logger=loggers,
         num_sanity_val_steps=0,
-        log_every_n_steps=50 if model.needs_fit else 100,
     )
 
     if model.needs_fit:
