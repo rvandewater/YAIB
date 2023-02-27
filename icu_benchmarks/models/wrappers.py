@@ -128,7 +128,7 @@ class DLWrapper(BaseModule):
                     f"{step_prefix}/{name}": metric.compute()
                     for name, metric in self.metrics[step_prefix].items()
                     if "_Curve" not in name
-                }
+                }, sync_dist=True,
             )
             for metric in self.metrics[step_prefix].values():
                 metric.reset()
@@ -237,7 +237,7 @@ class DLClassificationWrapper(DLWrapper):
         transformed_output = self.output_transform((prediction, target))
         for metric in self.metrics[step_prefix].values():
             metric.update(transformed_output)
-        self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True)
+        self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
         return loss
 
 
@@ -310,14 +310,14 @@ class MLClassificationWrapper(BaseModule):
         else:
             train_pred = self.model.predict_proba(train_rep)
 
-        self.log("train/loss", 0.0)
-        self.log("val/loss", val_loss)
+        self.log("train/loss", 0.0, sync_dist=True)
+        self.log("val/loss", val_loss, sync_dist=True)
         self.log_dict(
             {
                 f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
                 for name, metric in self.metrics.items()
                 if "_Curve" not in name
-            }
+            }, sync_dist=True,
         )
 
     def validation_step(self, val_dataset, _):
@@ -335,7 +335,7 @@ class MLClassificationWrapper(BaseModule):
                 f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
                 for name, metric in self.metrics.items()
                 if "_Curve" not in name
-            }
+            }, sync_dist=True
         )
 
     def test_step(self, dataset, _):
@@ -347,13 +347,13 @@ class MLClassificationWrapper(BaseModule):
         else:
             test_pred = self.model.predict_proba(test_rep)
 
-        self.log("test/loss", 0.0)
+        self.log("test/loss", 0.0, sync_dist=True)
         self.log_dict(
             {
                 f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
                 for name, metric in self.metrics.items()
                 if "_Curve" not in name
-            }
+            }, sync_dist=True
         )
 
     def configure_optimizers(self):
