@@ -211,7 +211,7 @@ class BRITSImputation(ImputationWrapper):
         super().__init__(
             *args, input_size=input_size, epochs=epochs, rnn_hidden_size=rnn_hidden_size, batch_size=batch_size, **kwargs
         )
-        print("brits, setting epochs", epochs)
+        logging.info("brits, setting epochs", epochs)
         self.imputer = BRITS(
             n_steps=input_size[1],
             n_features=input_size[2],

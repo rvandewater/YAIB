@@ -82,7 +82,6 @@ class SimpleDiffusionModel(ImputationWrapper):
         while considering the batch dimension.
         """
         batch_size = t.shape[0]
-        # print(t.device, vals.device)
         out = vals.gather(-1, t)
         return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
 

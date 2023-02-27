@@ -1,6 +1,7 @@
 # Source: https://github.com/AI4HealthUOL/SSSD
 from tqdm import tqdm
 import gin
+import logging
 import math
 import numpy as np
 import torch
@@ -140,7 +141,7 @@ class SSSDS4(ImputationWrapper):
         assert len(Alpha_bar) == T
         assert len(Sigma) == T
 
-        print('begin sampling, total number of reverse steps = %s' % T)
+        logging.info('begin sampling, total number of reverse steps = %s' % T)
 
         B, _, _ = cond.shape
         x = std_normal(cond.shape, self.device)

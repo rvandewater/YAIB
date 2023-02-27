@@ -9,6 +9,8 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
 from pathlib import Path
+import warnings
+
 
 from icu_benchmarks.wandb_utils import set_wandb_run_name
 from icu_benchmarks.data.loader import ClassificationDataset, ImputationDataset
@@ -18,6 +20,10 @@ from icu_benchmarks.data.constants import DataSplit as Split
 
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 
+def assure_minimum_length(dataset):
+    if len(dataset) < 2:
+        return [dataset[0], dataset[0]]
+    return dataset
 
 @gin.configurable("train_common")
 def train_common(
@@ -37,6 +43,7 @@ def train_common(
     test_on: str = Split.test,
     use_wandb: bool = False,
     cpu: bool = False,
+    verbose: bool = False,
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
@@ -60,6 +67,12 @@ def train_common(
         cpu: If set to true, run on cpu.
         num_workers: Number of workers to use for data loading.
     """
+    if not verbose:
+        logging.getLogger().setLevel(logging.ERROR)
+        logging.getLogger("lightning").setLevel(logging.ERROR)
+        logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+        warnings.filterwarnings("ignore")
+
     logging.info(f"Training model: {model.__name__}.")
     dataset_class = ImputationDataset if mode == RunMode.imputation else ClassificationDataset
 
@@ -68,6 +81,7 @@ def train_common(
 
     train_dataset = dataset_class(data, split=Split.train)
     val_dataset = dataset_class(data, split=Split.val)
+    train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
     train_loader = DataLoader(
         train_dataset,
@@ -139,6 +153,7 @@ def train_common(
         logging.info("Training complete.")
 
     test_dataset = dataset_class(data, split=test_on)
+    test_dataset = assure_minimum_length(test_dataset)
     test_loader = (
         DataLoader(
             test_dataset,
@@ -146,14 +161,13 @@ def train_common(
             shuffle=False,
             num_workers=num_workers,
             pin_memory=True,
+            drop_last=True,
         )
         if model.needs_training
         else DataLoader([test_dataset.to_tensor()], batch_size=1)
     )
 
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(model, dataloaders=test_loader,)[
-        0
-    ]["test/loss"]
+    test_loss = trainer.test(model, dataloaders=test_loader,)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss
