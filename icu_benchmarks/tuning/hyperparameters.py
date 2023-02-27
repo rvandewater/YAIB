@@ -53,6 +53,7 @@ def choose_and_bind_hyperparameters(
     hyperparams = {}
 
     if len(scopes) == 0 or folds_to_tune_on is None:
+        logging.warning("No scopes and/or folds to tune on, skipping tuning.")
         return
 
     # Collect hyperparameters.
@@ -127,8 +128,6 @@ def choose_and_bind_hyperparameters(
             logging.log(TUNE, "Choosing hyperparameters randomly from bounds.")
             n_initial_points = 1
             n_calls = 1
-    # if not debug:
-    #     logging.disable(level=INFO)
 
     # Call gaussian process. To choose a random set of hyperparameters this functions is also called.
     res = gp_minimize(

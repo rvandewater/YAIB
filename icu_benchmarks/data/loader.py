@@ -1,17 +1,17 @@
+from typing import List
 from pandas import DataFrame
 import gin
 import numpy as np
-import torch
-from torch import Tensor
+from torch import Tensor, cat, from_numpy, float32
+from torch.utils.data import Dataset
 import logging
 from typing import Dict, Tuple
-from torch.utils.data import Dataset
 
 from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
+from .constants import DataSplit as Split
 
 
-@gin.configurable("ClassificationDataset")
 class SICUDataset(Dataset):
     """Standardized ICU Dataset: subclass of Torch Dataset that represents the data to learn on.
 
@@ -19,23 +19,31 @@ class SICUDataset(Dataset):
         data: Dict of the different splits of the data.
         split: Either 'train','val' or 'test'.
         vars: Contains the names of columns in the data.
+        grouping_segment: str, optional: The segment of the data contains the grouping column with only unique values. Defaults to Segment.outcome.
+            Is used to calculate the number of stays in the data.
     """
 
-    def __init__(self, data: dict, split: str = "train", vars: Dict[str, str] = gin.REQUIRED, ram_cache: bool = False):
+    def __init__(
+        self,
+        data: dict,
+        split: str = Split.train,
+        vars: Dict[str, str] = gin.REQUIRED,
+        grouping_segment: str = Segment.outcome,
+    ):
         self.split = split
         self.vars = vars
-        self.outcome_df = data[split][Segment.outcome].set_index(self.vars["GROUP"])
+        self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
         self.features_df = (
             data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
         )
 
         # calculate basic info for the data
-        self.num_stays = self.outcome_df.index.unique().shape[0]
-        self.num_measurements = self.features_df.shape[0]
+        self.num_stays = self.grouping_df.index.unique().shape[0]
         self.maxlen = self.features_df.groupby([self.vars["GROUP"]]).size().max()
 
+    def ram_cache(self, cache: bool = True):
         self._cached_dataset = None
-        if ram_cache:
+        if cache:
             logging.info("caching dataset in ram....")
             self._cached_dataset = [self[i] for i in range(len(self))]
 
@@ -46,6 +54,32 @@ class SICUDataset(Dataset):
             number of stays in the data
         """
         return self.num_stays
+
+    def get_feature_names(self):
+        return self.features_df.columns
+
+    def to_tensor(self):
+        values = []
+        for entry in self:
+            for i, value in enumerate(entry):
+                if len(values) <= i:
+                    values.append([])
+                values[i].append(value.unsqueeze(0))
+        return [cat(value, dim=0) for value in values]
+
+
+@gin.configurable("ClassificationDataset")
+class ClassificationDataset(SICUDataset):
+    """Subclass of SICU dataset for classification tasks.
+
+    Args:
+        ram_cache (bool, optional): wether the complete dataset should be stored in ram. Defaults to True.
+    """
+
+    def __init__(self, *args, ram_cache: bool = True, **kwargs):
+        super().__init__(*args, grouping_segment=Segment.outcome, **kwargs)
+        self.outcome_df = self.grouping_df
+        self.ram_cache(ram_cache)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice.
@@ -92,7 +126,7 @@ class SICUDataset(Dataset):
         labels = labels.astype(np.float32)
         data = window.astype(np.float32)
 
-        return torch.from_numpy(data), torch.from_numpy(labels), torch.from_numpy(pad_mask)
+        return from_numpy(data), from_numpy(labels), from_numpy(pad_mask)
 
     def get_balance(self) -> list:
         """Return the weight balance for the split of interest.
@@ -119,58 +153,44 @@ class SICUDataset(Dataset):
         rep = rep.to_numpy().astype(float)
 
         return rep, labels
+    
+    def to_tensor(self):
+        data, labels = self.get_data_and_labels()
+        return from_numpy(data), from_numpy(labels)
 
 
 @gin.configurable("ImputationDataset")
-class ImputationDataset(Dataset):
-    """Subclass of torch Dataset that represents the data to learn on.
+class ImputationDataset(SICUDataset):
+    """Subclass of SICU Dataset that contains data for imputation models
 
     Args:
-        data: Dict of the different splits of the data.
-        split: Either 'train','val' or 'test'.
-        vars: Contains the names of columns in the data.
+        data (Dict[str, DataFrame]): data to use
+        split (str, optional): split to apply. Defaults to Split.train.
+        vars (Dict[str, str], optional): contains names of columns in the data. Defaults to gin.REQUIRED.
+        mask_proportion (float, optional): proportion to artificially mask for amputation. Defaults to 0.3.
+        mask_method (str, optional): masking mechanism. Defaults to "MCAR".
+        mask_observation_proportion (float, optional): poportion of the observed data to be masked. Defaults to 0.3.
+        ram_cache (bool, optional): if the dataset should be completely stored in ram and not generated on the fly during training. Defaults to True.
     """
 
     def __init__(
         self,
         data: Dict[str, DataFrame],
-        split: str = "train",
+        split: str = Split.train,
         vars: Dict[str, str] = gin.REQUIRED,
         mask_proportion=0.3,
         mask_method="MCAR",
         mask_observation_proportion=0.3,
         ram_cache: bool = True,
     ):
-        self.split = split
-        self.vars = vars
-        self.static_df = data[split][Segment.static]
-        self.dyn_df = data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
-
-        # calculate basic info for the data
-        self.num_stays = self.static_df.shape[0]
-        self.num_measurements = self.dyn_df.shape[0]
-        self.dyn_measurements = self.dyn_df.shape[1]
-        self.maxlen = self.dyn_df.groupby([self.vars["GROUP"]]).size().max()
-
+        super().__init__(data, split, vars, grouping_segment=Segment.static)
         self.amputated_values, self.amputation_mask = ampute_data(
-            self.dyn_df, mask_method, mask_proportion, mask_observation_proportion
+            self.features_df, mask_method, mask_proportion, mask_observation_proportion
         )
         self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars[Segment.dynamic])
-        self.amputation_mask[self.vars["GROUP"]] = self.dyn_df.index
+        self.amputation_mask[self.vars["GROUP"]] = self.features_df.index
         self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
-
-        self._cached_dataset = None
-        if ram_cache:
-            logging.info("caching dataset in ram....")
-            self._cached_dataset = [self[i] for i in range(len(self))]
-
-    def __len__(self) -> int:
-        """Returns number of stays in the data.
-
-        Returns:
-            number of stays in the data
-        """
-        return self.num_stays
+        self.ram_cache(ram_cache)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice.
@@ -185,58 +205,51 @@ class ImputationDataset(Dataset):
         """
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
-        stay_id = self.static_df.iloc[idx][self.vars["GROUP"]]
+        stay_id = self.grouping_df.iloc[idx].name
 
         # slice to make sure to always return a DF
-        window = self.dyn_df.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
+        window = self.features_df.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
         amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
         amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
 
         return (
-            torch.from_numpy(amputated_window.values).to(torch.float32),
-            torch.from_numpy(amputation_mask.values).to(torch.float32),
-            torch.from_numpy(window.values).to(torch.float32),
+            from_numpy(amputated_window.values).to(float32),
+            from_numpy(amputation_mask.values).to(float32),
+            from_numpy(window.values).to(float32),
         )
-
-    def get_data_and_labels(self) -> Tuple[np.array, np.array]:
-        """Function to return all the data and labels aligned at once.
-
-        We use this function for the ML methods which don't require an iterator.
-
-        Returns:
-            A Tuple containing data points and label for the split.
-        """
-        logging.info("Gathering the samples for split " + self.split)
-        rep: DataFrame = self.dyn_df.to_numpy()
-
-        return self.amputated_values, rep
 
 
 @gin.configurable("ImputationPredictionDataset")
 class ImputationPredictionDataset(Dataset):
-    """Subclass of torch Dataset that represents the data to learn on.
+    """Subclass of torch dataset that represents data with missingness for imputation.
 
     Args:
-        data: Dict of the different splits of the data.
-        split: Either 'train','val' or 'test'.
-        vars: Contains the names of columns in the data.
+        data (DataFrame): dict of the different splits of the data
+        grouping_column (str, optional): column that is used for grouping. Defaults to "stay_id".
+        select_columns (List[str], optional): the columns to serve as input for the imputation model. Defaults to None.
+        ram_cache (bool, optional): wether the dataset should be stored in ram. Defaults to True.
     """
 
     def __init__(
         self,
         data: DataFrame,
         grouping_column: str = "stay_id",
+        select_columns: List[str] = None,
         ram_cache: bool = True,
     ):
+
+        self.dyn_df = data
+
+        if select_columns is not None:
+            self.dyn_df = self.dyn_df[list(select_columns) + grouping_column]
+
         if grouping_column is not None:
-            self.dyn_df = data.set_index(grouping_column)
+            self.dyn_df = self.dyn_df.set_index(grouping_column)
         else:
             self.dyn_df = data
 
         # calculate basic info for the data
         self.group_indices = self.dyn_df.index.unique()
-        self.num_measurements = self.dyn_df.shape[0]
-        self.dyn_measurements = self.dyn_df.shape[1]
         self.maxlen = self.dyn_df.groupby(grouping_column).size().max()
 
         self._cached_dataset = None
@@ -270,17 +283,4 @@ class ImputationPredictionDataset(Dataset):
         # slice to make sure to always return a DF
         window = self.dyn_df.loc[stay_id:stay_id, :]
 
-        return torch.from_numpy(window.values).to(torch.float32)
-
-    def get_data_and_labels(self) -> Tuple[np.array, np.array]:
-        """Function to return all the data and labels aligned at once.
-
-        We use this function for the ML methods which don't require an iterator.
-
-        Returns:
-            A Tuple containing data points and label for the split.
-        """
-        logging.info(f"Gathering the samples for split {self.split}")
-        rep: DataFrame = self.dyn_df.to_numpy()
-
-        return self.amputated_values, rep
+        return from_numpy(window.values).to(float32)

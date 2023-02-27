@@ -5,7 +5,6 @@ from torch.nn import MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 import inspect
-
 import gin
 import lightgbm
 import numpy as np
@@ -15,11 +14,12 @@ from sklearn.metrics import mean_absolute_error
 import torch
 from ignite.exceptions import NotComputableError
 
+from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 
 from pytorch_lightning import LightningModule
 
-from icu_benchmarks.models.metric_constants import MLMetrics, DLMetrics
+from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.models.metrics import MAE
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
@@ -33,18 +33,8 @@ class BaseModule(LightningModule):
     needs_fit = False
 
     weight = None
-    logdir = None
     metrics = {}
-    scaler = None
-
-    def get_seed(self):
-        return np.random.get_state()[1][0]
-
-    def set_logdir(self, logdir):
-        self.logdir = logdir
-
-    def set_scaler(self, scaler):
-        self.scaler = scaler
+    trained_columns = None
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError()
@@ -57,6 +47,9 @@ class BaseModule(LightningModule):
 
     def set_metrics(self, *args, **kwargs):
         self.metrics = {}
+
+    def set_trained_columns(self, columns: List[str]):
+        self.trained_columns = columns
 
     def set_weight(self, weight, *args, **kwargs):
         pass
@@ -81,6 +74,7 @@ class BaseModule(LightningModule):
 
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         checkpoint["class"] = self.__class__
+        checkpoint["trained_columns"] = self.trained_columns
         return super().on_save_checkpoint(checkpoint)
 
 
@@ -279,10 +273,11 @@ class MLClassificationWrapper(BaseModule):
                 self.label_transform = lambda x: x
             self.metrics = {"MAE": mean_absolute_error}
 
-    def training_step(self, dataset):
-        train_rep, train_label, val_rep, val_label = dataset
-        train_rep, train_label = train_rep.squeeze().cpu().numpy(), train_label.squeeze().cpu().numpy()
-        val_rep, val_label = val_rep.squeeze().cpu().numpy(), val_label.squeeze().cpu().numpy()
+    def fit(self, train_dataset, val_dataset):
+        train_rep, train_label = train_dataset.get_data_and_labels()
+        val_rep, val_label = val_dataset.get_data_and_labels()
+        train_rep, train_label = torch.from_numpy(train_rep).to(self.device), torch.from_numpy(train_label).to(self.device)
+        val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(train_label)
 
         if "class_weight" in self.model.get_params().keys():  # Set class weights
@@ -292,9 +287,9 @@ class MLClassificationWrapper(BaseModule):
             self.model.set_params(random_state=np.random.get_state()[1][0])
 
             self.model.fit(
-                train_rep,
-                train_label,
-                eval_set=(val_rep, val_label),
+                train_rep.cpu().numpy(),
+                train_label.cpu().numpy(),
+                eval_set=(val_rep.cpu().numpy(), val_label.cpu().numpy()),
                 callbacks=[
                     lightgbm.early_stopping(self.hparams.patience, verbose=False),
                     lightgbm.log_evaluation(period=-1, show_stdv=False),
@@ -321,8 +316,8 @@ class MLClassificationWrapper(BaseModule):
         )
 
     def validation_step(self, val_dataset, _):
-        val_rep, val_label = val_dataset
-        val_rep, val_label = val_rep.squeeze().cpu(), val_label.squeeze().cpu()
+        val_rep, val_label = val_dataset.get_data_and_labels()
+        val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(val_label)
 
         if "MAE" in self.metrics.keys():
@@ -340,7 +335,8 @@ class MLClassificationWrapper(BaseModule):
 
     def test_step(self, dataset, _):
         test_rep, test_label = dataset
-        test_rep, test_label = test_rep.squeeze().cpu(), test_label.squeeze().cpu()
+        test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
+        # test_rep, test_label = torch.from_numpy(test_rep).to(self.device), torch.from_numpy(test_label).to(self.device)
         self.set_metrics(test_label)
         if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
             test_pred = self.model.predict(test_rep)
@@ -381,7 +377,7 @@ class ImputationWrapper(DLWrapper):
         lr_factor: float = 0.99,
         lr_steps: Optional[List[int]] = None,
         input_size: torch.Tensor = None,
-        initialization_method: str = "normal",
+        initialization_method: ImputationInit = ImputationInit.NORMAL,
         **kwargs: str,
     ) -> None:
         super().__init__()
@@ -396,16 +392,16 @@ class ImputationWrapper(DLWrapper):
         def init_func(m):
             classname = m.__class__.__name__
             if hasattr(m, "weight") and (classname.find("Conv") != -1 or classname.find("Linear") != -1):
-                if init_type == "normal":
+                if init_type == ImputationInit.NORMAL:
                     torch.nn.init.normal_(m.weight.data, 0.0, gain)
-                elif init_type == "xavier":
+                elif init_type == ImputationInit.XAVIER:
                     torch.nn.init.xavier_normal_(m.weight.data, gain=gain)
-                elif init_type == "kaiming":
+                elif init_type == ImputationInit.KAIMING:
                     torch.nn.init.kaiming_normal_(m.weight.data, a=0, mode="fan_out")
-                elif init_type == "orthogonal":
+                elif init_type == ImputationInit.ORTHOGONAL:
                     torch.nn.init.orthogonal_(m.weight.data, gain=gain)
                 else:
-                    raise NotImplementedError("initialization method [%s] is not implemented" % init_type)
+                    raise NotImplementedError(f"Initialization method {init_type} is not implemented")
                 if hasattr(m, "bias") and m.bias is not None:
                     torch.nn.init.constant_(m.bias.data, 0.0)
             elif classname.find("BatchNorm2d") != -1:
@@ -419,7 +415,7 @@ class ImputationWrapper(DLWrapper):
         for metrics in self.metrics.values():
             for metric in metrics.values():
                 metric.reset()
-        logging.info("RESET METRICS")
+        logging.info("IMPUTATION METRICS RESET.")
         return super().on_fit_start()
 
     def step_fn(self, batch, step_prefix=""):
@@ -435,6 +431,9 @@ class ImputationWrapper(DLWrapper):
                 (torch.flatten(amputated.detach(), start_dim=1).clone(), torch.flatten(target.detach(), start_dim=1).clone())
             )
         return loss
+
+    def fit(self, train_dataset, val_dataset):
+        raise NotImplementedError()
 
     def predict_step(self, data, amputation_mask=None):
         return self(data, amputation_mask)

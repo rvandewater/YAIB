@@ -220,7 +220,6 @@ class Block(nn.Module):
         self.bnorm2 = nn.BatchNorm1d(out_ch)
         self.relu = nn.ReLU()
 
-
         # Transformer Encoder for Feature Self-Attention
         self.feature_layer = nn.TransformerEncoderLayer(d_model=in_ch, nhead=1, dim_feedforward=64, activation="gelu")
         self.feature_transformer = nn.TransformerEncoder(self.feature_layer, num_layers=1)
@@ -228,7 +227,6 @@ class Block(nn.Module):
         # Transformer Encoder for Time Self-Attention
         self.time_layer = nn.TransformerEncoderLayer(d_model=time_dim, nhead=1, dim_feedforward=64, activation="gelu")
         self.time_transformer = nn.TransformerEncoder(self.time_layer, num_layers=1)
-        
 
     def forward(self, x, t):
         # Apply Feature Self-Attention

@@ -29,8 +29,6 @@ def make_single_split(
     Args:
         data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
         vars: Contains the names of columns in the data.
-        train_pct: Proportion of stays assigned to training fold.
-        val_pct: Proportion of stays assigned to validation fold.
         cv_repetitions: Number of times to repeat cross validation.
         repetition_index: Index of the repetition to return.
         cv_folds: Number of folds for cross validation.

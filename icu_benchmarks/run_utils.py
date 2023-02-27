@@ -1,4 +1,4 @@
-import wandb
+import torch
 import json
 from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime, timedelta
@@ -8,6 +8,7 @@ import scipy.stats as stats
 import shutil
 from statistics import mean, stdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
+from icu_benchmarks.wandb_utils import wandb_log
 
 
 def build_parser() -> ArgumentParser:
@@ -52,7 +53,7 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument("-pl", "--plot", action=BooleanOptionalAction, help="Generate common plots.")
     general_args.add_argument("--wandb-sweep", action="store_true", help="activates wandb hyper parameter sweep")
     general_args.add_argument(
-        "--use_pretrained_imputation", required=False, type=str, help="Path to pretrained imputation model."
+        "--use-pretrained-imputation", required=False, type=str, help="Path to pretrained imputation model."
     )
 
     # MODEL TRAINING ARGUMENTS
@@ -148,9 +149,8 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
         json.dump(accumulated_metrics, f, cls=JsonResultLoggingEncoder)
 
     logging.info(f"Accumulated results: {accumulated_metrics}")
-    
-    if wandb.run is not None:
-        wandb.log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
+
+    wandb_log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
 
 
 def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
@@ -168,3 +168,30 @@ def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newl
         level,
         "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars),
     )
+
+
+def load_pretrained_imputation_model(use_pretrained_imputation):
+    """Loads a pretrained imputation model.
+
+    Args:
+        use_pretrained_imputation: Path to the pretrained imputation model.
+    """
+    if use_pretrained_imputation is not None and not Path(use_pretrained_imputation).exists():
+        logging.warning("The specified pretrained imputation model does not exist.")
+        use_pretrained_imputation = None
+
+    if use_pretrained_imputation is not None:
+        logging.info("Using pretrained imputation from" + str(use_pretrained_imputation))
+        pretrained_imputation_model_checkpoint = torch.load(use_pretrained_imputation, map_location=torch.device("cpu"))
+        if isinstance(pretrained_imputation_model_checkpoint, dict):
+            imputation_model_class = pretrained_imputation_model_checkpoint["class"]
+            pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
+            pretrained_imputation_model.set_trained_columns(pretrained_imputation_model_checkpoint["trained_columns"])
+            pretrained_imputation_model.load_state_dict(pretrained_imputation_model_checkpoint["state_dict"])
+        else:
+            pretrained_imputation_model = pretrained_imputation_model_checkpoint
+        pretrained_imputation_model = pretrained_imputation_model.to("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        pretrained_imputation_model = None
+
+    return pretrained_imputation_model
