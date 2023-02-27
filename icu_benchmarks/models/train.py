@@ -122,16 +122,16 @@ def train_common(
         benchmark=not reproducible,
         logger=loggers,
         num_sanity_val_steps=0,
-        log_every_n_steps=1 if model.needs_fit else 100,
+        log_every_n_steps=50 if model.needs_fit else 100,
     )
 
     if model.needs_fit:
-        logging.info("fitting model to data...")
+        logging.info("Fitting model to data.")
         model.fit(train_dataset, val_dataset)
         try:
             torch.save(model, log_dir / "last.ckpt")
         except Exception as e:
-            logging.error(f"Cannot save model to path {str((log_dir / 'last.ckpt').resolve())}: {e}")
+            logging.error(f"Cannot save model to path {str((log_dir / 'last.ckpt').resolve())}: {e}.")
         logging.info("fitting complete!")
 
     if model.needs_training:

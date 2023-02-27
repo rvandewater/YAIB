@@ -1,6 +1,6 @@
 import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.encoders
+import icu_benchmarks.models.dl_models
 import icu_benchmarks.models.utils
 import icu_benchmarks.imputation.rnn
 import icu_benchmarks.data.preprocess

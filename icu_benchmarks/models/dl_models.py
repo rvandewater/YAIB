@@ -2,55 +2,8 @@ import gin
 from numbers import Integral
 import numpy as np
 import torch.nn as nn
-import lightgbm
-from sklearn.linear_model import LogisticRegression as sklearn_LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
-from icu_benchmarks.models.wrappers import DLClassificationWrapper, MLClassificationWrapper
-
-
-@gin.configurable
-class LGBMClassifier(MLClassificationWrapper):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = self.model_args()
-
-    @gin.configurable(module="LGBMClassifier")
-    def model_args(self, *args, **kwargs):
-        return lightgbm.LGBMClassifier(*args, **kwargs)
-
-
-@gin.configurable
-class LGBMRegressor(MLClassificationWrapper):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = self.model_args()
-
-    @gin.configurable(module="LGBMRegressor")
-    def model_args(self, *args, **kwargs):
-        return lightgbm.LGBMRegressor(*args, **kwargs)
-
-
-@gin.configurable
-class LogisticRegression(MLClassificationWrapper):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = self.model_args()
-
-    @gin.configurable(module="LogisticRegression")
-    def model_args(self, *args, **kwargs):
-        return sklearn_LogisticRegression(*args, **kwargs)
-
-
-@gin.configurable
-class RFClassifier(MLClassificationWrapper):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = self.model_args()
-
-    @gin.configurable(module="RFClassifier")
-    def model_args(self, *args, **kwargs):
-        return RandomForestClassifier(*args, **kwargs)
+from icu_benchmarks.models.wrappers import DLClassificationWrapper
 
 
 @gin.configurable

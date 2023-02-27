@@ -156,6 +156,7 @@ class DLWrapper(BaseModule):
 
 @gin.configurable("DLClassificationWrapper")
 class DLClassificationWrapper(DLWrapper):
+    """Interface for Deep Learning classification models."""
     def set_weight(self, weight, dataset):
         if isinstance(weight, list):
             weight = torch.FloatTensor(weight).to(self.device)
@@ -238,6 +239,7 @@ class DLClassificationWrapper(DLWrapper):
 
 @gin.configurable("MLClassificationWrapper")
 class MLClassificationWrapper(BaseModule):
+    """Interface for classification with traditional Machine Learning models."""
     needs_training = False
     needs_fit = True
 
@@ -368,6 +370,7 @@ class MLClassificationWrapper(BaseModule):
 
 @gin.configurable("ImputationWrapper")
 class ImputationWrapper(DLWrapper):
+    """Interface for imputation models."""
     needs_training = True
     needs_fit = False
 

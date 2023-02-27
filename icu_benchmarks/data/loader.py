@@ -44,7 +44,7 @@ class SICUDataset(Dataset):
     def ram_cache(self, cache: bool = True):
         self._cached_dataset = None
         if cache:
-            logging.info("caching dataset in ram....")
+            logging.info("Caching dataset in ram.")
             self._cached_dataset = [self[i] for i in range(len(self))]
 
     def __len__(self) -> int:
@@ -73,7 +73,7 @@ class ClassificationDataset(SICUDataset):
     """Subclass of SICU dataset for classification tasks.
 
     Args:
-        ram_cache (bool, optional): wether the complete dataset should be stored in ram. Defaults to True.
+        ram_cache (bool, optional): Whether the complete dataset should be stored in ram. Defaults to True.
     """
 
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
@@ -82,9 +82,7 @@ class ClassificationDataset(SICUDataset):
         self.ram_cache(ram_cache)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
-        """Function to sample from the data split of choice.
-
-        Used for deep learning implementations.
+        """Function to sample from the data split of choice. Used for deep learning implementations.
 
         Args:
             idx: A specific row index to sample.

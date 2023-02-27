@@ -35,26 +35,37 @@ You also need to create a gin configuration file in the `configs/imputation` dir
 named `newmethod.gin` after the name that was entered into the `gin.configurable` decorator call.
 
 Your `.gin` file should look like this:
+
 ```python
 import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.encoders
+import icu_benchmarks.models.dl_models
 import icu_benchmarks.models.utils
 import icu_benchmarks.data.preprocess
 # import here the file you created your New_Method class in
 import icu_benchmarks.imputation.new_model
 
 # Train params
-train_common.model = @newmethod # change this into the name of the gin configuration file
+train_common.model =
+
+
+@newmethod  # change this into the name of the gin configuration file
 
 # here you can set some training parameters
+
+
 train_common.epochs = 1000
 train_common.batch_size = 64
 train_common.patience = 10
 train_common.min_delta = 1e-4
 train_common.use_wandb = True
 
-ImputationWrapper.optimizer = @Adam
+ImputationWrapper.optimizer =
+
+
+@Adam
+
+
 ImputationWrapper.lr_scheduler = "cosine"
 
 # Optimizer params

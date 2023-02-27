@@ -2,8 +2,9 @@ import torch
 from typing import Callable
 import numpy as np
 from ignite.metrics import EpochMetric
-
-
+from sklearn.metrics import balanced_accuracy_score, mean_absolute_error
+from sklearn.calibration import calibration_curve
+from scipy.spatial.distance import jensenshannon
 def accuracy(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""
     with torch.no_grad():
@@ -22,10 +23,6 @@ def accuracy(output, target, topk=(1,)):
 
 
 def balanced_accuracy_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
-    try:
-        from sklearn.metrics import balanced_accuracy_score
-    except ImportError:
-        raise RuntimeError("This contrib module requires sklearn to be installed.")
 
     y_true = y_targets.numpy()
     y_pred = np.argmax(y_preds.numpy(), axis=-1)
@@ -33,33 +30,18 @@ def balanced_accuracy_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor)
 
 
 def ece_curve_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
-    try:
-        from sklearn.calibration import calibration_curve
-    except ImportError:
-        raise RuntimeError("This contrib module requires sklearn to be installed.")
-
     y_true = y_targets.numpy()
     y_pred = y_preds.numpy()
     return calibration_curve(y_true, y_pred, n_bins=10)
 
 
 def mae_with_invert_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, invert_fn=Callable) -> float:
-    try:
-        from sklearn.metrics import mean_absolute_error
-    except ImportError:
-        raise RuntimeError("This contrib module requires sklearn to be installed.")
-
     y_true = invert_fn(y_targets.numpy().reshape(-1, 1))[:, 0]
     y_pred = invert_fn(y_preds.numpy().reshape(-1, 1))[:, 0]
     return mean_absolute_error(y_true, y_pred)
 
 
 def JSD_fn(y_preds: torch.Tensor, y_targets: torch.Tensor):
-    try:
-        from scipy.spatial.distance import jensenshannon
-    except ImportError:
-        raise RuntimeError("This contrib module requires scipy to be installed.")
-
     return jensenshannon(abs(y_preds).flatten(), abs(y_targets).flatten()) ** 2
     # return jensenshannon(abs(y_preds),abs(y_targets)) ** 2
 
