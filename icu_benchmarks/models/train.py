@@ -65,6 +65,7 @@ def train_common(
         test_on: If set to "test", evaluate the model on the test set. If set to "val", evaluate on the validation set.
         use_wandb: If set to true, log to wandb.
         cpu: If set to true, run on cpu.
+        verbose: Enable detailed logging.
         num_workers: Number of workers to use for data loading.
     """
 
@@ -115,7 +116,7 @@ def train_common(
         run_name = f"{type(model).__name__}"
         loggers.append(WandbLogger(run_name, save_dir=log_dir))
         set_wandb_run_name(run_name)
-    
+
     callbacks = [
         EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),

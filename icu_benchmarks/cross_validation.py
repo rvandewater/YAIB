@@ -52,6 +52,7 @@ def execute_repeated_cv(
         mode: Run mode. Can be one of the values of RunMode
         pretrained_imputation_model: Use a pretrained imputation model.
         cpu: Whether to run on CPU.
+        verbose: Enable detailed logging.
     Returns:
         The average loss of all folds.
     """
@@ -101,7 +102,7 @@ def execute_repeated_cv(
 
             if not verbose:
                 logging.getLogger().setLevel(logging.INFO)
-                logging.getLogger("pytorch_lightning").setLevel(logging.INFO)
+                logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
                 warnings.filterwarnings("default")
             log_full_line(
                 f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| TRAINING DURATION {train_time}",

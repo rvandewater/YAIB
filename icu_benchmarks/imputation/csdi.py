@@ -61,7 +61,7 @@ class CSDI(ImputationWrapper):
         self.target_strategy = target_strategy
 
         self.emb_total_dim = self.emb_time_dim + self.emb_feature_dim
-        if self.is_unconditional == False:
+        if not self.is_unconditional:
             self.emb_total_dim += 1  # for conditional mask
         self.embed_layer = nn.Embedding(num_embeddings=self.target_dim, embedding_dim=self.emb_feature_dim)
 
@@ -140,7 +140,7 @@ class CSDI(ImputationWrapper):
         side_info = torch.cat([time_embed, feature_embed], dim=-1)  # (B,L,K,*)
         side_info = side_info.permute(0, 3, 2, 1)  # (B,*,K,L)
 
-        if self.is_unconditional == False:
+        if not self.is_unconditional:
             side_mask = cond_mask.unsqueeze(1)  # (B,1,K,L)
             side_info = torch.cat([side_info, side_mask], dim=1)
 

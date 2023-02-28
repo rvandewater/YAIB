@@ -42,7 +42,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         self.max_noise = max_noise
         self.noise_scheduler = noise_scheduler
 
-        ## Noise Schedulers ##
+        # == Noise Schedulers == #
         # Linear
         if self.noise_scheduler == "linear":
             self.betas = torch.linspace(self.min_noise, self.max_noise, self.T)
@@ -238,9 +238,11 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         return forward_sample, noise
 
-    # Function that takes a noised image at some timestep t and the noise prediction and tries to compute the original sample
-    # The t here needs to be one specific timestamp -> always the same value, while it doesn't have to be like that in the forward diffusion sample function
+    #
     def backward_diffusion_sample(self, noise_pred, x_t, t, t_index=0):
+        """Function that takes a noised image at some timestep t and the noise prediction and tries to compute the original
+        sample. The t needs to be one specific timestamp -> always the same value. It does not have to be like
+        this in the forward diffusion sample function"""
 
         betas_t = self.get_index_from_list(self.betas, t, x_t.shape)
         sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape)

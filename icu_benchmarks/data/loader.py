@@ -15,12 +15,9 @@ from .constants import DataSplit as Split
 class SICUDataset(Dataset):
     """Standardized ICU Dataset: subclass of Torch Dataset that represents the data to learn on.
 
-    Args:
-        data: Dict of the different splits of the data.
-        split: Either 'train','val' or 'test'.
-        vars: Contains the names of columns in the data.
-        grouping_segment: str, optional: The segment of the data contains the grouping column with only unique values. Defaults to Segment.outcome.
-            Is used to calculate the number of stays in the data.
+    Args: data: Dict of the different splits of the data. split: Either 'train','val' or 'test'. vars: Contains the names of
+    columns in the data. grouping_segment: str, optional: The segment of the data contains the grouping column with only
+    unique values. Defaults to Segment.outcome. Is used to calculate the number of stays in the data.
     """
 
     def __init__(
@@ -159,17 +156,7 @@ class ClassificationDataset(SICUDataset):
 
 @gin.configurable("ImputationDataset")
 class ImputationDataset(SICUDataset):
-    """Subclass of SICU Dataset that contains data for imputation models
-
-    Args:
-        data (Dict[str, DataFrame]): data to use
-        split (str, optional): split to apply. Defaults to Split.train.
-        vars (Dict[str, str], optional): contains names of columns in the data. Defaults to gin.REQUIRED.
-        mask_proportion (float, optional): proportion to artificially mask for amputation. Defaults to 0.3.
-        mask_method (str, optional): masking mechanism. Defaults to "MCAR".
-        mask_observation_proportion (float, optional): poportion of the observed data to be masked. Defaults to 0.3.
-        ram_cache (bool, optional): if the dataset should be completely stored in ram and not generated on the fly during training. Defaults to True.
-    """
+    """Subclass of SICU (Standardized ICU) Dataset that contains data for imputation models."""
 
     def __init__(
         self,
@@ -181,6 +168,17 @@ class ImputationDataset(SICUDataset):
         mask_observation_proportion=0.3,
         ram_cache: bool = True,
     ):
+        """
+        Args:
+            data (Dict[str, DataFrame]): data to use
+            split (str, optional): split to apply. Defaults to Split.train.
+            vars (Dict[str, str], optional): contains names of columns in the data. Defaults to gin.REQUIRED.
+            mask_proportion (float, optional): proportion to artificially mask for amputation. Defaults to 0.3.
+            mask_method (str, optional): masking mechanism. Defaults to "MCAR".
+            mask_observation_proportion (float, optional): poportion of the observed data to be masked. Defaults to 0.3.
+            ram_cache (bool, optional): if the dataset should be completely stored in ram and not generated on the fly during
+                training. Defaults to True.
+        """
         super().__init__(data, split, vars, grouping_segment=Segment.static)
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion

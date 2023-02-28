@@ -56,8 +56,8 @@ class SSSDSA(ImputationWrapper):
             pool: pooling factor at each level. Pooling shrinks the sequence length at lower levels.
                 We experimented with a pooling factor of 4 with 1 to 4 tiers of pooling and found 2 tiers to be best.
                 It's possible that a different combination of pooling factors and number of tiers may perform better.
-            expand: expansion factor when pooling. Features are expanded (i.e. the model becomes wider) at lower levels of the architecture.
-                We generally found 2 to perform best (among 2, 4).
+            expand: expansion factor when pooling. Features are expanded (i.e. the model becomes wider) at lower levels of the
+                architecture.We generally found 2 to perform best (among 2, 4).
             ff: expansion factor for the FF inverted bottleneck. We generally found 2 to perform best (among 2, 4).
             bidirectional: use bidirectional S4 layers. Bidirectional layers are suitable for use with non-causal models
                 such as diffusion models like DiffWave.
@@ -103,7 +103,8 @@ class SSSDSA(ImputationWrapper):
         max_pool_depth = round(math.log(input_size[1]) / math.log(best_pool_factor))
         if max_pool_depth < 3:
             raise ValueError(
-                f"Sequence length must be a power of form l = p^n for some prime p with n > 2. Otherwise pooling does not work.\n"
+                f"Sequence length must be a power of form l = p^n for some prime p with n > 2. Otherwise pooling does not "
+                f"work.\n "
                 f"Got sequence length {input_size[1]} with p = {best_pool_factor} and n = {max_pool_depth}."
             )
         pool = [best_pool_factor] * min(4, round(math.log(input_size[1]) / math.log(best_pool_factor)))
@@ -210,7 +211,9 @@ class SSSDSA(ImputationWrapper):
         )
         self.fc_t1 = nn.Linear(diffusion_step_embed_dim_in, diffusion_step_embed_dim_mid)
         self.fc_t2 = nn.Linear(diffusion_step_embed_dim_mid, diffusion_step_embed_dim_out)
-        self.cond_embedding = nn.Embedding(label_embed_classes, label_embed_dim) if label_embed_classes > 0 != None else None
+        self.cond_embedding = (
+            nn.Embedding(label_embed_classes, label_embed_dim) if label_embed_classes > 0 is not None else None
+        )
         self.diffusion_step_embed_dim_in = diffusion_step_embed_dim_in
 
         assert H == d_model
@@ -677,13 +680,13 @@ def calc_diffusion_step_embedding(diffusion_steps, diffusion_step_embed_dim_in, 
     E.g. the embedding vector in the 128-dimensional space is
     [sin(t * 10^(0*4/63)), ... , sin(t * 10^(63*4/63)), cos(t * 10^(0*4/63)), ... , cos(t * 10^(63*4/63))]
     Parameters:
-    diffusion_steps (torch.long tensor, shape=(batchsize, 1)):
-                                diffusion steps for batch data
-    diffusion_step_embed_dim_in (int, default=128):
-                                dimensionality of the embedding space for discrete diffusion steps
+        diffusion_steps (torch.long tensor, shape=(batchsize, 1)):
+                                    diffusion steps for batch data
+        diffusion_step_embed_dim_in (int, default=128):
+                                    dimensionality of the embedding space for discrete diffusion steps
 
     Returns:
-    the embedding vectors (torch.tensor, shape=(batchsize, diffusion_step_embed_dim_in)):
+        The embedding vectors (torch.tensor, shape=(batchsize, diffusion_step_embed_dim_in)).
     """
 
     assert diffusion_step_embed_dim_in % 2 == 0
@@ -701,10 +704,9 @@ def calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T):
     """
     Compute diffusion process hyperparameters
 
-    Parameters:
-    T (int):                    number of diffusion steps
-    beta_0 and beta_T (float):  beta schedule start/end value,
-                                where any beta_t in the middle is linearly interpolated
+    Params:
+        T (int): number of diffusion steps.
+        beta_0 beta_T (float) :beta schedule start/end value, where any beta_t in the middle is linearly interpolated
 
     Returns:
     a dictionary of diffusion hyperparameters including:

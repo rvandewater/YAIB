@@ -14,10 +14,9 @@ import opt_einsum as oe
 contract = oe.contract
 contract_expression = oe.contract_expression
 
-
 """ Standalone CSDI + S4 imputer for random missing, non-random missing and black-out missing.
 The notebook contains CSDI and S4 functions and utilities. However the imputer is located in the last Class of
-the notebook, please see more documentation of use there. Additional at this file can be added for CUDA multiplication 
+the notebook, please see more documentation of use there. Additional at this file can be added for CUDA multiplication
 the cauchy kernel."""
 
 
@@ -44,6 +43,7 @@ try:  # Try pykeops
     from pykeops.torch import Genred
 
     has_pykeops = True
+
 
     def cauchy_conj(v, z, w):
         """Pykeops version"""
@@ -75,6 +75,7 @@ try:  # Try pykeops
 except ImportError:
     has_pykeops = False
 
+
     def cauchy_slow(v, z, w):
         """
         v, w: (..., N)
@@ -98,7 +99,6 @@ if tuple(map(int, torch.__version__.split(".")[:2])) >= (1, 10):
     _resolve_conj = lambda x: x.conj().resolve_conj()
 else:
     _resolve_conj = lambda x: x.conj()
-
 
 """ simple nn.Module components """
 
@@ -170,16 +170,16 @@ class TransposedLinear(nn.Module):
 
 
 def LinearActivation(
-    d_input,
-    d_output,
-    bias=True,
-    zero_bias_init=False,
-    transposed=False,
-    initializer=None,
-    activation=None,
-    activate=False,  # Apply activation as part of this module
-    weight_norm=False,
-    **kwargs,
+        d_input,
+        d_output,
+        bias=True,
+        zero_bias_init=False,
+        transposed=False,
+        initializer=None,
+        activation=None,
+        activate=False,  # Apply activation as part of this module
+        weight_norm=False,
+        **kwargs,
 ):
     """Returns a linear nn.Module with control over axes order, initialization, and activation"""
 
@@ -216,7 +216,8 @@ def krylov(L, A, b, c=None, return_power=False):
 
     If return_power=True, return A^{L-1} as well
     """
-    # TODO There is an edge case if L=1 where output doesn't get broadcasted, which might be an issue if caller is expecting broadcasting semantics... can deal with it if it arises
+    # TODO: There is an edge case if L=1 where output doesn't get broadcast,
+    #  which might be an issue if caller is expecting broadcasting semantics... can deal with it if it arises
 
     x = b.unsqueeze(-1)  # (..., N, 1)
     A_ = A
@@ -285,7 +286,8 @@ def power(L, A, v=None):
     # powers[-1] := A^l
     # l := largest po2 at most L
 
-    # Note that an alternative divide and conquer to compute the reduction is possible and can be embedded into the above loop without caching intermediate powers of A
+    # Note that an alternative divide and conquer to compute the reduction is possible and can be embedded into the above loop
+    # without caching intermediate powers of A.
     # We do this reverse divide-and-conquer for efficiency reasons:
     # 1) it involves fewer padding steps for non-po2 L
     # 2) it involves more contiguous arrays
@@ -391,7 +393,7 @@ def rank_correction(measure, N, rank=1, dtype=torch.float):
         P = torch.stack([P0, P1], dim=0)  # (2 N)
     elif measure == "lagt":
         assert rank >= 1
-        P = 0.5**0.5 * torch.ones(1, N, dtype=dtype)
+        P = 0.5 ** 0.5 * torch.ones(1, N, dtype=dtype)
     elif measure == "fourier":
         P = torch.ones(N, dtype=dtype)  # (N)
         P0 = P.clone()
@@ -465,16 +467,16 @@ def bilinear(dt, A, B=None):
 
 
 class SSKernelNPLR(nn.Module):
-    """Stores a representation of and computes the SSKernel function K_L(A^dt, B^dt, C) corresponding to a discretized state space, where A is Normal + Low Rank (NPLR)
-
-    The class name stands for 'State-Space SSKernel for Normal Plus Low-Rank'.
+    """Stores a representation of and computes the SSKernel function K_L(A^dt, B^dt, C) corresponding to a discretized state s
+    pace, where A is Normal + Low Rank (NPLR). The class name stands for 'State-Space SSKernel for Normal Plus Low-Rank'.
     The parameters of this function are as follows.
 
-    A: (... N N) the state matrix
-    B: (... N) input matrix
-    C: (... N) output matrix
-    dt: (...) timescales / discretization step size
-    p, q: (... P N) low-rank correction to A, such that Ap=A+pq^T is a normal matrix
+    Args:
+        A: (... N N) the state matrix
+        B: (... N) input matrix
+        C: (... N) output matrix
+        dt: (...) timescales / discretization step size
+        p, q: (... P N) low-rank correction to A, such that Ap=A+pq^T is a normal matrix
 
     The forward pass of this Module returns:
     (... L) that represents represents FFT SSKernel_L(A^dt, B^dt, C)
@@ -515,19 +517,19 @@ class SSKernelNPLR(nn.Module):
         return omega, z
 
     def __init__(
-        self,
-        L,
-        w,
-        P,
-        B,
-        C,
-        log_dt,
-        hurwitz=False,
-        trainable=None,
-        lr=None,
-        tie_state=False,
-        length_correction=True,
-        verbose=False,
+            self,
+            L,
+            w,
+            P,
+            B,
+            C,
+            log_dt,
+            hurwitz=False,
+            trainable=None,
+            lr=None,
+            tie_state=False,
+            length_correction=True,
+            verbose=False,
     ):
         """
         L: Maximum length; this module computes an SSM kernel of length L
@@ -544,7 +546,8 @@ class SSKernelNPLR(nn.Module):
         trainable: toggle which of the parameters is trainable
         lr: add hook to set lr of hippo parameters specially (everything besides C)
         tie_state: tie all state parameters across the H hidden features
-        length_correction: multiply C by (I - dA^L) - can be turned off when L is large for slight speedup at initialization (only relevant when N large as well)
+        length_correction: multiply C by (I - dA^L) - can be turned off when L is large for slight speedup at initialization
+        (only relevant when N large as well)
 
         Note: tensor shape N here denotes half the true state size, because of conjugate symmetry
         """
@@ -579,9 +582,9 @@ class SSKernelNPLR(nn.Module):
         train = False
         if trainable is None:
             trainable = {}
-        if trainable == False:
+        if not trainable:
             trainable = {}
-        if trainable == True:
+        if trainable:
             trainable, train = {}, True
         self.register("log_dt", log_dt, trainable.get("dt", train), lr, 0.0)
         self.register("B", _c2r(B), trainable.get("B", train), lr, 0.0)
@@ -613,13 +616,15 @@ class SSKernelNPLR(nn.Module):
 
     def forward(self, state=None, rate=1.0, L=None):
         """
-        state: (..., s, N) extra tensor that augments B
-        rate: sampling rate factor
+            Args:
+                state: (..., s, N) extra tensor that augments B
+                rate: sampling rate factor
 
         returns: (..., c+s, L)
         """
         # Handle sampling rate logic
-        # The idea is that this kernel's length (in continuous units) is self.L, while we are asked to provide a kernel of length L at (relative) sampling rate rate
+        # The idea is that this kernel's length (in continuous units) is self.L,
+        # while we are asked to provide a kernel of length L at (relative) sampling rate.
         # If either are not passed in, assume we're not asked to change the scale of our kernel
         assert not (rate is None and L is None)
         if rate is None:
@@ -654,7 +659,8 @@ class SSKernelNPLR(nn.Module):
             # Have to "unbilinear" the state to put it into the same "type" as B
             # Compute 1/dt * (I + dt/2 A) @ state
 
-            # Can do this without expanding (maybe minor speedup using conj symmetry in theory), but it's easier to read this way
+            # Can do this without expanding (maybe minor speedup using conj symmetry in theory),
+            # but it's easier to read this way
             s = _conj(state) if state.size(-1) == self.N else state  # (B H N)
             sA = s * _conj(w) - contract("bhm, rhm, rhn -> bhn", s, _conj(Q), _conj(P))  # (B H N)
             s = s / dt.unsqueeze(-1) + sA / 2
@@ -688,23 +694,23 @@ class SSKernelNPLR(nn.Module):
             k_f = r[:-1, :-1, :, :] - r[:-1, -1:, :, :] * r[-1:, :-1, :, :] / (1 + r[-1:, -1:, :, :])
         elif self.rank == 2:
             r00 = r[: -self.rank, : -self.rank, :, :]
-            r01 = r[: -self.rank, -self.rank :, :, :]
-            r10 = r[-self.rank :, : -self.rank, :, :]
-            r11 = r[-self.rank :, -self.rank :, :, :]
+            r01 = r[: -self.rank, -self.rank:, :, :]
+            r10 = r[-self.rank:, : -self.rank, :, :]
+            r11 = r[-self.rank:, -self.rank:, :, :]
             det = (1 + r11[:1, :1, :, :]) * (1 + r11[1:, 1:, :, :]) - r11[:1, 1:, :, :] * r11[1:, :1, :, :]
             s = (
-                r01[:, :1, :, :] * (1 + r11[1:, 1:, :, :]) * r10[:1, :, :, :]
-                + r01[:, 1:, :, :] * (1 + r11[:1, :1, :, :]) * r10[1:, :, :, :]
-                - r01[:, :1, :, :] * (r11[:1, 1:, :, :]) * r10[1:, :, :, :]
-                - r01[:, 1:, :, :] * (r11[1:, :1, :, :]) * r10[:1, :, :, :]
+                    r01[:, :1, :, :] * (1 + r11[1:, 1:, :, :]) * r10[:1, :, :, :]
+                    + r01[:, 1:, :, :] * (1 + r11[:1, :1, :, :]) * r10[1:, :, :, :]
+                    - r01[:, :1, :, :] * (r11[:1, 1:, :, :]) * r10[1:, :, :, :]
+                    - r01[:, 1:, :, :] * (r11[1:, :1, :, :]) * r10[:1, :, :, :]
             )
             s = s / det
             k_f = r00 - s
         else:
             r00 = r[: -self.rank, : -self.rank, :, :]
-            r01 = r[: -self.rank, -self.rank :, :, :]
-            r10 = r[-self.rank :, : -self.rank, :, :]
-            r11 = r[-self.rank :, -self.rank :, :, :]
+            r01 = r[: -self.rank, -self.rank:, :, :]
+            r10 = r[-self.rank:, : -self.rank, :, :]
+            r11 = r[-self.rank:, -self.rank:, :, :]
             r11 = rearrange(r11, "a b h n -> h n a b")
             r11 = torch.linalg.inv(torch.eye(self.rank, device=r.device) + r11)
             r11 = rearrange(r11, "h n a b -> a b h n")
@@ -729,7 +735,7 @@ class SSKernelNPLR(nn.Module):
     @torch.no_grad()
     def double_length(self):
         if self.verbose:
-            log.info(f"S4: Doubling length from L = {self.L} to {2*self.L}")
+            log.info(f"S4: Doubling length from L = {self.L} to {2 * self.L}")
         self._setup_C(double_length=True)
 
     def _setup_linear(self):
@@ -743,7 +749,7 @@ class SSKernelNPLR(nn.Module):
         dt = torch.exp(self.log_dt)
         D = (2.0 / dt.unsqueeze(-1) - w).reciprocal()  # (H, N)
         R = (
-            torch.eye(self.rank, dtype=w.dtype, device=w.device) + 2 * contract("r h n, h n, s h n -> h r s", Q, D, P).real
+                torch.eye(self.rank, dtype=w.dtype, device=w.device) + 2 * contract("r h n, h n, s h n -> h r s", Q, D, P).real
         )  # (H r r)
         Q_D = rearrange(Q * D, "r h n -> h r n")
         R = torch.linalg.solve(R.to(Q_D), Q_D)  # (H r N)
@@ -760,9 +766,11 @@ class SSKernelNPLR(nn.Module):
 
     def _step_state_linear(self, u=None, state=None):
         """
-        Version of the step function that has time O(N) instead of O(N^2) per step, which takes advantage of the DPLR form and bilinear discretization.
+        Version of the step function that has time O(N) instead of O(N^2) per step, which takes advantage of the DPLR form
+        and bilinear discretization.
 
-        Unfortunately, as currently implemented it's about 2x slower because it calls several sequential operations. Perhaps a fused CUDA kernel implementation would be much faster
+        Unfortunately, as currently implemented it's about 2x slower because it calls several sequential operations. Perhaps
+        a fused CUDA kernel implementation would be much faster
 
         u: (H) input
         state: (H, N/2) state with conjugate pairs
@@ -780,12 +788,13 @@ class SSKernelNPLR(nn.Module):
         if state.size(-1) == self.N:  # Only store half of the conjugate pairs; should be true by default
             # There should be a slightly faster way using conjugate symmetry
             contract_fn = lambda p, x, y: contract("r h n, r h m, ... h m -> ... h n", _conj(p), _conj(x), _conj(y))[
-                ..., : self.N
-            ]  # inner outer product
+                                          ..., : self.N
+                                          ]  # inner outer product
         else:
             assert state.size(-1) == 2 * self.N
             step_params = {k: _conj(v) for k, v in step_params.items()}
-            # TODO worth setting up a contract_expression in default_state if we want to use this at inference time for stepping
+            # TODO worth setting up a contract_expression in default_state if we want to use this at inference
+            #  time for stepping
             contract_fn = lambda p, x, y: contract("r h n, r h m, ... h m -> ... h n", p, x, y)  # inner outer product
         D = step_params["D"]  # (H N)
         E = step_params["E"]  # (H N)
@@ -929,7 +938,6 @@ class SSKernelNPLR(nn.Module):
 
 
 class HippoSSKernel(nn.Module):
-
     """Wrapper around SSKernel that generates A, B, C, dt according to HiPPO arguments.
 
     The SSKernel is expected to support the interface
@@ -940,23 +948,25 @@ class HippoSSKernel(nn.Module):
     """
 
     def __init__(
-        self,
-        H,
-        N=64,
-        L=1,
-        measure="legs",
-        rank=1,
-        channels=1,  # 1-dim to C-dim map; can think of C as having separate "heads"
-        dt_min=0.001,
-        dt_max=0.1,
-        trainable=None,  # Dictionary of options to train various HiPPO parameters
-        lr=None,  # Hook to set LR of hippo parameters differently
-        length_correction=True,  # Multiply by I-A|^L after initialization; can be turned off for initialization speed
-        hurwitz=False,
-        tie_state=False,  # Tie parameters of HiPPO ODE across the H features
-        precision=1,  # 1 (single) or 2 (double) for the kernel
-        resample=False,  # If given inputs of different lengths, adjust the sampling rate. Note that L should always be provided in this case, as it assumes that L is the true underlying length of the continuous signal
-        verbose=False,
+            self,
+            H,
+            N=64,
+            L=1,
+            measure="legs",
+            rank=1,
+            channels=1,  # 1-dim to C-dim map; can think of C as having separate "heads"
+            dt_min=0.001,
+            dt_max=0.1,
+            trainable=None,  # Dictionary of options to train various HiPPO parameters
+            lr=None,  # Hook to set LR of hippo parameters differently
+            length_correction=True,  # Multiply by I-A|^L after initialization; can be turned off for initialization speed
+            hurwitz=False,
+            tie_state=False,  # Tie parameters of HiPPO ODE across the H features
+            precision=1,  # 1 (single) or 2 (double) for the kernel
+            resample=False,  # If given inputs of different lengths, adjust the sampling rate.
+            # Note that L should always be provided in this case, as it assumes that L is the true underlying
+            # length of the continuous signal
+            verbose=False,
     ):
         super().__init__()
         self.N = N
@@ -1007,23 +1017,24 @@ def get_torch_trans(heads=8, layers=1, channels=64):
 
 class S4(nn.Module):
     def __init__(
-        self,
-        d_model,
-        d_state=64,
-        l_max=1,  # Maximum length of sequence. Fine if not provided: the kernel will keep doubling in length until longer than sequence. However, this can be marginally slower if the true length is not a power of 2
-        channels=1,  # maps 1-dim to C-dim
-        bidirectional=False,
-        # Arguments for FF
-        activation="gelu",  # activation in between SS and FF
-        postact=None,  # activation after FF
-        initializer=None,  # initializer on FF
-        weight_norm=False,  # weight normalization on FF
-        hyper_act=None,  # Use a "hypernetwork" multiplication
-        dropout=0.0,
-        transposed=True,  # axis ordering (B, L, D) or (B, D, L)
-        verbose=False,
-        # SSM Kernel arguments
-        **kernel_args,
+            self,
+            d_model,
+            d_state=64,
+            l_max=1,  # Maximum length of sequence. Fine if not provided: the kernel will keep doubling in length until longer
+            # than sequence. However, this can be marginally slower if the true length is not a power of 2
+            channels=1,  # maps 1-dim to C-dim
+            bidirectional=False,
+            # Arguments for FF
+            activation="gelu",  # activation in between SS and FF
+            postact=None,  # activation after FF
+            initializer=None,  # initializer on FF
+            weight_norm=False,  # weight normalization on FF
+            hyper_act=None,  # Use a "hypernetwork" multiplication
+            dropout=0.0,
+            transposed=True,  # axis ordering (B, L, D) or (B, D, L)
+            verbose=False,
+            # SSM Kernel arguments
+            **kernel_args,
     ):
 
         """
@@ -1033,7 +1044,8 @@ class S4(nn.Module):
         channels: can be interpreted as a number of "heads"
         bidirectional: bidirectional
         dropout: standard dropout argument
-        transposed: choose backbone axis ordering of (B, L, H) or (B, H, L) [B=batch size, L=sequence length, H=hidden dimension]
+        transposed: choose backbone axis ordering of (B, L, H) or (B, H, L)
+            [B=batch size, L=sequence length, H=hidden dimension].
 
         Other options are all experimental and should not need to be configured
         """

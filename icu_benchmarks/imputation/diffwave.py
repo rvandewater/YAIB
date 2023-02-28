@@ -1,12 +1,129 @@
-# Source: https://github.com/AI4HealthUOL/SSSD/blob/main/src/imputers/DiffWaveImputer.py
+import math
 
 import gin
-import math
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
 from icu_benchmarks.models.wrappers import ImputationWrapper
+
+
+@gin.configurable("DiffWave")
+class DiffWaveImputer(ImputationWrapper):
+    """Imputation model based on DiffWave (https://arxiv.org/abs/2009.09761). Adapted from
+    https://github.com/AI4HealthUOL/SSSD/blob/main/src/imputers/DiffWaveImputer.py"""
+
+    def __init__(
+            self,
+            in_channels,
+            res_channels,
+            skip_channels,
+            out_channels,
+            num_res_layers,
+            dilation_cycle,
+            diffusion_step_embed_dim_in,
+            diffusion_step_embed_dim_mid,
+            diffusion_step_embed_dim_out,
+            diffusion_time_steps,
+            beta_0,
+            beta_T,
+            *args,
+            **kwargs,
+    ):
+        super(DiffWaveImputer, self).__init__(
+            in_channels=in_channels,
+            res_channels=res_channels,
+            skip_channels=skip_channels,
+            out_channels=out_channels,
+            num_res_layers=num_res_layers,
+            dilation_cycle=dilation_cycle,
+            diffusion_step_embed_dim_in=diffusion_step_embed_dim_in,
+            diffusion_step_embed_dim_mid=diffusion_step_embed_dim_mid,
+            diffusion_step_embed_dim_out=diffusion_step_embed_dim_out,
+            diffusion_time_steps=diffusion_time_steps,
+            beta_0=beta_0,
+            beta_T=beta_T,
+            *args,
+            **kwargs,
+        )
+
+        self.init_conv = nn.Sequential(Conv(in_channels, res_channels, kernel_size=1), nn.ReLU())
+
+        self.residual_layer = Residual_group(
+            res_channels=res_channels,
+            skip_channels=skip_channels,
+            num_res_layers=num_res_layers,
+            dilation_cycle=dilation_cycle,
+            diffusion_step_embed_dim_in=diffusion_step_embed_dim_in,
+            diffusion_step_embed_dim_mid=diffusion_step_embed_dim_mid,
+            diffusion_step_embed_dim_out=diffusion_step_embed_dim_out,
+            in_channels=in_channels,
+        )
+
+        self.final_conv = nn.Sequential(
+            Conv(skip_channels, skip_channels, kernel_size=1), nn.ReLU(), ZeroConv1d(skip_channels, out_channels)
+        )
+
+        self.diffusion_parameters = calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T)
+
+    def on_fit_start(self) -> None:
+        self.diffusion_parameters = {
+            k: v.to(self.device) for k, v in self.diffusion_parameters.items() if isinstance(v, torch.Tensor)
+        }
+        return super().on_fit_start()
+
+    def forward(self, input_data):
+
+        noise, conditional, mask, diffusion_steps = input_data
+
+        conditional = conditional * mask
+        conditional = torch.cat([conditional, mask.float()], dim=1)
+
+        x = noise
+        x = self.init_conv(x)
+        x = self.residual_layer((x, conditional, diffusion_steps))
+        y = self.final_conv(x)
+
+        return y
+
+    def step_fn(self, batch, step_prefix=""):
+        amputated_data, amputation_mask, target, target_missingness = batch
+
+        amputated_data = amputated_data.permute(0, 2, 1)
+        amputation_mask = amputation_mask.permute(0, 2, 1)
+        observed_mask = 1 - amputation_mask.float()
+
+        if step_prefix in ["train", "val"]:
+            T, Alpha_bar = self.hparams.diffusion_time_steps, self.diffusion_parameters["Alpha_bar"]
+
+            B, C, L = amputated_data.shape  # B is batchsize, C=1, L is audio length
+            diffusion_steps = torch.randint(T, size=(B, 1, 1)).to(self.device)  # randomly sample diffusion steps from 1~T
+
+            z = std_normal(amputated_data.shape, self.device)
+            z = amputated_data * observed_mask.float() + z * (1 - observed_mask).float()
+            transformed_X = (
+                    torch.sqrt(Alpha_bar[diffusion_steps]) * amputated_data + torch.sqrt(1 - Alpha_bar[diffusion_steps]) * z
+            )  # compute x_t from q(x_t|x_0)
+            epsilon_theta = self(
+                (
+                    transformed_X,
+                    amputated_data,
+                    observed_mask,
+                    diffusion_steps.view(B, 1),
+                )
+            )  # predict \epsilon according to \epsilon_\theta
+
+            loss = self.loss(epsilon_theta[amputation_mask.bool()], z[amputation_mask.bool()])
+        else:
+            imputed_data = self.sampling(amputated_data, observed_mask)
+            amputated_data[amputation_mask.bool()] = imputed_data[amputation_mask.bool()]
+            amputated_data[target_missingness > 0] = target[target_missingness > 0]
+            loss = self.loss(amputated_data, target)
+            for metric in self.metrics[step_prefix].values():
+                metric.update((torch.flatten(amputated_data, start_dim=1).clone(), torch.flatten(target, start_dim=1).clone()))
+
+        self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
+        return loss
 
 
 def swish(x):
@@ -136,7 +253,7 @@ class Residual_block(nn.Module):
         cond = self.cond_conv(cond)
         h += cond
 
-        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels :, :])
+        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels:, :])
 
         res = self.res_conv(out)
         assert x.shape == res.shape
@@ -147,15 +264,15 @@ class Residual_block(nn.Module):
 
 class Residual_group(nn.Module):
     def __init__(
-        self,
-        res_channels,
-        skip_channels,
-        num_res_layers,
-        dilation_cycle,
-        diffusion_step_embed_dim_in,
-        diffusion_step_embed_dim_mid,
-        diffusion_step_embed_dim_out,
-        in_channels,
+            self,
+            res_channels,
+            skip_channels,
+            num_res_layers,
+            dilation_cycle,
+            diffusion_step_embed_dim_in,
+            diffusion_step_embed_dim_mid,
+            diffusion_step_embed_dim_out,
+            in_channels,
     ):
         super(Residual_group, self).__init__()
         self.num_res_layers = num_res_layers
@@ -195,121 +312,6 @@ class Residual_group(nn.Module):
             skip += skip_n
 
         return skip * math.sqrt(1.0 / self.num_res_layers)  # normalize for training stability
-
-
-@gin.configurable("DiffWave")
-class DiffWaveImputer(ImputationWrapper):
-    def __init__(
-        self,
-        in_channels,
-        res_channels,
-        skip_channels,
-        out_channels,
-        num_res_layers,
-        dilation_cycle,
-        diffusion_step_embed_dim_in,
-        diffusion_step_embed_dim_mid,
-        diffusion_step_embed_dim_out,
-        diffusion_time_steps,
-        beta_0,
-        beta_T,
-        *args,
-        **kwargs,
-    ):
-        super(DiffWaveImputer, self).__init__(
-            in_channels=in_channels,
-            res_channels=res_channels,
-            skip_channels=skip_channels,
-            out_channels=out_channels,
-            num_res_layers=num_res_layers,
-            dilation_cycle=dilation_cycle,
-            diffusion_step_embed_dim_in=diffusion_step_embed_dim_in,
-            diffusion_step_embed_dim_mid=diffusion_step_embed_dim_mid,
-            diffusion_step_embed_dim_out=diffusion_step_embed_dim_out,
-            diffusion_time_steps=diffusion_time_steps,
-            beta_0=beta_0,
-            beta_T=beta_T,
-            *args,
-            **kwargs,
-        )
-
-        self.init_conv = nn.Sequential(Conv(in_channels, res_channels, kernel_size=1), nn.ReLU())
-
-        self.residual_layer = Residual_group(
-            res_channels=res_channels,
-            skip_channels=skip_channels,
-            num_res_layers=num_res_layers,
-            dilation_cycle=dilation_cycle,
-            diffusion_step_embed_dim_in=diffusion_step_embed_dim_in,
-            diffusion_step_embed_dim_mid=diffusion_step_embed_dim_mid,
-            diffusion_step_embed_dim_out=diffusion_step_embed_dim_out,
-            in_channels=in_channels,
-        )
-
-        self.final_conv = nn.Sequential(
-            Conv(skip_channels, skip_channels, kernel_size=1), nn.ReLU(), ZeroConv1d(skip_channels, out_channels)
-        )
-
-        self.diffusion_parameters = calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T)
-
-    def on_fit_start(self) -> None:
-        self.diffusion_parameters = {
-            k: v.to(self.device) for k, v in self.diffusion_parameters.items() if isinstance(v, torch.Tensor)
-        }
-        return super().on_fit_start()
-
-    def forward(self, input_data):
-
-        noise, conditional, mask, diffusion_steps = input_data
-
-        conditional = conditional * mask
-        conditional = torch.cat([conditional, mask.float()], dim=1)
-
-        x = noise
-        x = self.init_conv(x)
-        x = self.residual_layer((x, conditional, diffusion_steps))
-        y = self.final_conv(x)
-
-        return y
-
-    def step_fn(self, batch, step_prefix=""):
-        amputated_data, amputation_mask, target, target_missingness = batch
-
-        amputated_data = amputated_data.permute(0, 2, 1)
-        amputation_mask = amputation_mask.permute(0, 2, 1)
-        observed_mask = 1 - amputation_mask.float()
-
-        if step_prefix in ["train", "val"]:
-            T, Alpha_bar = self.hparams.diffusion_time_steps, self.diffusion_parameters["Alpha_bar"]
-
-            B, C, L = amputated_data.shape  # B is batchsize, C=1, L is audio length
-            diffusion_steps = torch.randint(T, size=(B, 1, 1)).to(self.device)  # randomly sample diffusion steps from 1~T
-
-            z = std_normal(amputated_data.shape, self.device)
-            z = amputated_data * observed_mask.float() + z * (1 - observed_mask).float()
-            transformed_X = (
-                torch.sqrt(Alpha_bar[diffusion_steps]) * amputated_data + torch.sqrt(1 - Alpha_bar[diffusion_steps]) * z
-            )  # compute x_t from q(x_t|x_0)
-            epsilon_theta = self(
-                (
-                    transformed_X,
-                    amputated_data,
-                    observed_mask,
-                    diffusion_steps.view(B, 1),
-                )
-            )  # predict \epsilon according to \epsilon_\theta
-
-            loss = self.loss(epsilon_theta[amputation_mask.bool()], z[amputation_mask.bool()])
-        else:
-            imputed_data = self.sampling(amputated_data, observed_mask)
-            amputated_data[amputation_mask.bool()] = imputed_data[amputation_mask.bool()]
-            amputated_data[target_missingness > 0] = target[target_missingness > 0]
-            loss = self.loss(amputated_data, target)
-            for metric in self.metrics[step_prefix].values():
-                metric.update((torch.flatten(amputated_data, start_dim=1).clone(), torch.flatten(target, start_dim=1).clone()))
-
-        self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
-        return loss
 
 
 def std_normal(size, device):
