@@ -126,7 +126,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         super().on_fit_start()
 
     def training_step(self, batch):
-        amputated, amputation_mask, target = batch
+        amputated, amputation_mask, target, target_missingness = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
 
         t = torch.randint(0, self.T, (self.input_size[0],), device=self.device).long()
@@ -140,7 +140,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         return loss
 
     def validation_step(self, batch, batch_index):
-        amputated, amputation_mask, target = batch
+        amputated, amputation_mask, target, target_missingness = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
         # imputated = self(amputated, amputation_mask)
 

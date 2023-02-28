@@ -123,7 +123,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         return x.squeeze()
 
     def training_step(self, batch):
-        amputated, amputation_mask, target = batch
+        amputated, amputation_mask, target, target_missingness = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
 
         self.input_size = amputated.shape
@@ -167,7 +167,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        amputated, amputation_mask, target = batch
+        amputated, amputation_mask, target, target_missingness = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
 
         self.input_size = amputated.shape
@@ -190,7 +190,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         self.log("val/loss", loss.item(), prog_bar=True)
 
     def test_step(self, batch, batch_idx):
-        amputated, amputation_mask, target = batch
+        amputated, amputation_mask, target, target_missingness = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
 
         self.input_size = amputated.shape
@@ -217,6 +217,7 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         self.log("test/loss", loss.item(), prog_bar=True)
 
+        x_0[target_missingness > 0] = target[target_missingness > 0]
         # Update Metrics
         for metric in self.metrics["test"].values():
             metric.update((torch.flatten(x_0, start_dim=1), torch.flatten(target, start_dim=1)))

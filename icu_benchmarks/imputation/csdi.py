@@ -232,12 +232,13 @@ class CSDI(ImputationWrapper):
         return noise * target_mask, predicted * target_mask
 
     def step_fn(self, batch, step_prefix):
-        amputated_data, amputation_mask, target = batch
+        amputated_data, amputation_mask, target, target_missingness = batch
         amputated_data = amputated_data.nan_to_num()
 
         if step_prefix == "test":
             prediction = self.evaluate(amputated_data, amputation_mask, self.n_samples)
             amputated_data[amputation_mask > 0] = prediction[amputation_mask > 0]
+            amputated_data[target_missingness > 0] = target[target_missingness > 0]
             loss = self.loss(target, amputated_data)
             for metric in self.metrics[step_prefix].values():
                 metric.update(

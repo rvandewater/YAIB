@@ -76,7 +76,7 @@ class NPImputation(ImputationWrapper):
         self.model.train(True)
 
         # Unpack batch into three values
-        amputed, mask, _ = batch
+        amputed, mask, _, _ = batch
         batch_size, num_timesteps, num_obs_var = amputed.shape
 
         amputed = torch.nan_to_num(amputed, nan=0.0).to(self.device)
@@ -111,7 +111,7 @@ class NPImputation(ImputationWrapper):
     def validation_step(self, batch, _):
         self.model.eval()
         # Unpack batch into three values
-        amputed, mask, complete = batch
+        amputed, mask, complete, complete_missingness_mask = batch
         batch_size, num_timesteps, num_obs_var = amputed.shape
 
         amputed = torch.nan_to_num(amputed, nan=0.0).to(self.device)
@@ -158,6 +158,7 @@ class NPImputation(ImputationWrapper):
         # Use the indexing functionality of tensor to impute values into the indicies
         # specified by the mask
         amputed[mask > 0] = generated[mask > 0]
+        amputed[complete_missingness_mask > 0] = complete[complete_missingness_mask > 0]
 
         # Update the metrics
         for metric in self.metrics["val"].values():
@@ -172,7 +173,7 @@ class NPImputation(ImputationWrapper):
     def test_step(self, batch, _):
         self.model.eval()
         # Unpack batch into three values
-        amputed, mask, complete = batch
+        amputed, mask, complete, complete_missingness_mask = batch
         batch_size, num_timesteps, num_obs_var = amputed.shape
 
         # Create and rearrange x to be the same shape as variables (x is timesteps)
@@ -211,6 +212,7 @@ class NPImputation(ImputationWrapper):
 
         self.log("test/loss", loss.item(), prog_bar=True)
 
+        amputed[complete_missingness_mask > 0] = complete[complete_missingness_mask > 0]
         # Update the metrics
         for metric in self.metrics["test"].values():
             metric.update(

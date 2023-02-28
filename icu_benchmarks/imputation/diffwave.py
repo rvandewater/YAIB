@@ -249,7 +249,7 @@ class DiffWaveImputer(ImputationWrapper):
 
 
     def step_fn(self, batch, step_prefix=""):
-        amputated_data, amputation_mask, target = batch
+        amputated_data, amputation_mask, target, target_missingness = batch
 
         amputated_data = amputated_data.permute(0, 2, 1)
         amputation_mask = amputation_mask.permute(0, 2, 1)
@@ -271,7 +271,8 @@ class DiffWaveImputer(ImputationWrapper):
             loss = self.loss(epsilon_theta[amputation_mask.bool()], z[amputation_mask.bool()])
         else:
             imputed_data = self.sampling(amputated_data, observed_mask)
-            amputated_data[amputation_mask.pool()] = imputed_data[amputation_mask.pool()]
+            amputated_data[amputation_mask.bool()] = imputed_data[amputation_mask.bool()]
+            amputated_data[target_missingness > 0] = target[target_missingness > 0]
             loss = self.loss(amputated_data, target)
             for metric in self.metrics[step_prefix].values():
                 metric.update((torch.flatten(amputated_data, start_dim=1).clone(), torch.flatten(target, start_dim=1).clone()))

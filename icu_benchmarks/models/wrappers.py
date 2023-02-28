@@ -426,9 +426,10 @@ class ImputationWrapper(DLWrapper):
         return super().on_fit_start()
 
     def step_fn(self, batch, step_prefix=""):
-        amputated, amputation_mask, target = batch
+        amputated, amputation_mask, target, target_missingness = batch
         imputated = self(amputated, amputation_mask)
         amputated[amputation_mask > 0] = imputated[amputation_mask > 0]
+        amputated[target_missingness > 0] = target[target_missingness > 0]
 
         loss = self.loss(amputated, target)
         self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
