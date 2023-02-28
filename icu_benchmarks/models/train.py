@@ -43,6 +43,7 @@ def train_common(
     test_on: str = Split.test,
     use_wandb: bool = False,
     cpu: bool = False,
+    verbose=False,
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
@@ -114,20 +115,23 @@ def train_common(
         run_name = f"{type(model).__name__}"
         loggers.append(WandbLogger(run_name, save_dir=log_dir))
         set_wandb_run_name(run_name)
+    
+    callbacks = [
+        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
+        ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
+    ]
+    if verbose:
+        callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
 
     trainer = Trainer(
-        # model=model,
         max_epochs=epochs if model.needs_training else 1,
-        callbacks=[
-            EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
-            ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
-            TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)),
-        ],
+        callbacks=callbacks,
         # precision=16,
         accelerator="auto" if not cpu else "cpu",
         devices=max(torch.cuda.device_count(), 1),
         deterministic=reproducible,
         benchmark=not reproducible,
+        enable_progress_bar=verbose,
         logger=loggers,
         num_sanity_val_steps=0,
     )

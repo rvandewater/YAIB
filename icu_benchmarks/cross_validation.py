@@ -95,6 +95,7 @@ def execute_repeated_cv(
                 test_on=test_on,
                 mode=mode,
                 cpu=cpu,
+                verbose=verbose,
             )
             train_time = datetime.now() - start_time
 
