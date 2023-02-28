@@ -1,82 +1,171 @@
-import inspect
-import json
 import logging
-import os
-from pathlib import Path
-
+from typing import Dict, Any
+from typing import List, Optional, Union
+from torch.nn import MSELoss, CrossEntropyLoss
+from torch.nn.modules.loss import _Loss
+from torch.optim import Optimizer
+import inspect
 import gin
-import joblib
 import lightgbm
 import numpy as np
+
+from sklearn.metrics import mean_absolute_error
+
 import torch
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import log_loss
+from ignite.exceptions import NotComputableError
 
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm, trange
+from icu_benchmarks.models.constants import ImputationInit
+from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 
-from icu_benchmarks.models.metric_constants import MLMetrics, DLMetrics
-from icu_benchmarks.models.encoders import LSTMNet
+from pytorch_lightning import LightningModule
+
+from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.models.metrics import MAE
-from icu_benchmarks.models.utils import save_model, load_model_state, log_table_row, JsonResultLoggingEncoder
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
 
-gin.config.external_configurable(lightgbm.LGBMClassifier, module="lightgbm")
-gin.config.external_configurable(lightgbm.LGBMRegressor, module="lightgbm")
-gin.config.external_configurable(LogisticRegression)
 
+@gin.configurable("BaseModule")
+class BaseModule(LightningModule):
+    needs_training = False
+    needs_fit = False
 
-def pick_device_config(hint=None):
-    if (hint == "cuda" or hint is None) and torch.cuda.is_available():
-        device = torch.device("cuda:0")
-        pin_memory = True
-        n_worker = 1
-    elif (hint == "mps" or hint is None) and hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        device = torch.device("mps")
-        pin_memory = True
-        n_worker = 1
-    else:
-        device = torch.device("cpu")
-        pin_memory = False
-        n_worker = os.cpu_count()
-    return device, pin_memory, n_worker
+    weight = None
+    metrics = {}
+    trained_columns = None
+
+    def forward(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def step_fn(self, batch, step_prefix=""):
+        raise NotImplementedError()
+
+    def finalize_step(self, step_prefix=""):
+        pass
+
+    def set_metrics(self, *args, **kwargs):
+        self.metrics = {}
+
+    def set_trained_columns(self, columns: List[str]):
+        self.trained_columns = columns
+
+    def set_weight(self, weight, *args, **kwargs):
+        pass
+
+    def training_step(self, batch, batch_idx):
+        return self.step_fn(batch, "train")
+
+    def validation_step(self, batch, batch_idx):
+        return self.step_fn(batch, "val")
+
+    def test_step(self, batch, batch_idx):
+        return self.step_fn(batch, "test")
+
+    def on_train_epoch_end(self) -> None:
+        self.finalize_step("train")
+
+    def on_validation_epoch_end(self) -> None:
+        self.finalize_step("val")
+
+    def on_test_epoch_end(self) -> None:
+        self.finalize_step("test")
+
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        checkpoint["class"] = self.__class__
+        checkpoint["trained_columns"] = self.trained_columns
+        return super().on_save_checkpoint(checkpoint)
 
 
 @gin.configurable("DLWrapper")
-class DLWrapper(object):
+class DLWrapper(BaseModule):
+    needs_training = True
+    needs_fit = False
+    _metrics_warning_printed = set()
+
     def __init__(
         self,
-        encoder=LSTMNet,
-        loss=torch.nn.functional.cross_entropy,
-        optimizer_fn=torch.optim.Adam,
-        device=None,
-        verbose_logging=True,
+        loss=CrossEntropyLoss(),
+        optimizer=torch.optim.Adam,
+        input_shape=None,
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        epochs: int = 100,
+        input_size: torch.Tensor = None,
+        initialization_method: str = "normal",
+        **kwargs,
     ):
-        device, pin_memory, n_worker = pick_device_config(device)
-
-        self.device = device
-        logging.info(f"Model will be trained using {device}")
-        self.pin_memory = pin_memory
-        self.n_worker = n_worker
-
-        self.encoder = encoder
-        self.encoder.to(device)
+        super().__init__()
+        self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
-        self.optimizer = optimizer_fn(self.encoder.parameters())
+        self.optimizer = optimizer
         self.scaler = None
-        self.verbose_logging = verbose_logging
 
-    def set_log_dir(self, log_dir: Path):
-        self.log_dir = log_dir
+    def on_fit_start(self):
+        self.metrics = {
+            step_name: {
+                metric_name: (metric() if isinstance(metric, type) else metric)
+                for metric_name, metric in self.set_metrics().items()
+            }
+            for step_name in ["train", "val", "test"]
+        }
+        return super().on_fit_start()
 
-    def set_scaler(self, scaler):
-        self.scaler = scaler
+    def finalize_step(self, step_prefix=""):
+        try:
+            self.log_dict(
+                {
+                    f"{step_prefix}/{name}": metric.compute()
+                    for name, metric in self.metrics[step_prefix].items()
+                    if "_Curve" not in name
+                },
+                sync_dist=True,
+            )
+            for metric in self.metrics[step_prefix].values():
+                metric.reset()
+        except (NotComputableError, ValueError):
+            if step_prefix not in self._metrics_warning_printed:
+                self._metrics_warning_printed.add(step_prefix)
+                logging.warning(f"Metrics for {step_prefix} not computable")
+            pass
 
-    def set_metrics(self):
+    def configure_optimizers(self):
+        if isinstance(self.optimizer, str):
+            optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
+        else:
+            optimizer = self.optimizer(self.parameters())
+
+        if self.hparams.lr_scheduler is None:
+            return optimizer
+        scheduler = create_scheduler(
+            self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
+        )
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
+
+    def on_test_epoch_start(self) -> None:
+        self.metrics = {
+            step_name: {metric_name: metric() for metric_name, metric in self.set_metrics().items()}
+            for step_name in ["train", "val", "test"]
+        }
+        return super().on_test_epoch_start()
+
+
+@gin.configurable("DLClassificationWrapper")
+class DLClassificationWrapper(DLWrapper):
+    """Interface for Deep Learning classification models."""
+
+    def set_weight(self, weight, dataset):
+        if isinstance(weight, list):
+            weight = torch.FloatTensor(weight).to(self.device)
+        elif weight == "balanced":
+            weight = torch.FloatTensor(dataset.get_balance()).to(self.device)
+        self.loss_weights = weight
+
+    def set_metrics(self, *args):
         def softmax_binary_output_transform(output):
             with torch.no_grad():
                 y_pred, y = output
@@ -91,25 +180,25 @@ class DLWrapper(object):
 
         # Binary classification
         # output transform is not applied for contrib metrics so we do our own.
-        if self.encoder.logit.out_features == 2:
+        if self.logit.out_features == 2:
             self.output_transform = softmax_binary_output_transform
-            self.metrics = DLMetrics.BINARY_CLASSIFICATION
+            metrics = DLMetrics.BINARY_CLASSIFICATION
 
         # Regression
-        elif self.encoder.logit.out_features == 1:
+        elif self.logit.out_features == 1:
             self.output_transform = lambda x: x
             if self.scaler is not None:
-                self.metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
+                metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
             else:
-                self.metrics = DLMetrics.REGRESSION
+                metrics = DLMetrics.REGRESSION
 
         # Multiclass classification
         else:
             self.output_transform = softmax_multi_output_transform
-            self.metrics = DLMetrics.MULTICLASS_CLASSIFICATION
+            metrics = DLMetrics.MULTICLASS_CLASSIFICATION
+        return metrics
 
-    def step_fn(self, element, loss_weight=None):
-
+    def step_fn(self, element, step_prefix=""):
         if len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
             if isinstance(data, list):
@@ -128,187 +217,41 @@ class DLWrapper(object):
                 data = data.float().to(self.device)
         else:
             raise Exception("Loader should return either (data, label) or (data, label, mask)")
-        out = self.encoder(data)
+        out = self(data)
         if len(out) == 2 and isinstance(out, tuple):
             out, aux_loss = out
         else:
             aux_loss = 0
-        out_flat = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1])
-        label_flat = torch.masked_select(labels, mask)
-        if out_flat.shape[-1] > 1:
-            loss = self.loss(out_flat, label_flat.long(), weight=loss_weight) + aux_loss  # torch.long because NLL
+        prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
+        target = torch.masked_select(labels, mask).to(self.device)
+        if prediction.shape[-1] > 1:
+            loss = (
+                self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
+            )  # torch.long because NLL
         else:
-            loss = self.loss(out_flat[:, 0], label_flat.float()) + aux_loss  # Regression task
+            loss = self.loss(prediction[:, 0], target.float()) + aux_loss  # Regression task
 
-        return loss, out_flat, label_flat
-
-    def _do_training(self, train_loader, weight, metrics):
-        # Training epoch
-        self.encoder.train()
-        agg_train_loss = 0
-        for elem in tqdm(train_loader, leave=False, disable=not self.verbose_logging):
-            loss, preds, target = self.step_fn(elem, weight)
-            loss.backward()
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-            agg_train_loss += loss
-            for name, metric in metrics.items():
-                metric.update(self.output_transform((preds, target)))
-
-        train_metric_results = {}
-        for name, metric in metrics.items():
-            train_metric_results[name] = metric.compute()
-            metric.reset()
-        train_loss = float(agg_train_loss / len(train_loader))
-        return train_loss, train_metric_results
-
-    @gin.configurable(module="DLWrapper")
-    def train(
-        self,
-        train_dataset,
-        val_dataset,
-        weight,
-        seed,
-        epochs=1000,
-        batch_size=64,
-        patience=10,
-        min_delta=1e-4,
-    ):
-        self.set_metrics()
-        metrics = self.metrics
-
-        torch.autograd.set_detect_anomaly(True)  # Check for any nans in gradients
-
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=self.n_worker,
-            pin_memory=self.pin_memory,
-            prefetch_factor=2,
-        )
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=batch_size,
-            shuffle=False,
-            num_workers=self.n_worker,
-            pin_memory=self.pin_memory,
-            prefetch_factor=2,
-        )
-
-        if isinstance(weight, list):
-            weight = torch.FloatTensor(weight).to(self.device)
-        elif weight == "balanced":
-            weight = torch.FloatTensor(train_dataset.get_balance()).to(self.device)
-
-        best_loss = float("inf")
-        epoch_no_improvement = 0
-        train_writer = SummaryWriter(self.log_dir / "tensorboard" / "train")
-        val_writer = SummaryWriter(self.log_dir / "tensorboard" / "val")
-
-        table_header = ["EPOCH", "SPLIT", "METRICS", "COMMENT"]
-        widths = [5, 5, 25, 50]
-        log_table_row(table_header, widths=widths)
-        disable_tqdm = logging.getLogger().isEnabledFor(logging.INFO)
-        for epoch in trange(epochs, leave=False, disable=not self.verbose_logging or disable_tqdm):
-            # Train step
-            train_loss, train_metric_results = self._do_training(train_loader, weight, metrics)
-
-            # Validation step
-            val_loss, val_metric_results = self.evaluate(val_loader, metrics, weight)
-
-            # Early stopping
-            if val_loss <= best_loss - min_delta:
-                best_metrics = val_metric_results
-                epoch_no_improvement = 0
-                self.save_weights(epoch, self.log_dir / "model.torch")
-                best_loss = val_loss
-                comment = "Validation loss improved to {:.4f} ".format(val_loss)
-            else:
-                epoch_no_improvement += 1
-                comment = "No improvement on loss for {} epochs".format(epoch_no_improvement)
-            if epoch_no_improvement >= patience:
-                logging.info("No improvement on loss for more than {} epochs. We stop training".format(patience))
-                break
-
-            # Logging
-            test_metric_strings = []
-            for name, value in train_metric_results.items():
-                if isinstance(value, np.float):
-                    test_metric_strings.append(f"{name}: {value:.4f}")
-                    train_writer.add_scalar(name, value, epoch)
-            train_writer.add_scalar("Loss", train_loss, epoch)
-
-            val_metric_strings = []
-            for name, value in val_metric_results.items():
-                if isinstance(value, np.float):
-                    val_metric_strings.append(f"{name}: {value:.4f}")
-                    val_writer.add_scalar(name, value, epoch)
-            val_writer.add_scalar("Loss", val_loss, epoch)
-
-            log_table_row([epoch, "Train", ", ".join(test_metric_strings), ""], widths=widths)
-            log_table_row([epoch, "Val", ", ".join(val_metric_strings), comment], widths=widths)
-
-        best_metrics["loss"] = best_loss
-
-        with open(self.log_dir / "best_metrics.json", "w") as f:
-            json.dump(best_metrics, f, cls=JsonResultLoggingEncoder)
-
-        self.load_weights(self.log_dir / "model.torch")  # We load back the best iteration
-
-    def test(self, dataset, weight, seed):
-        self.set_metrics()
-        test_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.n_worker, pin_memory=self.pin_memory)
-        if isinstance(weight, list):
-            weight = torch.FloatTensor(weight).to(self.device)
-        test_loss, test_metrics = self.evaluate(test_loader, self.metrics, weight)
-
-        test_metrics["loss"] = test_loss
-        with open(self.log_dir / "test_metrics.json", "w") as f:
-            json.dump(test_metrics, f, cls=JsonResultLoggingEncoder)
-
-        for key, value in test_metrics.items():
-            if isinstance(value, float):
-                logging.info("Test {}: {}".format(key, value))
-
-        return test_loss
-
-    def evaluate(self, eval_loader, metrics, weight):
-        self.encoder.eval()
-        agg_eval_loss = 0
-
-        with torch.no_grad():
-            for elem in eval_loader:
-                loss, preds, target = self.step_fn(elem, weight)
-                agg_eval_loss += loss
-                for name, metric in metrics.items():
-                    metric.update(self.output_transform((preds, target)))
-
-            eval_metric_results = {}
-            for name, metric in metrics.items():
-                eval_metric_results[name] = metric.compute()
-                metric.reset()
-        eval_loss = float(agg_eval_loss / len(eval_loader))
-        return eval_loss, eval_metric_results
-
-    def save_weights(self, epoch, save_path):
-        save_model(self.encoder, self.optimizer, epoch, save_path)
-
-    def load_weights(self, load_path):
-        load_model_state(load_path, self.encoder, optimizer=self.optimizer)
+        transformed_output = self.output_transform((prediction, target))
+        for metric in self.metrics[step_prefix].values():
+            metric.update(transformed_output)
+        self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
+        return loss
 
 
-@gin.configurable("MLWrapper")
-class MLWrapper(object):
-    def __init__(self, model=lightgbm.LGBMClassifier):
+@gin.configurable("MLClassificationWrapper")
+class MLClassificationWrapper(BaseModule):
+    """Interface for classification with traditional Machine Learning models."""
+
+    needs_training = False
+    needs_fit = True
+
+    def __init__(self, *args, model=None, patience=10, **kwargs):
+        super().__init__()
+        self.save_hyperparameters()
         self.model = model
         self.scaler = None
 
-    def set_log_dir(self, log_dir: Path):
-        self.log_dir = log_dir
-
     def set_metrics(self, labels):
-
         # Binary classification
         if len(np.unique(labels)) == 2:
             if isinstance(self.model, lightgbm.basic.Booster):
@@ -333,99 +276,183 @@ class MLWrapper(object):
             else:
                 self.output_transform = lambda x: x
                 self.label_transform = lambda x: x
-            self.metrics = MLMetrics.REGRESSION
+            self.metrics = {"MAE": mean_absolute_error}
 
-    def set_scaler(self, scaler):
-        self.scaler = scaler
-
-    @gin.configurable(module="MLWrapper")
-    def train(self, train_dataset, val_dataset, weight, seed, patience=10):
+    def fit(self, train_dataset, val_dataset):
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
+        train_rep, train_label = torch.from_numpy(train_rep).to(self.device), torch.from_numpy(train_label).to(self.device)
+        val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(train_label)
-        metrics = self.metrics
 
         if "class_weight" in self.model.get_params().keys():  # Set class weights
-            self.model.set_params(class_weight=weight)
+            self.model.set_params(class_weight=self.weight)
 
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
-            model_type = "lgbm"
-            self.model.set_params(random_state=seed)
+            self.model.set_params(random_state=np.random.get_state()[1][0])
+
             self.model.fit(
-                train_rep,
-                train_label,
-                eval_set=(val_rep, val_label),
+                train_rep.cpu().numpy(),
+                train_label.cpu().numpy(),
+                eval_set=(val_rep.cpu().numpy(), val_label.cpu().numpy()),
                 callbacks=[
-                    lightgbm.early_stopping(patience, verbose=False),
+                    lightgbm.early_stopping(self.hparams.patience, verbose=False),
                     lightgbm.log_evaluation(period=-1, show_stdv=False),
                 ],
             )
             val_loss = list(self.model.best_score_["valid_0"].values())[0]
         else:
-            model_type = "sklearn"
-            self.model.fit(train_rep, train_label)
             val_loss = 0.0
+            self.model.fit(train_rep, train_label)
+
+        if "MAE" in self.metrics.keys():
+            train_pred = self.model.predict(train_rep)
+        else:
+            train_pred = self.model.predict_proba(train_rep)
+
+        self.log("train/loss", 0.0, sync_dist=True)
+        self.log("val/loss", val_loss, sync_dist=True)
+        self.log_dict(
+            {
+                f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
+                for name, metric in self.metrics.items()
+                if "_Curve" not in name
+            },
+            sync_dist=True,
+        )
+
+    def validation_step(self, val_dataset, _):
+        val_rep, val_label = val_dataset.get_data_and_labels()
+        val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
+        self.set_metrics(val_label)
 
         if "MAE" in self.metrics.keys():
             val_pred = self.model.predict(val_rep)
-            train_pred = self.model.predict(train_rep)
         else:
             val_pred = self.model.predict_proba(val_rep)
-            train_pred = self.model.predict_proba(train_rep)
 
-        train_metric_results = {}
-        train_string = ""
-        train_values = []
-        val_string = "Val Results: loss: {:.4f}"
-        val_values = [val_loss]
-        val_metric_results = {"loss": val_loss}
-        for name, metric in metrics.items():
-            train_metric_results[name] = metric(self.label_transform(train_label), self.output_transform(train_pred))
-            val_metric_results[name] = metric(self.label_transform(val_label), self.output_transform(val_pred))
-            if isinstance(train_metric_results[name], np.float):
-                train_string += "Train Results: " if len(train_string) == 0 else ", "
-                train_string += name + ":{:.4f}"
-                val_string += ", " + name + ":{:.4f}"
-                train_values.append(train_metric_results[name])
-                val_values.append(val_metric_results[name])
-        logging.info(train_string.format(*train_values))
-        logging.info(val_string.format(*val_values))
+        self.log_dict(
+            {
+                f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
+                for name, metric in self.metrics.items()
+                if "_Curve" not in name
+            },
+            sync_dist=True,
+        )
 
-        model_file = "model.txt" if model_type == "lgbm" else "model.joblib"
-        self.save_weights(save_path=(self.log_dir / model_file), model_type=model_type)
-        with open(self.log_dir / "val_metrics.json", "w") as f:
-            json.dump(val_metric_results, f, cls=JsonResultLoggingEncoder)
-
-    def test(self, dataset, weight, seed):
-        test_rep, test_label = dataset.get_data_and_labels()
+    def test_step(self, dataset, _):
+        test_rep, test_label = dataset
+        test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
+        # test_rep, test_label = torch.from_numpy(test_rep).to(self.device), torch.from_numpy(test_label).to(self.device)
         self.set_metrics(test_label)
         if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
             test_pred = self.model.predict(test_rep)
         else:
             test_pred = self.model.predict_proba(test_rep)
 
-        test_metric_results = {}
-        for name, metric in self.metrics.items():
-            value = metric(self.label_transform(test_label), self.output_transform(test_pred))
-            test_metric_results[name] = value
-            # Only log float values
-            if isinstance(value, np.float):
-                logging.info("Test {}: {}".format(name, value))
+        self.log("test/loss", 0.0, sync_dist=True)
+        self.log_dict(
+            {
+                f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
+                for name, metric in self.metrics.items()
+                if "_Curve" not in name
+            },
+            sync_dist=True,
+        )
 
-        with open(self.log_dir / "test_metrics.json", "w") as f:
-            json.dump(test_metric_results, f, cls=JsonResultLoggingEncoder)
+    def configure_optimizers(self):
+        return None
 
-        return log_loss(test_label, test_pred)
+    def __getstate__(self) -> Dict[str, Any]:
+        state = self.__dict__.copy()
+        del state["label_transform"]
+        del state["output_transform"]
+        return state
 
-    def save_weights(self, save_path, model_type="lgbm"):
-        if model_type == "lgbm":
-            self.model.booster_.save_model(save_path)
-        else:
-            joblib.dump(self.model, save_path)
 
-    def load_weights(self, load_path):
-        if load_path.suffix == ".txt":
-            self.model = lightgbm.Booster(model_file=load_path)
-        else:
-            with open(load_path, "rb") as f:
-                self.model = joblib.load(f)
+@gin.configurable("ImputationWrapper")
+class ImputationWrapper(DLWrapper):
+    """Interface for imputation models."""
+
+    needs_training = True
+    needs_fit = False
+
+    def __init__(
+        self,
+        loss: _Loss = MSELoss(),
+        optimizer: Union[str, Optimizer] = "adam",
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        input_size: torch.Tensor = None,
+        initialization_method: ImputationInit = ImputationInit.NORMAL,
+        **kwargs: str,
+    ) -> None:
+        super().__init__()
+        self.save_hyperparameters(ignore=["loss", "optimizer"])
+        self.loss = loss
+        self.optimizer = optimizer
+
+    def set_metrics(self):
+        return DLMetrics.IMPUTATION
+
+    def init_weights(self, init_type="normal", gain=0.02):
+        def init_func(m):
+            classname = m.__class__.__name__
+            if hasattr(m, "weight") and (classname.find("Conv") != -1 or classname.find("Linear") != -1):
+                if init_type == ImputationInit.NORMAL:
+                    torch.nn.init.normal_(m.weight.data, 0.0, gain)
+                elif init_type == ImputationInit.XAVIER:
+                    torch.nn.init.xavier_normal_(m.weight.data, gain=gain)
+                elif init_type == ImputationInit.KAIMING:
+                    torch.nn.init.kaiming_normal_(m.weight.data, a=0, mode="fan_out")
+                elif init_type == ImputationInit.ORTHOGONAL:
+                    torch.nn.init.orthogonal_(m.weight.data, gain=gain)
+                else:
+                    raise NotImplementedError(f"Initialization method {init_type} is not implemented")
+                if hasattr(m, "bias") and m.bias is not None:
+                    torch.nn.init.constant_(m.bias.data, 0.0)
+            elif classname.find("BatchNorm2d") != -1:
+                torch.nn.init.normal_(m.weight.data, 1.0, gain)
+                torch.nn.init.constant_(m.bias.data, 0.0)
+
+        self.apply(init_func)
+
+    def on_fit_start(self) -> None:
+        self.init_weights(self.hparams.initialization_method)
+        for metrics in self.metrics.values():
+            for metric in metrics.values():
+                metric.reset()
+        logging.info("IMPUTATION METRICS RESET.")
+        return super().on_fit_start()
+
+    def step_fn(self, batch, step_prefix=""):
+        amputated, amputation_mask, target, target_missingness = batch
+        imputated = self(amputated, amputation_mask)
+        amputated[amputation_mask > 0] = imputated[amputation_mask > 0]
+        amputated[target_missingness > 0] = target[target_missingness > 0]
+
+        loss = self.loss(amputated, target)
+        self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
+
+        for metric in self.metrics[step_prefix].values():
+            metric.update(
+                (torch.flatten(amputated.detach(), start_dim=1).clone(), torch.flatten(target.detach(), start_dim=1).clone())
+            )
+        return loss
+
+    def fit(self, train_dataset, val_dataset):
+        raise NotImplementedError()
+
+    def predict_step(self, data, amputation_mask=None):
+        return self(data, amputation_mask)
+
+    def predict(self, data):
+        self.eval()
+        data = data.to(self.device)
+        data_missingness = torch.isnan(data)
+        prediction = self.predict_step(data, data_missingness)
+        data[data_missingness] = prediction[data_missingness]
+        return data

@@ -1,0 +1,25 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/miiv"
+  - "-t"
+  - "DatasetImputation"
+  - "-c"
+  - "--wandb-sweep"
+  - "--wandb"
+method: grid
+name: baselines more proportions
+parameters:
+  model:
+    values: ["Mean", "Median", "Zero", "MostFrequent", "MICE", "GAIN", "BRITS", "SAITS", "MissForest", "MLP", "RNN"]
+  ImputationDataset.mask_method:
+    values: ["MCAR", "MAR", "MNAR"]
+  seed:
+    values: [2222]
+  ImputationDataset.mask_proportion:
+    values: [0.5, 0.7]
+  data_dir:
+    values: ["../data/miiv", "../data/eicu", "../data/hirid"]

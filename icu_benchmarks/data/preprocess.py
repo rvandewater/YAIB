@@ -6,9 +6,11 @@ import pandas as pd
 import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
-from sklearn.model_selection import StratifiedKFold
 
-from icu_benchmarks.data.preprocessor import Preprocessor, DefaultPreprocessor
+from sklearn.model_selection import StratifiedKFold, KFold
+
+from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
+
 from .constants import DataSplit as Split, DataSegment as Segment
 
 
@@ -38,19 +40,29 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
-    stays = data[Segment.outcome][id]
+    stays = data[Segment.outcome if Segment.outcome in data else Segment.static][id]
     if debug:
         # Only use 1% of the data
         stays = stays.sample(frac=0.01, random_state=seed)
-    labels = data[Segment.outcome][vars["LABEL"]].loc[stays.index]
 
-    outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
-    inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
+    if "LABEL" in vars:
+        # If there are labels, use stratified k-fold
+        labels = data[Segment.outcome][vars["LABEL"]].loc[stays.index]
 
-    dev, test = list(outer_CV.split(stays, labels))[repetition_index]
-    dev_stays = stays.iloc[dev]
-    dev_labels = labels.iloc[dev]
-    train, val = list(inner_CV.split(dev_stays, dev_labels))[fold_index]
+        outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
+        inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
+
+        dev, test = list(outer_CV.split(stays, labels))[repetition_index]
+        dev_stays = stays.iloc[dev]
+        train, val = list(inner_CV.split(dev_stays, labels.iloc[dev]))[fold_index]
+    else:
+        # If there are no labels, use regular k-fold
+        outer_CV = KFold(cv_repetitions, shuffle=True, random_state=seed)
+        inner_CV = KFold(cv_folds, shuffle=True, random_state=seed)
+
+        dev, test = list(outer_CV.split(stays))[repetition_index]
+        dev_stays = stays.iloc[dev]
+        train, val = list(inner_CV.split(dev_stays))[fold_index]
 
     split = {
         Split.train: dev_stays.iloc[train],
@@ -73,7 +85,7 @@ def make_single_split(
 def preprocess_data(
     data_dir: Path,
     file_names: dict[str] = gin.REQUIRED,
-    preprocessor: Preprocessor = DefaultPreprocessor,
+    preprocessor: Preprocessor = DefaultClassificationPreprocessor,
     use_static: bool = True,
     vars: dict[str] = gin.REQUIRED,
     seed: int = 42,
@@ -84,6 +96,7 @@ def preprocess_data(
     load_cache: bool = False,
     generate_cache: bool = False,
     fold_index: int = 0,
+    pretrained_imputation_model: str = None,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -100,6 +113,7 @@ def preprocess_data(
         load_cache: Use cached preprocessed data if true.
         generate_cache: Generate cached preprocessed data if true.
         fold_index: Index of the fold to return.
+        pretrained_imputation_model: pretrained imputation model to use. if None, standard imputation is used.
 
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC) / DYNAMIC/ OUTCOME
@@ -115,9 +129,10 @@ def preprocess_data(
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 
-    if preprocessor is not DefaultPreprocessor:
-        logging.log(logging.INFO, "Using user-supplied preprocessor.")
+    logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
     preprocessor = preprocessor(use_static_features=use_static)
+    if isinstance(preprocessor, DefaultClassificationPreprocessor):
+        preprocessor.set_imputation_model(pretrained_imputation_model)
 
     hash_config = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{debug}".encode("utf-8")
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_{hashlib.md5(hash_config).hexdigest()}"
@@ -142,8 +157,6 @@ def preprocess_data(
         caching(cache_dir, cache_file, data, load_cache)
     else:
         logging.info("Cache will not be saved.")
-
-    gin.bind_parameter("model/hyperparameter.input_dim", data[Split.train][Segment.features].shape[1] - 2)
 
     logging.info("Finished preprocessing.")
 

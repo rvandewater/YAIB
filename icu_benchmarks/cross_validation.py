@@ -2,12 +2,15 @@ import json
 from datetime import datetime
 import logging
 import gin
+import warnings
 from pathlib import Path
+from pytorch_lightning import seed_everything
 
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import log_full_line
+from icu_benchmarks.contants import RunMode
 
 
 @gin.configurable
@@ -26,6 +29,10 @@ def execute_repeated_cv(
     generate_cache: bool = False,
     load_cache: bool = False,
     test_on: str = "test",
+    mode: str = RunMode.classification,
+    pretrained_imputation_model: object = None,
+    cpu: bool = False,
+    verbose: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -42,16 +49,26 @@ def execute_repeated_cv(
         generate_cache: Whether to generate and save cache.
         load_cache: Whether to load previously cached data.
         test_on: Dataset to test on. Can be "test" or "val" (e.g. for hyperparameter tuning).
+        mode: Run mode. Can be one of the values of RunMode
+        pretrained_imputation_model: Use a pretrained imputation model.
+        cpu: Whether to run on CPU.
+        verbose: Enable detailed logging.
     Returns:
         The average loss of all folds.
     """
+
     if not cv_repetitions_to_train:
         cv_repetitions_to_train = cv_repetitions
     if not cv_folds_to_train:
         cv_folds_to_train = cv_folds
     agg_loss = 0
+    seed_everything(seed, reproducible)
     for repetition in range(cv_repetitions_to_train):
         for fold_index in range(cv_folds_to_train):
+            if not verbose:
+                logging.getLogger().setLevel(logging.ERROR)
+                logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+                warnings.filterwarnings("ignore")
             start_time = datetime.now()
             data = preprocess_data(
                 data_dir,
@@ -63,6 +80,7 @@ def execute_repeated_cv(
                 repetition_index=repetition,
                 cv_folds=cv_folds,
                 fold_index=fold_index,
+                pretrained_imputation_model=pretrained_imputation_model,
             )
 
             repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
@@ -74,12 +92,18 @@ def execute_repeated_cv(
                 log_dir=repetition_fold_dir,
                 load_weights=load_weights,
                 source_dir=source_dir,
-                seed=seed,
                 reproducible=reproducible,
                 test_on=test_on,
+                mode=mode,
+                cpu=cpu,
+                verbose=verbose,
             )
             train_time = datetime.now() - start_time
 
+            if not verbose:
+                logging.getLogger().setLevel(logging.INFO)
+                logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
+                warnings.filterwarnings("default")
             log_full_line(
                 f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| TRAINING DURATION {train_time}",
                 level=logging.INFO,

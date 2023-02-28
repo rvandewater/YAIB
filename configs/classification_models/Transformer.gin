@@ -1,19 +1,18 @@
 import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.encoders
+import icu_benchmarks.models.dl_models
 import icu_benchmarks.models.utils
+import icu_benchmarks.data.loader
 
-default_preprocessor.generate_features = False
+base_classification_preprocessor.generate_features = False
 
 # Train params
-train_common.model = @DLWrapper()
-
-DLWrapper.encoder = @LocalTransformer()
-DLWrapper.optimizer_fn = @Adam
-DLWrapper.train.epochs = 1000
-DLWrapper.train.batch_size = 64
-DLWrapper.train.patience = 10
-DLWrapper.train.min_delta = 1e-4
+train_common.model = @Transformer
+train_common.optimizer = @Adam
+train_common.epochs = 1000
+train_common.batch_size = 64
+train_common.patience = 10
+train_common.min_delta = 1e-4
 
 # Optimizer params
 optimizer/hyperparameter.class_to_tune = @Adam
@@ -21,11 +20,10 @@ optimizer/hyperparameter.weight_decay = 1e-6
 optimizer/hyperparameter.lr = (1e-5, 3e-4)
 
 # Encoder params
-model/hyperparameter.class_to_tune = @LocalTransformer
+model/hyperparameter.class_to_tune = @Transformer
 model/hyperparameter.ff_hidden_mult = 2
 model/hyperparameter.l1_reg = 0.0
 model/hyperparameter.num_classes = %NUM_CLASSES
-model/hyperparameter.local_context = %HORIZON
 model/hyperparameter.hidden = (32, 256, "log-uniform", 2)
 model/hyperparameter.heads = (1, 8, "log-uniform", 2)
 model/hyperparameter.depth = (1, 3)

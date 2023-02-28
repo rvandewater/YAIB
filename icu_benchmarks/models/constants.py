@@ -1,5 +1,5 @@
 from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-from ignite.metrics import MeanAbsoluteError, Accuracy  # , ConfusionMatrix
+from ignite.metrics import MeanAbsoluteError, Accuracy, RootMeanSquaredError  # , ConfusionMatrix
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     average_precision_score,
@@ -14,8 +14,9 @@ from sklearn.metrics import (
     mean_squared_error,
     # f1_score,
 )
+from enum import Enum
 
-from icu_benchmarks.models.metrics import CalibrationCurve, BalancedAccuracy
+from icu_benchmarks.models.metrics import CalibrationCurve, BalancedAccuracy, MAE, JSD
 
 
 # TODO: revise transformation for metrics in wrappers.py in order to handle metrics that can not handle a mix of binary and
@@ -27,8 +28,8 @@ class MLMetrics:
         # "Confusion_Matrix": confusion_matrix,
         # "F1": f1_score,
         "PR": average_precision_score,
-        "PRC": precision_recall_curve,
-        "ROC": roc_curve,
+        "PR_Curve": precision_recall_curve,
+        "RO_Curve": roc_curve,
     }
 
     MULTICLASS_CLASSIFICATION = {
@@ -50,19 +51,35 @@ class MLMetrics:
 # TODO: add support for confusion matrix
 class DLMetrics:
     BINARY_CLASSIFICATION = {
-        "AUC": ROC_AUC(),
-        "Calibration_Curve": CalibrationCurve(),
+        "AUC": ROC_AUC,
+        "Calibration_Curve": CalibrationCurve,
         # "Confusion_Matrix": ConfusionMatrix(num_classes=2),
-        "PR": AveragePrecision(),
-        "PRC": PrecisionRecallCurve(),
-        "ROC": RocCurve(),
+        "PR": AveragePrecision,
+        "PR_Curve": PrecisionRecallCurve,
+        "RO_Curve": RocCurve,
     }
 
     MULTICLASS_CLASSIFICATION = {
-        "Accuracy": Accuracy(),
-        "BalancedAccuracy": BalancedAccuracy(),
+        "Accuracy": Accuracy,
+        "BalancedAccuracy": BalancedAccuracy,
     }
 
     REGRESSION = {
-        "MAE": MeanAbsoluteError(),
+        "MAE": MeanAbsoluteError,
     }
+
+    IMPUTATION = {
+        "rmse": RootMeanSquaredError,
+        "mae": MAE,
+        "jsd": JSD,
+    }
+
+
+class ImputationInit(str, Enum):
+    """Type of initialization to use for the imputation model."""
+
+    NORMAL = "normal"
+    UNIFORM = "uniform"
+    XAVIER = "xavier"
+    KAIMING = "kaiming"
+    ORTHOGONAL = "orthogonal"

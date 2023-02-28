@@ -1,15 +1,13 @@
 import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.encoders
+import icu_benchmarks.models.ml_models
 import icu_benchmarks.models.utils
 
-default_preprocessor.generate_features = True
+base_classification_preprocessor.generate_features = True
 
 # Train params
-train_common.model = @MLWrapper()
-
-MLWrapper.model = @LogisticRegression()
-MLWrapper.train.patience = 10
+train_common.model = @LogisticRegression
+MLClassificationWrapper.patience = 10
 
 model/hyperparameter.class_to_tune = @LogisticRegression
 model/hyperparameter.solver = "saga"

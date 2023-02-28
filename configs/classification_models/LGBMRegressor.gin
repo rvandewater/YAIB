@@ -1,17 +1,15 @@
 import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.encoders
+import icu_benchmarks.models.ml_models
 import icu_benchmarks.models.utils
 
-default_preprocessor.generate_features = True
+base_classification_preprocessor.generate_features = True
 
 # Train params
-train_common.model = @MLWrapper()
+train_common.model = @LGBMRegressor
+MLClassificationWrapper.patience = 10
 
-MLWrapper.model = @LGBMClassifier()
-MLWrapper.train.patience = 10
-
-model/hyperparameter.class_to_tune = @LGBMClassifier
+model/hyperparameter.class_to_tune = @LGBMRegressor
 model/hyperparameter.colsample_bytree = (0.33, 1.0)
 model/hyperparameter.max_depth = (3, 7)
 model/hyperparameter.min_child_samples = 1000
@@ -22,5 +20,5 @@ model/hyperparameter.subsample_freq = 1
 
 tune_hyperparameters.scopes = ["model"]
 tune_hyperparameters.n_initial_points = 10
-tune_hyperparameters.n_calls = 50
+tune_hyperparameters.n_calls = 250
 tune_hyperparameters.folds_to_tune_on = 3

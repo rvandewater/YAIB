@@ -2,6 +2,9 @@ import torch
 from typing import Callable
 import numpy as np
 from ignite.metrics import EpochMetric
+from sklearn.metrics import balanced_accuracy_score, mean_absolute_error
+from sklearn.calibration import calibration_curve
+from scipy.spatial.distance import jensenshannon
 
 
 def accuracy(output, target, topk=(1,)):
@@ -22,10 +25,6 @@ def accuracy(output, target, topk=(1,)):
 
 
 def balanced_accuracy_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
-    try:
-        from sklearn.metrics import balanced_accuracy_score
-    except ImportError:
-        raise RuntimeError("This contrib module requires sklearn to be installed.")
 
     y_true = y_targets.numpy()
     y_pred = np.argmax(y_preds.numpy(), axis=-1)
@@ -33,25 +32,24 @@ def balanced_accuracy_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor)
 
 
 def ece_curve_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
-    try:
-        from sklearn.calibration import calibration_curve
-    except ImportError:
-        raise RuntimeError("This contrib module requires sklearn to be installed.")
-
     y_true = y_targets.numpy()
     y_pred = y_preds.numpy()
     return calibration_curve(y_true, y_pred, n_bins=10)
 
 
 def mae_with_invert_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, invert_fn=Callable) -> float:
-    try:
-        from sklearn.metrics import mean_absolute_error
-    except ImportError:
-        raise RuntimeError("This contrib module requires sklearn to be installed.")
-
     y_true = invert_fn(y_targets.numpy().reshape(-1, 1))[:, 0]
     y_pred = invert_fn(y_preds.numpy().reshape(-1, 1))[:, 0]
     return mean_absolute_error(y_true, y_pred)
+
+
+def JSD_fn(y_preds: torch.Tensor, y_targets: torch.Tensor):
+    return jensenshannon(abs(y_preds).flatten(), abs(y_targets).flatten()) ** 2
+    # return jensenshannon(abs(y_preds),abs(y_targets)) ** 2
+
+
+# def KLD_fn(output, targets) -> float:
+#   return np.sum(np.where(output != 0, output * np.log(output / targets), 0))
 
 
 class BalancedAccuracy(EpochMetric):
@@ -77,6 +75,19 @@ class MAE(EpochMetric):
     ) -> None:
         super(MAE, self).__init__(
             lambda x, y: mae_with_invert_compute_fn(x, y, invert_transform),
+            output_transform=output_transform,
+            check_compute_fn=check_compute_fn,
+        )
+
+
+class JSD(EpochMetric):
+    def __init__(
+        self,
+        output_transform: Callable = lambda x: x,
+        check_compute_fn: bool = False,
+    ) -> None:
+        super(JSD, self).__init__(
+            lambda x, y: JSD_fn(x, y),
             output_transform=output_transform,
             check_compute_fn=check_compute_fn,
         )

@@ -1,0 +1,38 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.utils
+import icu_benchmarks.data.preprocess
+import icu_benchmarks.imputation.sssds4
+
+# Train params
+train_common.model = @SSSDS4
+
+# here you can set some training parameters
+train_common.epochs = 1000
+train_common.batch_size = 64
+train_common.patience = 10
+train_common.min_delta = 1e-4
+train_common.use_wandb = True
+
+ImputationWrapper.optimizer = @Adam
+ImputationWrapper.lr_scheduler = "cosine"
+
+# Optimizer params
+Adam.lr = 0.001
+Adam.weight_decay = 1e-6
+
+# Model params
+SSSDS4.res_channels = 256
+SSSDS4.skip_channels = 256
+SSSDS4.num_res_layers = 36
+SSSDS4.diffusion_step_embed_dim_in = 128
+SSSDS4.diffusion_step_embed_dim_mid = 512
+SSSDS4.diffusion_step_embed_dim_out = 512
+SSSDS4.s4_lmax = 100
+SSSDS4.s4_d_state = 64
+SSSDS4.s4_dropout = 0.0
+SSSDS4.s4_bidirectional = 1
+SSSDS4.s4_layernorm = 1
+SSSDS4.diffusion_time_steps = 1000
+SSSDS4.beta_0 = 1e-4
+SSSDS4.beta_T = 2e-2

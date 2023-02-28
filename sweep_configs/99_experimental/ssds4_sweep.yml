@@ -1,0 +1,59 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/miiv"
+  - "-t"
+  - "DatasetImputation"
+  - "-c"
+  - "--wandb-sweep"
+  - "--wandb"
+method: bayes
+metric:
+  name: avg.jsd
+  goal: minimize
+name: sssds4 hyperparameter sweep
+parameters:
+  model:
+    values: ["SSSDS4"] # DiffWave not working yet
+  ImputationDataset.mask_method:
+    values: ["MCAR"]
+  seed:
+    values: [1111]
+  data_dir:
+    values: ["../data/hirid"]
+  execute_repeated_cv.cv_repetitions:
+    values: [2]
+  execute_repeated_cv.cv_folds:
+    values: [2]
+  ImputationWrapper.lr_scheduler:
+    values: ["cosine", ""]
+  Adam.lr:
+    values: [0.001, 0.01, 0.1]
+
+  SSSDS4.res_channels:
+    values: [64, 128, 256]
+  SSSDS4.skip_channels:
+    values: [64, 128, 256]
+  SSSDS4.num_res_layers:
+    values: [12, 24, 36]
+  SSSDS4.diffusion_step_embed_dim_in:
+    values: [64, 128, 256]
+  SSSDS4.diffusion_step_embed_dim_mid:
+    values: [128, 256, 512]
+  SSSDS4.diffusion_step_embed_dim_out:
+    values: [128, 256, 512]
+  SSSDS4.s4_lmax:
+    values: [50, 100, 200]
+  SSSDS4.s4_d_state:
+    values: [32, 64, 128]
+  SSSDS4.s4_dropout:
+    values: [0.0, 0.1, 0.3]
+  SSSDS4.s4_bidirectional:
+    values: [True, False]
+  SSSDS4.s4_layernorm:
+    values: [True, False]
+  SSSDS4.diffusion_time_steps:
+    values: [500, 1000, 2000]
