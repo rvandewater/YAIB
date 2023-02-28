@@ -185,9 +185,13 @@ class ImputationDataset(SICUDataset):
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion
         )
+        self.amputation_mask = (self.amputation_mask + self.features_df.isna().values).bool()
         self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars[Segment.dynamic])
         self.amputation_mask[self.vars["GROUP"]] = self.features_df.index
         self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
+
+        self.target_missingness_mask = self.features_df.isna()
+        self.features_df.fillna(0, inplace=True)
         self.ram_cache(ram_cache)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
@@ -207,6 +211,7 @@ class ImputationDataset(SICUDataset):
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
+        window_missingness_mask = self.target_missingness_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
         amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
         amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
 
@@ -214,6 +219,7 @@ class ImputationDataset(SICUDataset):
             from_numpy(amputated_window.values).to(float32),
             from_numpy(amputation_mask.values).to(float32),
             from_numpy(window.values).to(float32),
+            from_numpy(window_missingness_mask.values).to(float32),
         )
 
 

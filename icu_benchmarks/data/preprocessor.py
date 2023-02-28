@@ -180,6 +180,7 @@ class DefaultImputationPreprocessor(Preprocessor):
         self,
         scaling: bool = True,
         use_static_features: bool = True,
+        filter_missing_values: bool = True,
         vars: dict = None,
     ):
         """Preprocesses data for imputation.
@@ -192,6 +193,7 @@ class DefaultImputationPreprocessor(Preprocessor):
         self.scaling = scaling
         self.use_static_features = use_static_features
         self.vars = vars
+        self.filter_missing_values = filter_missing_values
 
     def apply(self, data, vars):
         """
@@ -241,8 +243,9 @@ class DefaultImputationPreprocessor(Preprocessor):
         return data
 
     def process_dynamic_data(self, data, vars):
-        rows_to_remove = data[Segment.dynamic][vars[Segment.dynamic]].isna().sum(axis=1) != 0
-        ids_to_remove = data[Segment.dynamic].loc[rows_to_remove][vars["GROUP"]].unique()
-        data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
-        logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
+        if self.filter_missing_values:
+            rows_to_remove = data[Segment.dynamic][vars[Segment.dynamic]].isna().sum(axis=1) != 0
+            ids_to_remove = data[Segment.dynamic].loc[rows_to_remove][vars["GROUP"]].unique()
+            data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
+            logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
         return data
