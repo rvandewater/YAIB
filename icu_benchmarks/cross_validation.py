@@ -55,7 +55,7 @@ def execute_repeated_cv(
     Returns:
         The average loss of all folds.
     """
-    
+
     if not cv_repetitions_to_train:
         cv_repetitions_to_train = cv_repetitions
     if not cv_folds_to_train:

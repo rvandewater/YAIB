@@ -18,10 +18,12 @@ from icu_benchmarks.data.constants import DataSplit as Split
 
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 
+
 def assure_minimum_length(dataset):
     if len(dataset) < 2:
         return [dataset[0], dataset[0]]
     return dataset
+
 
 @gin.configurable("train_common")
 def train_common(
@@ -160,6 +162,8 @@ def train_common(
     )
 
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(model, dataloaders=test_loader,)[0]["test/loss"]
+    test_loss = trainer.test(model, dataloaders=test_loader,)[
+        0
+    ]["test/loss"]
     save_config_file(log_dir)
     return test_loss

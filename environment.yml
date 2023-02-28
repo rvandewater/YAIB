@@ -23,6 +23,7 @@ dependencies:
   - wandb=0.13.10
   - pip=22.3.1
   - scikit-optimize=0.9.0
+  - einops=0.4.1
   - pip:
       - git+https://github.com/rvandewater/recipys.git
       - hyperimpute==0.1.16

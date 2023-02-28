@@ -8,10 +8,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
+
 @gin.configurable("CSDI")
 class CSDI(ImputationWrapper):
     """Conditional Score-based Diffusion Models for Imputation (CSDI) of Time Series. See https://arxiv.org/abs/2107.03502
-    for details. """
+    for details."""
+
     def __init__(
         self,
         input_size,
@@ -275,6 +277,8 @@ class CSDI(ImputationWrapper):
         torch.use_deterministic_algorithms(previous_deterministic_setting)
 
         return samples
+
+
 def get_torch_trans(heads=8, layers=1, channels=64):
     encoder_layer = nn.TransformerEncoderLayer(d_model=channels, nhead=heads, dim_feedforward=64, activation="gelu")
     return nn.TransformerEncoder(encoder_layer, num_layers=layers)
@@ -423,6 +427,3 @@ class ResidualBlock(nn.Module):
         residual = residual.reshape(base_shape)
         skip = skip.reshape(base_shape)
         return (x + residual) / math.sqrt(2.0), skip
-
-
-

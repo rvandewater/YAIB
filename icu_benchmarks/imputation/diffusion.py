@@ -25,25 +25,15 @@ class SimpleDiffusionModel(ImputationWrapper):
 
     input_size = []
 
-    def __init__(
-            self,
-            input_size,
-            n_onedirectional_conv,
-            T,
-            min_noise,
-            max_noise,
-            noise_scheduler,
+    def __init__(self, input_size, n_onedirectional_conv, T, min_noise, max_noise, noise_scheduler, *args, **kwargs):
+        super().__init__(
+            n_onedirectional_conv=n_onedirectional_conv,
+            T=T,
+            min_noise=min_noise,
+            max_noise=max_noise,
+            noise_scheduler=noise_scheduler,
             *args,
             **kwargs
-        ):
-        super().__init__(
-                n_onedirectional_conv = n_onedirectional_conv,
-                T = T,
-                min_noise = min_noise,
-                max_noise = max_noise,
-                noise_scheduler = noise_scheduler,
-                *args,
-                **kwargs
         )
 
         self.n_onedirectional_conv = n_onedirectional_conv
@@ -131,25 +121,25 @@ class SimpleDiffusionModel(ImputationWrapper):
         # # Context / Target Split (Credits @Allie)
         # # Take an inverse of the amputed mask - to get the observation mask
         # observed_mask = (~(amputation_mask > 0)).float()
-        
+
         # # Generate a random tensor with the same dimensions as mask and multiply mask by it
         # # This removes all missing values from the following calculations
         # rand_for_mask = torch.rand_like(observed_mask) * observed_mask
-        
+
         # # Create a context mask - the selection of the elements is so that only 50% of all observed values are selected
         # context_mask = (rand_for_mask > 0.5).float()
-        
-        # # Create a target mask - the selection of the elements is so that all values not selected by the context mask 
+
+        # # Create a target mask - the selection of the elements is so that all values not selected by the context mask
         # # but are still observed are selected
         # target_mask = (~(rand_for_mask > 0.5)).float() * observed_mask
-        
+
         # context = amputated * context_mask
         # target = amputated * target_mask
-        
+
         # x_0 = context
 
         x_0 = amputated
-        
+
         # Take a random timestep
         t = torch.randint(0, self.T, (self.input_size[0],)).long()
 
@@ -174,7 +164,7 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         # TODO: - Context / Target Split
         x_0 = amputated
-        
+
         # Take a random timestep
         t = torch.randint(0, self.T, (self.input_size[0],)).long()
 

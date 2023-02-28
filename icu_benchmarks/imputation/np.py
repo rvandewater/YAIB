@@ -282,6 +282,7 @@ class NPImputation(ImputationWrapper):
 # Actual class that implements neural processes
 class NeuralProcess(nn.Module):
     """Class that implements neural processes."""
+
     def __init__(
         self,
         x_dim,
