@@ -160,16 +160,19 @@ class SimpleDiffusionModel(ImputationWrapper):
             noise = torch.randn_like(amputated)
             imputated = model_mean + torch.sqrt(posterior_variance_t) * noise
 
-        imputated = amputated.masked_scatter_(amputation_mask.bool(), imputated)
+        # imputated = amputated.masked_scatter_(amputation_mask.bool(), imputated)
 
-        loss = self.loss(imputated, target)
+        amputated[amputation_mask > 0] = imputated[amputation_mask > 0]
+        amputated[target_missingness > 0] = target[target_missingness > 0]
+
+        loss = self.loss(amputated, target)
         self.log("val/loss", loss.item(), prog_bar=True)
 
         for metric in self.metrics["val"].values():
-            metric.update((torch.flatten(imputated, start_dim=1), torch.flatten(target, start_dim=1)))
+            metric.update((torch.flatten(amputated, start_dim=1), torch.flatten(target, start_dim=1)))
 
     def test_step(self, batch, batch_index):
-        amputated, amputation_mask, target = batch
+        amputated, amputation_mask, target, target_missingness = batch
         amputated = torch.nan_to_num(amputated, nan=0.0)
         # imputated = self(amputated, amputation_mask)
 
@@ -189,13 +192,16 @@ class SimpleDiffusionModel(ImputationWrapper):
             noise = torch.randn_like(amputated)
             imputated = model_mean + torch.sqrt(posterior_variance_t) * noise
 
-        imputated = amputated.masked_scatter_(amputation_mask.bool(), imputated)
+        # imputated = amputated.masked_scatter_(amputation_mask.bool(), imputated)
 
-        loss = self.loss(imputated, target)
+        amputated[amputation_mask > 0] = imputated[amputation_mask > 0]
+        amputated[target_missingness > 0] = target[target_missingness > 0]
+
+        loss = self.loss(amputated, target)
         self.log("test/loss", loss.item(), prog_bar=True)
 
         for metric in self.metrics["test"].values():
-            metric.update((torch.flatten(imputated, start_dim=1), torch.flatten(target, start_dim=1)))
+            metric.update((torch.flatten(amputated, start_dim=1), torch.flatten(target, start_dim=1)))
 
 
 class Block(nn.Module):
