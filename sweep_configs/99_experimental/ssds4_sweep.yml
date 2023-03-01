@@ -14,10 +14,10 @@ method: bayes
 metric:
   name: avg.jsd
   goal: minimize
-name: csdi hyperparameter sweep
+name: SSSDS4 hyperparameter sweep
 parameters:
   model:
-    values: ["CSDI"] # DiffWave not working yet
+    values: ["SSSDS4"] # DiffWave not working yet
   ImputationDataset.mask_method:
     values: ["MCAR"]
   seed:

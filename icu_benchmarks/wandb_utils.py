@@ -30,11 +30,13 @@ def apply_wandb_sweep(args: Namespace) -> Namespace:
     """
     wandb.init()
     sweep_config = wandb.config
+    print("got sweep config", sweep_config)
     args.__dict__.update(sweep_config)
     if args.hyperparams is None:
         args.hyperparams = []
     for key, value in sweep_config.items():
         args.hyperparams.append(f"{key}=" + (("'" + value + "'") if isinstance(value, str) else str(value)))
+    print("now args hyperparams are", args.hyperparams)
 
     return args
 
