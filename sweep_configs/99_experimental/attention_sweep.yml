@@ -1,0 +1,48 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/miiv"
+  - "-t"
+  - "DatasetImputation"
+  - "-c"
+  - "--wandb-sweep"
+  - "--wandb"
+method: bayes
+metric:
+  name: avg.jsd
+  goal: minimize
+name: Attention hyperparameter sweep
+parameters:
+  model:
+    values: ["Attention"] # DiffWave not working yet
+  ImputationDataset.mask_method:
+    values: ["MCAR"]
+  seed:
+    values: [1111]
+  data_dir:
+    values: ["../data/hirid"]
+  execute_repeated_cv.cv_repetitions:
+    values: [2]
+  execute_repeated_cv.cv_folds:
+    values: [2]
+  ImputationWrapper.lr_scheduler:
+    values: ["cosine", ""]
+  Adam.lr:
+    values: [0.001, 0.01, 0.1]
+  Attention.n_layers:
+    values: [2, 4, 6]
+  Attention.d_model:
+    values: [64, 128, 256]
+  Attention.d_inner:
+    values: [64, 128, 256]
+  Attention.n_head:
+    values: [4, 8, 16]
+  Attention.d_k:
+    values: [32, 64, 128]
+  Attention.d_v:
+    values: [32, 64, 128]
+  Attention.dropout:
+    values: [0.0, 0.1, 0.3]

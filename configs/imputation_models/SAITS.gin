@@ -16,4 +16,4 @@ SAITS.n_head = 4
 SAITS.d_k = 64
 SAITS.d_v = 64
 SAITS.dropout = 0.1
-SAITS.epochs = 10
+SAITS.epochs = 100

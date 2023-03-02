@@ -1,0 +1,48 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/miiv"
+  - "-t"
+  - "DatasetImputation"
+  - "-c"
+  - "--wandb-sweep"
+  - "--wandb"
+method: bayes
+metric:
+  name: avg.jsd
+  goal: minimize
+name: SAITS hyperparameter sweep
+parameters:
+  model:
+    values: ["SAITS"] # DiffWave not working yet
+  ImputationDataset.mask_method:
+    values: ["MCAR"]
+  seed:
+    values: [1111]
+  data_dir:
+    values: ["../data/hirid"]
+  execute_repeated_cv.cv_repetitions:
+    values: [2]
+  execute_repeated_cv.cv_folds:
+    values: [2]
+  ImputationWrapper.lr_scheduler:
+    values: ["cosine", ""]
+  Adam.lr:
+    values: [0.001, 0.01, 0.1]
+  SAITS.n_layers:
+    values: [2, 4, 6]
+  SAITS.d_model:
+    values: [64, 128, 256]
+  SAITS.d_inner:
+    values: [64, 128, 256]
+  SAITS.n_head:
+    values: [4, 8, 16]
+  SAITS.d_k:
+    values: [32, 64, 128]
+  SAITS.d_v:
+    values: [32, 64, 128]
+  SAITS.dropout:
+    values: [0.0, 0.1, 0.3]
