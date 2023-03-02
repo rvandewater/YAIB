@@ -128,6 +128,7 @@ class SSSDS4(ImputationWrapper):
             loss = self.loss(epsilon_theta[amputation_mask], z[amputation_mask])
         else:
             target = target.permute(0, 2, 1)
+            target_missingness = target_missingness.permute(0, 2, 1)
             imputed_data = self.sampling(amputated_data, observed_mask)
             amputated_data[amputation_mask] = imputed_data[amputation_mask]
             amputated_data[target_missingness > 0] = target[target_missingness > 0]
