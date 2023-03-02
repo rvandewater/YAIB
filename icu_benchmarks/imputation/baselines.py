@@ -231,7 +231,7 @@ class BRITSImputation(ImputationWrapper):
         )
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to(self.imputer.device)
+        debatched_values = amputated_values.to(self.imputer.device).squeeze()
         self.imputer.model = self.imputer.model.to(self.imputer.device)
         output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
 
@@ -281,7 +281,7 @@ class SAITSImputation(ImputationWrapper):
         )
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to(self.imputer.device)
+        debatched_values = amputated_values.to(self.imputer.device).squeeze()
         self.imputer.model = self.imputer.model.to(self.imputer.device)
         output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
 
@@ -331,7 +331,7 @@ class AttentionImputation(ImputationWrapper):
         )
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to(self.imputer.device)
+        debatched_values = amputated_values.to(self.imputer.device).squeeze()
         self.imputer.model = self.imputer.model.to(self.imputer.device)
         output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
 
