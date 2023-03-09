@@ -14,12 +14,12 @@ method: grid
 name: baselines more proportions
 parameters:
   model:
-    values: ["Mean", "Median", "Zero", "MostFrequent", "MICE", "GAIN", "BRITS", "SAITS", "MissForest", "MLP", "RNN"]
+    values: ["Mean", "Median", "Zero", "MostFrequent", "MICE", "GAIN", "BRITS", "MissForest", "MLP", "RNN"]
   ImputationDataset.mask_method:
-    values: ["MCAR", "MAR", "MNAR"]
+    values: ["MCAR", "MAR", "MNAR", "BO"]
   seed:
     values: [2222]
   ImputationDataset.mask_proportion:
-    values: [0.5, 0.7]
+    values: [0.3, 0.5, 0.7]
   data_dir:
     values: ["../data/miiv", "../data/eicu", "../data/hirid"]

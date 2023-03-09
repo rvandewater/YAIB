@@ -128,6 +128,7 @@ class SSSDS4(ImputationWrapper):
             loss = self.loss(epsilon_theta[amputation_mask], z[amputation_mask])
         else:
             target = target.permute(0, 2, 1)
+            target_missingness = target_missingness.permute(0, 2, 1)
             imputed_data = self.sampling(amputated_data, observed_mask)
             amputated_data[amputation_mask] = imputed_data[amputation_mask]
             amputated_data[target_missingness > 0] = target[target_missingness > 0]
@@ -140,7 +141,7 @@ class SSSDS4(ImputationWrapper):
 
     def sampling(self, cond, mask):
         """
-        Perform the complete sampling step according to p(x_0|x_T) = \prod_{t=1}^T p_{\theta}(x_{t-1}|x_t)
+        Perform the complete sampling step according to p(x_0|x_T) = prod_{t=1}^T p_{\theta}(x_{t-1}|x_t)
 
         Parameters:
         net (torch network):            the wavenet model
@@ -292,7 +293,7 @@ class Residual_block(nn.Module):
 
         h = self.S42(h.permute(2, 0, 1)).permute(1, 2, 0)
 
-        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels :, :])
+        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels:, :])
 
         res = self.res_conv(out)
         assert x.shape == res.shape

@@ -39,11 +39,9 @@ log = get_logger(__name__)
 """ Cauchy kernel """
 
 try:  # Try pykeops
-    import pykeops
     from pykeops.torch import Genred
 
     has_pykeops = True
-
 
     def cauchy_conj(v, z, w):
         """Pykeops version"""
@@ -75,7 +73,6 @@ try:  # Try pykeops
 except ImportError:
     has_pykeops = False
 
-
     def cauchy_slow(v, z, w):
         """
         v, w: (..., N)
@@ -92,13 +89,26 @@ def _broadcast_dims(*tensors):
     return tensors
 
 
-_c2r = torch.view_as_real
-_r2c = torch.view_as_complex
-_conj = lambda x: torch.cat([x, x.conj()], dim=-1)
+def _c2r(input):
+    return torch.view_as_real(input)
+
+
+def _r2c(input):
+    return torch.view_as_complex(input)
+
+
+def _conj(x):
+    return torch.cat([x, x.conj()], dim=-1)
+
+
 if tuple(map(int, torch.__version__.split(".")[:2])) >= (1, 10):
-    _resolve_conj = lambda x: x.conj().resolve_conj()
+
+    def _resolve_conj(x):
+        return x.conj().resolve_conj()
+
 else:
-    _resolve_conj = lambda x: x.conj()
+    def _resolve_conj(x):
+        return x.conj()
 
 """ simple nn.Module components """
 
@@ -236,10 +246,10 @@ def krylov(L, A, b, c=None, return_power=False):
             _L //= 2
 
         # Save memory on last iteration
-        l = x.shape[-1]
-        if L - l <= l:
+        _l = x.shape[-1]
+        if L - _l <= _l:
             done = True
-            _x = x[..., : L - l]
+            _x = x[..., : L - _l]
         else:
             _x = x
 
@@ -266,21 +276,21 @@ def power(L, A, v=None):
     v: (..., N, L)
     """
 
-    I = torch.eye(A.shape[-1]).to(A)  # , dtype=A.dtype, device=A.device)
+    _I = torch.eye(A.shape[-1]).to(A)  # , dtype=A.dtype, device=A.device)
 
     powers = [A]
-    l = 1
+    _l = 1
     while True:
         if L % 2 == 1:
-            I = powers[-1] @ I
+            _I = powers[-1] @ _I
         L //= 2
         if L == 0:
             break
-        l *= 2
+        _l *= 2
         powers.append(powers[-1] @ powers[-1])
 
     if v is None:
-        return I
+        return _I
 
     # Invariants:
     # powers[-1] := A^l
@@ -294,16 +304,16 @@ def power(L, A, v=None):
 
     # Take care of edge case for non-po2 arrays
     # Note that this initial step is a no-op for the case of power of 2 (l == L)
-    k = v.size(-1) - l
-    v_ = powers.pop() @ v[..., l:]
-    v = v[..., :l]
+    k = v.size(-1) - _l
+    v_ = powers.pop() @ v[..., _l:]
+    v = v[..., :_l]
     v[..., :k] = v[..., :k] + v_
 
     # Handle reduction for power of 2
     while v.size(-1) > 1:
         v = rearrange(v, "... (z l) -> ... z l", z=2)
         v = v[..., 0, :] + powers.pop() @ v[..., 1, :]
-    return I, v.squeeze(-1)
+    return _I, v.squeeze(-1)
 
 
 """ HiPPO utilities """
@@ -453,9 +463,9 @@ def bilinear(dt, A, B=None):
     B: (... N)
     """
     N = A.shape[-1]
-    I = torch.eye(N).to(A)
-    A_backwards = I - dt[:, None, None] / 2 * A
-    A_forwards = I + dt[:, None, None] / 2 * A
+    _I = torch.eye(N).to(A)
+    A_backwards = _I - dt[:, None, None] / 2 * A
+    A_forwards = _I + dt[:, None, None] / 2 * A
 
     if B is None:
         dB = None
@@ -787,7 +797,9 @@ class SSKernelNPLR(nn.Module):
         step_params = self.step_params.copy()
         if state.size(-1) == self.N:  # Only store half of the conjugate pairs; should be true by default
             # There should be a slightly faster way using conjugate symmetry
-            contract_fn = lambda p, x, y: contract("r h n, r h m, ... h m -> ... h n", _conj(p), _conj(x), _conj(y))[
+
+            def contract_fn(p, x, y):
+                return contract("r h n, r h m, ... h m -> ... h n", _conj(p), _conj(x), _conj(y))[
                                           ..., : self.N
                                           ]  # inner outer product
         else:
@@ -795,7 +807,10 @@ class SSKernelNPLR(nn.Module):
             step_params = {k: _conj(v) for k, v in step_params.items()}
             # TODO worth setting up a contract_expression in default_state if we want to use this at inference
             #  time for stepping
-            contract_fn = lambda p, x, y: contract("r h n, r h m, ... h m -> ... h n", p, x, y)  # inner outer product
+
+            def contract_fn(p, x, y):
+                return contract("r h n, r h m, ... h m -> ... h n", p, x, y)  # inner outer product
+
         D = step_params["D"]  # (H N)
         E = step_params["E"]  # (H N)
         R = step_params["R"]  # (r H N)
@@ -837,11 +852,11 @@ class SSKernelNPLR(nn.Module):
 
         # Calculate original C
         dA_L = power(self.L, self.dA)
-        I = torch.eye(self.dA.size(-1)).to(dA_L)
+        _I = torch.eye(self.dA.size(-1)).to(dA_L)
         C = _conj(_r2c(self.C))  # (H C N)
 
         dC = torch.linalg.solve(
-            I - dA_L.transpose(-1, -2),
+            _I - dA_L.transpose(-1, -2),
             C.unsqueeze(-1),
         ).squeeze(-1)
         self.dC = dC

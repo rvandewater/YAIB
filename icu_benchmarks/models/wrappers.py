@@ -139,7 +139,7 @@ class DLWrapper(BaseModule):
         else:
             optimizer = self.optimizer(self.parameters())
 
-        if self.hparams.lr_scheduler is None:
+        if self.hparams.lr_scheduler is None or self.hparams.lr_scheduler == "":
             return optimizer
         scheduler = create_scheduler(
             self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs

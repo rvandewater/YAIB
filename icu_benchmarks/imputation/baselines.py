@@ -226,12 +226,12 @@ class BRITSImputation(ImputationWrapper):
     def fit(self, train_dataset, val_dataset):
         self.imputer.fit(
             torch.Tensor(
-                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.dyn_measurements)
+                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
             )
         )
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to(self.imputer.device)
+        debatched_values = amputated_values.to(self.imputer.device).squeeze()
         self.imputer.model = self.imputer.model.to(self.imputer.device)
         output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
 
@@ -281,7 +281,7 @@ class SAITSImputation(ImputationWrapper):
         )
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to(self.imputer.device)
+        debatched_values = amputated_values.to(self.imputer.device).squeeze()
         self.imputer.model = self.imputer.model.to(self.imputer.device)
         output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
 
@@ -326,12 +326,12 @@ class AttentionImputation(ImputationWrapper):
     def fit(self, train_dataset, val_dataset):
         self.imputer.fit(
             torch.Tensor(
-                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.dyn_measurements)
+                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
             )
         )
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to(self.imputer.device)
+        debatched_values = amputated_values.to(self.imputer.device).squeeze()
         self.imputer.model = self.imputer.model.to(self.imputer.device)
         output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
 
