@@ -15,24 +15,24 @@ train_common.min_delta = 1e-4
 train_common.use_wandb = True
 
 ImputationWrapper.optimizer = @Adam
-ImputationWrapper.lr_scheduler = "cosine"
+ImputationWrapper.lr_scheduler = ""
 
 # Optimizer params
-Adam.lr = 0.001
+Adam.lr = 0.1
 Adam.weight_decay = 1e-6
 
 # Model params
-SSSDS4.res_channels = 256
+SSSDS4.res_channels = 64
 SSSDS4.skip_channels = 256
 SSSDS4.num_res_layers = 36
-SSSDS4.diffusion_step_embed_dim_in = 128
-SSSDS4.diffusion_step_embed_dim_mid = 512
-SSSDS4.diffusion_step_embed_dim_out = 512
+SSSDS4.diffusion_step_embed_dim_in = 256
+SSSDS4.diffusion_step_embed_dim_mid = 128
+SSSDS4.diffusion_step_embed_dim_out = 256
 SSSDS4.s4_lmax = 100
 SSSDS4.s4_d_state = 64
-SSSDS4.s4_dropout = 0.0
-SSSDS4.s4_bidirectional = 1
-SSSDS4.s4_layernorm = 1
-SSSDS4.diffusion_time_steps = 1000
+SSSDS4.s4_dropout = 0.3
+SSSDS4.s4_bidirectional = False
+SSSDS4.s4_layernorm = False
+SSSDS4.diffusion_time_steps = 2000
 SSSDS4.beta_0 = 1e-4
 SSSDS4.beta_T = 2e-2

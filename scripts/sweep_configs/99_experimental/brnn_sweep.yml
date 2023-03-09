@@ -1,0 +1,42 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/miiv"
+  - "-t"
+  - "DatasetImputation"
+  - "-c"
+  - "--wandb-sweep"
+  - "--wandb"
+method: bayes
+metric:
+  name: avg.jsd
+  goal: minimize
+name: BRNN hyperparameter sweep
+parameters:
+  model:
+    values: ["BRNN"] # DiffWave not working yet
+  ImputationDataset.mask_method:
+    values: ["MCAR"]
+  seed:
+    values: [1111]
+  data_dir:
+    values: ["../data/hirid"]
+  execute_repeated_cv.cv_repetitions:
+    values: [2]
+  execute_repeated_cv.cv_folds:
+    values: [2]
+  ImputationWrapper.lr_scheduler:
+    values: ["cosine", ""]
+  Adam.lr:
+    values: [0.001, 0.01, 0.1]
+  BRNN.cell:
+    values: ['gru', "lstm"]
+  BRNN.hidden_size:
+    values: [32, 64, 128]
+  BRNN.state_init:
+    values: ['zero', "noise"]
+  BRNN.dropout:
+    values: [0.0, 0.1, 0.3]

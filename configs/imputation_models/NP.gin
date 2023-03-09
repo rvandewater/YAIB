@@ -8,18 +8,24 @@ import icu_benchmarks.data.preprocess
 # Train params
 train_common.model = @NP
 
+ImputationWrapper.optimizer = @Adam
+ImputationWrapper.lr_scheduler = "cosine"
+
+Adam.lr = 0.1
+Adam.weight_decay = 1e-6
+
 # Model params
 # Deterministic encoder params
 NP.encoder_layers = 6
 NP.encoder_h_dim = 72
 
 # Decoder params
-NP.decoder_layers = 6
+NP.decoder_layers = 3
 NP.decoder_h_dim = 72
 
 # Additional params
-NP.r_dim = 6    # Dimension of output representation r
-NP.z_dim = 6    # Dimension of latent variable z
+NP.r_dim = 12    # Dimension of output representation r
+NP.z_dim = 12    # Dimension of latent variable z
 
 # Sampling params
 NP.train_sample_times = 100

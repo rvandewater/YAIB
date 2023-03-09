@@ -11,10 +11,33 @@ command:
   - "--wandb-sweep"
   - "--wandb"
 method: grid
+name: 5min Res Dataset (Experiment 2)
 parameters:
-  model:
-    values: ["Mean", "Median", "Zero", "MostFrequent"]
+  use_pretrained_imputation:
+      values: [
+        '/data/miiv/logs/miiv/Dataset_Imputation/Zero/2023-01-24T23-24-35/seed_3333/model.ckpt',
+        '/data/miiv/logs/miiv/Dataset_Imputation/Median/2023-01-24T23-23-05/seed_3333/model.ckpt',
+        '/data/miiv/logs/miiv/Dataset_Imputation/Mean/2023-01-24T23-21-36/seed_3333/model.ckpt',
+        '/data/miiv/logs/miiv/Dataset_Imputation/MostFrequent/2023-01-24T23-26-11/seed_3333/model.ckpt',
+
+        '/data/miiv/logs/miiv/Dataset_Imputation/KNN/2023-01-24T23-48-22/seed_3333/model.ckpt',
+        '/data/miiv/logs/miiv/Dataset_Imputation/MICE/2023-01-25T00-00-12/seed_3333/model.ckpt',
+        '/data/miiv/logs/miiv/Dataset_Imputation/MissForest/2023-01-25T01-56-23/seed_3333/model.ckpt',
+
+        '/data/miiv/logs/miiv/Dataset_Imputation/Attention/2023-01-25T01-38-17/seed_3333/model.ckpt',
+        '/data/miiv/logs/miiv/Dataset_Imputation/SAITS/2023-01-25T01-03-11/seed_3333/model.ckpt',
+        '/data/miiv/logs/miiv/Dataset_Imputation/GAIN/2023-01-25T00-02-20/seed_3333/model.ckpt',
+        '/data/miiv/logs/miiv/Dataset_Imputation/BRITS/2023-01-25T00-14-45/seed_3333/model.ckpt',
+        '/data/miiv/logs/miiv/Dataset_Imputation/RNN/2023-01-25T02-17-58/seed_3333/last.ckpt',
+        '/data/miiv/logs/miiv/Dataset_Imputation/BRNN/2023-01-25T02-12-22/seed_3333/last.ckpt',
+        '/data/miiv/logs/miiv/Dataset_Imputation/NP/2023-01-25T02-31-05/seed_3333/last.ckpt',
+
+        '/data/miiv/logs/miiv/Dataset_Imputation/CSDI/...',
+        '/data/miiv/logs/miiv/Dataset_Imputation/SSSDS4/...',
+        '/data/miiv/logs/miiv/Dataset_Imputation/SSSDSA/...',
+        'None',
+      ]
   ImputationDataset.mask_method:
-    values: ["MCAR", "MAR", "MNAR"]
-  seed:
-    values: [1111, 2222, 3333]
+    values: ["MCAR", "MAR", "MNAR", "BO"]
+  ImputationDataset.mask_proportion:
+    values: [0.3, 0.7]

@@ -14,10 +14,10 @@ method: bayes
 metric:
   name: avg.jsd
   goal: minimize
-name: SSSDS4 hyperparameter sweep
+name: SAITS hyperparameter sweep
 parameters:
   model:
-    values: ["SSSDS4"] # DiffWave not working yet
+    values: ["SAITS"] # DiffWave not working yet
   ImputationDataset.mask_method:
     values: ["MCAR"]
   seed:
@@ -32,28 +32,17 @@ parameters:
     values: ["cosine", ""]
   Adam.lr:
     values: [0.001, 0.01, 0.1]
-
-  SSSDS4.res_channels:
+  SAITS.n_layers:
+    values: [2, 4, 6]
+  SAITS.d_model:
     values: [64, 128, 256]
-  SSSDS4.skip_channels:
+  SAITS.d_inner:
     values: [64, 128, 256]
-  SSSDS4.num_res_layers:
-    values: [12, 24, 36]
-  SSSDS4.diffusion_step_embed_dim_in:
-    values: [64, 128, 256]
-  SSSDS4.diffusion_step_embed_dim_mid:
-    values: [128, 256, 512]
-  SSSDS4.diffusion_step_embed_dim_out:
-    values: [128, 256, 512]
-  SSSDS4.s4_lmax:
-    values: [50, 100, 200]
-  SSSDS4.s4_d_state:
+  SAITS.n_head:
+    values: [4, 8, 16]
+  SAITS.d_k:
     values: [32, 64, 128]
-  SSSDS4.s4_dropout:
+  SAITS.d_v:
+    values: [32, 64, 128]
+  SAITS.dropout:
     values: [0.0, 0.1, 0.3]
-  SSSDS4.s4_bidirectional:
-    values: [True, False]
-  SSSDS4.s4_layernorm:
-    values: [True, False]
-  SSSDS4.diffusion_time_steps:
-    values: [500, 1000, 2000]
