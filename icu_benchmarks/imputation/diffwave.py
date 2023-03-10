@@ -89,7 +89,7 @@ class DiffWaveImputer(ImputationWrapper):
     def step_fn(self, batch, step_prefix=""):
         amputated_data, amputation_mask, target, target_missingness = batch
 
-        amputated_data = amputated_data.permute(0, 2, 1)
+        amputated_data = torch.nan_to_num(amputated_data).permute(0, 2, 1)
         amputation_mask = amputation_mask.permute(0, 2, 1)
         observed_mask = 1 - amputation_mask.float()
 
@@ -115,6 +115,8 @@ class DiffWaveImputer(ImputationWrapper):
 
             loss = self.loss(epsilon_theta[amputation_mask.bool()], z[amputation_mask.bool()])
         else:
+            target = target.permute(0, 2, 1)
+            target_missingness = target_missingness.permute(0, 2, 1)
             imputed_data = self.sampling(amputated_data, observed_mask)
             amputated_data[amputation_mask.bool()] = imputed_data[amputation_mask.bool()]
             amputated_data[target_missingness > 0] = target[target_missingness > 0]
@@ -124,6 +126,54 @@ class DiffWaveImputer(ImputationWrapper):
 
         self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
         return loss
+
+
+    def sampling(self, cond, mask):
+        """
+        Perform the complete sampling step according to p(x_0|x_T) = prod_{t=1}^T p_{\theta}(x_{t-1}|x_t)
+
+        Parameters:
+        net (torch network):            the wavenet model
+        size (tuple):                   size of tensor to be generated,
+                                        usually is (number of audios to generate, channels=1, length of audio)
+        diffusion_hyperparams (dict):   dictionary of diffusion hyperparameters returned by calc_diffusion_hyperparams
+                                        note, the tensors need to be cuda tensors
+
+        Returns:
+        the generated audio(s) in torch.tensor, shape=size
+        """
+
+        Alpha, Alpha_bar, Sigma = (
+            self.diffusion_parameters["Alpha"],
+            self.diffusion_parameters["Alpha_bar"],
+            self.diffusion_parameters["Sigma"],
+        )
+
+        T = self.hparams.diffusion_time_steps
+        assert len(Alpha) == T
+        assert len(Alpha_bar) == T
+        assert len(Sigma) == T
+
+
+        B, _, _ = cond.shape
+        x = std_normal(cond.shape, self.device)
+
+        for t in range(T - 1, -1, -1):
+            x = x * (1 - mask).float() + cond * mask.float()
+            diffusion_steps = (t * torch.ones((B, 1))).to(self.device)  # use the corresponding reverse step
+            epsilon_theta = self(
+                (
+                    x,
+                    cond,
+                    mask,
+                    diffusion_steps,
+                )            )  # predict \epsilon according to \epsilon_\theta
+            # update x_{t-1} to \mu_\theta(x_t)
+            x = (x - (1 - Alpha[t]) / torch.sqrt(1 - Alpha_bar[t]) * epsilon_theta) / torch.sqrt(Alpha[t])
+            if t > 0:
+                x = x + Sigma[t] * std_normal(cond.shape, self.device)  # add the variance term to x_{t-1}
+
+        return x
 
 
 def swish(x):

@@ -99,18 +99,8 @@ class SSSDSA(ImputationWrapper):
         self.diffusion_parameters = calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T)
         self.d_model = H = d_model
         self.unet = unet
-        best_pool_factor = largets_component(input_size[1])
-        max_pool_depth = round(math.log(input_size[1]) / math.log(best_pool_factor))
-        if max_pool_depth < 3:
-            raise ValueError(
-                f"Sequence length must be a power of form l = p^n for some prime p with n > 2. Otherwise pooling does not "
-                f"work.\n "
-                f"Got sequence length {input_size[1]} with p = {best_pool_factor} and n = {max_pool_depth}."
-            )
-        pool = [best_pool_factor] * min(4, round(math.log(input_size[1]) / math.log(best_pool_factor)))
 
         def s4_block(dim, stride):
-
             layer = S4(
                 d_model=dim,
                 l_max=s4_lmax,
@@ -308,6 +298,11 @@ class SSSDSA(ImputationWrapper):
 
         amputated_data = torch.nan_to_num(amputated_data).permute(0, 2, 1)
         amputation_mask = amputation_mask.permute(0, 2, 1)
+        
+        padding_size = next_power(amputated_data.shape[2]) - amputated_data.shape[2]
+        amputated_data = torch.cat([amputated_data, torch.zeros((amputated_data.shape[0], amputated_data.shape[1], padding_size), device=self.device)], dim=2)
+        amputation_mask = torch.cat([amputation_mask, torch.zeros((amputation_mask.shape[0], amputation_mask.shape[1], padding_size), device=self.device, dtype=bool)], dim=2)
+
         observed_mask = 1 - amputation_mask.float()
         amputation_mask = amputation_mask.bool()
 
@@ -334,6 +329,9 @@ class SSSDSA(ImputationWrapper):
             loss = self.loss(epsilon_theta[amputation_mask], z[amputation_mask])
         else:
             target = target.permute(0, 2, 1)
+            target_missingness = target_missingness.permute(0, 2, 1)
+            target = torch.cat([target, torch.zeros((target.shape[0], target.shape[1], padding_size), device=self.device)], dim=2)
+            target_missingness = torch.cat([target_missingness, torch.zeros((target_missingness.shape[0], target_missingness.shape[1], padding_size), device=self.device)], dim=2)
             imputed_data = self.sampling(amputated_data, observed_mask)
             amputated_data[amputation_mask] = imputed_data[amputation_mask]
             amputated_data[target_missingness > 0] = target[target_missingness > 0]
@@ -428,6 +426,53 @@ class SSSDSA(ImputationWrapper):
         for module in self.modules():
             if hasattr(module, "setup_step"):
                 module.setup_step(mode)
+    
+    def sampling(self, cond, mask):
+        """
+        Perform the complete sampling step according to p(x_0|x_T) = prod_{t=1}^T p_{\theta}(x_{t-1}|x_t)
+
+        Parameters:
+        net (torch network):            the wavenet model
+        size (tuple):                   size of tensor to be generated,
+                                        usually is (number of audios to generate, channels=1, length of audio)
+        diffusion_hyperparams (dict):   dictionary of diffusion hyperparameters returned by calc_diffusion_hyperparams
+                                        note, the tensors need to be cuda tensors
+
+        Returns:
+        the generated audio(s) in torch.tensor, shape=size
+        """
+
+        Alpha, Alpha_bar, Sigma = (
+            self.diffusion_parameters["Alpha"],
+            self.diffusion_parameters["Alpha_bar"],
+            self.diffusion_parameters["Sigma"],
+        )
+
+        T = self.hparams.diffusion_time_steps
+        assert len(Alpha) == T
+        assert len(Alpha_bar) == T
+        assert len(Sigma) == T
+
+
+        B, _, _ = cond.shape
+        x = std_normal(cond.shape, self.device)
+
+        for t in range(T - 1, -1, -1):
+            x = x * (1 - mask).float() + cond * mask.float()
+            diffusion_steps = (t * torch.ones((B, 1))).to(self.device)  # use the corresponding reverse step
+            epsilon_theta = self(
+                (
+                    x,
+                    cond,
+                    mask,
+                    diffusion_steps,
+                )            )  # predict \epsilon according to \epsilon_\theta
+            # update x_{t-1} to \mu_\theta(x_t)
+            x = (x - (1 - Alpha[t]) / torch.sqrt(1 - Alpha_bar[t]) * epsilon_theta) / torch.sqrt(Alpha[t])
+            if t > 0:
+                x = x + Sigma[t] * std_normal(cond.shape, self.device)  # add the variance term to x_{t-1}
+
+        return x
 
 
 def swish(x):
@@ -485,6 +530,7 @@ class Conv(nn.Module):
 class DownPool(nn.Module):
     def __init__(self, d_input, expand, pool):
         super().__init__()
+        self.d_input = d_input
         self.d_output = d_input * expand
         self.pool = pool
 
@@ -494,7 +540,7 @@ class DownPool(nn.Module):
             transposed=True,
             weight_norm=True,
         )
-
+ 
     def forward(self, x):
         x = rearrange(x, "... h (l s) -> ... (h s) l", s=self.pool)
         x = self.linear(x)
@@ -688,6 +734,12 @@ def largets_component(number):
         if number % i == 0:
             return i
     return number
+
+def next_power(number):
+    """
+    returns the next power of 2.
+    """
+    return 1 << (number - 1).bit_length()
 
 
 def calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T):

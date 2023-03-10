@@ -165,12 +165,10 @@ class SSSDS4(ImputationWrapper):
         assert len(Alpha_bar) == T
         assert len(Sigma) == T
 
-        logging.info("begin sampling, total number of reverse steps = %s" % T)
-
         B, _, _ = cond.shape
         x = std_normal(cond.shape, self.device)
 
-        for t in tqdm(range(T - 1, -1, -1)):
+        for t in range(T - 1, -1, -1):
             x = x * (1 - mask).float() + cond * mask.float()
             diffusion_steps = (t * torch.ones((B, 1))).to(self.device)  # use the corresponding reverse step
             epsilon_theta = self(
