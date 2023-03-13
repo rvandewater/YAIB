@@ -99,18 +99,8 @@ class SSSDSA(ImputationWrapper):
         self.diffusion_parameters = calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T)
         self.d_model = H = d_model
         self.unet = unet
-        best_pool_factor = largets_component(input_size[1])
-        max_pool_depth = round(math.log(input_size[1]) / math.log(best_pool_factor))
-        if max_pool_depth < 3:
-            raise ValueError(
-                f"Sequence length must be a power of form l = p^n for some prime p with n > 2. Otherwise pooling does not "
-                f"work.\n "
-                f"Got sequence length {input_size[1]} with p = {best_pool_factor} and n = {max_pool_depth}."
-            )
-        pool = [best_pool_factor] * min(4, round(math.log(input_size[1]) / math.log(best_pool_factor)))
 
         def s4_block(dim, stride):
-
             layer = S4(
                 d_model=dim,
                 l_max=s4_lmax,
@@ -156,6 +146,33 @@ class SSSDSA(ImputationWrapper):
             )
 
         # Down blocks
+        d_layers, H = self.init_down_blocks(pool, unet, n_layers, ff, H, expand, s4_block, ff_block)
+
+        # Center block
+        c_layers = self.init_center_blocks(pool, n_layers, ff, H, s4_block, ff_block)
+
+        # Up blocks
+        u_layers, H = self.init_up_blocks(pool, n_layers, ff, H, expand, bidirectional, s4_block, ff_block)
+
+        self.d_layers = nn.ModuleList(d_layers)
+        self.c_layers = nn.ModuleList(c_layers)
+        self.u_layers = nn.ModuleList(u_layers)
+        self.norm = nn.LayerNorm(H)
+
+        self.init_conv = nn.Sequential(nn.Conv1d(in_channels, d_model, kernel_size=1), nn.ReLU())
+        self.final_conv = nn.Sequential(
+            nn.Conv1d(d_model, d_model, kernel_size=1), nn.ReLU(), nn.Conv1d(d_model, out_channels, kernel_size=1)
+        )
+        self.fc_t1 = nn.Linear(diffusion_step_embed_dim_in, diffusion_step_embed_dim_mid)
+        self.fc_t2 = nn.Linear(diffusion_step_embed_dim_mid, diffusion_step_embed_dim_out)
+        self.cond_embedding = (
+            nn.Embedding(label_embed_classes, label_embed_dim)
+        )
+        self.diffusion_step_embed_dim_in = diffusion_step_embed_dim_in
+
+        assert H == d_model
+
+    def init_down_blocks(self, pool, unet, n_layers, ff, H, expand, s4_block, ff_block):
         d_layers = []
         for i, p in enumerate(pool):
             if unet:
@@ -172,15 +189,9 @@ class SSSDSA(ImputationWrapper):
             # Add sequence downsampling and feature expanding
             d_layers.append(DownPool(H, expand, p))
             H *= expand
+        return d_layers, H
 
-        # Center block
-        c_layers = []
-        for _ in range(n_layers):
-            c_layers.append(s4_block(H, pool[1] * 2))
-            if ff > 0:
-                c_layers.append(ff_block(H, pool[1] * 2))
-
-        # Up blocks
+    def init_up_blocks(self, pool, n_layers, ff, H, expand, bidirectional, s4_block, ff_block):
         u_layers = []
         for i, p in enumerate(pool[::-1]):
             block = []
@@ -199,24 +210,15 @@ class SSSDSA(ImputationWrapper):
                         block.append(ff_block(H, 1))
 
             u_layers.append(nn.ModuleList(block))
+        return u_layers, H
 
-        self.d_layers = nn.ModuleList(d_layers)
-        self.c_layers = nn.ModuleList(c_layers)
-        self.u_layers = nn.ModuleList(u_layers)
-        self.norm = nn.LayerNorm(H)
-
-        self.init_conv = nn.Sequential(nn.Conv1d(in_channels, d_model, kernel_size=1), nn.ReLU())
-        self.final_conv = nn.Sequential(
-            nn.Conv1d(d_model, d_model, kernel_size=1), nn.ReLU(), nn.Conv1d(d_model, out_channels, kernel_size=1)
-        )
-        self.fc_t1 = nn.Linear(diffusion_step_embed_dim_in, diffusion_step_embed_dim_mid)
-        self.fc_t2 = nn.Linear(diffusion_step_embed_dim_mid, diffusion_step_embed_dim_out)
-        self.cond_embedding = (
-            nn.Embedding(label_embed_classes, label_embed_dim) if label_embed_classes > 0 is not None else None
-        )
-        self.diffusion_step_embed_dim_in = diffusion_step_embed_dim_in
-
-        assert H == d_model
+    def init_center_blocks(self, pool, n_layers, ff, H, s4_block, ff_block):
+        c_layers = []
+        for _ in range(n_layers):
+            c_layers.append(s4_block(H, pool[1] * 2))
+            if ff > 0:
+                c_layers.append(ff_block(H, pool[1] * 2))
+        return c_layers
 
     def on_fit_start(self) -> None:
         self.diffusion_parameters = {
@@ -296,6 +298,11 @@ class SSSDSA(ImputationWrapper):
 
         amputated_data = torch.nan_to_num(amputated_data).permute(0, 2, 1)
         amputation_mask = amputation_mask.permute(0, 2, 1)
+        
+        padding_size = next_power(amputated_data.shape[2]) - amputated_data.shape[2]
+        amputated_data = torch.cat([amputated_data, torch.zeros((amputated_data.shape[0], amputated_data.shape[1], padding_size), device=self.device)], dim=2)
+        amputation_mask = torch.cat([amputation_mask, torch.zeros((amputation_mask.shape[0], amputation_mask.shape[1], padding_size), device=self.device, dtype=bool)], dim=2)
+
         observed_mask = 1 - amputation_mask.float()
         amputation_mask = amputation_mask.bool()
 
@@ -322,6 +329,9 @@ class SSSDSA(ImputationWrapper):
             loss = self.loss(epsilon_theta[amputation_mask], z[amputation_mask])
         else:
             target = target.permute(0, 2, 1)
+            target_missingness = target_missingness.permute(0, 2, 1)
+            target = torch.cat([target, torch.zeros((target.shape[0], target.shape[1], padding_size), device=self.device)], dim=2)
+            target_missingness = torch.cat([target_missingness, torch.zeros((target_missingness.shape[0], target_missingness.shape[1], padding_size), device=self.device)], dim=2)
             imputed_data = self.sampling(amputated_data, observed_mask)
             amputated_data[amputation_mask] = imputed_data[amputation_mask]
             amputated_data[target_missingness > 0] = target[target_missingness > 0]
@@ -363,7 +373,7 @@ class SSSDSA(ImputationWrapper):
             if self.unet:
                 for i in range(skipped):
                     next_state.append(state.pop())
-                u_layers = list(self.u_layers)[skipped // 3 :]
+                u_layers = list(self.u_layers)[skipped // 3:]
             else:
                 for i in range(skipped):
                     for _ in range(len(self.u_layers[i])):
@@ -377,6 +387,13 @@ class SSSDSA(ImputationWrapper):
             x = x + outputs.pop()
             u_layers = self.u_layers
 
+        x, next_state = self.up_blocks_loop(x, u_layers, next_state, state, outputs, **kwargs)
+
+        # feature projection
+        x = self.norm(x)
+        return x, next_state
+
+    def up_blocks_loop(self, x, u_layers, next_state, state, outputs, **kwargs):
         for block in u_layers:
             if self.unet:
                 for layer in block:
@@ -392,9 +409,6 @@ class SSSDSA(ImputationWrapper):
                         x = x + outputs.pop()
                         outputs.append(x)
                 x = x + outputs.pop()
-
-        # feature projection
-        x = self.norm(x)
         return x, next_state
 
     def setup_rnn(self, mode="dense"):
@@ -412,6 +426,53 @@ class SSSDSA(ImputationWrapper):
         for module in self.modules():
             if hasattr(module, "setup_step"):
                 module.setup_step(mode)
+    
+    def sampling(self, cond, mask):
+        """
+        Perform the complete sampling step according to p(x_0|x_T) = prod_{t=1}^T p_{\theta}(x_{t-1}|x_t)
+
+        Parameters:
+        net (torch network):            the wavenet model
+        size (tuple):                   size of tensor to be generated,
+                                        usually is (number of audios to generate, channels=1, length of audio)
+        diffusion_hyperparams (dict):   dictionary of diffusion hyperparameters returned by calc_diffusion_hyperparams
+                                        note, the tensors need to be cuda tensors
+
+        Returns:
+        the generated audio(s) in torch.tensor, shape=size
+        """
+
+        Alpha, Alpha_bar, Sigma = (
+            self.diffusion_parameters["Alpha"],
+            self.diffusion_parameters["Alpha_bar"],
+            self.diffusion_parameters["Sigma"],
+        )
+
+        T = self.hparams.diffusion_time_steps
+        assert len(Alpha) == T
+        assert len(Alpha_bar) == T
+        assert len(Sigma) == T
+
+
+        B, _, _ = cond.shape
+        x = std_normal(cond.shape, self.device)
+
+        for t in range(T - 1, -1, -1):
+            x = x * (1 - mask).float() + cond * mask.float()
+            diffusion_steps = (t * torch.ones((B, 1))).to(self.device)  # use the corresponding reverse step
+            epsilon_theta = self(
+                (
+                    x,
+                    cond,
+                    mask,
+                    diffusion_steps,
+                )            )  # predict \epsilon according to \epsilon_\theta
+            # update x_{t-1} to \mu_\theta(x_t)
+            x = (x - (1 - Alpha[t]) / torch.sqrt(1 - Alpha_bar[t]) * epsilon_theta) / torch.sqrt(Alpha[t])
+            if t > 0:
+                x = x + Sigma[t] * std_normal(cond.shape, self.device)  # add the variance term to x_{t-1}
+
+        return x
 
 
 def swish(x):
@@ -469,6 +530,7 @@ class Conv(nn.Module):
 class DownPool(nn.Module):
     def __init__(self, d_input, expand, pool):
         super().__init__()
+        self.d_input = d_input
         self.d_output = d_input * expand
         self.pool = pool
 
@@ -478,7 +540,7 @@ class DownPool(nn.Module):
             transposed=True,
             weight_norm=True,
         )
-
+ 
     def forward(self, x):
         x = rearrange(x, "... h (l s) -> ... (h s) l", s=self.pool)
         x = self.linear(x)
@@ -673,31 +735,11 @@ def largets_component(number):
             return i
     return number
 
-
-def calc_diffusion_step_embedding(diffusion_steps, diffusion_step_embed_dim_in, device):
+def next_power(number):
     """
-    Embed a diffusion step $t$ into a higher dimensional space
-    E.g. the embedding vector in the 128-dimensional space is
-    [sin(t * 10^(0*4/63)), ... , sin(t * 10^(63*4/63)), cos(t * 10^(0*4/63)), ... , cos(t * 10^(63*4/63))]
-    Parameters:
-        diffusion_steps (torch.long tensor, shape=(batchsize, 1)):
-                                    diffusion steps for batch data
-        diffusion_step_embed_dim_in (int, default=128):
-                                    dimensionality of the embedding space for discrete diffusion steps
-
-    Returns:
-        The embedding vectors (torch.tensor, shape=(batchsize, diffusion_step_embed_dim_in)).
+    returns the next power of 2.
     """
-
-    assert diffusion_step_embed_dim_in % 2 == 0
-
-    half_dim = diffusion_step_embed_dim_in // 2
-    _embed = np.log(10000) / (half_dim - 1)
-    _embed = torch.exp(torch.arange(half_dim) * -_embed).to(device)
-    _embed = diffusion_steps * _embed
-    diffusion_step_embed = torch.cat((torch.sin(_embed), torch.cos(_embed)), 1)
-
-    return diffusion_step_embed
+    return 1 << (number - 1).bit_length()
 
 
 def calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T):

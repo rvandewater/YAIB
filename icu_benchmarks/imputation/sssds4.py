@@ -141,7 +141,7 @@ class SSSDS4(ImputationWrapper):
 
     def sampling(self, cond, mask):
         """
-        Perform the complete sampling step according to p(x_0|x_T) = \prod_{t=1}^T p_{\theta}(x_{t-1}|x_t)
+        Perform the complete sampling step according to p(x_0|x_T) = prod_{t=1}^T p_{\theta}(x_{t-1}|x_t)
 
         Parameters:
         net (torch network):            the wavenet model
@@ -165,12 +165,10 @@ class SSSDS4(ImputationWrapper):
         assert len(Alpha_bar) == T
         assert len(Sigma) == T
 
-        logging.info("begin sampling, total number of reverse steps = %s" % T)
-
         B, _, _ = cond.shape
         x = std_normal(cond.shape, self.device)
 
-        for t in tqdm(range(T - 1, -1, -1)):
+        for t in range(T - 1, -1, -1):
             x = x * (1 - mask).float() + cond * mask.float()
             diffusion_steps = (t * torch.ones((B, 1))).to(self.device)  # use the corresponding reverse step
             epsilon_theta = self(
@@ -293,7 +291,7 @@ class Residual_block(nn.Module):
 
         h = self.S42(h.permute(2, 0, 1)).permute(1, 2, 0)
 
-        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels :, :])
+        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels:, :])
 
         res = self.res_conv(out)
         assert x.shape == res.shape
