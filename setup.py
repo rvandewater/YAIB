@@ -19,19 +19,15 @@ def parse_environment_yml():
     dependencies = []
     inside_dependencies = False
     for entry in lines:
-        print("entry:", entry)
         if entry == "dependencies:":
-            print("found dependencies")
             inside_dependencies = True
             continue
         if inside_dependencies:
-            print("parsing dependencies:", entry)
             if not entry.startswith("-"):
                 break
             dependency_name = entry.strip().split(" ")[-1]
             if dependency_name != "pip:":
                 dependencies.append(dependency_name)
-            print("now dependencies:", dependencies)
 
     sanitized_dependencies = []
     for dependency in dependencies:
@@ -46,7 +42,6 @@ def parse_environment_yml():
             package_name = dependency.split("/")[-1].split(".")[0]
             dependency = package_name + "@" + dependency
         sanitized_dependencies.append(dependency)
-    print("extraced dependencies:", sanitized_dependencies)
     return sanitized_dependencies
 
 
