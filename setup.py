@@ -26,7 +26,7 @@ def parse_environment_yml():
             if not entry.startswith("-"):
                 break
             dependency_name = entry.strip().split(" ")[-1]
-            if dependency_name != "pip:":
+            if dependency_name != "pip:" and "python=" not in dependency_name:
                 dependencies.append(dependency_name)
 
     sanitized_dependencies = []
