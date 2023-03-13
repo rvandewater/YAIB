@@ -40,7 +40,8 @@ def parse_environment_yml():
             dependency = "pytorch-" + dependency
         if dependency.startswith("pytorch="):
             dependency = dependency.replace("pytorch", "torch")
-        dependency = "==".join(dependency.split("="))
+        if "=" in dependency and not "==" in dependency:
+            dependency = "==".join(dependency.split("="))
         if "http://" in dependency or "https://" in dependency:
             package_name = dependency.split("/")[-1].split(".")[0]
             dependency = package_name + "@" + dependency

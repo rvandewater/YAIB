@@ -14,7 +14,7 @@ method: grid
 name: baselines more proportions
 parameters:
   model:
-    values: ["Mean", "Median", "Zero", "MostFrequent", "MICE", "GAIN", "BRITS", "MissForest", "MLP", "RNN"]
+    values: ["Mean", "Median", "Zero", "MostFrequent", "MICE", "GAIN", "BRITS", "MissForest", "MLP", "RNN", "Simple_Diffusion", "CSDI", "NP", "BRNN", "SSSDS4", "Attention", "SAITS"]
   ImputationDataset.mask_method:
     values: ["MCAR", "MAR", "MNAR", "BO"]
   seed:
