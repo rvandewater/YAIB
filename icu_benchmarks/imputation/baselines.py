@@ -6,6 +6,7 @@ from hyperimpute.plugins.imputers import Imputers as HyperImpute
 from sklearn.experimental import enable_iterative_imputer  # noqa: F401
 from sklearn.impute import KNNImputer, SimpleImputer, IterativeImputer
 from sklearn.linear_model import LinearRegression
+from typing import Type
 
 from icu_benchmarks.models.wrappers import ImputationWrapper
 from pypots.imputation import BRITS, SAITS, Transformer
@@ -156,51 +157,41 @@ class MostFrequentImputation(ImputationWrapper):
         return output
 
 
-@gin.configurable("MissForest")
-class MissForestImputation(ImputationWrapper):
-    """MissForest imputation using HyperImpute."""
+def wrap_hyperimpute_model(methodName: str, configName: str) -> Type:
+    class HyperImputeImputation(ImputationWrapper):
+        """Imputation using HyperImpute package."""
 
-    needs_training = False
-    needs_fit = True
+        needs_training = False
+        needs_fit = True
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.imputer = HyperImpute().get("sklearn_missforest")
+        def __init__(self, *args, **kwargs) -> None:
+            super().__init__(*args, **kwargs)
+            self.imputer = HyperImpute().get(methodName, **self.model_params())
+        
+        @gin.configurable(module=configName)
+        def model_params(self, **kwargs):
+            return kwargs
 
-    def fit(self, train_dataset, val_dataset):
-        self.imputer._model.fit(train_dataset.amputated_values.values)
+        def fit(self, train_dataset, val_dataset):
+            self.imputer.fit(train_dataset.amputated_values.values)
 
-    def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.reshape((-1, amputated_values.shape[-1]))
-        debatched_values = debatched_values.to("cpu")
-        output = torch.Tensor(self.imputer._model.transform(debatched_values)).to(amputated_values.device)
+        def forward(self, amputated_values, amputation_mask):
+            debatched_values = amputated_values.reshape((-1, amputated_values.shape[-1]))
+            debatched_values = debatched_values.to(float).to("cpu").numpy()
+            with torch.inference_mode(mode=False):
+                output = torch.Tensor(self.imputer.transform(debatched_values).values).to(amputated_values.device)
+            output = output.reshape(amputated_values.shape)
+            return output
 
-        output = output.reshape(amputated_values.shape)
-        return output
+    return gin.configurable(configName)(HyperImputeImputation)
 
-
-@gin.configurable("GAIN")
-class GAINImputation(ImputationWrapper):
-    """Generative Adversarial Imputation Nets (GAIN) imputation using HyperImpute package."""
-
-    needs_training = False
-    needs_fit = True
-
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.imputer = HyperImpute().get("gain")
-
-    def fit(self, train_dataset, val_dataset):
-        self.imputer._model.fit(torch.Tensor(train_dataset.amputated_values.values))
-
-    def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.reshape((-1, amputated_values.shape[-1]))
-        debatched_values = debatched_values.to("cpu")
-        output = torch.Tensor(self.imputer._model.transform(debatched_values)).to(amputated_values.device)
-
-        output = output.reshape(amputated_values.shape)
-        return output
-
+GAINImputation = wrap_hyperimpute_model("gain", "GAIN")
+MissForestImputation = wrap_hyperimpute_model("sklearn_missforest", "MissForest")
+ICEImputation = wrap_hyperimpute_model("ice", "ICE")
+SoftImputeImputation = wrap_hyperimpute_model("softimpute", "SoftImpute")
+SinkhornImputation = wrap_hyperimpute_model("sinkhorn", "Sinkhorn")
+MiracleImputation = wrap_hyperimpute_model("miracle", "Miracle")
+MiwaeImputation = wrap_hyperimpute_model("miwae", "Miwae")
 
 @gin.configurable("BRITS")
 class BRITSImputation(ImputationWrapper):
