@@ -574,11 +574,11 @@ class SSKernelNPLR(nn.Module):
         self.N = w.size(-1)
 
         # Broadcast everything to correct shapes
-        C = C.expand(torch.broadcast_shapes(C.shape, (1, self.H, self.N)))  # (H, C, N)
+        C = C.expand(torch.broadcast_shapes(C.shape, (1, self.H, self.N))).clone()  # (H, C, N)
         H = 1 if self.tie_state else self.H
-        B = repeat(B, "n -> 1 h n", h=H)
-        P = repeat(P, "r n -> r h n", h=H)
-        w = repeat(w, "n -> h n", h=H)
+        B = repeat(B, "n -> 1 h n", h=H).clone()
+        P = repeat(P, "r n -> r h n", h=H).clone()
+        w = repeat(w, "n -> h n", h=H).clone()
 
         # Cache Fourier nodes every time we set up a desired length
         self.L = L

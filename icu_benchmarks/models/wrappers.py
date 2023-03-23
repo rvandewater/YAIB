@@ -425,7 +425,6 @@ class ImputationWrapper(DLWrapper):
         for metrics in self.metrics.values():
             for metric in metrics.values():
                 metric.reset()
-        logging.info("IMPUTATION METRICS RESET.")
         return super().on_fit_start()
 
     def step_fn(self, batch, step_prefix=""):
