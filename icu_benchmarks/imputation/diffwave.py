@@ -90,7 +90,7 @@ class DiffWaveImputer(ImputationWrapper):
         amputated_data, amputation_mask, target, target_missingness = batch
 
         amputated_data = torch.nan_to_num(amputated_data).permute(0, 2, 1)
-        amputation_mask = amputation_mask.permute(0, 2, 1)
+        amputation_mask = amputation_mask.permute(0, 2, 1).bool()
         observed_mask = 1 - amputation_mask.float()
 
         if step_prefix in ["train", "val"]:

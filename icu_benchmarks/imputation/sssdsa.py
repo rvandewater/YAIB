@@ -297,7 +297,7 @@ class SSSDSA(ImputationWrapper):
         amputated_data, amputation_mask, target, target_missingness = batch
 
         amputated_data = torch.nan_to_num(amputated_data).permute(0, 2, 1)
-        amputation_mask = amputation_mask.permute(0, 2, 1)
+        amputation_mask = amputation_mask.permute(0, 2, 1).bool()
         
         padding_size = next_power(amputated_data.shape[2]) - amputated_data.shape[2]
         amputated_data = torch.cat([amputated_data, torch.zeros((amputated_data.shape[0], amputated_data.shape[1], padding_size), device=self.device)], dim=2)
