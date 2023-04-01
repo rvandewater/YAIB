@@ -451,7 +451,7 @@ class ImputationWrapper(DLWrapper):
     def predict(self, data):
         self.eval()
         data = data.to(self.device)
-        data_missingness = torch.isnan(data)
+        data_missingness = torch.isnan(data).to(torch.float32)
         prediction = self.predict_step(data, data_missingness)
-        data[data_missingness] = prediction[data_missingness]
+        data[data_missingness.bool()] = prediction[data_missingness.bool()]
         return data
