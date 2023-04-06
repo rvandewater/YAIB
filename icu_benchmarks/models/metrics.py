@@ -46,6 +46,7 @@ def mae_with_invert_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, i
 def JSD_fn(y_preds: torch.Tensor, y_targets: torch.Tensor):
     return jensenshannon(abs(y_preds).flatten(), abs(y_targets).flatten()) ** 2
 
+
 class BalancedAccuracy(EpochMetric):
     def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
         super(BalancedAccuracy, self).__init__(
