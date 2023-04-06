@@ -63,7 +63,6 @@ setup(
     description="Yet Another ICU Benchmark is a holistic framework for the automation of clinical prediction models "
     "on ICU data. Users can create custom datasets, cohorts, prediction tasks, endpoints, and models.",
     entry_points={"console_scripts": ["icu-benchmarks = icu_benchmarks.run:main"]},
-    # install_requires=["recipys@git+https://github.com/rvandewater/recipys.git"],
     install_requires=parse_environment_yml(),
     extras_require={"mps": ["mkl < 2022"]},
     license="MIT license",

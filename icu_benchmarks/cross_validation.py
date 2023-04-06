@@ -34,7 +34,7 @@ def execute_repeated_cv(
     mode: str = RunMode.classification,
     pretrained_imputation_model: object = None,
     cpu: bool = False,
-    verbose: bool = True,
+    verbose: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 

@@ -4,10 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-import logging
 from functools import partial
 from scipy import special as ss
-from pytorch_lightning.utilities import rank_zero_only
 from einops import rearrange, repeat
 import opt_einsum as oe
 
@@ -18,23 +16,6 @@ contract_expression = oe.contract_expression
 The notebook contains CSDI and S4 functions and utilities. However the imputer is located in the last Class of
 the notebook, please see more documentation of use there. Additional at this file can be added for CUDA multiplication
 the cauchy kernel."""
-
-
-def get_logger(name=__name__, level=logging.INFO) -> logging.Logger:
-    """Initializes multi-GPU-friendly python logger."""
-
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-
-    # this ensures all logging levels get marked with the rank zero decorator
-    # otherwise logs would get multiplied for each GPU process in multi-GPU setup
-    for level in ("debug", "info", "warning", "error", "exception", "fatal", "critical"):
-        setattr(logger, level, rank_zero_only(getattr(logger, level)))
-
-    return logger
-
-
-log = get_logger(__name__)
 
 """ Cauchy kernel """
 
@@ -541,7 +522,6 @@ class SSKernelNPLR(nn.Module):
         lr=None,
         tie_state=False,
         length_correction=True,
-        verbose=False,
     ):
         """
         L: Maximum length; this module computes an SSM kernel of length L
@@ -567,7 +547,6 @@ class SSKernelNPLR(nn.Module):
         super().__init__()
         self.hurwitz = hurwitz
         self.tie_state = tie_state
-        self.verbose = verbose
 
         # Rank of low-rank correction
         self.rank = P.shape[-2]
@@ -746,8 +725,6 @@ class SSKernelNPLR(nn.Module):
 
     @torch.no_grad()
     def double_length(self):
-        if self.verbose:
-            log.info(f"S4: Doubling length from L = {self.L} to {2 * self.L}")
         self._setup_C(double_length=True)
 
     def _setup_linear(self):
@@ -875,9 +852,6 @@ class SSKernelNPLR(nn.Module):
             # Eigendecomposition of the A matrix
             L, V = torch.linalg.eig(self.dA)
             V_inv = torch.linalg.inv(V)
-            # Check that the eigendedecomposition is correct
-            if self.verbose:
-                print("Diagonalization error:", torch.dist(V @ torch.diag_embed(L) @ V_inv, self.dA))
 
             # Change the parameterization to diagonalize
             self.dA = L
@@ -984,7 +958,6 @@ class HippoSSKernel(nn.Module):
         resample=False,  # If given inputs of different lengths, adjust the sampling rate.
         # Note that L should always be provided in this case, as it assumes that L is the true underlying
         # length of the continuous signal
-        verbose=False,
     ):
         super().__init__()
         self.N = N
@@ -1013,7 +986,6 @@ class HippoSSKernel(nn.Module):
             lr=lr,
             tie_state=tie_state,
             length_correction=length_correction,
-            verbose=verbose,
         )
 
     def forward(self, L=None):
@@ -1050,7 +1022,6 @@ class S4(nn.Module):
         hyper_act=None,  # Use a "hypernetwork" multiplication
         dropout=0.0,
         transposed=True,  # axis ordering (B, L, D) or (B, D, L)
-        verbose=False,
         # SSM Kernel arguments
         **kernel_args,
     ):
@@ -1089,7 +1060,7 @@ class S4(nn.Module):
             channels *= 2
 
         # SSM Kernel
-        self.kernel = HippoSSKernel(self.h, N=self.n, L=l_max, channels=channels, verbose=verbose, **kernel_args)
+        self.kernel = HippoSSKernel(self.h, N=self.n, L=l_max, channels=channels, **kernel_args)
 
         # Pointwise
         self.activation = Activation(activation)

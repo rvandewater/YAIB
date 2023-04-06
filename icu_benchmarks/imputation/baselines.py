@@ -1,6 +1,4 @@
 """Baseline imputation methods. These methods imported from other frameworks and are used as baselines for comparison."""
-import logging
-
 import torch
 from hyperimpute.plugins.imputers import Imputers as HyperImpute
 from sklearn.experimental import enable_iterative_imputer  # noqa: F401
@@ -206,7 +204,6 @@ class BRITSImputation(ImputationWrapper):
         super().__init__(
             *args, input_size=input_size, epochs=epochs, rnn_hidden_size=rnn_hidden_size, batch_size=batch_size, **kwargs
         )
-        logging.info("BRITS: Setting epochs.", epochs)
         self.imputer = BRITS(
             n_steps=input_size[1],
             n_features=input_size[2],

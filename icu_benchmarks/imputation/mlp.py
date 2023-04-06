@@ -29,7 +29,6 @@ class MLPImputation(ImputationWrapper):
 
     def forward(self, amputated, amputation_mask):
         amputated = torch.nan_to_num(amputated, nan=0.0)
-        # model_input = torch.cat((amputated, amputation_mask), dim=1)
 
         output = self.model(amputated)
         output = output.reshape(amputated.shape)
