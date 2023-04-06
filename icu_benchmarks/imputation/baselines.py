@@ -167,7 +167,7 @@ def wrap_hyperimpute_model(methodName: str, configName: str) -> Type:
         def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
             self.imputer = HyperImpute().get(methodName, **self.model_params())
-        
+
         @gin.configurable(module=configName)
         def model_params(self, **kwargs):
             return kwargs
@@ -185,6 +185,7 @@ def wrap_hyperimpute_model(methodName: str, configName: str) -> Type:
 
     return gin.configurable(configName)(HyperImputeImputation)
 
+
 GAINImputation = wrap_hyperimpute_model("gain", "GAIN")
 MissForestImputation = wrap_hyperimpute_model("sklearn_missforest", "MissForest")
 ICEImputation = wrap_hyperimpute_model("ice", "ICE")
@@ -192,6 +193,7 @@ SoftImputeImputation = wrap_hyperimpute_model("softimpute", "SoftImpute")
 SinkhornImputation = wrap_hyperimpute_model("sinkhorn", "Sinkhorn")
 MiracleImputation = wrap_hyperimpute_model("miracle", "Miracle")
 MiwaeImputation = wrap_hyperimpute_model("miwae", "Miwae")
+
 
 @gin.configurable("BRITS")
 class BRITSImputation(ImputationWrapper):

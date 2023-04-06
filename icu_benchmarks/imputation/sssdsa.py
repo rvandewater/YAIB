@@ -1,6 +1,4 @@
 # Source: https://github.com/AI4HealthUOL/SSSD/blob/main/src/imputers/SSSDSAImputer.py
-
-import math
 import numpy as np
 import gin
 import torch
@@ -165,9 +163,7 @@ class SSSDSA(ImputationWrapper):
         )
         self.fc_t1 = nn.Linear(diffusion_step_embed_dim_in, diffusion_step_embed_dim_mid)
         self.fc_t2 = nn.Linear(diffusion_step_embed_dim_mid, diffusion_step_embed_dim_out)
-        self.cond_embedding = (
-            nn.Embedding(label_embed_classes, label_embed_dim)
-        )
+        self.cond_embedding = nn.Embedding(label_embed_classes, label_embed_dim)
         self.diffusion_step_embed_dim_in = diffusion_step_embed_dim_in
 
         assert H == d_model
@@ -298,10 +294,24 @@ class SSSDSA(ImputationWrapper):
 
         amputated_data = torch.nan_to_num(amputated_data).permute(0, 2, 1)
         amputation_mask = amputation_mask.permute(0, 2, 1).bool()
-        
+
         padding_size = next_power(amputated_data.shape[2]) - amputated_data.shape[2]
-        amputated_data = torch.cat([amputated_data, torch.zeros((amputated_data.shape[0], amputated_data.shape[1], padding_size), device=self.device)], dim=2)
-        amputation_mask = torch.cat([amputation_mask, torch.zeros((amputation_mask.shape[0], amputation_mask.shape[1], padding_size), device=self.device, dtype=bool)], dim=2)
+        amputated_data = torch.cat(
+            [
+                amputated_data,
+                torch.zeros((amputated_data.shape[0], amputated_data.shape[1], padding_size), device=self.device),
+            ],
+            dim=2,
+        )
+        amputation_mask = torch.cat(
+            [
+                amputation_mask,
+                torch.zeros(
+                    (amputation_mask.shape[0], amputation_mask.shape[1], padding_size), device=self.device, dtype=bool
+                ),
+            ],
+            dim=2,
+        )
 
         observed_mask = 1 - amputation_mask.float()
         amputation_mask = amputation_mask.bool()
@@ -330,8 +340,16 @@ class SSSDSA(ImputationWrapper):
         else:
             target = target.permute(0, 2, 1)
             target_missingness = target_missingness.permute(0, 2, 1)
-            target = torch.cat([target, torch.zeros((target.shape[0], target.shape[1], padding_size), device=self.device)], dim=2)
-            target_missingness = torch.cat([target_missingness, torch.zeros((target_missingness.shape[0], target_missingness.shape[1], padding_size), device=self.device)], dim=2)
+            target = torch.cat(
+                [target, torch.zeros((target.shape[0], target.shape[1], padding_size), device=self.device)], dim=2
+            )
+            target_missingness = torch.cat(
+                [
+                    target_missingness,
+                    torch.zeros((target_missingness.shape[0], target_missingness.shape[1], padding_size), device=self.device),
+                ],
+                dim=2,
+            )
             imputed_data = self.sampling(amputated_data, observed_mask)
             amputated_data[amputation_mask] = imputed_data[amputation_mask]
             amputated_data[target_missingness > 0] = target[target_missingness > 0]
@@ -426,7 +444,7 @@ class SSSDSA(ImputationWrapper):
         for module in self.modules():
             if hasattr(module, "setup_step"):
                 module.setup_step(mode)
-    
+
     def sampling(self, cond, mask):
         """
         Perform the complete sampling step according to p(x_0|x_T) = prod_{t=1}^T p_{\theta}(x_{t-1}|x_t)
@@ -453,7 +471,6 @@ class SSSDSA(ImputationWrapper):
         assert len(Alpha_bar) == T
         assert len(Sigma) == T
 
-
         B, _, _ = cond.shape
         x = std_normal(cond.shape, self.device)
 
@@ -466,7 +483,8 @@ class SSSDSA(ImputationWrapper):
                     cond,
                     mask,
                     diffusion_steps,
-                )            )  # predict \epsilon according to \epsilon_\theta
+                )
+            )  # predict \epsilon according to \epsilon_\theta
             # update x_{t-1} to \mu_\theta(x_t)
             x = (x - (1 - Alpha[t]) / torch.sqrt(1 - Alpha_bar[t]) * epsilon_theta) / torch.sqrt(Alpha[t])
             if t > 0:
@@ -540,7 +558,7 @@ class DownPool(nn.Module):
             transposed=True,
             weight_norm=True,
         )
- 
+
     def forward(self, x):
         x = rearrange(x, "... h (l s) -> ... (h s) l", s=self.pool)
         x = self.linear(x)
@@ -734,6 +752,7 @@ def largets_component(number):
         if number % i == 0:
             return i
     return number
+
 
 def next_power(number):
     """

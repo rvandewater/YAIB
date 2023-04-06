@@ -194,8 +194,8 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
         try:
             logging.info(f"imputation model device: {next(pretrained_imputation_model.parameters()).device}")
             pretrained_imputation_model.device = next(pretrained_imputation_model.parameters()).device
-        except:
-            pass
+        except Exception as e:
+            logging.debug(f"Could not set device of imputation model: {e}")
     else:
         pretrained_imputation_model = None
 

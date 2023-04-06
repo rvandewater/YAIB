@@ -1,7 +1,5 @@
 # Source: https://github.com/AI4HealthUOL/SSSD
-from tqdm import tqdm
 import gin
-import logging
 import math
 import numpy as np
 import torch
@@ -138,7 +136,7 @@ class SSSDS4(ImputationWrapper):
 
         self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
         return loss
-    
+
     def predict_step(self, amputated_data, amputation_mask):
         amputated_data = torch.nan_to_num(amputated_data).permute(0, 2, 1)
         amputation_mask = amputation_mask.permute(0, 2, 1)
