@@ -45,11 +45,6 @@ def mae_with_invert_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, i
 
 def JSD_fn(y_preds: torch.Tensor, y_targets: torch.Tensor):
     return jensenshannon(abs(y_preds).flatten(), abs(y_targets).flatten()) ** 2
-    # return jensenshannon(abs(y_preds),abs(y_targets)) ** 2
-
-
-# def KLD_fn(output, targets) -> float:
-#   return np.sum(np.where(output != 0, output * np.log(output / targets), 0))
 
 
 class BalancedAccuracy(EpochMetric):

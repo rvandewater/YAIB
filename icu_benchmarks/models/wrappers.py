@@ -343,7 +343,6 @@ class MLClassificationWrapper(BaseModule):
     def test_step(self, dataset, _):
         test_rep, test_label = dataset
         test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
-        # test_rep, test_label = torch.from_numpy(test_rep).to(self.device), torch.from_numpy(test_label).to(self.device)
         self.set_metrics(test_label)
         if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
             test_pred = self.model.predict(test_rep)
@@ -425,7 +424,6 @@ class ImputationWrapper(DLWrapper):
         for metrics in self.metrics.values():
             for metric in metrics.values():
                 metric.reset()
-        logging.info("IMPUTATION METRICS RESET.")
         return super().on_fit_start()
 
     def step_fn(self, batch, step_prefix=""):
@@ -452,7 +450,7 @@ class ImputationWrapper(DLWrapper):
     def predict(self, data):
         self.eval()
         data = data.to(self.device)
-        data_missingness = torch.isnan(data)
+        data_missingness = torch.isnan(data).to(torch.float32)
         prediction = self.predict_step(data, data_missingness)
-        data[data_missingness] = prediction[data_missingness]
+        data[data_missingness.bool()] = prediction[data_missingness.bool()]
         return data

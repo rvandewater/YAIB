@@ -125,3 +125,6 @@ wandb/
 **/cache/
 .DS_Store
 .vscode/launch.json
+yaib_logs/
+*.ckpt
+*.csv

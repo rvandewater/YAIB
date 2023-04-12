@@ -257,7 +257,10 @@ class CSDI(ImputationWrapper):
         return loss
 
     def predict_step(self, data, amputation_mask):
-        return self.evaluate(data, amputation_mask, self.n_samples)
+        data = data.nan_to_num()
+        prediction = self.evaluate(data, amputation_mask, self.n_samples)
+        data[amputation_mask > 0] = prediction[amputation_mask > 0]
+        return data
 
     def evaluate(self, amputated_data, amputation_mask, n_samples):
         amputated_data = amputated_data.permute(0, 2, 1)

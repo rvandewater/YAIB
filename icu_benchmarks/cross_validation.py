@@ -6,6 +6,8 @@ import warnings
 from pathlib import Path
 from pytorch_lightning import seed_everything
 
+from icu_benchmarks.wandb_utils import wandb_log
+from icu_benchmarks.run_utils import aggregate_results
 from icu_benchmarks.data.preprocess import preprocess_data
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
@@ -112,6 +114,9 @@ def execute_repeated_cv(
 
             with open(repetition_fold_dir / "durations.json", "w") as f:
                 json.dump(durations, f, cls=JsonResultLoggingEncoder)
+            wandb_log({"iteration": repetition * cv_folds_to_train + fold_index})
+            if repetition * cv_folds_to_train + fold_index > 1:
+                aggregate_results(log_dir)
         log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)

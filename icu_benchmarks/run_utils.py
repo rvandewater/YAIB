@@ -91,7 +91,7 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     return log_dir_run
 
 
-def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
+def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     """Aggregates results from all folds and writes to JSON file.
 
     Args:
@@ -139,7 +139,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = -1):
         "avg": averaged_scores,
         "std": std_scores,
         "CI_0.95": confidence_interval,
-        "execution_time": execution_time.total_seconds(),
+        "execution_time": execution_time.total_seconds() if execution_time is not None else 0.0,
     }
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
@@ -191,6 +191,11 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
         else:
             pretrained_imputation_model = pretrained_imputation_model_checkpoint
         pretrained_imputation_model = pretrained_imputation_model.to("cuda" if torch.cuda.is_available() else "cpu")
+        try:
+            logging.info(f"imputation model device: {next(pretrained_imputation_model.parameters()).device}")
+            pretrained_imputation_model.device = next(pretrained_imputation_model.parameters()).device
+        except Exception as e:
+            logging.debug(f"Could not set device of imputation model: {e}")
     else:
         pretrained_imputation_model = None
 

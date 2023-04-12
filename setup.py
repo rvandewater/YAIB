@@ -19,19 +19,15 @@ def parse_environment_yml():
     dependencies = []
     inside_dependencies = False
     for entry in lines:
-        print("entry:", entry)
         if entry == "dependencies:":
-            print("found dependencies")
             inside_dependencies = True
             continue
         if inside_dependencies:
-            print("parsing dependencies:", entry)
             if not entry.startswith("-"):
                 break
             dependency_name = entry.strip().split(" ")[-1]
-            if dependency_name != "pip:":
+            if dependency_name != "pip:" and "python=" not in dependency_name:
                 dependencies.append(dependency_name)
-            print("now dependencies:", dependencies)
 
     sanitized_dependencies = []
     for dependency in dependencies:
@@ -40,12 +36,12 @@ def parse_environment_yml():
             dependency = "pytorch-" + dependency
         if dependency.startswith("pytorch="):
             dependency = dependency.replace("pytorch", "torch")
-        dependency = "==".join(dependency.split("="))
+        if "=" in dependency and "==" not in dependency:
+            dependency = "==".join(dependency.split("="))
         if "http://" in dependency or "https://" in dependency:
             package_name = dependency.split("/")[-1].split(".")[0]
             dependency = package_name + "@" + dependency
         sanitized_dependencies.append(dependency)
-    print("extraced dependencies:", sanitized_dependencies)
     return sanitized_dependencies
 
 
@@ -67,7 +63,6 @@ setup(
     description="Yet Another ICU Benchmark is a holistic framework for the automation of clinical prediction models "
     "on ICU data. Users can create custom datasets, cohorts, prediction tasks, endpoints, and models.",
     entry_points={"console_scripts": ["icu-benchmarks = icu_benchmarks.run:main"]},
-    # install_requires=["recipys@git+https://github.com/rvandewater/recipys.git"],
     install_requires=parse_environment_yml(),
     extras_require={"mps": ["mkl < 2022"]},
     license="MIT license",
