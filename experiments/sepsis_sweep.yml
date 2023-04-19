@@ -1,0 +1,34 @@
+command:
+  - ${env}
+  - ${program}
+  - train
+  - -d
+  - ../yaib/data/YAIB_Datasets/data/mortality24
+  - -t
+  - BinaryClassification
+  - --log-dir
+  - ../yaib_logs/wandb_test
+  - --tune
+  - --wandb-sweep
+  - --wandb
+method: grid
+name: Sweep_test
+parameters:
+  data_dir:
+    values:
+      - ../yaib/data/YAIB_Datasets/data/mortality24/miiv
+#      - ../data/eicu
+#      - ../data/hirid
+  model:
+    values:
+#      - GRU
+      - Transformer
+#      - LogisticRegression
+#      - LGBMClassifier
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks

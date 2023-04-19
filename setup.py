@@ -41,6 +41,8 @@ def parse_environment_yml():
         if "http://" in dependency or "https://" in dependency:
             package_name = dependency.split("/")[-1].split(".")[0]
             dependency = package_name + "@" + dependency
+        # if "python" in dependency:
+        #     continue
         sanitized_dependencies.append(dependency)
     return sanitized_dependencies
 
@@ -75,6 +77,6 @@ setup(
     test_suite="tests",
     tests_require=[],
     url="https://github.com/rvandewater/YAIB",
-    version="0.1.0",
+    version="0.2.0",
     zip_safe=False,
 )

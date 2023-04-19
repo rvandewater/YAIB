@@ -115,6 +115,7 @@ def main(my_args=tuple(sys.argv[1:])):
         )
 
     logging.info(f"Logging to {run_dir.resolve()}")
+    logging.info(f"Data directory: {args.data_dir.resolve()}")
     log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)
     start_time = datetime.now()
     execute_repeated_cv(
