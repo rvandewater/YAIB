@@ -3,26 +3,29 @@ command:
   - ${program}
   - train
   - -d
-  - ../yaib/data/YAIB_Datasets/data/mortality24
+  - ../../data/
   - -t
   - BinaryClassification
   - --log-dir
-  - ../yaib_logs/wandb_test
+  - ../yaib_logs/sepsis_sweep
   - --tune
   - --wandb-sweep
   - --wandb
+  - -gc
+  - -lc
 method: grid
-name: Sweep_test
+name: sepsis_sweep
 parameters:
   data_dir:
     values:
-      - ../yaib/data/YAIB_Datasets/data/mortality24/miiv
+      - ../../data/sepsis_calvert/miiv
+      - ../../data/sepsis_moor/miiv
 #      - ../data/eicu
 #      - ../data/hirid
   model:
     values:
-#      - GRU
-      - Transformer
+      - GRU
+#      - LGBMClassifier
 #      - LogisticRegression
 #      - LGBMClassifier
   seed:

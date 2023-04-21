@@ -40,7 +40,9 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     id = vars["GROUP"]
-    stays = data[Segment.outcome if Segment.outcome in data else Segment.static][id]
+    # stays = data[Segment.outcome if Segment.outcome in data else Segment.static][id]
+    # Get stay IDs from static data
+    stays = data[Segment.static][id]
     if debug:
         # Only use 1% of the data
         stays = stays.sample(frac=0.01, random_state=seed)
@@ -147,7 +149,7 @@ def preprocess_data(
             logging.info(f"No cached data found in {cache_file}, loading raw features.")
 
     logging.info(f"Loading data from directory {data_dir.absolute()}")
-    data = {f: pq.read_table(data_dir / file_names[f]).to_pandas() for f in file_names.keys()}
+    data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
 
     logging.info("Generating splits.")
     data = make_single_split(data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug)
