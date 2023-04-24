@@ -27,24 +27,25 @@ def assure_minimum_length(dataset):
 
 @gin.configurable("train_common")
 def train_common(
-    data: dict[str, pd.DataFrame],
-    log_dir: Path,
-    load_weights: bool = False,
-    source_dir: Path = None,
-    reproducible: bool = True,
-    mode: str = RunMode.classification,
-    model: object = gin.REQUIRED,
-    weight: str = None,
-    optimizer: type = Adam,
-    batch_size=64,
-    epochs=1000,
-    patience=20,
-    min_delta=1e-5,
-    test_on: str = Split.test,
-    use_wandb: bool = False,
-    cpu: bool = False,
-    verbose=False,
-    num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
+        data: dict[str, pd.DataFrame],
+        log_dir: Path,
+        load_weights: bool = False,
+        source_dir: Path = None,
+        reproducible: bool = True,
+        mode: str = RunMode.classification,
+        model: object = gin.REQUIRED,
+        weight: str = None,
+        optimizer: type = Adam,
+        precision=16,
+        batch_size=64,
+        epochs=1000,
+        patience=20,
+        min_delta=1e-5,
+        test_on: str = Split.test,
+        use_wandb: bool = False,
+        cpu: bool = False,
+        verbose=False,
+        num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -58,6 +59,7 @@ def train_common(
         model: Model to be trained.
         weight: Weight to be used for the loss function.
         optimizer: Optimizer to be used for training.
+        precision: Pytorch precision to be used for training. Can be 16 or 32.
         batch_size: Batch size to be used for training.
         epochs: Number of epochs to train for.
         patience: Number of epochs to wait before early stopping.
@@ -127,7 +129,7 @@ def train_common(
     trainer = Trainer(
         max_epochs=epochs if model.needs_training else 1,
         callbacks=callbacks,
-        # precision=16,
+        precision=precision,
         accelerator="auto" if not cpu else "cpu",
         devices=max(torch.cuda.device_count(), 1),
         deterministic=reproducible,
@@ -144,7 +146,7 @@ def train_common(
             torch.save(model, log_dir / "last.ckpt")
         except Exception as e:
             logging.error(f"Cannot save model to path {str((log_dir / 'last.ckpt').resolve())}: {e}.")
-        logging.info("fitting complete!")
+        logging.info("Fitting complete.")
 
     if model.needs_training:
         logging.info("Training model.")
@@ -167,7 +169,7 @@ def train_common(
     )
 
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(model, dataloaders=test_loader,)[
+    test_loss = trainer.test(model, dataloaders=test_loader, )[
         0
     ]["test/loss"]
     save_config_file(log_dir)

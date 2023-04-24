@@ -85,7 +85,7 @@ def choose_and_bind_hyperparameters(
 
     # Function to
     def bind_params_and_train(hyperparams):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=log_dir) as temp_dir:
             bind_gin_params(hyperparams_names, hyperparams)
             if not do_tune:
                 return 0
@@ -116,7 +116,8 @@ def choose_and_bind_hyperparameters(
 
     if do_tune:
         log_full_line("STARTING TUNING", level=TUNE, char="=")
-        logging.log(TUNE, f"Tuning from {n_initial_points} points in {n_calls} iterations on {folds_to_tune_on} folds.")
+        logging.log(TUNE, f"Applying Bayesian Optimization from {n_initial_points} points in {n_calls} "
+                          f"iterations on {folds_to_tune_on} folds.")
         log_table_row(header, TUNE)
     else:
         logging.log(TUNE, "Hyperparameter tuning disabled")

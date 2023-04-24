@@ -8,6 +8,6 @@
 
 eval "$(conda shell.bash hook)"
 conda activate yaib_new
-wandb agent --count 1 robinvandewater/yaib-experiments/tfi15fyd
+wandb agent --count 1 robinvandewater/yaib-experiments/k0hh4m68
 
 

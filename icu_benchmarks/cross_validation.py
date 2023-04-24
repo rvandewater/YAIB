@@ -39,6 +39,7 @@ def execute_repeated_cv(
     """Preprocesses data and trains a model for each fold.
 
     Args:
+
         data_dir: Path to the data directory.
         log_dir: Path to the log directory.
         seed: Random seed.
@@ -46,6 +47,8 @@ def execute_repeated_cv(
         source_dir: Path to the source directory.
         cv_folds: Number of folds for cross validation.
         cv_folds_to_train: Number of folds to use during training. If None, all folds are trained on.
+        cv_repetitions: Amount of cross validation repetitions.
+        cv_repetitions_to_train: Amount of training repetitions. If None, all repetitions are trained on.
         reproducible: Whether to make torch reproducible.
         debug: Whether to load less data and enable more logging.
         generate_cache: Whether to generate and save cache.
@@ -64,13 +67,14 @@ def execute_repeated_cv(
     if not cv_folds_to_train:
         cv_folds_to_train = cv_folds
     agg_loss = 0
+    if not verbose:
+        log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
+        logging.getLogger("pytorch_lightning").setLevel(logging.INFO)
+        logging.getLogger("pytorch_lightning").__format__ = log_fmt
+        warnings.filterwarnings("ignore")
     seed_everything(seed, reproducible)
     for repetition in range(cv_repetitions_to_train):
         for fold_index in range(cv_folds_to_train):
-            if not verbose:
-                logging.getLogger().setLevel(logging.ERROR)
-                logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
-                warnings.filterwarnings("ignore")
             start_time = datetime.now()
             data = preprocess_data(
                 data_dir,
