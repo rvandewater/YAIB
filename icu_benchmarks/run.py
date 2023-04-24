@@ -37,7 +37,7 @@ def main(my_args=tuple(sys.argv[1:])):
 
     # Initialize logger
     log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
-    logging.basicConfig(format=log_fmt)
+    logging.basicConfig(format=log_fmt, datefmt="%Y-%m-%d %H:%M:%S")
     logging.getLogger().setLevel(logging.INFO)
 
     # Load weights if in evaluation mode

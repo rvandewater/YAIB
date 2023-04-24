@@ -1,4 +1,4 @@
-name: yaib_new_updated_cuda_new
+name: yaib
 channels:
   - pytorch
   - nvidia
@@ -11,7 +11,9 @@ dependencies:
   - flake8=5.0.4
   - gin-config=0.5.0
   - ignite=0.4.11
+  # Versioning of Pytorch (2.0) dependent on compatible CUDA version
   - pytorch
+  - pytorch-cuda=11.8
   - lightgbm=3.3.5
   - numpy=1.23.4
   - pandas=2.0.0
@@ -26,7 +28,6 @@ dependencies:
   - scikit-optimize=0.9.0
   - einops=0.6.1
   - hydra-core=1.3
-  - pytorch-cuda=11.8
   - pip:
       - git+https://github.com/rvandewater/recipys.git
       - hyperimpute==0.1.16
