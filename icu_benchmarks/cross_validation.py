@@ -70,7 +70,7 @@ def execute_repeated_cv(
     if not verbose:
         log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
         logging.getLogger("pytorch_lightning").setLevel(logging.INFO)
-        logging.getLogger("pytorch_lightning").__format__ = log_fmt
+        logging.getLogger("pytorch_lightning").handlers[0].setFormatter(logging.Formatter(log_fmt, datefmt="%Y-%m-%d %H:%M:%S"))
         warnings.filterwarnings("ignore")
     seed_everything(seed, reproducible)
     for repetition in range(cv_repetitions_to_train):

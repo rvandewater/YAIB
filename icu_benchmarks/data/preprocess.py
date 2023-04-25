@@ -166,8 +166,8 @@ def preprocess_data(
     return data
 
 
-def caching(cache_dir, cache_file, data, use_cache):
-    if use_cache and not cache_file.exists():
+def caching(cache_dir, cache_file, data, use_cache, overwrite=True):
+    if use_cache and (not overwrite or not cache_file.exists()):
         if not cache_dir.exists():
             cache_dir.mkdir()
         cache_file.touch()
