@@ -149,6 +149,7 @@ def preprocess_data(
             logging.info(f"No cached data found in {cache_file}, loading raw features.")
 
     logging.info(f"Loading data from directory {data_dir.absolute()}")
+    # Read parquet files into pandas dataframes and remove the parquet file from memory
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
 
     logging.info("Generating splits.")

@@ -15,7 +15,7 @@ dependencies:
   - pytorch
   - pytorch-cuda=11.8
   - lightgbm=3.3.5
-  - numpy=1.23.4
+  - numpy=1.24.3
   - pandas=2.0.0
   - pyarrow=11.0.0
   - pytest=7.3.1
