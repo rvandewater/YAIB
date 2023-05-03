@@ -11,7 +11,7 @@ from icu_benchmarks.models.utils import JsonResultLoggingEncoder, log_table_row,
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import log_full_line
 from icu_benchmarks.tuning.gin_utils import get_gin_hyperparameters, bind_gin_params
-
+from icu_benchmarks.contants import RunMode
 TUNE = 25
 logging.addLevelName(25, "TUNE")
 
@@ -22,6 +22,7 @@ def choose_and_bind_hyperparameters(
     data_dir: Path,
     log_dir: Path,
     seed: int,
+    run_mode: RunMode = RunMode.classification,
     checkpoint: str = None,
     scopes: list[str] = [],
     n_initial_points: int = 3,
@@ -39,6 +40,7 @@ def choose_and_bind_hyperparameters(
         data_dir: Path to the data directory.
         log_dir: Path to the log directory.
         seed: Random seed.
+        run_mode: The run mode of the experiment.
         checkpoint: Name of the checkpoint run to load previously explored hyperparameters from.
         scopes: List of gin scopes to search for hyperparameters to tune.
         n_initial_points: Number of initial points to explore.
@@ -93,6 +95,7 @@ def choose_and_bind_hyperparameters(
                 data_dir,
                 Path(temp_dir),
                 seed,
+                mode=run_mode,
                 cv_repetitions_to_train=1,
                 cv_folds_to_train=folds_to_tune_on,
                 generate_cache=generate_cache,

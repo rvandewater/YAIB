@@ -21,6 +21,7 @@ from pytorch_lightning import LightningModule
 
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.models.metrics import MAE
+from icu_benchmarks.contants import RunMode
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
@@ -35,6 +36,7 @@ class BaseModule(LightningModule):
     weight = None
     metrics = {}
     trained_columns = None
+    run_mode = None
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError()
@@ -88,6 +90,7 @@ class DLWrapper(BaseModule):
         self,
         loss=CrossEntropyLoss(),
         optimizer=torch.optim.Adam,
+        run_mode: RunMode = RunMode.classification,
         input_shape=None,
         lr: float = 0.002,
         momentum: float = 0.9,
@@ -104,6 +107,7 @@ class DLWrapper(BaseModule):
         self.loss = loss
         self.optimizer = optimizer
         self.scaler = None
+        self.run_mode = run_mode
 
     def on_fit_start(self):
         self.metrics = {
@@ -245,28 +249,30 @@ class MLClassificationWrapper(BaseModule):
     needs_training = False
     needs_fit = True
 
-    def __init__(self, *args, model=None, patience=10, **kwargs):
+    def __init__(self, *args, model=None, run_mode=RunMode.classification, patience=10, **kwargs):
         super().__init__()
         self.save_hyperparameters()
         self.model = model
         self.scaler = None
+        self.run_mode = run_mode
 
     def set_metrics(self, labels):
-        # Binary classification
-        if len(np.unique(labels)) == 2:
-            if isinstance(self.model, lightgbm.basic.Booster):
-                self.output_transform = lambda x: x
+        if self.run_mode == RunMode.classification:
+            # Binary classification
+            if len(np.unique(labels)) == 2:
+                if isinstance(self.model, lightgbm.basic.Booster):
+                    self.output_transform = lambda x: x
+                else:
+                    self.output_transform = lambda x: x[:, 1]
+                self.label_transform = lambda x: x
+
+                self.metrics = MLMetrics.BINARY_CLASSIFICATION
+            # Multiclass classification
             else:
-                self.output_transform = lambda x: x[:, 1]
-            self.label_transform = lambda x: x
-
-            self.metrics = MLMetrics.BINARY_CLASSIFICATION
-
-        # Multiclass classification
-        elif np.all(labels[:10].astype(int) == labels[:10]):
-            self.output_transform = lambda x: np.argmax(x, axis=-1)
-            self.label_transform = lambda x: x
-            self.metrics = MLMetrics.MULTICLASS_CLASSIFICATION
+                # Todo: verify multiclass classification
+                self.output_transform = lambda x: np.argmax(x, axis=-1)
+                self.label_transform = lambda x: x
+                self.metrics = MLMetrics.MULTICLASS_CLASSIFICATION
 
         # Regression
         else:
@@ -276,7 +282,7 @@ class MLClassificationWrapper(BaseModule):
             else:
                 self.output_transform = lambda x: x
                 self.label_transform = lambda x: x
-            self.metrics = {"MAE": mean_absolute_error}
+            self.metrics = MLMetrics.REGRESSION
 
     def fit(self, train_dataset, val_dataset):
         train_rep, train_label = train_dataset.get_data_and_labels()
@@ -305,7 +311,8 @@ class MLClassificationWrapper(BaseModule):
             val_loss = 0.0
             self.model.fit(train_rep, train_label)
 
-        if "MAE" in self.metrics.keys():
+        #if "MAE" in self.metrics.keys():
+        if self.run_mode == RunMode.regression:
             train_pred = self.model.predict(train_rep)
         else:
             train_pred = self.model.predict_proba(train_rep)

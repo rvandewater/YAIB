@@ -1,0 +1,51 @@
+import icu_benchmarks.data.preprocess
+import icu_benchmarks.data.loader
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.dl_models
+import icu_benchmarks.models.ml_models
+
+# MODE SETTINGS
+Run.mode = "Regression"
+
+train_common.weight = "balanced"
+
+# DEEP LEARNING
+DLClassificationWrapper.loss = @cross_entropy
+
+# DATASET
+preprocess.file_names = {
+    "DYNAMIC": "dyn.parquet",
+    "OUTCOME": "outc.parquet",
+    "STATIC": "sta.parquet",
+}
+
+vars = {
+    "GROUP": "stay_id",
+    "SEQUENCE": "time",
+    "LABEL": "label",
+    "DYNAMIC": ["alb", "alp", "alt", "ast", "be", "bicar", "bili",
+       "bili_dir", "bnd", "bun", "ca", "cai", "ck", "ckmb", "cl", "crea",
+       "crp", "dbp", "fgn", "fio2", "glu", "hgb", "hr", "inr_pt", "k", "lact",
+       "lymph", "map", "mch", "mchc", "mcv", "methb", "mg", "na", "neut",
+       "o2sat", "pco2", "ph", "phos", "plt", "po2", "ptt", "resp", "sbp",
+       "temp", "tnt", "urine", "wbc"],
+    "STATIC": ["age", "sex", "height", "weight"],
+}
+
+static_features = True
+
+# SELECTING PREPROCESSOR
+preprocess.preprocessor = @base_regression_preprocessor
+preprocess.vars = %vars
+preprocess.use_static = %static_features
+
+base_regression_preprocessor.use_static_features = False
+base_regression_preprocessor.vars = %vars
+
+# SELECTING DATASET
+ClassificationDataset.vars = %vars
+ClassificationDataset.ram_cache = False
+
+# CROSS-VALIDATION
+execute_repeated_cv.cv_repetitions = 5
+execute_repeated_cv.cv_folds = 5

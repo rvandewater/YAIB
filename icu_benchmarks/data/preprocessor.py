@@ -4,10 +4,10 @@ import logging
 import gin
 import pandas as pd
 from recipys.recipe import Recipe
-from recipys.selector import all_numeric_predictors, has_type, all_of
+from recipys.selector import all_numeric_predictors, all_outcomes, has_type, all_of
 from recipys.step import StepScale, StepImputeFill, StepSklearn, StepHistorical, Accumulator, StepImputeModel
 from sklearn.impute import SimpleImputer, MissingIndicator
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 
 from icu_benchmarks.wandb_utils import update_wandb_config
 from icu_benchmarks.data.loader import ImputationPredictionDataset
@@ -172,7 +172,62 @@ class DefaultClassificationPreprocessor(Preprocessor):
         data[Split.test][type] = recipe.bake(data[Split.test][type])
         return data
 
+@gin.configurable("base_regression_preprocessor")
+class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
+    # Override base classification preprocessor
+    def apply(self, data, vars):
+        """
+        Args:
+            data: Train, validation and test data dictionary. Further divided in static, dynamic, and outcome.
+            vars: Variables for static, dynamic, outcome.
+        Returns:
+            Preprocessed data.
+        """
+        logging.info("Preprocessing dynamic features.")
 
+        data = self.process_dynamic(data, vars)
+
+        for split in [Split.train, Split.val, Split.test]:
+            data = self.process_outcome(data, vars, split)
+
+        if self.use_static_features:
+            logging.info("Preprocessing static features.")
+            data = self.process_static(data, vars)
+
+            # Set index to grouping variable
+            data[Split.train][Segment.static] = data[Split.train][Segment.static].set_index(vars["GROUP"])
+            data[Split.val][Segment.static] = data[Split.val][Segment.static].set_index(vars["GROUP"])
+            data[Split.test][Segment.static] = data[Split.test][Segment.static].set_index(vars["GROUP"])
+
+            # Join static and dynamic data.
+            data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].join(
+                data[Split.train][Segment.static], on=vars["GROUP"]
+            )
+            data[Split.val][Segment.dynamic] = data[Split.val][Segment.dynamic].join(
+                data[Split.val][Segment.static], on=vars["GROUP"]
+            )
+            data[Split.test][Segment.dynamic] = data[Split.test][Segment.dynamic].join(
+                data[Split.test][Segment.static], on=vars["GROUP"]
+            )
+
+            # Remove static features from splits
+            data[Split.train][Segment.features] = data[Split.train].pop(Segment.static)
+            data[Split.val][Segment.features] = data[Split.val].pop(Segment.static)
+            data[Split.test][Segment.features] = data[Split.test].pop(Segment.static)
+
+        # Create feature splits
+        data[Split.train][Segment.features] = data[Split.train].pop(Segment.dynamic)
+        data[Split.val][Segment.features] = data[Split.val].pop(Segment.dynamic)
+        data[Split.test][Segment.features] = data[Split.test].pop(Segment.dynamic)
+        return data
+
+    def process_outcome(self, data, vars, split):
+        logging.debug(f"Processing {split} outcome values.")
+        outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"], vars["SEQUENCE"])
+        outcome_rec.add_step(StepSklearn(sklearn_transformer=MinMaxScaler(), sel=all_outcomes()))
+        outcome_rec.prep()
+        data[split][Segment.outcome] = outcome_rec.bake()
+        return data
 @gin.configurable("base_imputation_preprocessor")
 class DefaultImputationPreprocessor(Preprocessor):
     def __init__(

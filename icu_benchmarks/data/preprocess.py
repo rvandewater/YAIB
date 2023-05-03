@@ -10,7 +10,7 @@ import pickle
 from sklearn.model_selection import StratifiedKFold, KFold
 
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
-
+from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment
 
 
@@ -47,7 +47,9 @@ def make_single_split(
         # Only use 1% of the data
         stays = stays.sample(frac=0.01, random_state=seed)
 
-    if "LABEL" in vars:
+    runmode = RunMode.regression
+
+    if "LABEL" in vars and runmode is RunMode.classification:
         # If there are labels, use stratified k-fold
         labels = data[Segment.outcome][vars["LABEL"]].loc[stays.index]
 
@@ -151,7 +153,8 @@ def preprocess_data(
     logging.info(f"Loading data from directory {data_dir.absolute()}")
     # Read parquet files into pandas dataframes and remove the parquet file from memory
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
-
+    #prevalence = data["OUTCOME"].groupby("stay_id").max()
+    # prevalence_sum = prevalence["label"].sum()
     logging.info("Generating splits.")
     data = make_single_split(data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug)
 

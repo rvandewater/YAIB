@@ -45,7 +45,6 @@ def train_common(
         use_wandb: bool = False,
         cpu: bool = False,
         verbose=False,
-        ram_cache=True,
         num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
@@ -69,7 +68,6 @@ def train_common(
         use_wandb: If set to true, log to wandb.
         cpu: If set to true, run on cpu.
         verbose: Enable detailed logging.
-        ram_cache: Cache dataset in RAM.
         num_workers: Number of workers to use for data loading.
     """
 
@@ -79,8 +77,8 @@ def train_common(
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
-    train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache)
-    val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache)
+    train_dataset = dataset_class(data, split=Split.train)
+    val_dataset = dataset_class(data, split=Split.val)
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
     train_loader = DataLoader(
@@ -102,7 +100,7 @@ def train_common(
 
     data_shape = next(iter(train_loader))[0].shape
 
-    model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs)
+    model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
     model.set_weight(weight, train_dataset)
     if load_weights:
         if source_dir.exists():

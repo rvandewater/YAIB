@@ -109,7 +109,13 @@ def main(my_args=tuple(sys.argv[1:])):
         # Train
         checkpoint = log_dir / args.checkpoint if args.checkpoint else None
         model_path = (
-            Path("configs") / ("imputation_models" if mode == RunMode.imputation else "classification_models") / f"{model}.gin"
+            Path("configs")
+            / (
+                "imputation_models"
+                if mode == RunMode.imputation
+                else ("classification_models" if mode == RunMode.classification else "regression_models")
+            )
+            / f"{model}.gin"
         )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]
@@ -124,6 +130,7 @@ def main(my_args=tuple(sys.argv[1:])):
             args.data_dir,
             run_dir,
             args.seed,
+            run_mode=mode,
             checkpoint=checkpoint,
             debug=args.debug,
             generate_cache=args.generate_cache,
