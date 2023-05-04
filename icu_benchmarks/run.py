@@ -113,7 +113,7 @@ def main(my_args=tuple(sys.argv[1:])):
             / (
                 "imputation_models"
                 if mode == RunMode.imputation
-                else ("classification_models" if mode == RunMode.classification else "regression_models")
+                else "prediction_models"
             )
             / f"{model}.gin"
         )
