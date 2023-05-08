@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 import scipy.stats as stats
 import shutil
-from statistics import mean, stdev
+from statistics import mean, stdev, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
 
@@ -121,32 +121,22 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                         aggregated[repetition.name][fold_iter.name].update(result)
 
     # Aggregate results per metric
-    iteration_scores = {}
     list_scores = {}
-    iteration_means = {}
     for repetition, folds in aggregated.items():
         for fold, result in folds.items():
             for metric, score in result.items():
                 if isinstance(score, (float, int)):
-                    iteration_scores[metric] = iteration_scores.setdefault(metric, [])
-                    iteration_scores[metric].append(score)
                     list_scores[metric] = list_scores.setdefault(metric, [])
                     list_scores[metric].append(score)
-        #iteration_means = iteration_means.setdefault(repetition, [])
-        #iteration_means[repetition] = {}
-        # for metric, list in iteration_scores.items():
-        #     iteration_means.setdefault(metric, [])
-        #     iteration_means[metric].append(mean(list))
-        # iteration_scores = {}
 
 
     # Compute statistical metric over aggregated results
     averaged_scores = {metric: (mean(list)) for metric, list in list_scores.items()}
 
-    # Calculate the standard deviation over aggregated results of folds/iterations, divide by sqrt(n) to get standard deviation.
-    std_scores = {metric: (stdev(list)/sqrt(len(list))) for metric, list in list_scores.items()}
+    # Calculate the population standard deviation over aggregated results over folds/iterations
+    # Divide by sqrt(n) to get standard deviation.
+    std_scores = {metric: (pstdev(list)/sqrt(len(list))) for metric, list in list_scores.items()}
 
-    # std_scores2 = {metric: (stdev(list)) for metric, list in iteration_means.items()}
     confidence_interval = {
         metric: (stats.t.interval(0.95, len(list) - 1, loc=mean(list), scale=stats.sem(list)))
         for metric, list in list_scores.items()
