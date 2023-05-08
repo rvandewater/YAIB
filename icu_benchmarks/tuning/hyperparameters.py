@@ -32,6 +32,7 @@ def choose_and_bind_hyperparameters(
     generate_cache: bool = False,
     load_cache: bool = False,
     debug: bool = False,
+    verbose: bool = False
 ):
     """Choose hyperparameters to tune and bind them to gin.
 
@@ -47,7 +48,8 @@ def choose_and_bind_hyperparameters(
         n_calls: Number of iterations to optimize the hyperparameters.
         folds_to_tune_on: Number of folds to tune on.
         checkpoint_file: Name of the checkpoint file.
-        debug: Whether to load less data and enable more logging.
+        debug: Whether to load less data.
+        verbose: Set to true to increase log output.
 
     Raises:
         ValueError: If checkpoint is not None and the checkpoint does not exist.
@@ -102,6 +104,7 @@ def choose_and_bind_hyperparameters(
                 load_cache=load_cache,
                 test_on="val",
                 debug=debug,
+                verbose=verbose
             )
 
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]

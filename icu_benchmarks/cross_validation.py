@@ -2,7 +2,6 @@ import json
 from datetime import datetime
 import logging
 import gin
-import warnings
 from pathlib import Path
 from pytorch_lightning import seed_everything
 
@@ -67,11 +66,16 @@ def execute_repeated_cv(
     if not cv_folds_to_train:
         cv_folds_to_train = cv_folds
     agg_loss = 0
-    if not verbose:
-        log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
-        logging.getLogger("pytorch_lightning").setLevel(logging.INFO)
-        logging.getLogger("pytorch_lightning").handlers[0].setFormatter(logging.Formatter(log_fmt, datefmt="%Y-%m-%d %H:%M:%S"))
-        warnings.filterwarnings("ignore")
+
+    # Set Pytorch Lightning logger
+    # log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
+    # logging.getLogger("pytorch_lightning").handlers[0].setFormatter(logging.Formatter(log_fmt, datefmt="%Y-%m-%d %H:%M:%S"))
+    # if not verbose:
+    #     logging.getLogger("pytorch_lightning").setLevel(logging.INFO)
+    #     warnings.filterwarnings("ignore")
+    # else:
+    #     logging.getLogger("pytorch_lightning").setLevel(logging.DEBUG)
+
     seed_everything(seed, reproducible)
     for repetition in range(cv_repetitions_to_train):
         for fold_index in range(cv_folds_to_train):
@@ -87,6 +91,7 @@ def execute_repeated_cv(
                 cv_folds=cv_folds,
                 fold_index=fold_index,
                 pretrained_imputation_model=pretrained_imputation_model,
+                runmode=mode
             )
 
             repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
@@ -106,10 +111,10 @@ def execute_repeated_cv(
             )
             train_time = datetime.now() - start_time
 
-            if not verbose:
-                logging.getLogger().setLevel(logging.INFO)
-                logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
-                warnings.filterwarnings("default")
+            # if not verbose:
+            #     logging.getLogger().setLevel(logging.INFO)
+            #     logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
+            #     warnings.filterwarnings("default")
             log_full_line(
                 f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| TRAINING DURATION {train_time}",
                 level=logging.INFO,

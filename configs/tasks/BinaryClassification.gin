@@ -7,7 +7,9 @@ import icu_benchmarks.models.ml_models
 # MODE & CLASSIFICATION SETTINGS
 Run.mode = "Classification"
 
+# Binary classification
 NUM_CLASSES = 2
+
 HORIZON = 24
 
 train_common.weight = "balanced"
