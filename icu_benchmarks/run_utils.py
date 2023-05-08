@@ -159,8 +159,6 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
 
     wandb_log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
 
-aggregate_results(Path(r"C:\Users\Robin\Downloads\2023-02-16T12-57-49"))
-
 def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
     """Logs a full line of a given character with a message centered.
 
