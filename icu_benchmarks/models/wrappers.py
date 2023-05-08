@@ -160,7 +160,7 @@ class DLWrapper(BaseModule):
 
 @gin.configurable("DLClassificationWrapper")
 class DLClassificationWrapper(DLWrapper):
-    """Interface for Deep Learning classification models."""
+    """Interface for Deep Learning models."""
 
     def set_weight(self, weight, dataset):
         if isinstance(weight, list):
@@ -182,24 +182,23 @@ class DLClassificationWrapper(DLWrapper):
                 y_pred = torch.softmax(y_pred, dim=1)
                 return y_pred, y
 
-        # Binary classification
-        # output transform is not applied for contrib metrics so we do our own.
-        if self.logit.out_features == 2:
-            self.output_transform = softmax_binary_output_transform
-            metrics = DLMetrics.BINARY_CLASSIFICATION
-
-        # Regression
-        elif self.logit.out_features == 1:
-            self.output_transform = lambda x: x
-            if self.scaler is not None:
-                metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
+        # Output transform is not applied for contrib metrics, so we do our own.
+        if self.run_mode == RunMode.classification:
+            # Binary classification
+            if self.logit.out_features == 2:
+                self.output_transform = softmax_binary_output_transform
+                metrics = DLMetrics.BINARY_CLASSIFICATION
             else:
-                metrics = DLMetrics.REGRESSION
-
-        # Multiclass classification
-        else:
-            self.output_transform = softmax_multi_output_transform
-            metrics = DLMetrics.MULTICLASS_CLASSIFICATION
+                # Multiclass classification
+                self.output_transform = softmax_multi_output_transform
+                metrics = DLMetrics.MULTICLASS_CLASSIFICATION
+        # Regression
+        else: #self.logit.out_features == 1:
+            #if self.scaler is not None:
+            #    metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
+            #else:
+            self.output_transform = lambda x: x
+            metrics = DLMetrics.REGRESSION
         return metrics
 
     def step_fn(self, element, step_prefix=""):
@@ -229,11 +228,12 @@ class DLClassificationWrapper(DLWrapper):
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
         target = torch.masked_select(labels, mask).to(self.device)
         if prediction.shape[-1] > 1:
-            loss = (
-                self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
-            )  # torch.long because NLL
+            # Classification task
+            loss = (self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss)
+            # torch.long because NLL
         else:
-            loss = self.loss(prediction[:, 0], target.float()) + aux_loss  # Regression task
+            # Regression task
+            loss = self.loss(prediction[:, 0], target.float()) + aux_loss
 
         transformed_output = self.output_transform((prediction, target))
         for metric in self.metrics[step_prefix].values():
@@ -244,7 +244,7 @@ class DLClassificationWrapper(DLWrapper):
 
 @gin.configurable("MLClassificationWrapper")
 class MLClassificationWrapper(BaseModule):
-    """Interface for classification with traditional Machine Learning models."""
+    """Interface for prediction with traditional Machine Learning models."""
 
     needs_training = False
     needs_fit = True

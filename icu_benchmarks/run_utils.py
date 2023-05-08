@@ -1,3 +1,6 @@
+import warnings
+from math import sqrt
+
 import torch
 import json
 from argparse import ArgumentParser, BooleanOptionalAction
@@ -37,7 +40,7 @@ def build_parser() -> ArgumentParser:
     general_args.add_argument(
         "-v",
         "--verbose",
-        default=True,
+        default=False,
         action=BooleanOptionalAction,
         help="Whether to use verbose logging. Disable for clean logs.",
     )
@@ -90,7 +93,6 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
         (log_dir_run / randomly_searched_params).touch()
     return log_dir_run
 
-
 def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     """Aggregates results from all folds and writes to JSON file.
 
@@ -119,17 +121,32 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                         aggregated[repetition.name][fold_iter.name].update(result)
 
     # Aggregate results per metric
+    iteration_scores = {}
     list_scores = {}
+    iteration_means = {}
     for repetition, folds in aggregated.items():
         for fold, result in folds.items():
             for metric, score in result.items():
                 if isinstance(score, (float, int)):
+                    iteration_scores[metric] = iteration_scores.setdefault(metric, [])
+                    iteration_scores[metric].append(score)
                     list_scores[metric] = list_scores.setdefault(metric, [])
                     list_scores[metric].append(score)
+        #iteration_means = iteration_means.setdefault(repetition, [])
+        #iteration_means[repetition] = {}
+        # for metric, list in iteration_scores.items():
+        #     iteration_means.setdefault(metric, [])
+        #     iteration_means[metric].append(mean(list))
+        # iteration_scores = {}
+
 
     # Compute statistical metric over aggregated results
     averaged_scores = {metric: (mean(list)) for metric, list in list_scores.items()}
-    std_scores = {metric: (stdev(list)) for metric, list in list_scores.items()}
+
+    # Calculate the standard deviation over aggregated results of folds/iterations, divide by sqrt(n) to get standard deviation.
+    std_scores = {metric: (stdev(list)/sqrt(len(list))) for metric, list in list_scores.items()}
+
+    # std_scores2 = {metric: (stdev(list)) for metric, list in iteration_means.items()}
     confidence_interval = {
         metric: (stats.t.interval(0.95, len(list) - 1, loc=mean(list), scale=stats.sem(list)))
         for metric, list in list_scores.items()
@@ -152,6 +169,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
 
     wandb_log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
 
+aggregate_results(Path(r"C:\Users\Robin\Downloads\2023-02-16T12-57-49"))
 
 def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
     """Logs a full line of a given character with a message centered.
@@ -200,3 +218,29 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
         pretrained_imputation_model = None
 
     return pretrained_imputation_model
+
+
+def setup_logging(date_format, log_format, verbose):
+    """
+        Set up all loggers to use the same format and date format.
+
+        Args:
+            date_format: Format for the date.
+            log_format: Format for the log.
+            verbose: Whether to log debug messages.
+    """
+    logging.basicConfig(format=log_format, datefmt=date_format)
+    loggers = ["pytorch_lightning", "lightning_fabric"]
+    for logger in loggers:
+        logging.getLogger(logger).handlers[0].setFormatter(logging.Formatter(log_format, datefmt=date_format))
+
+    if not verbose:
+        logging.getLogger().setLevel(logging.INFO)
+        for logger in loggers:
+            logging.getLogger(logger).setLevel(logging.INFO)
+        warnings.filterwarnings("ignore")
+    else:
+        logging.getLogger().setLevel(logging.DEBUG)
+        for logger in loggers:
+            logging.getLogger(logger).setLevel(logging.DEBUG)
+        warnings.filterwarnings("default")

@@ -81,6 +81,10 @@ def train_common(
     val_dataset = dataset_class(data, split=Split.val)
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
+
+    logging.debug(f"Training on {len(train_dataset)} samples and validating on {len(val_dataset)} samples.")
+    logging.info(f"Using {num_workers} workers for data loading.")
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -170,8 +174,6 @@ def train_common(
     )
 
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(model, dataloaders=test_loader, )[
-        0
-    ]["test/loss"]
+    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss

@@ -4,13 +4,16 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.dl_models
 import icu_benchmarks.models.ml_models
 
+
 # MODE SETTINGS
 Run.mode = "Regression"
+
+NUM_CLASSES = 1
 
 train_common.weight = "balanced"
 
 # DEEP LEARNING
-DLClassificationWrapper.loss = @cross_entropy
+DLClassificationWrapper.loss = @mse_loss
 
 # DATASET
 preprocess.file_names = {

@@ -23,6 +23,7 @@ def make_single_split(
     fold_index: int,
     seed: int = 42,
     debug: bool = False,
+    runmode: RunMode = RunMode.classification
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
@@ -47,7 +48,6 @@ def make_single_split(
         # Only use 1% of the data
         stays = stays.sample(frac=0.01, random_state=seed)
 
-    runmode = RunMode.regression
 
     if "LABEL" in vars and runmode is RunMode.classification:
         # If there are labels, use stratified k-fold
@@ -101,6 +101,7 @@ def preprocess_data(
     generate_cache: bool = False,
     fold_index: int = 0,
     pretrained_imputation_model: str = None,
+    runmode: RunMode = RunMode.classification
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -139,7 +140,7 @@ def preprocess_data(
         preprocessor.set_imputation_model(pretrained_imputation_model)
 
     hash_config = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{debug}".encode("utf-8")
-    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_{hashlib.md5(hash_config).hexdigest()}"
+    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_d_{debug}_{hashlib.md5(hash_config).hexdigest()}"
     cache_file = cache_dir / cache_filename
 
     if load_cache:
@@ -156,7 +157,7 @@ def preprocess_data(
     #prevalence = data["OUTCOME"].groupby("stay_id").max()
     # prevalence_sum = prevalence["label"].sum()
     logging.info("Generating splits.")
-    data = make_single_split(data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug)
+    data = make_single_split(data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug, runmode= runmode)
 
     data = preprocessor.apply(data, vars)
 

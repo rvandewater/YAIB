@@ -18,7 +18,7 @@ from icu_benchmarks.run_utils import (
     create_run_dir,
     aggregate_results,
     log_full_line,
-    load_pretrained_imputation_model,
+    load_pretrained_imputation_model, setup_logging,
 )
 from icu_benchmarks.contants import RunMode
 
@@ -32,22 +32,25 @@ def get_mode(mode: gin.REQUIRED):
 
 def main(my_args=tuple(sys.argv[1:])):
     args, _ = build_parser().parse_known_args(my_args)
+
+    # Initialize loggers
+    log_format = "%(asctime)s - %(levelname)s - %(name)s : %(message)s"
+    date_format = "%Y-%m-%d %H:%M:%S"
+    verbose = args.verbose
+    setup_logging(date_format, log_format, verbose)
+
     if args.wandb_sweep:
         args = apply_wandb_sweep(args)
-
-    # Initialize logger
-    log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
-    logging.basicConfig(format=log_fmt, datefmt="%Y-%m-%d %H:%M:%S")
-    logging.getLogger().setLevel(logging.INFO)
 
     # Load weights if in evaluation mode
     load_weights = args.command == "evaluate"
     args.data_dir = Path(args.data_dir)
 
-    # Set task name
+    # Set experiment name
     name = args.name
     if name is None:
         name = args.data_dir.name
+    logging.info(f"Running experiment {name}.")
     task = args.task
     model = args.model
 
@@ -55,7 +58,7 @@ def main(my_args=tuple(sys.argv[1:])):
     gin.parse_config_file(f"configs/tasks/{task}.gin")
 
     mode = get_mode()
-    logging.info(f"Task mode: {mode}")
+    logging.info(f"Task mode: {mode}.")
     experiment = args.experiment
 
     pretrained_imputation_model = load_pretrained_imputation_model(args.use_pretrained_imputation)
@@ -135,6 +138,7 @@ def main(my_args=tuple(sys.argv[1:])):
             debug=args.debug,
             generate_cache=args.generate_cache,
             load_cache=args.load_cache,
+            verbose=args.verbose
         )
 
     log_full_line(f"Logging to {run_dir.resolve()}", level=logging.INFO)
@@ -148,6 +152,7 @@ def main(my_args=tuple(sys.argv[1:])):
         source_dir=source_dir,
         reproducible=reproducible,
         debug=args.debug,
+        verbose=args.verbose,
         load_cache=args.load_cache,
         generate_cache=args.generate_cache,
         mode=mode,
