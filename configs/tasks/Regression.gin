@@ -9,6 +9,7 @@ import icu_benchmarks.models.ml_models
 Run.mode = "Regression"
 
 NUM_CLASSES = 1
+HORIZON = 24
 
 train_common.weight = "balanced"
 
@@ -47,7 +48,7 @@ base_regression_preprocessor.vars = %vars
 
 # SELECTING DATASET
 ClassificationDataset.vars = %vars
-ClassificationDataset.ram_cache = False
+ClassificationDataset.ram_cache = True
 
 # CROSS-VALIDATION
 execute_repeated_cv.cv_repetitions = 5

@@ -111,10 +111,6 @@ def execute_repeated_cv(
             )
             train_time = datetime.now() - start_time
 
-            # if not verbose:
-            #     logging.getLogger().setLevel(logging.INFO)
-            #     logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
-            #     warnings.filterwarnings("default")
             log_full_line(
                 f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| TRAINING DURATION {train_time}",
                 level=logging.INFO,

@@ -1,0 +1,49 @@
+command:
+  - ${env}
+  - ${program}
+  - train
+  - -d
+  - ../../data/
+  - -t
+  - BinaryClassification
+  - --log-dir
+  - ../yaib_logs/demo_classification
+  - --checkpoint
+  - test
+  - --tune
+  - --wandb-sweep
+  - --wandb
+  - -gc
+  - -lc
+#  - --verbose
+
+method: grid
+name: demo_classification #lgbm #sepsis_sweep_LGBM
+parameters:
+  data_dir:
+    values:
+#      - ../../data/los/mimic_demo
+#      - ../../data/los/eicu
+      - ../../data/aki/mimic_demo
+      - ../../data/aki/eicu_demo
+      - ../../data/sepsis/mimic_demo
+      - ../../data/sepsis/eicu_demo
+      - ../../data/mortality24/mimic_demo
+      - ../../data/mortality24/eicu_demo
+  model:
+    values:
+
+      - LogisticRegression
+      - LGBMClassifier
+#      - LGBMRegressor
+      - LSTM
+      - GRU
+      - TCN
+      - Transformer
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks
