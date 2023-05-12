@@ -45,7 +45,8 @@ def make_single_split(
     id = vars[Var.group]
 
     # Get stay IDs from outcome segment
-    stays = data[Segment.outcome][id].unique()
+    stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
+
     if debug:
         # Only use 1% of the data
         stays = stays.sample(frac=0.01, random_state=seed)
