@@ -27,7 +27,7 @@ from icu_benchmarks.contants import RunMode
 def get_mode(mode: gin.REQUIRED):
     # Check if enum is mode.
     assert RunMode(mode)
-    return mode
+    return RunMode(mode)
 
 
 def main(my_args=tuple(sys.argv[1:])):

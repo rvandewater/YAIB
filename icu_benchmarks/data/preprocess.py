@@ -11,7 +11,7 @@ from sklearn.model_selection import StratifiedKFold, KFold
 
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
-from .constants import DataSplit as Split, DataSegment as Segment
+from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
 
 
 def make_single_split(
@@ -28,6 +28,7 @@ def make_single_split(
     """Randomly split the data into training, validation, and test set.
 
     Args:
+        runmode: Run mode. Can be one of the values of RunMode
         data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
         vars: Contains the names of columns in the data.
         cv_repetitions: Number of times to repeat cross validation.
@@ -40,33 +41,36 @@ def make_single_split(
     Returns:
         Input data divided into 'train', 'val', and 'test'.
     """
-    id = vars["GROUP"]
-    # stays = data[Segment.outcome if Segment.outcome in data else Segment.static][id]
-    # Get stay IDs from static data
-    stays = data[Segment.static][id]
+    # ID variable
+    id = vars[Var.group]
+
+    # Get stay IDs from outcome segment
+    stays = data[Segment.outcome][id].unique()
     if debug:
         # Only use 1% of the data
         stays = stays.sample(frac=0.01, random_state=seed)
 
+    # If there are labels, and the task is classification, use stratified k-fold
+    if Var.label in vars and runmode is RunMode.classification:
+        # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
+        labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+        if labels.value_counts().min() < cv_folds:
+            raise Exception(f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
+                            f"but {cv_folds} folds are requested. Reduce the number of folds or use more data.")
+        outer_cv = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
+        inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
 
-    if "LABEL" in vars and runmode is RunMode.classification:
-        # If there are labels, use stratified k-fold
-        labels = data[Segment.outcome][vars["LABEL"]].loc[stays.index]
-
-        outer_CV = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
-        inner_CV = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
-
-        dev, test = list(outer_CV.split(stays, labels))[repetition_index]
+        dev, test = list(outer_cv.split(stays, labels))[repetition_index]
         dev_stays = stays.iloc[dev]
-        train, val = list(inner_CV.split(dev_stays, labels.iloc[dev]))[fold_index]
+        train, val = list(inner_cv.split(dev_stays, labels.iloc[dev]))[fold_index]
     else:
-        # If there are no labels, use regular k-fold
-        outer_CV = KFold(cv_repetitions, shuffle=True, random_state=seed)
-        inner_CV = KFold(cv_folds, shuffle=True, random_state=seed)
+        # If there are no labels, or the task is regression, use regular k-fold.
+        outer_cv = KFold(cv_repetitions, shuffle=True, random_state=seed)
+        inner_cv = KFold(cv_folds, shuffle=True, random_state=seed)
 
-        dev, test = list(outer_CV.split(stays))[repetition_index]
+        dev, test = list(outer_cv.split(stays))[repetition_index]
         dev_stays = stays.iloc[dev]
-        train, val = list(inner_CV.split(dev_stays))[fold_index]
+        train, val = list(inner_cv.split(dev_stays))[fold_index]
 
     split = {
         Split.train: dev_stays.iloc[train],
@@ -154,8 +158,14 @@ def preprocess_data(
     logging.info(f"Loading data from directory {data_dir.absolute()}")
     # Read parquet files into pandas dataframes and remove the parquet file from memory
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
-    #prevalence = data["OUTCOME"].groupby("stay_id").max()
-    # prevalence_sum = prevalence["label"].sum()
+    #if runmode == RunMode.regression:
+        #max = data[Segment.outcome]["label"].max()
+    prevalence = data["OUTCOME"].groupby("stay_id").max()
+    static = data["STATIC"]
+    median = prevalence["label"].median()
+    avg = prevalence["label"].mean()
+
+    prevalence_sum = prevalence["label"].sum()
     logging.info("Generating splits.")
     data = make_single_split(data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug, runmode= runmode)
 

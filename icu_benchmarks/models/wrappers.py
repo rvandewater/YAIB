@@ -1,4 +1,5 @@
 import logging
+from abc import ABC
 from typing import Dict, Any
 from typing import List, Optional, Union
 from torch.nn import MSELoss, CrossEntropyLoss
@@ -163,6 +164,8 @@ class DLClassificationWrapper(DLWrapper):
     """Interface for Deep Learning models."""
 
     def set_weight(self, weight, dataset):
+        """Set the weight for the loss function."""
+
         if isinstance(weight, list):
             weight = torch.FloatTensor(weight).to(self.device)
         elif weight == "balanced":
@@ -170,6 +173,7 @@ class DLClassificationWrapper(DLWrapper):
         self.loss_weights = weight
 
     def set_metrics(self, *args):
+        """Set the evaluation metrics for the prediction model."""
         def softmax_binary_output_transform(output):
             with torch.no_grad():
                 y_pred, y = output
@@ -193,15 +197,16 @@ class DLClassificationWrapper(DLWrapper):
                 self.output_transform = softmax_multi_output_transform
                 metrics = DLMetrics.MULTICLASS_CLASSIFICATION
         # Regression
-        else: #self.logit.out_features == 1:
-            #if self.scaler is not None:
-            #    metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
-            #else:
+        elif self.run_mode == RunMode.regression:
             self.output_transform = lambda x: x
             metrics = DLMetrics.REGRESSION
+        else:
+            raise ValueError(f"Run mode {self.run_mode} not supported.")
         return metrics
 
     def step_fn(self, element, step_prefix=""):
+        """Perform a step in the training loop."""
+
         if len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
             if isinstance(data, list):
@@ -227,14 +232,15 @@ class DLClassificationWrapper(DLWrapper):
             aux_loss = 0
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
         target = torch.masked_select(labels, mask).to(self.device)
-        if prediction.shape[-1] > 1:
+        if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
             loss = (self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss)
             # torch.long because NLL
-        else:
+        elif self.run_mode == RunMode.regression:
             # Regression task
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss
-
+        else:
+            raise ValueError(f"Run mode {self.run_mode} not supported.")
         transformed_output = self.output_transform((prediction, target))
         for metric in self.metrics[step_prefix].values():
             metric.update(transformed_output)
@@ -257,6 +263,7 @@ class MLClassificationWrapper(BaseModule):
         self.run_mode = run_mode
 
     def set_metrics(self, labels):
+        """Set the evaluation metrics for the prediction model."""
         if self.run_mode == RunMode.classification:
             # Binary classification
             if len(np.unique(labels)) == 2:
@@ -285,6 +292,7 @@ class MLClassificationWrapper(BaseModule):
             self.metrics = MLMetrics.REGRESSION
 
     def fit(self, train_dataset, val_dataset):
+        """Fit the model to the training data."""
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
         train_rep, train_label = torch.from_numpy(train_rep).to(self.device), torch.from_numpy(train_label).to(self.device)
@@ -311,10 +319,10 @@ class MLClassificationWrapper(BaseModule):
             val_loss = 0.0
             self.model.fit(train_rep, train_label)
 
-        #if "MAE" in self.metrics.keys():
         if self.run_mode == RunMode.regression:
             train_pred = self.model.predict(train_rep)
         else:
+            # Classification
             train_pred = self.model.predict_proba(train_rep)
 
         self.log("train/loss", 0.0, sync_dist=True)
@@ -333,7 +341,7 @@ class MLClassificationWrapper(BaseModule):
         val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(val_label)
 
-        if "MAE" in self.metrics.keys():
+        if self.run_mode == RunMode.regression:
             val_pred = self.model.predict(val_rep)
         else:
             val_pred = self.model.predict_proba(val_rep)
@@ -351,7 +359,7 @@ class MLClassificationWrapper(BaseModule):
         test_rep, test_label = dataset
         test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
         self.set_metrics(test_label)
-        if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
+        if self.run_mode == RunMode.regression or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
             test_pred = self.model.predict(test_rep)
         else:
             test_pred = self.model.predict_proba(test_rep)
