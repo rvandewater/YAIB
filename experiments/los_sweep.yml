@@ -5,9 +5,9 @@ command:
   - -d
   - ../../data/
   - -t
-  - BinaryClassification
+  - Regression
   - --log-dir
-  - ../yaib_logs/moor_sepsis
+  - ../yaib_logs/los_sweep_lgbm
   - --checkpoint
   - test
   - --tune
@@ -15,23 +15,30 @@ command:
   - --wandb
   - -gc
   - -lc
+#  - --verbose
 
 method: grid
-name:  sepsis_sweep_moor #sepsis_sweep_LGBM
+name: los_transformer_tcn #lgbm #sepsis_sweep_LGBM
 parameters:
   data_dir:
     values:
-#      - ../../data/sepsis_calvert/miiv
+#      - ../../data/los/miiv
+#      - ../../data/los/hirid
+      - ../../data/los/eicu
+#      - ../../data/los/aumc
 #      - data/YAIB_Datasets/data/sepsis/miiv
-      - ../../data/sepsis_moor/miiv
+#      - ../../data/sepsis_moor/miiv
 #      - ../data/eicu
 #      - ../data/hirid
   model:
     values:
-      - GRU
-      - LGBMClassifier
+      - TCN
+      - Transformer
 #      - LogisticRegression
 #      - LGBMClassifier
+#      - LGBMRegressor
+#      - LSTM
+#      - GRU
   seed:
     values:
       - 1111

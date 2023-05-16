@@ -1,4 +1,4 @@
-name: yaib
+name: yaib_nvidia
 channels:
   - pytorch
   - nvidia
