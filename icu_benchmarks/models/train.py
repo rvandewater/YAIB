@@ -36,7 +36,7 @@ def train_common(
         model: object = gin.REQUIRED,
         weight: str = None,
         optimizer: type = Adam,
-        precision=16,
+        precision=32,
         batch_size=64,
         epochs=1000,
         patience=20,

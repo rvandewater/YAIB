@@ -14,6 +14,100 @@ from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
 
 
+
+
+
+@gin.configurable("preprocess")
+def preprocess_data(
+    data_dir: Path,
+    file_names: dict[str] = gin.REQUIRED,
+    preprocessor: Preprocessor = DefaultClassificationPreprocessor,
+    use_static: bool = True,
+    vars: dict[str] = gin.REQUIRED,
+    seed: int = 42,
+    debug: bool = False,
+    cv_repetitions: int = 5,
+    repetition_index: int = 0,
+    cv_folds: int = 5,
+    load_cache: bool = False,
+    generate_cache: bool = False,
+    fold_index: int = 0,
+    pretrained_imputation_model: str = None,
+    runmode: RunMode = RunMode.classification
+) -> dict[dict[pd.DataFrame]]:
+    """Perform loading, splitting, imputing and normalising of task data.
+
+    Args:
+        preprocessor: Define the preprocessor.
+        data_dir: Path to the directory holding the data.
+        file_names: Contains the parquet file names in data_dir.
+        vars: Contains the names of columns in the data.
+        seed: Random seed.
+        debug: Load less data if true.
+        cv_repetitions: Number of times to repeat cross validation.
+        repetition_index: Index of the repetition to return.
+        cv_folds: Number of folds to use for cross validation.
+        load_cache: Use cached preprocessed data if true.
+        generate_cache: Generate cached preprocessed data if true.
+        fold_index: Index of the fold to return.
+        pretrained_imputation_model: pretrained imputation model to use. if None, standard imputation is used.
+
+    Returns:
+        Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC) / DYNAMIC/ OUTCOME
+            nested within split (train/val/test).
+    """
+
+    cache_dir = data_dir / "cache"
+
+    if not use_static:
+        file_names.pop(Segment.static)
+        vars.pop(Segment.static)
+
+    dumped_file_names = json.dumps(file_names, sort_keys=True)
+    dumped_vars = json.dumps(vars, sort_keys=True)
+
+    logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
+    preprocessor = preprocessor(use_static_features=use_static)
+    if isinstance(preprocessor, DefaultClassificationPreprocessor):
+        preprocessor.set_imputation_model(pretrained_imputation_model)
+
+    hash_config = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{debug}".encode("utf-8")
+    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_d_{debug}_{hashlib.md5(hash_config).hexdigest()}"
+    cache_file = cache_dir / cache_filename
+
+    if load_cache:
+        if cache_file.exists():
+            with open(cache_file, "rb") as f:
+                logging.info(f"Loading cached data from {cache_file}.")
+                return pickle.load(f)
+        else:
+            logging.info(f"No cached data found in {cache_file}, loading raw features.")
+
+    logging.info(f"Loading data from directory {data_dir.absolute()}")
+    # Read parquet files into pandas dataframes and remove the parquet file from memory
+    data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
+    #if runmode == RunMode.regression:
+        #max = data[Segment.outcome]["label"].max()
+    # prevalence = data["OUTCOME"].groupby("stay_id").max()
+    # static = data["STATIC"]
+    # median = prevalence["label"].median()
+    # avg = prevalence["label"].mean()
+
+    # prevalence_sum = prevalence["label"].sum()
+    logging.info("Generating splits.")
+    data = make_single_split(data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug, runmode= runmode)
+
+    data = preprocessor.apply(data, vars)
+
+    if generate_cache:
+        caching(cache_dir, cache_file, data, load_cache)
+    else:
+        logging.info("Cache will not be saved.")
+
+    logging.info("Finished preprocessing.")
+
+    return data
+
 def make_single_split(
     data: dict[pd.DataFrame],
     vars: dict[str],
@@ -88,99 +182,6 @@ def make_single_split(
         }
 
     return data_split
-
-
-@gin.configurable("preprocess")
-def preprocess_data(
-    data_dir: Path,
-    file_names: dict[str] = gin.REQUIRED,
-    preprocessor: Preprocessor = DefaultClassificationPreprocessor,
-    use_static: bool = True,
-    vars: dict[str] = gin.REQUIRED,
-    seed: int = 42,
-    debug: bool = False,
-    cv_repetitions: int = 5,
-    repetition_index: int = 0,
-    cv_folds: int = 5,
-    load_cache: bool = False,
-    generate_cache: bool = False,
-    fold_index: int = 0,
-    pretrained_imputation_model: str = None,
-    runmode: RunMode = RunMode.classification
-) -> dict[dict[pd.DataFrame]]:
-    """Perform loading, splitting, imputing and normalising of task data.
-
-    Args:
-        preprocessor: Define the preprocessor.
-        data_dir: Path to the directory holding the data.
-        file_names: Contains the parquet file names in data_dir.
-        vars: Contains the names of columns in the data.
-        seed: Random seed.
-        debug: Load less data if true.
-        cv_repetitions: Number of times to repeat cross validation.
-        repetition_index: Index of the repetition to return.
-        cv_folds: Number of folds to use for cross validation.
-        load_cache: Use cached preprocessed data if true.
-        generate_cache: Generate cached preprocessed data if true.
-        fold_index: Index of the fold to return.
-        pretrained_imputation_model: pretrained imputation model to use. if None, standard imputation is used.
-
-    Returns:
-        Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC) / DYNAMIC/ OUTCOME
-            nested within split (train/val/test).
-    """
-
-    cache_dir = data_dir / "cache"
-
-    if not use_static:
-        file_names.pop(Segment.static)
-        vars.pop(Segment.static)
-
-    dumped_file_names = json.dumps(file_names, sort_keys=True)
-    dumped_vars = json.dumps(vars, sort_keys=True)
-
-    logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
-    preprocessor = preprocessor(use_static_features=use_static)
-    if isinstance(preprocessor, DefaultClassificationPreprocessor):
-        preprocessor.set_imputation_model(pretrained_imputation_model)
-
-    hash_config = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{debug}".encode("utf-8")
-    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_d_{debug}_{hashlib.md5(hash_config).hexdigest()}"
-    cache_file = cache_dir / cache_filename
-
-    if load_cache:
-        if cache_file.exists():
-            with open(cache_file, "rb") as f:
-                logging.info(f"Loading cached data from {cache_file}.")
-                return pickle.load(f)
-        else:
-            logging.info(f"No cached data found in {cache_file}, loading raw features.")
-
-    logging.info(f"Loading data from directory {data_dir.absolute()}")
-    # Read parquet files into pandas dataframes and remove the parquet file from memory
-    data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
-    #if runmode == RunMode.regression:
-        #max = data[Segment.outcome]["label"].max()
-    prevalence = data["OUTCOME"].groupby("stay_id").max()
-    static = data["STATIC"]
-    median = prevalence["label"].median()
-    avg = prevalence["label"].mean()
-
-    prevalence_sum = prevalence["label"].sum()
-    logging.info("Generating splits.")
-    data = make_single_split(data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug, runmode= runmode)
-
-    data = preprocessor.apply(data, vars)
-
-    if generate_cache:
-        caching(cache_dir, cache_file, data, load_cache)
-    else:
-        logging.info("Cache will not be saved.")
-
-    logging.info("Finished preprocessing.")
-
-    return data
-
 
 def caching(cache_dir, cache_file, data, use_cache, overwrite=True):
     if use_cache and (not overwrite or not cache_file.exists()):
