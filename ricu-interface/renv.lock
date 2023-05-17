@@ -727,17 +727,6 @@
       ],
       "Hash": "2681cdea2f2f3446691071ea30f745b5"
     },
-    "rlang": {
-      "Package": "rlang",
-      "Version": "1.1.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "utils"
-      ],
-      "Hash": "dc079ccd156cde8647360f473c1fa718"
-    },
     "rmarkdown": {
       "Package": "rmarkdown",
       "Version": "2.21",
@@ -918,20 +907,6 @@
         "R"
       ],
       "Hash": "1fe17157424bb09c48a8b3b550c753bc"
-    },
-    "vctrs": {
-      "Package": "vctrs",
-      "Version": "0.6.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "cli",
-        "glue",
-        "lifecycle",
-        "rlang"
-      ],
-      "Hash": "06eceb3a5d716fd0654cc23ca3d71a99"
     },
     "vroom": {
       "Package": "vroom",

@@ -28,4 +28,5 @@ dependencies:
       - git+https://github.com/rvandewater/recipys.git
       - hyperimpute==0.1.16
       - pypots==0.0.9
+      - rpy2==3.5.6
 
