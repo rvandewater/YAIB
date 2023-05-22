@@ -12,6 +12,7 @@ NUM_CLASSES = 1
 HORIZON = 24
 
 train_common.weight = "balanced"
+train_common.ram_cache = False
 
 # DEEP LEARNING
 DLClassificationWrapper.loss = @mse_loss
