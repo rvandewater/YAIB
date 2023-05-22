@@ -1,0 +1,50 @@
+command:
+  - ${env}
+  - ${program}
+  - train
+  - -d
+  - ../../data/
+  - -t
+  - Regression
+  - --log-dir
+  - ../yaib_logs/crea_sweep
+  - --checkpoint
+  - test
+  - --tune
+  - --wandb-sweep
+  - --wandb
+  - -gc
+  - -lc
+#  - --verbose
+
+method: grid
+name: crea_demo #lgbm #sepsis_sweep_LGBM
+parameters:
+  data_dir:
+    values:
+#      - ../../data/crea/miiv
+#      - ../../data/crea/hirid
+#      - ../../data/crea/eicu
+#      - ../../data/crea/aumc
+      - ../../data/crea/eicu_demo
+      - ../../data/crea/mimic_demo
+#      - data/YAIB_Datasets/data/sepsis/miiv
+#      - ../../data/sepsis_moor/miiv
+#      - ../data/eicu
+#      - ../data/hirid
+  model:
+    values:
+#      - TCN
+#      - Transformer
+#      - LogisticRegression
+#      - LGBMClassifier
+      - LGBMRegressor
+#      - LSTM
+      - GRU
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks

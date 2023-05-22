@@ -158,6 +158,7 @@ def main(my_args=tuple(sys.argv[1:])):
         mode=mode,
         pretrained_imputation_model=pretrained_imputation_model,
         cpu=args.cpu,
+        wandb=args.wandb_sweep,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)

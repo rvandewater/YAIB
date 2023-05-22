@@ -32,7 +32,8 @@ def choose_and_bind_hyperparameters(
     generate_cache: bool = False,
     load_cache: bool = False,
     debug: bool = False,
-    verbose: bool = False
+    verbose: bool = False,
+    wandb: bool = False
 ):
     """Choose hyperparameters to tune and bind them to gin.
 
@@ -104,7 +105,8 @@ def choose_and_bind_hyperparameters(
                 load_cache=load_cache,
                 test_on="val",
                 debug=debug,
-                verbose=verbose
+                verbose=verbose,
+                wandb=wandb
             )
 
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]

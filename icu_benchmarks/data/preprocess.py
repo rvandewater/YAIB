@@ -88,10 +88,10 @@ def preprocess_data(
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
     #if runmode == RunMode.regression:
         #max = data[Segment.outcome]["label"].max()
-    # prevalence = data["OUTCOME"].groupby("stay_id").max()
-    # static = data["STATIC"]
-    # median = prevalence["label"].median()
-    # avg = prevalence["label"].mean()
+    prevalence = data["OUTCOME"].groupby("stay_id").max()
+    static = data["STATIC"]
+    median = prevalence["label"].median()
+    avg = prevalence["label"].max()
 
     # prevalence_sum = prevalence["label"].sum()
     logging.info("Generating splits.")

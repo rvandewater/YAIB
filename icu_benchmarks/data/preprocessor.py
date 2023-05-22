@@ -130,15 +130,15 @@ class DefaultClassificationPreprocessor(Preprocessor):
         if self.generate_features:
             dyn_rec = self.dynamic_feature_generation(dyn_rec, all_of(vars[Segment.dynamic]))
         data = self.apply_recipe_to_Splits(dyn_rec, data, Segment.dynamic)
-        data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].loc[
-            :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
-        ]
-        data[Split.val][Segment.dynamic] = data[Split.val][Segment.dynamic].loc[
-            :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
-        ]
-        data[Split.test][Segment.dynamic] = data[Split.test][Segment.dynamic].loc[
-            :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
-        ]
+        # data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].loc[
+        #     :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
+        # ]
+        # data[Split.val][Segment.dynamic] = data[Split.val][Segment.dynamic].loc[
+        #     :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
+        # ]
+        # data[Split.test][Segment.dynamic] = data[Split.test][Segment.dynamic].loc[
+        #     :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
+        # ]
         return data
 
     def dynamic_feature_generation(self, data, dynamic_vars):
@@ -223,7 +223,13 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
 
     def process_outcome(self, data, vars, split):
         logging.debug(f"Processing {split} outcome values.")
-        outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"], vars["SEQUENCE"])
+        outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"])
+        # if(vars["SEQUENCE"] in data[split][Segment.outcome].columns):
+        #     # Seq2Seq regression
+        #     outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"], vars["SEQUENCE"])
+        # else:
+        #     # Regression
+        #     outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"])
         outcome_rec.add_step(StepSklearn(sklearn_transformer=MinMaxScaler(), sel=all_outcomes()))
         outcome_rec.prep()
         data[split][Segment.outcome] = outcome_rec.bake()

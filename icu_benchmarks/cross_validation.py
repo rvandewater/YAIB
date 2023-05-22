@@ -34,6 +34,7 @@ def execute_repeated_cv(
     pretrained_imputation_model: object = None,
     cpu: bool = False,
     verbose: bool = False,
+    wandb: bool = False
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -60,21 +61,11 @@ def execute_repeated_cv(
     Returns:
         The average loss of all folds.
     """
-
     if not cv_repetitions_to_train:
         cv_repetitions_to_train = cv_repetitions
     if not cv_folds_to_train:
         cv_folds_to_train = cv_folds
     agg_loss = 0
-
-    # Set Pytorch Lightning logger
-    # log_fmt = "%(asctime)s - %(levelname)s: %(message)s"
-    # logging.getLogger("pytorch_lightning").handlers[0].setFormatter(logging.Formatter(log_fmt, datefmt="%Y-%m-%d %H:%M:%S"))
-    # if not verbose:
-    #     logging.getLogger("pytorch_lightning").setLevel(logging.INFO)
-    #     warnings.filterwarnings("ignore")
-    # else:
-    #     logging.getLogger("pytorch_lightning").setLevel(logging.DEBUG)
 
     seed_everything(seed, reproducible)
     for repetition in range(cv_repetitions_to_train):
@@ -108,6 +99,7 @@ def execute_repeated_cv(
                 mode=mode,
                 cpu=cpu,
                 verbose=verbose,
+                use_wandb=wandb
             )
             train_time = datetime.now() - start_time
 
@@ -119,7 +111,8 @@ def execute_repeated_cv(
 
             with open(repetition_fold_dir / "durations.json", "w") as f:
                 json.dump(durations, f, cls=JsonResultLoggingEncoder)
-            wandb_log({"iteration": repetition * cv_folds_to_train + fold_index})
+            if wandb:
+                wandb_log({"Iteration": repetition * cv_folds_to_train + fold_index})
             if repetition * cv_folds_to_train + fold_index > 1:
                 aggregate_results(log_dir)
         log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)

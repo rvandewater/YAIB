@@ -1,5 +1,5 @@
 import logging
-
+from ..wandb_utils import update_wandb_config
 import gin
 
 
@@ -42,3 +42,4 @@ def bind_gin_params(hyperparams_names: list[str], hyperparams_values: list):
     for param, value in zip(hyperparams_names, hyperparams_values):
         gin.bind_parameter(param, value)
         logging.info(f"{param} = {value}")
+        update_wandb_config({param: value})
