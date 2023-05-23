@@ -44,9 +44,6 @@ preprocess.preprocessor = @base_classification_preprocessor
 preprocess.vars = %vars
 preprocess.use_static = %static_features
 
-base_classification_preprocessor.use_static_features = False
-base_classification_preprocessor.vars = %vars
-
 # SELECTING DATASET
 ClassificationDataset.vars = %vars
 ClassificationDataset.ram_cache = True

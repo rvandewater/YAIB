@@ -45,9 +45,6 @@ preprocess.preprocessor = @base_regression_preprocessor
 preprocess.vars = %vars
 preprocess.use_static = %static_features
 
-base_regression_preprocessor.use_static_features = False
-base_regression_preprocessor.vars = %vars
-
 # SPECIFYING REGRESSION OUTCOME SCALING
 base_regression_preprocessor.outcome_min = 0
 base_regression_preprocessor.outcome_max = 15

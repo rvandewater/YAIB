@@ -28,7 +28,7 @@ class Preprocessor:
 @gin.configurable("base_classification_preprocessor")
 class DefaultClassificationPreprocessor(Preprocessor):
     def __init__(
-            self, generate_features: bool = True, scaling: bool = True, use_static_features: bool = True, vars: dict = None
+            self, generate_features: bool = True, scaling: bool = True, use_static_features: bool = True
     ):
         """
         Args:
@@ -42,7 +42,6 @@ class DefaultClassificationPreprocessor(Preprocessor):
         self.scaling = scaling
         self.use_static_features = use_static_features
         self.imputation_model = None
-        self.vars = vars
 
     def set_imputation_model(self, imputation_model):
         self.imputation_model = imputation_model
@@ -99,7 +98,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
         sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
 
-        data = self.apply_recipe_to_Splits(sta_rec, data, Segment.static)
+        data = self.apply_recipe_to_splits(sta_rec, data, Segment.static)
 
         return data
 
@@ -129,7 +128,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         dyn_rec.add_step(StepImputeFill(value=0))
         if self.generate_features:
             dyn_rec = self.dynamic_feature_generation(dyn_rec, all_of(vars[Segment.dynamic]))
-        data = self.apply_recipe_to_Splits(dyn_rec, data, Segment.dynamic)
+        data = self.apply_recipe_to_splits(dyn_rec, data, Segment.dynamic)
         # data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].loc[
         #     :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
         # ]
@@ -156,7 +155,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         )
 
     @staticmethod
-    def apply_recipe_to_Splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
+    def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
         """Fits and transforms the training features, then transforms the validation and test features with the recipe.
 
         Args:
@@ -243,12 +242,6 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
     def process_outcome(self, data, vars, split):
         logging.debug(f"Processing {split} outcome values.")
         outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"])
-        # if(vars["SEQUENCE"] in data[split][Segment.outcome].columns):
-        #     # Seq2Seq regression
-        #     outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"], vars["SEQUENCE"])
-        # else:
-        #     # Regression
-        #     outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"])
         # If the range is predefined, use predefined transformation function
         if self.outcome_max is not None and self.outcome_min is not None:
             outcome_rec.add_step(StepSklearn(sklearn_transformer=FunctionTransformer(func=
@@ -268,18 +261,15 @@ class DefaultImputationPreprocessor(Preprocessor):
             scaling: bool = True,
             use_static_features: bool = True,
             filter_missing_values: bool = True,
-            vars: dict = None,
     ):
         """Preprocesses data for imputation.
 
         Args:
             scaling (bool, optional): If the values in each column should be normalized. Defaults to True.
             use_static_features (bool, optional): If static features should be included in the dataset. Defaults to True.
-            vars (dict, optional): Dict containing column names in the data. Defaults to None.
         """
         self.scaling = scaling
         self.use_static_features = use_static_features
-        self.vars = vars
         self.filter_missing_values = filter_missing_values
 
     def apply(self, data, vars):
