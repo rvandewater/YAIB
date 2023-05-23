@@ -9,9 +9,6 @@ import inspect
 import gin
 import lightgbm
 import numpy as np
-
-from sklearn.metrics import mean_absolute_error
-
 import torch
 from ignite.exceptions import NotComputableError
 
@@ -21,7 +18,6 @@ from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 from pytorch_lightning import LightningModule
 
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
-from icu_benchmarks.models.metrics import MAE
 from icu_benchmarks.contants import RunMode
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
@@ -82,27 +78,28 @@ class BaseModule(LightningModule):
 
 
 @gin.configurable("DLWrapper")
-class DLWrapper(BaseModule):
+class DLWrapper(BaseModule, ABC):
     needs_training = True
     needs_fit = False
     _metrics_warning_printed = set()
 
     def __init__(
-        self,
-        loss=CrossEntropyLoss(),
-        optimizer=torch.optim.Adam,
-        run_mode: RunMode = RunMode.classification,
-        input_shape=None,
-        lr: float = 0.002,
-        momentum: float = 0.9,
-        lr_scheduler: Optional[str] = None,
-        lr_factor: float = 0.99,
-        lr_steps: Optional[List[int]] = None,
-        epochs: int = 100,
-        input_size: torch.Tensor = None,
-        initialization_method: str = "normal",
-        **kwargs,
+            self,
+            loss=CrossEntropyLoss(),
+            optimizer=torch.optim.Adam,
+            run_mode: RunMode = RunMode.classification,
+            input_shape=None,
+            lr: float = 0.002,
+            momentum: float = 0.9,
+            lr_scheduler: Optional[str] = None,
+            lr_factor: float = 0.99,
+            lr_steps: Optional[List[int]] = None,
+            epochs: int = 100,
+            input_size: torch.Tensor = None,
+            initialization_method: str = "normal",
+            **kwargs,
     ):
+        """Interface for Deep Learning models."""
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
@@ -159,8 +156,8 @@ class DLWrapper(BaseModule):
         return super().on_test_epoch_start()
 
 
-@gin.configurable("DLClassificationWrapper")
-class DLClassificationWrapper(DLWrapper):
+@gin.configurable("DLPredictionWrapper")
+class DLPredictionWrapper(DLWrapper):
     """Interface for Deep Learning models."""
 
     def set_weight(self, weight, dataset):
@@ -174,6 +171,7 @@ class DLClassificationWrapper(DLWrapper):
 
     def set_metrics(self, *args):
         """Set the evaluation metrics for the prediction model."""
+
         def softmax_binary_output_transform(output):
             with torch.no_grad():
                 y_pred, y = output
@@ -248,8 +246,8 @@ class DLClassificationWrapper(DLWrapper):
         return loss
 
 
-@gin.configurable("MLClassificationWrapper")
-class MLClassificationWrapper(BaseModule):
+@gin.configurable("MLWrapper")
+class MLWrapper(BaseModule, ABC):
     """Interface for prediction with traditional Machine Learning models."""
 
     needs_training = False
@@ -263,7 +261,6 @@ class MLClassificationWrapper(BaseModule):
         self.run_mode = run_mode
 
     def set_metrics(self, labels):
-        """Set the evaluation metrics for the prediction model."""
         if self.run_mode == RunMode.classification:
             # Binary classification
             if len(np.unique(labels)) == 2:
@@ -293,6 +290,7 @@ class MLClassificationWrapper(BaseModule):
 
     def fit(self, train_dataset, val_dataset):
         """Fit the model to the training data."""
+
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
         train_rep, train_label = torch.from_numpy(train_rep).to(self.device), torch.from_numpy(train_label).to(self.device)
@@ -327,14 +325,8 @@ class MLClassificationWrapper(BaseModule):
 
         self.log("train/loss", 0.0, sync_dist=True)
         self.log("val/loss", val_loss, sync_dist=True)
-        self.log_dict(
-            {
-                f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
-                for name, metric in self.metrics.items()
-                if "_Curve" not in name
-            },
-            sync_dist=True,
-        )
+        self.log_metrics(train_label, train_pred, "train")
+
 
     def validation_step(self, val_dataset, _):
         val_rep, val_label = val_dataset.get_data_and_labels()
@@ -346,30 +338,31 @@ class MLClassificationWrapper(BaseModule):
         else:
             val_pred = self.model.predict_proba(val_rep)
 
-        self.log_dict(
-            {
-                f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
-                for name, metric in self.metrics.items()
-                if "_Curve" not in name
-            },
-            sync_dist=True,
-        )
+        self.log_metrics(val_label, val_pred, "val")
+
 
     def test_step(self, dataset, _):
         test_rep, test_label = dataset
         test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
         self.set_metrics(test_label)
-        if self.run_mode == RunMode.regression or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
+        # If we use regression or reload a LGBM classifier
+        if self.run_mode == RunMode.regression or isinstance(self.model, lightgbm.basic.Booster):
             test_pred = self.model.predict(test_rep)
         else:
             test_pred = self.model.predict_proba(test_rep)
 
         self.log("test/loss", 0.0, sync_dist=True)
+        self.log_metrics(test_label, test_pred, "test")
+
+    def log_metrics(self, label, pred, metric_type):
+        """Log metrics to the PL logs."""
+
         self.log_dict(
             {
-                f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
+                f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred))
                 for name, metric in self.metrics.items()
-                if "_Curve" not in name
+                # Filter out metrics that return a tuple (e.g. precision_recall_curve)
+                if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
             },
             sync_dist=True,
         )
@@ -392,17 +385,17 @@ class ImputationWrapper(DLWrapper):
     needs_fit = False
 
     def __init__(
-        self,
-        loss: _Loss = MSELoss(),
-        optimizer: Union[str, Optimizer] = "adam",
-        lr: float = 0.002,
-        momentum: float = 0.9,
-        lr_scheduler: Optional[str] = None,
-        lr_factor: float = 0.99,
-        lr_steps: Optional[List[int]] = None,
-        input_size: torch.Tensor = None,
-        initialization_method: ImputationInit = ImputationInit.NORMAL,
-        **kwargs: str,
+            self,
+            loss: _Loss = MSELoss(),
+            optimizer: Union[str, Optimizer] = "adam",
+            lr: float = 0.002,
+            momentum: float = 0.9,
+            lr_scheduler: Optional[str] = None,
+            lr_factor: float = 0.99,
+            lr_steps: Optional[List[int]] = None,
+            input_size: torch.Tensor = None,
+            initialization_method: ImputationInit = ImputationInit.NORMAL,
+            **kwargs: str,
     ) -> None:
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])

@@ -12,6 +12,7 @@ from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import log_full_line
 from icu_benchmarks.tuning.gin_utils import get_gin_hyperparameters, bind_gin_params
 from icu_benchmarks.contants import RunMode
+from icu_benchmarks.wandb_utils import wandb_log
 TUNE = 25
 logging.addLevelName(25, "TUNE")
 
@@ -121,6 +122,7 @@ def choose_and_bind_hyperparameters(
             table_cells = [len(res.x_iters)] + res.x_iters[-1] + [res.func_vals[-1]]
             highlight = res.x_iters[-1] == res.x  # highlight if best so far
             log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
+            wandb_log({"hp-iteration" : len(res.x_iters)})
 
     if do_tune:
         log_full_line("STARTING TUNING", level=TUNE, char="=")

@@ -1,13 +1,13 @@
 import gin
 import lightgbm
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression as sklearn_LogisticRegression
-
-from icu_benchmarks.models.wrappers import MLClassificationWrapper
-
-
+from sklearn.linear_model import LogisticRegression, Perceptron
+from sklearn import svm
+from icu_benchmarks.models.wrappers import MLWrapper
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+# SKLearn models
 @gin.configurable
-class LGBMClassifier(MLClassificationWrapper):
+class LGBMClassifier(MLWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
@@ -18,7 +18,7 @@ class LGBMClassifier(MLClassificationWrapper):
 
 
 @gin.configurable
-class LGBMRegressor(MLClassificationWrapper):
+class LGBMRegressor(MLWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
@@ -29,18 +29,18 @@ class LGBMRegressor(MLClassificationWrapper):
 
 
 @gin.configurable
-class LogisticRegression(MLClassificationWrapper):
+class LogisticRegression(MLWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
 
     @gin.configurable(module="LogisticRegression")
     def model_args(self, *args, **kwargs):
-        return sklearn_LogisticRegression(*args, **kwargs)
+        return LogisticRegression(*args, **kwargs)
 
 
 @gin.configurable
-class RFClassifier(MLClassificationWrapper):
+class RFClassifier(MLWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
@@ -48,3 +48,54 @@ class RFClassifier(MLClassificationWrapper):
     @gin.configurable(module="RFClassifier")
     def model_args(self, *args, **kwargs):
         return RandomForestClassifier(*args, **kwargs)
+
+
+@gin.configurable
+class SVMClassifier(MLWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = self.model_args()
+
+    @gin.configurable(module="SVMClassifier")
+    def model_args(self, *args, **kwargs):
+        return svm.SVC(*args, **kwargs)
+
+@gin.configurable
+class SVMRegressor(MLWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = self.model_args()
+
+    @gin.configurable(module="SVMRegressor")
+    def model_args(self, *args, **kwargs):
+        return svm.SVR(*args, **kwargs)
+
+@gin.configurable
+class PerceptronClassifier(MLWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = self.model_args()
+
+    @gin.configurable(module="PerceptronClassifier")
+    def model_args(self, *args, **kwargs):
+        return Perceptron(*args, **kwargs)
+
+
+@gin.configurable
+class MLPClassifier(MLWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = self.model_args()
+
+    @gin.configurable(module="MLPClassifier")
+    def model_args(self, *args, **kwargs):
+        return MLPClassifier(*args, **kwargs)
+
+class MLPRegressor(MLWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = self.model_args()
+
+    @gin.configurable(module="MLPRegressor")
+    def model_args(self, *args, **kwargs):
+        return MLPRegressor(*args, **kwargs)

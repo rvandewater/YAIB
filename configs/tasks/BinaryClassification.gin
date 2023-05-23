@@ -15,7 +15,7 @@ HORIZON = 24
 train_common.weight = "balanced"
 
 # DEEP LEARNING
-DLClassificationWrapper.loss = @cross_entropy
+DLPredictionWrapper.loss = @cross_entropy
 
 # DATASET
 preprocess.file_names = {

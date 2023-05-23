@@ -7,7 +7,7 @@ base_regression_preprocessor.generate_features = True
 
 # Train params
 train_common.model = @LGBMRegressor
-MLClassificationWrapper.patience = 10
+MLWrapper.patience = 10
 
 model/hyperparameter.class_to_tune = @LGBMRegressor
 model/hyperparameter.colsample_bytree = (0.33, 1.0)
