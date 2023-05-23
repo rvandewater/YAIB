@@ -7,7 +7,7 @@ from recipys.recipe import Recipe
 from recipys.selector import all_numeric_predictors, all_outcomes, has_type, all_of
 from recipys.step import StepScale, StepImputeFill, StepSklearn, StepHistorical, Accumulator, StepImputeModel
 from sklearn.impute import SimpleImputer, MissingIndicator
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+from sklearn.preprocessing import LabelEncoder, FunctionTransformer, MinMaxScaler
 
 from icu_benchmarks.wandb_utils import update_wandb_config
 from icu_benchmarks.data.loader import ImputationPredictionDataset
@@ -28,7 +28,7 @@ class Preprocessor:
 @gin.configurable("base_classification_preprocessor")
 class DefaultClassificationPreprocessor(Preprocessor):
     def __init__(
-        self, generate_features: bool = True, scaling: bool = True, use_static_features: bool = True, vars: dict = None
+            self, generate_features: bool = True, scaling: bool = True, use_static_features: bool = True, vars: dict = None
     ):
         """
         Args:
@@ -151,8 +151,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
 
     def to_cache_string(self):
         return (
-            super().to_cache_string()
-            + f"_classification_{self.generate_features}_{self.scaling}_{self.imputation_model.__class__.__name__}"
+                super().to_cache_string()
+                + f"_classification_{self.generate_features}_{self.scaling}_{self.imputation_model.__class__.__name__}"
         )
 
     @staticmethod
@@ -172,9 +172,28 @@ class DefaultClassificationPreprocessor(Preprocessor):
         data[Split.test][type] = recipe.bake(data[Split.test][type])
         return data
 
+
 @gin.configurable("base_regression_preprocessor")
 class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
     # Override base classification preprocessor
+    def __init__(
+            self, generate_features: bool = True, scaling: bool = True, use_static_features: bool = True, vars: dict = None,
+            outcome_max=None, outcome_min=None
+    ):
+        """
+        Args:
+            generate_features: Generate features for dynamic data.
+            scaling: Scaling of dynamic and static data.
+            use_static_features: Use static features.
+            max_range: Maximum value in outcome.
+            min_range: Minimum value in outcome.
+        Returns:
+            Preprocessed data.
+        """
+        super().__init__(generate_features, scaling, use_static_features, vars)
+        self.outcome_max = outcome_max
+        self.outcome_min = outcome_min
+
     def apply(self, data, vars):
         """
         Args:
@@ -230,18 +249,26 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
         # else:
         #     # Regression
         #     outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"])
-        outcome_rec.add_step(StepSklearn(sklearn_transformer=MinMaxScaler(), sel=all_outcomes()))
+        # If the range is predefined, use predefined transformation function
+        if self.outcome_max is not None and self.outcome_min is not None:
+            outcome_rec.add_step(StepSklearn(sklearn_transformer=FunctionTransformer(func=
+                lambda x: ((x + abs(self.outcome_min)) / (abs(self.outcome_min) + self.outcome_max))), sel=all_outcomes()))
+        else:
+            # If the range is not predefined, use MinMaxScaler
+            outcome_rec.add_step(StepSklearn(MinMaxScaler(), sel=all_outcomes()))
         outcome_rec.prep()
         data[split][Segment.outcome] = outcome_rec.bake()
         return data
+
+
 @gin.configurable("base_imputation_preprocessor")
 class DefaultImputationPreprocessor(Preprocessor):
     def __init__(
-        self,
-        scaling: bool = True,
-        use_static_features: bool = True,
-        filter_missing_values: bool = True,
-        vars: dict = None,
+            self,
+            scaling: bool = True,
+            use_static_features: bool = True,
+            filter_missing_values: bool = True,
+            vars: dict = None,
     ):
         """Preprocesses data for imputation.
 

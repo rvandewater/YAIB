@@ -120,10 +120,6 @@ def train_common(
     model.set_trained_columns(train_dataset.get_feature_names())
 
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
-    if use_wandb:
-        run_name = f"{type(model).__name__}"
-        loggers.append(WandbLogger(run_name, save_dir=log_dir))
-        set_wandb_run_name(run_name)
 
     callbacks = [
         EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),

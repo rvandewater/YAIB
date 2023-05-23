@@ -9,7 +9,7 @@ import importlib.util
 
 import torch.cuda
 
-from icu_benchmarks.wandb_utils import update_wandb_config, apply_wandb_sweep
+from icu_benchmarks.wandb_utils import update_wandb_config, apply_wandb_sweep, set_wandb_run_name
 from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters
 from scripts.plotting.utils import plot_aggregated_results
 from icu_benchmarks.cross_validation import execute_repeated_cv
@@ -33,31 +33,42 @@ def get_mode(mode: gin.REQUIRED):
 def main(my_args=tuple(sys.argv[1:])):
     args, _ = build_parser().parse_known_args(my_args)
 
+    # Set arguments for wandb sweep
+    if args.wandb_sweep:
+        args = apply_wandb_sweep(args)
+
     # Initialize loggers
     log_format = "%(asctime)s - %(levelname)s - %(name)s : %(message)s"
     date_format = "%Y-%m-%d %H:%M:%S"
     verbose = args.verbose
     setup_logging(date_format, log_format, verbose)
 
-    if args.wandb_sweep:
-        args = apply_wandb_sweep(args)
-
     # Load weights if in evaluation mode
     load_weights = args.command == "evaluate"
-    args.data_dir = Path(args.data_dir)
+    data_dir = Path(args.data_dir)
 
-    # Set experiment name
+    # Get arguments
     name = args.name
-    if name is None:
-        name = args.data_dir.name
-    logging.info(f"Running experiment {name}.")
     task = args.task
     model = args.model
+    reproducible = args.reproducible
+
+    # Set experiment name
+    if name is None:
+        name = data_dir.name
+    logging.info(f"Running experiment {name}.")
+
+
 
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
 
     mode = get_mode()
+
+    if args.wandb_sweep:
+        run_name = f"{mode}_{model}_{name}"
+        set_wandb_run_name(run_name)
+
     logging.info(f"Task mode: {mode}.")
     experiment = args.experiment
 
@@ -72,8 +83,6 @@ def main(my_args=tuple(sys.argv[1:])):
         }
     )
     source_dir = None
-    # todo:check if this is correct
-    reproducible = args.reproducible
     log_dir_name = args.log_dir / name
     log_dir = (
         (log_dir_name / experiment)
@@ -126,11 +135,11 @@ def main(my_args=tuple(sys.argv[1:])):
             else [model_path, Path(f"configs/tasks/{task}.gin")]
         )
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
-        log_full_line(f"Data directory: {args.data_dir.resolve()}", level=logging.INFO)
+        log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
         run_dir = create_run_dir(log_dir)
         choose_and_bind_hyperparameters(
             args.tune,
-            args.data_dir,
+            data_dir,
             run_dir,
             args.seed,
             run_mode=mode,
@@ -145,7 +154,7 @@ def main(my_args=tuple(sys.argv[1:])):
     log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)
     start_time = datetime.now()
     execute_repeated_cv(
-        args.data_dir,
+        data_dir,
         run_dir,
         args.seed,
         load_weights=load_weights,
