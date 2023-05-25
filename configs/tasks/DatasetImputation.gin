@@ -2,7 +2,7 @@
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.ml_models
 import icu_benchmarks.models.dl_models
-import icu_benchmarks.data.preprocess
+import icu_benchmarks.data.split_process_data
 
 Run.mode = "Imputation"
 

@@ -7,7 +7,7 @@ from pytorch_lightning import seed_everything
 
 from icu_benchmarks.wandb_utils import wandb_log
 from icu_benchmarks.run_utils import aggregate_results
-from icu_benchmarks.data.preprocess import preprocess_data
+from icu_benchmarks.data.split_process_data import preprocess_data
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import log_full_line
