@@ -83,7 +83,7 @@ class BaseModule(LightningModule):
         raise NotImplementedError()
 
     def check_supported_runmode(self, runmode: RunMode):
-        if runmode not in self.supported_runmodes:
+        if runmode not in self.supported_run_modes:
             raise ValueError(f"Runmode {runmode} not supported for {self.__class__.__name__}")
         return True
 
@@ -94,7 +94,7 @@ class DLWrapper(BaseModule, ABC):
     needs_training = True
     needs_fit = False
     _metrics_warning_printed = set()
-    _supported_runmodes = [RunMode.classification, RunMode.regression, RunMode.imputation]
+    _supported_run_modes = [RunMode.classification, RunMode.regression, RunMode.imputation]
 
     def __init__(
             self,
@@ -182,7 +182,7 @@ class DLWrapper(BaseModule, ABC):
 @gin.configurable("DLPredictionWrapper")
 class DLPredictionWrapper(DLWrapper):
     """Interface for Deep Learning models."""
-    _supported_runmodes = [RunMode.classification, RunMode.regression]
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
     def set_weight(self, weight, dataset):
         """Set the weight for the loss function."""
 
@@ -271,11 +271,11 @@ class DLPredictionWrapper(DLWrapper):
 
 @gin.configurable("MLWrapper")
 class MLWrapper(BaseModule, ABC):
-    """Interface for prediction with traditional Machine Learning models."""
+    """Interface for prediction with traditional Scikit-learn-like Machine Learning models."""
 
     needs_training = False
     needs_fit = True
-    _supported_runmodes = [RunMode.classification, RunMode.regression]
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
 
     def __init__(self, *args, model=None, run_mode=RunMode.classification, loss=log_loss, patience=10, **kwargs):
         super().__init__()
@@ -379,7 +379,7 @@ class MLWrapper(BaseModule, ABC):
         test_rep, test_label = dataset
         test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
         self.set_metrics(test_label)
-        # If we use regression or reload a LGBM classifier
+        # If we use regression or reload a LGBM model, we need to use predict instead of predict_proba
         if self.run_mode == RunMode.regression or isinstance(self.model, lightgbm.basic.Booster):
             test_pred = self.model.predict(test_rep)
         else:
@@ -428,7 +428,7 @@ class ImputationWrapper(DLWrapper):
 
     needs_training = True
     needs_fit = False
-    _supported_runmodes = [RunMode.imputation]
+    _supported_run_modes = [RunMode.imputation]
     def __init__(
             self,
             loss: _Loss = MSELoss(),

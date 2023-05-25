@@ -121,6 +121,7 @@ def choose_and_bind_hyperparameters(
             f.write(json.dumps(data, cls=JsonResultLoggingEncoder))
             table_cells = [len(res.x_iters)] + res.x_iters[-1] + [res.func_vals[-1]]
             highlight = res.x_iters[-1] == res.x  # highlight if best so far
+            log_table_row(header, TUNE)
             log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
             wandb_log({"hp-iteration" : len(res.x_iters)})
 
@@ -148,7 +149,7 @@ def choose_and_bind_hyperparameters(
         y0=evaluation,
         n_calls=n_calls,
         n_initial_points=n_initial_points,
-        random_state=seed,
+        random_state=123,
         noise=1e-10,  # The models are deterministic, but noise is needed for the gp to work.
         callback=tune_step_callback if do_tune else None,
     )

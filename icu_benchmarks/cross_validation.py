@@ -99,7 +99,7 @@ def execute_repeated_cv(
                 mode=mode,
                 cpu=cpu,
                 verbose=verbose,
-                use_wandb=wandb
+                use_wandb=wandb,
             )
             train_time = datetime.now() - start_time
 

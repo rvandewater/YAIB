@@ -1,3 +1,6 @@
+import inspect
+import logging
+
 import gin
 import lightgbm
 from sklearn.ensemble import RandomForestClassifier
@@ -9,7 +12,7 @@ from icu_benchmarks.contants import RunMode
 
 @gin.configurable
 class LGBMClassifier(MLWrapper):
-    supported_runmodes = [RunMode.classification]
+    supported_run_modes = [RunMode.classification]
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
@@ -18,22 +21,23 @@ class LGBMClassifier(MLWrapper):
     def model_args(self, *args, **kwargs):
         return lightgbm.LGBMClassifier(*args, **kwargs)
 
-
 @gin.configurable
-class LGBMRegressor(MLWrapper):
-    supported_runmodes = [RunMode.regression]
+class LGBMRegressorWrapper(MLWrapper):
+    supported_run_modes = [RunMode.regression]
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
 
     @gin.configurable(module="LGBMRegressor")
     def model_args(self, *args, **kwargs):
+        # val = inspect.getargs(lightgbm.LGBMRegressor().__init__())
+        # logging.info(val)
         return lightgbm.LGBMRegressor(*args, **kwargs)
 
 # Scikit-learn models
 @gin.configurable
 class LogisticRegression(MLWrapper):
-    supported_runmodes = [RunMode.classification]
+    supported_run_modes = [RunMode.classification]
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
@@ -45,7 +49,7 @@ class LogisticRegression(MLWrapper):
 
 @gin.configurable
 class RFClassifier(MLWrapper):
-    supported_runmodes = [RunMode.classification]
+    supported_run_modes = [RunMode.classification]
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
@@ -57,7 +61,7 @@ class RFClassifier(MLWrapper):
 
 @gin.configurable
 class SVMClassifier(MLWrapper):
-    supported_runmodes = [RunMode.classification]
+    supported_run_modes = [RunMode.classification]
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
@@ -68,7 +72,7 @@ class SVMClassifier(MLWrapper):
 
 @gin.configurable
 class SVMRegressor(MLWrapper):
-    supported_runmodes = [RunMode.regression]
+    supported_run_modes = [RunMode.regression]
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
@@ -79,7 +83,7 @@ class SVMRegressor(MLWrapper):
 
 @gin.configurable
 class PerceptronClassifier(MLWrapper):
-    supported_runmodes = [RunMode.classification]
+    supported_run_modes = [RunMode.classification]
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
@@ -91,7 +95,7 @@ class PerceptronClassifier(MLWrapper):
 
 @gin.configurable
 class MLPClassifier(MLWrapper):
-    supported_runmodes = [RunMode.classification]
+    supported_run_modes = [RunMode.classification]
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()
@@ -101,7 +105,7 @@ class MLPClassifier(MLWrapper):
         return MLPClassifier(*args, **kwargs)
 
 class MLPRegressor(MLWrapper):
-    supported_runmodes = [RunMode.regression]
+    supported_run_modes = [RunMode.regression]
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = self.model_args()

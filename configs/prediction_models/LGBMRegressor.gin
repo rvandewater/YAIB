@@ -6,10 +6,10 @@ import icu_benchmarks.models.utils
 base_regression_preprocessor.generate_features = True
 
 # Train params
-train_common.model = @LGBMRegressor
+train_common.model = @LGBMRegressorWrapper
 MLWrapper.patience = 10
 
-model/hyperparameter.class_to_tune = @LGBMRegressor
+model/hyperparameter.class_to_tune = @LGBMRegressorWrapper
 model/hyperparameter.colsample_bytree = (0.33, 1.0)
 model/hyperparameter.max_depth = (3, 7)
 model/hyperparameter.min_child_samples = 1000
@@ -21,5 +21,5 @@ model/hyperparameter.eval_metric = "logloss"
 
 tune_hyperparameters.scopes = ["model"]
 tune_hyperparameters.n_initial_points = 10
-tune_hyperparameters.n_calls = 50
+tune_hyperparameters.n_calls = 150
 tune_hyperparameters.folds_to_tune_on = 3
