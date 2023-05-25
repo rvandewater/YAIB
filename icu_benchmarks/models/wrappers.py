@@ -82,6 +82,11 @@ class BaseModule(LightningModule):
     def save_model(self, save_path, file_name, file_extension):
         raise NotImplementedError()
 
+    def check_supported_runmode(self, runmode: RunMode):
+        if runmode not in self.supported_runmodes:
+            raise ValueError(f"Runmode {runmode} not supported for {self.__class__.__name__}")
+        return True
+
 
 
 @gin.configurable("DLWrapper")
@@ -89,6 +94,7 @@ class DLWrapper(BaseModule, ABC):
     needs_training = True
     needs_fit = False
     _metrics_warning_printed = set()
+    _supported_runmodes = [RunMode.classification, RunMode.regression, RunMode.imputation]
 
     def __init__(
             self,
@@ -112,6 +118,7 @@ class DLWrapper(BaseModule, ABC):
         self.loss = loss
         self.optimizer = optimizer
         self.scaler = None
+        self.check_supported_runmode(run_mode)
         self.run_mode = run_mode
 
     def on_fit_start(self):
@@ -175,7 +182,7 @@ class DLWrapper(BaseModule, ABC):
 @gin.configurable("DLPredictionWrapper")
 class DLPredictionWrapper(DLWrapper):
     """Interface for Deep Learning models."""
-
+    _supported_runmodes = [RunMode.classification, RunMode.regression]
     def set_weight(self, weight, dataset):
         """Set the weight for the loss function."""
 
@@ -268,12 +275,14 @@ class MLWrapper(BaseModule, ABC):
 
     needs_training = False
     needs_fit = True
+    _supported_runmodes = [RunMode.classification, RunMode.regression]
 
     def __init__(self, *args, model=None, run_mode=RunMode.classification, loss=log_loss, patience=10, **kwargs):
         super().__init__()
         self.save_hyperparameters()
         self.model = model
         self.scaler = None
+        self.check_supported_runmode(run_mode)
         self.run_mode = run_mode
         self.loss = loss
         self.patience = patience
@@ -410,8 +419,6 @@ class MLWrapper(BaseModule, ABC):
         except Exception as e:
             logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
 
-    def check_supported_runmode(self):
-        return True
 
 
 
@@ -421,11 +428,12 @@ class ImputationWrapper(DLWrapper):
 
     needs_training = True
     needs_fit = False
-
+    _supported_runmodes = [RunMode.imputation]
     def __init__(
             self,
             loss: _Loss = MSELoss(),
             optimizer: Union[str, Optimizer] = "adam",
+            runmode: RunMode = RunMode.imputation,
             lr: float = 0.002,
             momentum: float = 0.9,
             lr_scheduler: Optional[str] = None,
@@ -436,6 +444,8 @@ class ImputationWrapper(DLWrapper):
             **kwargs: str,
     ) -> None:
         super().__init__()
+        self.check_supported_runmode(runmode)
+        self.run_mode = runmode
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer
