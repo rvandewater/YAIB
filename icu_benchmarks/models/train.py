@@ -9,7 +9,6 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
 from pathlib import Path
-
 from icu_benchmarks.wandb_utils import set_wandb_run_name
 from icu_benchmarks.data.loader import ClassificationDataset, ImputationDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
@@ -145,10 +144,7 @@ def train_common(
     if model.needs_fit:
         logging.info("Fitting model to data.")
         model.fit(train_dataset, val_dataset)
-        try:
-            torch.save(model, log_dir / "last.ckpt")
-        except Exception as e:
-            logging.error(f"Cannot save model to path {str((log_dir / 'last.ckpt').resolve())}: {e}.")
+        model.save_model(log_dir, "last")
         logging.info("Fitting complete.")
 
     if model.needs_training:

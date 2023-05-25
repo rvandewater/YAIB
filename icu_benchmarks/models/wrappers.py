@@ -2,6 +2,9 @@ import logging
 from abc import ABC
 from typing import Dict, Any
 from typing import List, Optional, Union
+
+import sklearn.metrics
+from sklearn.metrics import log_loss, mean_squared_error
 from torch.nn import MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
@@ -11,10 +14,9 @@ import lightgbm
 import numpy as np
 import torch
 from ignite.exceptions import NotComputableError
-
 from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
-
+from joblib import dump
 from pytorch_lightning import LightningModule
 
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
@@ -24,6 +26,7 @@ gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
 
+gin.config.external_configurable(sklearn.metrics.mean_squared_error, module="sklearn.metrics")
 
 @gin.configurable("BaseModule")
 class BaseModule(LightningModule):
@@ -75,6 +78,10 @@ class BaseModule(LightningModule):
         checkpoint["class"] = self.__class__
         checkpoint["trained_columns"] = self.trained_columns
         return super().on_save_checkpoint(checkpoint)
+
+    def save_model(self, save_path, file_name, file_extension):
+        raise NotImplementedError()
+
 
 
 @gin.configurable("DLWrapper")
@@ -154,6 +161,15 @@ class DLWrapper(BaseModule, ABC):
             for step_name in ["train", "val", "test"]
         }
         return super().on_test_epoch_start()
+
+    def save_model(self, save_path, file_name, file_extension=".ckpt"):
+        path = save_path / (file_name + file_extension)
+        try:
+            torch.save(self, path)
+            logging.info(f"Model saved to {str(path.resolve())}.")
+        except Exception as e:
+            logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
+
 
 
 @gin.configurable("DLPredictionWrapper")
@@ -253,12 +269,15 @@ class MLWrapper(BaseModule, ABC):
     needs_training = False
     needs_fit = True
 
-    def __init__(self, *args, model=None, run_mode=RunMode.classification, patience=10, **kwargs):
+    def __init__(self, *args, model=None, run_mode=RunMode.classification, loss=log_loss, patience=10, **kwargs):
         super().__init__()
         self.save_hyperparameters()
         self.model = model
         self.scaler = None
         self.run_mode = run_mode
+        self.loss = loss
+        self.patience = patience
+
 
     def set_metrics(self, labels):
         if self.run_mode == RunMode.classification:
@@ -291,22 +310,25 @@ class MLWrapper(BaseModule, ABC):
     def fit(self, train_dataset, val_dataset):
         """Fit the model to the training data."""
 
+
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
-        train_rep, train_label = torch.from_numpy(train_rep).to(self.device), torch.from_numpy(train_label).to(self.device)
-        val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
-        self.set_metrics(train_label)
+
+        # train_rep, train_label = torch.from_numpy(train_rep).to(self.device), torch.from_numpy(train_label).to(self.device)
+        # val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
+        # self.set_metrics(train_label)
 
         if "class_weight" in self.model.get_params().keys():  # Set class weights
             self.model.set_params(class_weight=self.weight)
 
-        if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
+        # Check if we can get the validation loss (e.g. LGBM)
+        if "eval_set" in inspect.getfullargspec(self.model.fit).args:
             self.model.set_params(random_state=np.random.get_state()[1][0])
 
             self.model.fit(
-                train_rep.cpu().numpy(),
-                train_label.cpu().numpy(),
-                eval_set=(val_rep.cpu().numpy(), val_label.cpu().numpy()),
+                train_rep,
+                train_label,
+                eval_set=(val_rep, val_label),
                 callbacks=[
                     lightgbm.early_stopping(self.hparams.patience, verbose=False),
                     lightgbm.log_evaluation(period=-1, show_stdv=False),
@@ -315,6 +337,7 @@ class MLWrapper(BaseModule, ABC):
             val_loss = list(self.model.best_score_["valid_0"].values())[0]
         else:
             val_loss = 0.0
+
             self.model.fit(train_rep, train_label)
 
         if self.run_mode == RunMode.regression:
@@ -323,7 +346,8 @@ class MLWrapper(BaseModule, ABC):
             # Classification
             train_pred = self.model.predict_proba(train_rep)
 
-        self.log("train/loss", 0.0, sync_dist=True)
+        # self.log("train/loss", 0.0, sync_dist=True)
+        self.log("train/loss", self.loss(train_label, train_pred), sync_dist=True)
         self.log("val/loss", val_loss, sync_dist=True)
         self.log_metrics(train_label, train_pred, "train")
 
@@ -338,6 +362,7 @@ class MLWrapper(BaseModule, ABC):
         else:
             val_pred = self.model.predict_proba(val_rep)
 
+        self.log_metrics("val/loss", self.loss(val_label, val_pred), sync_dist=True)
         self.log_metrics(val_label, val_pred, "val")
 
 
@@ -351,7 +376,8 @@ class MLWrapper(BaseModule, ABC):
         else:
             test_pred = self.model.predict_proba(test_rep)
 
-        self.log("test/loss", 0.0, sync_dist=True)
+        # self.log("test/loss", 0.0, sync_dist=True)
+        self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
         self.log_metrics(test_label, test_pred, "test")
 
     def log_metrics(self, label, pred, metric_type):
@@ -375,6 +401,18 @@ class MLWrapper(BaseModule, ABC):
         del state["label_transform"]
         del state["output_transform"]
         return state
+
+    def save_model(self, save_path, file_name, file_extension=".joblib"):
+        path = save_path / (file_name + file_extension)
+        try:
+            dump(self.model, path)
+            logging.info(f"Model saved to {str(path.resolve())}.")
+        except Exception as e:
+            logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
+
+    def check_supported_runmode(self):
+        return True
+
 
 
 @gin.configurable("ImputationWrapper")

@@ -17,6 +17,7 @@ model/hyperparameter.n_estimators = 100000
 model/hyperparameter.num_leaves = (8, 128, "log-uniform", 2)
 model/hyperparameter.subsample = (0.33, 1.0)
 model/hyperparameter.subsample_freq = 1
+model/hyperparameter.eval_metric = "logloss"
 
 tune_hyperparameters.scopes = ["model"]
 tune_hyperparameters.n_initial_points = 10

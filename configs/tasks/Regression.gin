@@ -1,4 +1,4 @@
-import icu_benchmarks.data.preprocess
+import icu_benchmarks.data.split_process_data
 import icu_benchmarks.data.loader
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.dl_models
@@ -16,6 +16,7 @@ train_common.ram_cache = False
 
 # DEEP LEARNING
 DLPredictionWrapper.loss = @mse_loss
+MLWrapper.loss = @mean_squared_error
 
 # DATASET
 

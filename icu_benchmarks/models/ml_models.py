@@ -1,11 +1,12 @@
 import gin
 import lightgbm
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression, Perceptron
+from sklearn.linear_model import LogisticRegression as LR, Perceptron
 from sklearn import svm
 from icu_benchmarks.models.wrappers import MLWrapper
 from sklearn.neural_network import MLPClassifier, MLPRegressor
-# SKLearn models
+from icu_benchmarks.contants import RunMode
+
 @gin.configurable
 class LGBMClassifier(MLWrapper):
     def __init__(self, *args, **kwargs):
@@ -27,7 +28,7 @@ class LGBMRegressor(MLWrapper):
     def model_args(self, *args, **kwargs):
         return lightgbm.LGBMRegressor(*args, **kwargs)
 
-
+# Scikit-learn models
 @gin.configurable
 class LogisticRegression(MLWrapper):
     def __init__(self, *args, **kwargs):
@@ -36,7 +37,7 @@ class LogisticRegression(MLWrapper):
 
     @gin.configurable(module="LogisticRegression")
     def model_args(self, *args, **kwargs):
-        return LogisticRegression(*args, **kwargs)
+        return LR(*args, **kwargs)
 
 
 @gin.configurable
