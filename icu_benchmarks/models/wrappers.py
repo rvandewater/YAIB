@@ -277,10 +277,10 @@ class MLWrapper(BaseModule, ABC):
     needs_fit = True
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, *args, model=None, run_mode=RunMode.classification, loss=log_loss, patience=10, **kwargs):
+    def __init__(self, *args, run_mode=RunMode.classification, loss=log_loss, patience=10, **kwargs):
         super().__init__()
         self.save_hyperparameters()
-        self.model = model
+        # self.model = model
         self.scaler = None
         self.check_supported_runmode(run_mode)
         self.run_mode = run_mode
@@ -325,19 +325,20 @@ class MLWrapper(BaseModule, ABC):
 
         # train_rep, train_label = torch.from_numpy(train_rep).to(self.device), torch.from_numpy(train_label).to(self.device)
         # val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
-        # self.set_metrics(train_label)
+        self.set_metrics(train_label)
 
         if "class_weight" in self.model.get_params().keys():  # Set class weights
             self.model.set_params(class_weight=self.weight)
 
         # Check if we can get the validation loss (e.g. LGBM)
         if "eval_set" in inspect.getfullargspec(self.model.fit).args:
-            self.model.set_params(random_state=np.random.get_state()[1][0])
+            # self.model.set_params(random_state=np.random.get_state()[1][0])
 
             self.model.fit(
                 train_rep,
                 train_label,
                 eval_set=(val_rep, val_label),
+                verbose=True,
                 callbacks=[
                     lightgbm.early_stopping(self.hparams.patience, verbose=False),
                     lightgbm.log_evaluation(period=-1, show_stdv=False),
@@ -355,9 +356,13 @@ class MLWrapper(BaseModule, ABC):
             # Classification
             train_pred = self.model.predict_proba(train_rep)
 
+        logging.info(str(self. model))
         # self.log("train/loss", 0.0, sync_dist=True)
+        logging.info(f"train: labels: {train_label},train pred: {train_pred}")
         self.log("train/loss", self.loss(train_label, train_pred), sync_dist=True)
+        logging.info(f"Train loss: {self.loss(train_label, train_pred)}")
         self.log("val/loss", val_loss, sync_dist=True)
+        logging.info(f"Val loss: {val_loss}")
         self.log_metrics(train_label, train_pred, "train")
 
 
@@ -372,6 +377,7 @@ class MLWrapper(BaseModule, ABC):
             val_pred = self.model.predict_proba(val_rep)
 
         self.log_metrics("val/loss", self.loss(val_label, val_pred), sync_dist=True)
+        logging.info(f"Val loss: {self.loss(val_label, val_pred)}")
         self.log_metrics(val_label, val_pred, "val")
 
 
@@ -387,6 +393,7 @@ class MLWrapper(BaseModule, ABC):
 
         # self.log("test/loss", 0.0, sync_dist=True)
         self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
+        logging.info(f"Test loss: {self.loss(test_label, test_pred)}")
         self.log_metrics(test_label, test_pred, "test")
 
     def log_metrics(self, label, pred, metric_type):

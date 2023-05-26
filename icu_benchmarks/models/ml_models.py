@@ -10,29 +10,40 @@ from icu_benchmarks.models.wrappers import MLWrapper
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from icu_benchmarks.contants import RunMode
 
+
 @gin.configurable
 class LGBMClassifier(MLWrapper):
     supported_run_modes = [RunMode.classification]
     def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(*args, **kwargs)
         super().__init__(*args, **kwargs)
-        self.model = self.model_args()
+        # self.model = self.model_args()
 
     @gin.configurable(module="LGBMClassifier")
-    def model_args(self, *args, **kwargs):
-        return lightgbm.LGBMClassifier(*args, **kwargs)
+    def set_model_args(self, *args, **kwargs):
+        val = inspect.signature(lightgbm.LGBMClassifier.__init__).parameters
+        arguments = locals()["kwargs"]
+        possible_hps = list(val.keys())
+        hyperparams = {key: value for key, value in arguments.items() if key in possible_hps}
+        logging.info(hyperparams)
+        return lightgbm.LGBMClassifier(**hyperparams)
 
 @gin.configurable
 class LGBMRegressorWrapper(MLWrapper):
     supported_run_modes = [RunMode.regression]
     def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(*args, **kwargs)
         super().__init__(*args, **kwargs)
-        self.model = self.model_args()
+        # self.model = self.set_model_args(*args, **kwargs)
 
-    @gin.configurable(module="LGBMRegressor")
-    def model_args(self, *args, **kwargs):
-        # val = inspect.getargs(lightgbm.LGBMRegressor().__init__())
-        # logging.info(val)
-        return lightgbm.LGBMRegressor(*args, **kwargs)
+    # @gin.configurable(module="LGBMRegressor")
+    def set_model_args(self, *args, **kwargs):
+        val = inspect.signature(lightgbm.LGBMRegressor.__init__).parameters
+        arguments = locals()["kwargs"]
+        possible_hps = list(val.keys())
+        hyperparams = {key: value for key, value in arguments.items() if key in possible_hps}
+        logging.info(hyperparams)
+        return lightgbm.LGBMRegressor(**hyperparams)
 
 # Scikit-learn models
 @gin.configurable
