@@ -39,6 +39,9 @@ def choose_and_bind_hyperparameters(
     """Choose hyperparameters to tune and bind them to gin.
 
     Args:
+        wandb: Whether we use wandb or not.
+        load_cache: Load cached data if available.
+        generate_cache: Generate cache data.
         do_tune: Whether to tune hyperparameters or not.
         data_dir: Path to the data directory.
         log_dir: Path to the log directory.
@@ -89,7 +92,7 @@ def choose_and_bind_hyperparameters(
         else:
             logging.warning("No checkpoint file found, starting from scratch.")
 
-    # Function to
+    # Function that trains the model with the given hyperparameters.
     def bind_params_and_train(hyperparams):
         with tempfile.TemporaryDirectory(dir=log_dir) as temp_dir:
             bind_gin_params(hyperparams_names, hyperparams)
@@ -149,7 +152,7 @@ def choose_and_bind_hyperparameters(
         y0=evaluation,
         n_calls=n_calls,
         n_initial_points=n_initial_points,
-        random_state=123,
+        random_state=seed,
         noise=1e-10,  # The models are deterministic, but noise is needed for the gp to work.
         callback=tune_step_callback if do_tune else None,
     )

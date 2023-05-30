@@ -27,6 +27,7 @@ gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torc
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
 
 gin.config.external_configurable(sklearn.metrics.mean_squared_error, module="sklearn.metrics")
+gin.config.external_configurable(sklearn.metrics.log_loss, module="sklearn.metrics")
 
 @gin.configurable("BaseModule")
 class BaseModule(LightningModule):
@@ -83,7 +84,7 @@ class BaseModule(LightningModule):
         raise NotImplementedError()
 
     def check_supported_runmode(self, runmode: RunMode):
-        if runmode not in self.supported_run_modes:
+        if runmode not in self._supported_run_modes:
             raise ValueError(f"Runmode {runmode} not supported for {self.__class__.__name__}")
         return True
 
@@ -280,7 +281,6 @@ class MLWrapper(BaseModule, ABC):
     def __init__(self, *args, run_mode=RunMode.classification, loss=log_loss, patience=10, **kwargs):
         super().__init__()
         self.save_hyperparameters()
-        # self.model = model
         self.scaler = None
         self.check_supported_runmode(run_mode)
         self.run_mode = run_mode
@@ -292,10 +292,9 @@ class MLWrapper(BaseModule, ABC):
         if self.run_mode == RunMode.classification:
             # Binary classification
             if len(np.unique(labels)) == 2:
-                if isinstance(self.model, lightgbm.basic.Booster):
-                    self.output_transform = lambda x: x
-                else:
-                    self.output_transform = lambda x: x[:, 1]
+                # if isinstance(self.model, lightgbm.basic.Booster):
+                self.output_transform = lambda x: x
+                # self.output_transform = lambda x: x[:, 1]
                 self.label_transform = lambda x: x
 
                 self.metrics = MLMetrics.BINARY_CLASSIFICATION
@@ -318,8 +317,6 @@ class MLWrapper(BaseModule, ABC):
 
     def fit(self, train_dataset, val_dataset):
         """Fit the model to the training data."""
-
-
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
 
@@ -327,54 +324,42 @@ class MLWrapper(BaseModule, ABC):
         # val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(train_label)
 
-        if "class_weight" in self.model.get_params().keys():  # Set class weights
-            self.model.set_params(class_weight=self.weight)
+        # if "class_weight" in self.model.get_params().keys():  # Set class weights
+        #     self.model.set_params(class_weight=self.weight)
 
-        # Check if we can get the validation loss (e.g. LGBM)
-        if "eval_set" in inspect.getfullargspec(self.model.fit).args:
-            # self.model.set_params(random_state=np.random.get_state()[1][0])
+        val_loss = self.fit_model(train_rep, train_label, val_rep, val_label)
 
-            self.model.fit(
-                train_rep,
-                train_label,
-                eval_set=(val_rep, val_label),
-                verbose=True,
-                callbacks=[
-                    lightgbm.early_stopping(self.hparams.patience, verbose=False),
-                    lightgbm.log_evaluation(period=-1, show_stdv=False),
-                ],
-            )
-            val_loss = list(self.model.best_score_["valid_0"].values())[0]
-        else:
-            val_loss = 0.0
+        train_pred = self.predict(train_rep)
 
-            self.model.fit(train_rep, train_label)
+        # if self.run_mode == RunMode.regression:
+        #     train_pred = self.model.predict(train_rep)
+        # else:
+        #     # Classification
+        #     train_pred = self.model.predict_proba(train_rep)
 
-        if self.run_mode == RunMode.regression:
-            train_pred = self.model.predict(train_rep)
-        else:
-            # Classification
-            train_pred = self.model.predict_proba(train_rep)
-
-        logging.info(str(self. model))
-        # self.log("train/loss", 0.0, sync_dist=True)
-        logging.info(f"train: labels: {train_label},train pred: {train_pred}")
+        logging.debug(f"Model:{self.model}")
         self.log("train/loss", self.loss(train_label, train_pred), sync_dist=True)
-        logging.info(f"Train loss: {self.loss(train_label, train_pred)}")
+        logging.debug(f"Train loss: {self.loss(train_label, train_pred)}")
         self.log("val/loss", val_loss, sync_dist=True)
-        logging.info(f"Val loss: {val_loss}")
+        logging.debug(f"Val loss: {val_loss}")
         self.log_metrics(train_label, train_pred, "train")
 
+    def fit_model(self, train_data, train_labels, val_data, val_labels):
+        """Fit the model to the training data (default SKlearn syntax)"""
+        self.model.fit(train_data, train_labels)
+        val_loss = 0.0
+        return val_loss
 
     def validation_step(self, val_dataset, _):
         val_rep, val_label = val_dataset.get_data_and_labels()
         val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(val_label)
 
-        if self.run_mode == RunMode.regression:
-            val_pred = self.model.predict(val_rep)
-        else:
-            val_pred = self.model.predict_proba(val_rep)
+        # if self.run_mode == RunMode.regression:
+        #     val_pred = self.model.predict(val_rep)
+        # else:
+        #     val_pred = self.model.predict_proba
+        val_pred = self.predict(val_rep)
 
         self.log_metrics("val/loss", self.loss(val_label, val_pred), sync_dist=True)
         logging.info(f"Val loss: {self.loss(val_label, val_pred)}")
@@ -385,17 +370,16 @@ class MLWrapper(BaseModule, ABC):
         test_rep, test_label = dataset
         test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
         self.set_metrics(test_label)
-        # If we use regression or reload a LGBM model, we need to use predict instead of predict_proba
-        if self.run_mode == RunMode.regression or isinstance(self.model, lightgbm.basic.Booster):
-            test_pred = self.model.predict(test_rep)
-        else:
-            test_pred = self.model.predict_proba(test_rep)
+        test_pred = self.predict(test_rep)
 
-        # self.log("test/loss", 0.0, sync_dist=True)
         self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
-        logging.info(f"Test loss: {self.loss(test_label, test_pred)}")
+        logging.debug(f"Test loss: {self.loss(test_label, test_pred)}")
         self.log_metrics(test_label, test_pred, "test")
-
+    def predict(self, features):
+        if self.run_mode == RunMode.regression:
+            return self.model.predict(features)
+        else:
+            return self.model.predict(features)
     def log_metrics(self, label, pred, metric_type):
         """Log metrics to the PL logs."""
 
@@ -426,7 +410,16 @@ class MLWrapper(BaseModule, ABC):
         except Exception as e:
             logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
 
-
+    def set_model_args(self, model, *args, **kwargs):
+        """Set hyperparameters of the model if they are supported by the model."""
+        signature = inspect.signature(model.__init__).parameters
+        possible_hps = list(signature.keys())
+        # Get passed keyword arguments
+        arguments = locals()["kwargs"]
+        # Get valid hyperparameters
+        hyperparams = {key: value for key, value in arguments.items() if key in possible_hps}
+        logging.debug(f"Creating model with: {hyperparams}.")
+        return model(**hyperparams)
 
 
 @gin.configurable("ImputationWrapper")

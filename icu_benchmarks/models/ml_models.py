@@ -3,124 +3,121 @@ import logging
 
 import gin
 import lightgbm
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression as LR, Perceptron
+from sklearn import linear_model
+from sklearn import ensemble
+from sklearn import neural_network
 from sklearn import svm
 from icu_benchmarks.models.wrappers import MLWrapper
-from sklearn.neural_network import MLPClassifier, MLPRegressor
 from icu_benchmarks.contants import RunMode
 
 
+class LGBMWrapper(MLWrapper):
+    def fit_model(self, train_data, train_labels, val_data, val_labels):
+        """Fitting function for LGBM models."""
+        self.model.fit(
+            train_data,
+            train_labels,
+            eval_set=(val_data, val_labels),
+            verbose=True,
+            callbacks=[
+                lightgbm.early_stopping(self.hparams.patience, verbose=False),
+                lightgbm.log_evaluation(period=-1, show_stdv=False),
+            ],
+        )
+        val_loss = list(self.model.best_score_["valid_0"].values())[0]
+        return val_loss
+
+
 @gin.configurable
-class LGBMClassifier(MLWrapper):
-    supported_run_modes = [RunMode.classification]
-    def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(*args, **kwargs)
-        super().__init__(*args, **kwargs)
-        # self.model = self.model_args()
+class LGBMClassifier(LGBMWrapper):
+    _supported_run_modes = [RunMode.classification]
 
-    @gin.configurable(module="LGBMClassifier")
-    def set_model_args(self, *args, **kwargs):
-        val = inspect.signature(lightgbm.LGBMClassifier.__init__).parameters
-        arguments = locals()["kwargs"]
-        possible_hps = list(val.keys())
-        hyperparams = {key: value for key, value in arguments.items() if key in possible_hps}
-        logging.info(hyperparams)
-        return lightgbm.LGBMClassifier(**hyperparams)
+    def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(lightgbm.LGBMClassifier, *args, **kwargs)
+        super().__init__(*args, **kwargs)
+
 
 @gin.configurable
-class LGBMRegressorWrapper(MLWrapper):
-    supported_run_modes = [RunMode.regression]
-    def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(*args, **kwargs)
-        super().__init__(*args, **kwargs)
-        # self.model = self.set_model_args(*args, **kwargs)
+class LGBMRegressor(LGBMWrapper):
+    _supported_run_modes = [RunMode.regression]
 
-    # @gin.configurable(module="LGBMRegressor")
-    def set_model_args(self, *args, **kwargs):
-        val = inspect.signature(lightgbm.LGBMRegressor.__init__).parameters
-        arguments = locals()["kwargs"]
-        possible_hps = list(val.keys())
-        hyperparams = {key: value for key, value in arguments.items() if key in possible_hps}
-        logging.info(hyperparams)
-        return lightgbm.LGBMRegressor(**hyperparams)
+    def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(lightgbm.LGBMRegressor, *args, **kwargs)
+        super().__init__(*args, **kwargs)
+
 
 # Scikit-learn models
 @gin.configurable
 class LogisticRegression(MLWrapper):
-    supported_run_modes = [RunMode.classification]
+    __supported_run_modes = [RunMode.classification]
+
     def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(linear_model.LogisticRegression, *args, **kwargs)
         super().__init__(*args, **kwargs)
-        self.model = self.model_args()
 
-    @gin.configurable(module="LogisticRegression")
-    def model_args(self, *args, **kwargs):
-        return LR(*args, **kwargs)
+@gin.configurable()
+class LinearRegression(MLWrapper):
+    _supported_run_modes = [RunMode.regression]
 
+    def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(linear_model.LinearRegression, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
+@gin.configurable()
+class ElasticNet(MLWrapper):
+    _supported_run_modes = [RunMode.regression]
+
+    def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(linear_model.ElasticNet, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 @gin.configurable
 class RFClassifier(MLWrapper):
-    supported_run_modes = [RunMode.classification]
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = self.model_args()
+    _supported_run_modes = [RunMode.classification]
 
-    @gin.configurable(module="RFClassifier")
-    def model_args(self, *args, **kwargs):
-        return RandomForestClassifier(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(ensemble.RandomForestClassifier, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 @gin.configurable
 class SVMClassifier(MLWrapper):
-    supported_run_modes = [RunMode.classification]
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = self.model_args()
+    _supported_run_modes = [RunMode.classification]
 
-    @gin.configurable(module="SVMClassifier")
-    def model_args(self, *args, **kwargs):
-        return svm.SVC(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        self.model = self.model_args(svm.SVC, *args, **kwargs)
+        super().__init__(*args, **kwargs)
+
 
 @gin.configurable
 class SVMRegressor(MLWrapper):
-    supported_run_modes = [RunMode.regression]
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = self.model_args()
+    _supported_run_modes = [RunMode.regression]
 
-    @gin.configurable(module="SVMRegressor")
-    def model_args(self, *args, **kwargs):
-        return svm.SVR(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        self.model = self.model_args(svm.SVR, *args, **kwargs)
+        super().__init__(*args, **kwargs)
+
 
 @gin.configurable
 class PerceptronClassifier(MLWrapper):
-    supported_run_modes = [RunMode.classification]
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = self.model_args()
+    _supported_run_modes = [RunMode.classification]
 
-    @gin.configurable(module="PerceptronClassifier")
-    def model_args(self, *args, **kwargs):
-        return Perceptron(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(neural_network.MLPClassifier, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 @gin.configurable
 class MLPClassifier(MLWrapper):
-    supported_run_modes = [RunMode.classification]
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = self.model_args()
+    _supported_run_modes = [RunMode.classification]
 
-    @gin.configurable(module="MLPClassifier")
-    def model_args(self, *args, **kwargs):
-        return MLPClassifier(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(neural_network.MLPClassifier, *args, **kwargs)
+        super().__init__(*args, **kwargs)
+
 
 class MLPRegressor(MLWrapper):
-    supported_run_modes = [RunMode.regression]
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = self.model_args()
+    _supported_run_modes = [RunMode.regression]
 
-    @gin.configurable(module="MLPRegressor")
-    def model_args(self, *args, **kwargs):
-        return MLPRegressor(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(neural_network.MLPRegressor, *args, **kwargs)
+        super().__init__(*args, **kwargs)
