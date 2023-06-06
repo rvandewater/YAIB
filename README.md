@@ -41,8 +41,7 @@ If you use this code in your research, please cite the following publication:
 ```
 ```
 
-This paper can also be found on arxiv: TBD
-
+This paper can also be found on arxiv: TBD. For all YAIB related repositories, please see: https://github.com/stars/rvandewater/lists/yaib. 
 # Installation
 
 YAIB can be installed using conda or pip. Below you will find the three CLI commands to install YAIB using conda.
