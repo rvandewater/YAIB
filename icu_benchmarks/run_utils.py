@@ -28,43 +28,64 @@ def build_parser() -> ArgumentParser:
     # ARGUMENTS FOR ALL COMMANDS
     general_args = parent_parser.add_argument_group("General arguments")
     general_args.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
+    general_args.add_argument("-t", "--task", default="BinaryClassification", required=True, help="Name of the task gin.")
     general_args.add_argument("-n", "--name", required=False, help="Name of the (target) dataset.")
-    general_args.add_argument("-t", "--task", default="BinaryClassification", help="Name of the task gin.")
-    general_args.add_argument("-tn", "--task-name", help="Name of the task.")
-    general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
-    general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
+    general_args.add_argument("-tn", "--task-name", required=False, help="Name of the task, used for naming experiments.")
+    general_args.add_argument("-m", "--model", default="LGBMClassifier", required=False, help="Name of the model gin.")
+    general_args.add_argument("-e", "--experiment", required=False, help="Name of the experiment gin.")
     general_args.add_argument(
         "-l", "--log-dir", required=False, default=Path("../yaib_logs/"), type=Path, help="Log directory with model weights."
     )
-    general_args.add_argument("-s", "--seed", default=1234, type=int, help="Random seed for processing, tuning and training.")
+    general_args.add_argument(
+        "-s", "--seed", required=False, default=1234, type=int, help="Random seed for processing, tuning and training."
+    )
     general_args.add_argument(
         "-v",
         "--verbose",
         default=False,
+        required=False,
         action=BooleanOptionalAction,
         help="Whether to use verbose logging. Disable for clean logs.",
     )
-    general_args.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to use CPU.")
-    general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
+    general_args.add_argument("--cpu", default=False, required=False, action=BooleanOptionalAction, help="Set to use CPU.")
     general_args.add_argument(
-        "-lc", "--load_cache", default=False, action=BooleanOptionalAction, help="Set to load generated data cache."
+        "-db", "--debug", required=False, default=False, action=BooleanOptionalAction, help="Set to load less data."
     )
     general_args.add_argument(
-        "-gc", "--generate_cache", default=False, action=BooleanOptionalAction, help="Set to generate data cache."
+        "-lc",
+        "--load_cache",
+        required=False,
+        default=False,
+        action=BooleanOptionalAction,
+        help="Set to load generated data cache.",
     )
-    general_args.add_argument("-p", "--preprocessor", type=Path, help="Load custom preprocessor from file.")
-    general_args.add_argument("-pl", "--plot", action=BooleanOptionalAction, help="Generate common plots.")
-    general_args.add_argument("--wandb-sweep", action="store_true", help="activates wandb hyper parameter sweep")
     general_args.add_argument(
-        "--use-pretrained-imputation", required=False, type=str, help="Path to pretrained imputation model."
+        "-gc",
+        "--generate_cache",
+        required=False,
+        default=False,
+        action=BooleanOptionalAction,
+        help="Set to generate data cache.",
+    )
+    general_args.add_argument("-p", "--preprocessor", required=False, type=Path, help="Load custom preprocessor from file.")
+    general_args.add_argument("-pl", "--plot", required=False, action=BooleanOptionalAction, help="Generate common plots.")
+    general_args.add_argument(
+        "-wd", "--wandb-sweep", required=False, action="store_true", help="Activates wandb hyper parameter sweep."
+    )
+    general_args.add_argument(
+        "-imp", "--pretrained-imputation", required=False, type=str, help="Path to pretrained imputation model."
     )
 
     # MODEL TRAINING ARGUMENTS
-    prep_and_train = subparsers.add_parser("train", help="Preprocess features and train model.", parents=[parent_parser])
-    prep_and_train.add_argument("--reproducible", default=True, action=BooleanOptionalAction, help="Make torch reproducible.")
-    prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
+    prep_and_train = subparsers.add_parser(
+        "train", help="Preprocess features and train model.", parents=[parent_parser]
+    )
+    prep_and_train.add_argument(
+        "--reproducible", required=False, default=True, action=BooleanOptionalAction, help="Make torch reproducible."
+    )
+    prep_and_train.add_argument("-hp", "--hyperparams", required=False, nargs="+", help="Hyperparameters for model.")
     prep_and_train.add_argument("--tune", default=False, action=BooleanOptionalAction, help="Find best hyperparameters.")
-    prep_and_train.add_argument("--checkpoint", type=Path, help="Use previous checkpoint.")
+    prep_and_train.add_argument("--checkpoint", required=False, type=Path, help="Use previous checkpoint.")
 
     # EVALUATION PARSER
     evaluate = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
@@ -92,6 +113,7 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     if randomly_searched_params:
         (log_dir_run / randomly_searched_params).touch()
     return log_dir_run
+
 
 def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     """Aggregates results from all folds and writes to JSON file.
@@ -129,13 +151,12 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                     list_scores[metric] = list_scores.setdefault(metric, [])
                     list_scores[metric].append(score)
 
-
     # Compute statistical metric over aggregated results
     averaged_scores = {metric: (mean(list)) for metric, list in list_scores.items()}
 
     # Calculate the population standard deviation over aggregated results over folds/iterations
     # Divide by sqrt(n) to get standard deviation.
-    std_scores = {metric: (pstdev(list)/sqrt(len(list))) for metric, list in list_scores.items()}
+    std_scores = {metric: (pstdev(list) / sqrt(len(list))) for metric, list in list_scores.items()}
 
     confidence_interval = {
         metric: (stats.t.interval(0.95, len(list) - 1, loc=mean(list), scale=stats.sem(list)))
@@ -158,6 +179,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     logging.info(f"Accumulated results: {accumulated_metrics}")
 
     wandb_log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
+
 
 def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
     """Logs a full line of a given character with a message centered.
@@ -210,12 +232,12 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
 
 def setup_logging(date_format, log_format, verbose):
     """
-        Set up all loggers to use the same format and date format.
+    Set up all loggers to use the same format and date format.
 
-        Args:
-            date_format: Format for the date.
-            log_format: Format for the log.
-            verbose: Whether to log debug messages.
+    Args:
+        date_format: Format for the date.
+        log_format: Format for the log.
+        verbose: Whether to log debug messages.
     """
     logging.basicConfig(format=log_format, datefmt=date_format)
     loggers = ["pytorch_lightning", "lightning_fabric"]

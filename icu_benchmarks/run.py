@@ -72,7 +72,7 @@ def main(my_args=tuple(sys.argv[1:])):
     logging.info(f"Task mode: {mode}.")
     experiment = args.experiment
 
-    pretrained_imputation_model = load_pretrained_imputation_model(args.use_pretrained_imputation)
+    pretrained_imputation_model = load_pretrained_imputation_model(args.pretrained_imputation)
 
     # Log imputation model to wandb
     update_wandb_config(
