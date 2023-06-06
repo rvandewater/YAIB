@@ -14,7 +14,7 @@ We support the following datasets out of the box:
 
 | Dataset                 | [MIMIC-III](https://physionet.org/content/mimiciii/) / [IV](https://physionet.org/content/mimiciv/) | [eICU-CRD](https://physionet.org/content/eicu-crd/) | [HiRID](https://physionet.org/content/hirid/1.1.1/) | [AUMCdb](https://doi.org/10.17026/dans-22u-f8vd) |
 |-------------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------|-----------------------------------------------------|--------------------------------------------------|
-| Admissions              | 40k / 50k                                                                                           | 200k                                                | 33k                                                 | 23k                                              |
+| Admissions              | 40k / 73k                                                                                           | 200k                                                | 33k                                                 | 23k                                              |
 | Frequency (time-series) | 1 hour                                                                                              | 5 minutes                                           | 2 / 5 minutes                                       | up to 1 minute                                   |
 | Origin                  | USA                                                                                                 | USA                                                 | Switzerland                                         | Netherlands                                      |
 
@@ -32,10 +32,10 @@ We provide several common tasks for clinical prediction by default:
 | 4   | Kidney Function(KF)       | Once per stay | Regression |
 | 5   | Length of Stay (LoS)      | Hourly (within 7D) | Regression |
 
-For the purposes of getting started right away, we include the eICU and MIMIC-III demo datasets in our repository. 
+For the purposes of getting started right away, we include the eICU and MIMIC-III demo datasets in our repository.
 
 ## Paper
-
+To reproduce the benchmarks in our paper, we refer to: the [ML reproducibility document](PAPER.md).
 If you use this code in your research, please cite the following publication:
 
 ```
@@ -77,6 +77,8 @@ pip install torch numpy && pip install -e .[mps]
 
 # Usage
 
+Please refer to [our wiki](https://github.com/rvandewater/YAIB/wiki) for detailed information on how to use YAIB.
+
 ## Getting the Datasets
 
 HiRID, eICU, and MIMIC IV can be accessed through [PhysioNet](https://physionet.org/). A guide to this process can be
@@ -95,11 +97,12 @@ benchmark.
 
 ### Extracting cohorts
 
-Please refer to our [cohort definition](https://github.com/rvandewater/YAIB-cohorts) code for generating the cohorts to run our benchmark once you have gained access to the datasets. 
+Please refer to our [cohort definition](https://github.com/rvandewater/YAIB-cohorts) code for generating the cohorts to run our
+benchmark once you have gained access to the datasets.
 
 # Data
 
-Users can supply their own datasets in specific format. 
+Users can supply their own datasets in specific format.
 
 Adding a new dataset type can be easily done by providing it in a `.gin`
 task definition file, see. Note, however, that any datasets formatted in the default way do not require any changes to be
@@ -160,7 +163,6 @@ icu-benchmarks train \
 [//]: # (> Please note that, for Windows based systems, paths need to be formatted differently, e.g: ` r"\..\data\mortality_seq\hirid"`.)
 > For Windows based systems, the next line character (\\)  needs to be replaced by (^) (Command Prompt) or (`) (Powershell)
 > respectively.
-
 
 ## Evaluate
 
@@ -245,8 +247,7 @@ The benchmark provides the following built-in models:
   boosting trees.
 - [Long Short-term Memory (LSTM)](https://ieeexplore.ieee.org/document/818041): The most commonly used type of Recurrent Neural
   Networks for long sequences.
-- [Gated Recurrent Unit (GRU)](https://arxiv.org/abs/1406.1078) : A extension to LSTM which showed improvement over them in the
-  context of polyphonic music modeling and speech signal modeling ([paper](https://arxiv.org/abs/1412.3555)).
+- [Gated Recurrent Unit (GRU)](https://arxiv.org/abs/1406.1078) : A extension to LSTM which showed improvements ([paper](https://arxiv.org/abs/1412.3555)).
 - [Temporal Convolutional Networks (TCN)](https://arxiv.org/pdf/1803.01271 ): 1D convolution approach to sequence data. By
   using dilated convolution to extend the receptive field of the network it has shown great performance on long-term
   dependencies.
@@ -265,4 +266,6 @@ encourage further development to benefit the scientific community.
 
 # License
 
-This source code is released under the MIT license, included [here](LICENSE).
+This source code is released under the MIT license, included [here](LICENSE). We do not own any of the datasets used or
+included in this repository. The demo datasets have been released under
+an [Open Data Commons Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
