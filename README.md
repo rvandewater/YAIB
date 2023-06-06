@@ -9,7 +9,9 @@
 
 [//]: # (TODO: add coverage once we have some tests )
 
-Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on (ICU) EHR data.
+Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on Intensive Care Unit (
+ICU) EHR data.
+
 We support the following datasets out of the box:
 
 | Dataset                 | [MIMIC-III](https://physionet.org/content/mimiciii/) / [IV](https://physionet.org/content/mimiciv/) | [eICU-CRD](https://physionet.org/content/eicu-crd/) | [HiRID](https://physionet.org/content/hirid/1.1.1/) | [AUMCdb](https://doi.org/10.17026/dans-22u-f8vd) |
@@ -18,6 +20,7 @@ We support the following datasets out of the box:
 | Frequency (time-series) | 1 hour                                                                                              | 5 minutes                                           | 2 / 5 minutes                                       | up to 1 minute                                   |
 | Origin                  | USA                                                                                                 | USA                                                 | Switzerland                                         | Netherlands                                      |
 
+New datasets can also be added. We are currently working on a package to make this process as smooth as possible.
 The benchmark is designed for operating on preprocessed parquet files. We include five tasks by default:
 <!-- We refer to  PyICU (in development)
 or [ricu package](https://github.com/eth-mds/ricu) for generating these parquet files for particular cohorts and endpoints. -->
@@ -34,7 +37,13 @@ We provide several common tasks for clinical prediction by default:
 
 For the purposes of getting started right away, we include the eICU and MIMIC-III demo datasets in our repository.
 
+The following repositories may be relevant for you as well:
+- [YAIB-cohorts](https://github.com/rvandewater/YAIB-cohorts): Cohort generation for YAIB.
+- [YAIB-models](https://github.com/rvandewater/YAIB-models): Pretrained models for YAIB.
+- [ReciPys](https://github.com/rvandewater/ReciPys): Preprocessing package for YAIB pipelines.
+
 ## Paper
+
 To reproduce the benchmarks in our paper, we refer to: the [ML reproducibility document](PAPER.md).
 If you use this code in your research, please cite the following publication:
 
@@ -247,7 +256,8 @@ The benchmark provides the following built-in models:
   boosting trees.
 - [Long Short-term Memory (LSTM)](https://ieeexplore.ieee.org/document/818041): The most commonly used type of Recurrent Neural
   Networks for long sequences.
-- [Gated Recurrent Unit (GRU)](https://arxiv.org/abs/1406.1078) : A extension to LSTM which showed improvements ([paper](https://arxiv.org/abs/1412.3555)).
+- [Gated Recurrent Unit (GRU)](https://arxiv.org/abs/1406.1078) : A extension to LSTM which showed
+  improvements ([paper](https://arxiv.org/abs/1412.3555)).
 - [Temporal Convolutional Networks (TCN)](https://arxiv.org/pdf/1803.01271 ): 1D convolution approach to sequence data. By
   using dilated convolution to extend the receptive field of the network it has shown great performance on long-term
   dependencies.

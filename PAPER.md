@@ -99,7 +99,7 @@ icu-benchmarks evaluate \
 
 The current latest results are shown below. Note that there have been major changes between the classification and regression
 task experiments. However, results should be comparable overall. Updated results will be posted in the near future.
-![Results](docs/figures/results/results_yaib.png)
+![Results](docs/figures/results_yaib.png)
 
 ## Contributing
 
