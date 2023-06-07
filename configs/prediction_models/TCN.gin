@@ -1,3 +1,5 @@
+# Settings for Temporal Convolutional Network (TCN) model.
+
 # Common settings for DL models
 include "configs/prediction_models/common/DLCommon.gin"
 

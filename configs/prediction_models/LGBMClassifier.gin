@@ -1,3 +1,5 @@
+# Settings for Light Gradient Boosting Machine (LGBM) classifier.
+
 # Common settings for ML models
 include "configs/prediction_models/common/MLCommon.gin"
 

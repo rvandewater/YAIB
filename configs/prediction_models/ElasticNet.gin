@@ -1,3 +1,5 @@
+# Settings for ElasticNet model.
+
 # Common settings for ML models
 include "configs/prediction_models/common/MLCommon.gin"
 

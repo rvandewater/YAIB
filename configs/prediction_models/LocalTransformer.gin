@@ -1,3 +1,5 @@
+# Settings for Local Transformer Model.
+
 # Common settings for DL models
 include "configs/prediction_models/common/DLCommon.gin"
 

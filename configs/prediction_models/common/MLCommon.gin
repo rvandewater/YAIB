@@ -1,3 +1,5 @@
+# Common settings for ML models
+
 # Imports to register the models
 import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers

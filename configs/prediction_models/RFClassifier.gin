@@ -1,3 +1,5 @@
+# Settings for Random Forest Classifier.
+
 # Common settings for ML models
 include "configs/prediction_models/common/MLCommon.gin"
 

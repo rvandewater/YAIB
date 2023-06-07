@@ -1,9 +1,10 @@
-# Common settings for DL models
+# Settings for Gated Recurrent Unit (GRU) model.
+
+#Common settings for DL models
 include "configs/prediction_models/common/DLCommon.gin"
 
 # Train params
 train_common.model = @GRUNet
-
 
 # Optimizer params
 optimizer/hyperparameter.class_to_tune = @Adam

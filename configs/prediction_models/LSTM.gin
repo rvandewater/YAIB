@@ -1,3 +1,5 @@
+# Settings for Long Short-Term Memory (LSTM) model.
+
 # Common settings for DL models
 include "configs/prediction_models/common/DLCommon.gin"
 
