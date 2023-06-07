@@ -42,7 +42,6 @@ class SSSDSA(ImputationWrapper):
         *args,
         **kwargs,
     ):
-
         """
         SaShiMi model backbone.
 
@@ -226,7 +225,6 @@ class SSSDSA(ImputationWrapper):
         return next(self.parameters()).device
 
     def forward(self, input_data):
-
         # (transformed_X, cond, mask, diffusion_steps.view(B,1),))
         # audio_cond: same shape as audio, audio_mask: same shape as audio but binary to be imputed where zero
         noise, conditional, mask, diffusion_steps = input_data
@@ -391,7 +389,7 @@ class SSSDSA(ImputationWrapper):
             if self.unet:
                 for i in range(skipped):
                     next_state.append(state.pop())
-                u_layers = list(self.u_layers)[skipped // 3:]
+                u_layers = list(self.u_layers)[skipped // 3 :]
             else:
                 for i in range(skipped):
                     for _ in range(len(self.u_layers[i])):
@@ -678,7 +676,6 @@ class FFBlock(nn.Module):
 
 class ResidualBlock(nn.Module):
     def __init__(self, d_model, layer, dropout, diffusion_step_embed_dim_out, in_channels, label_embed_dim, stride):
-
         """
         Residual S4 block.
 

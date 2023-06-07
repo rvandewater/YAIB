@@ -13,6 +13,7 @@ from icu_benchmarks.run_utils import log_full_line
 from icu_benchmarks.tuning.gin_utils import get_gin_hyperparameters, bind_gin_params
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.wandb_utils import wandb_log
+
 TUNE = 25
 logging.addLevelName(25, "TUNE")
 
@@ -34,7 +35,7 @@ def choose_and_bind_hyperparameters(
     load_cache: bool = False,
     debug: bool = False,
     verbose: bool = False,
-    wandb: bool = False
+    wandb: bool = False,
 ):
     """Choose hyperparameters to tune and bind them to gin.
 
@@ -110,7 +111,7 @@ def choose_and_bind_hyperparameters(
                 test_on="val",
                 debug=debug,
                 verbose=verbose,
-                wandb=wandb
+                wandb=wandb,
             )
 
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
@@ -126,12 +127,15 @@ def choose_and_bind_hyperparameters(
             highlight = res.x_iters[-1] == res.x  # highlight if best so far
             log_table_row(header, TUNE)
             log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
-            wandb_log({"hp-iteration" : len(res.x_iters)})
+            wandb_log({"hp-iteration": len(res.x_iters)})
 
     if do_tune:
         log_full_line("STARTING TUNING", level=TUNE, char="=")
-        logging.log(TUNE, f"Applying Bayesian Optimization from {n_initial_points} points in {n_calls} "
-                          f"iterations on {folds_to_tune_on} folds.")
+        logging.log(
+            TUNE,
+            f"Applying Bayesian Optimization from {n_initial_points} points in {n_calls} "
+            f"iterations on {folds_to_tune_on} folds.",
+        )
         log_table_row(header, TUNE)
     else:
         logging.log(TUNE, "Hyperparameter tuning disabled")

@@ -193,6 +193,7 @@ MiracleImputation = wrap_hyperimpute_model("miracle", "Miracle")
 MiwaeImputation = wrap_hyperimpute_model("miwae", "Miwae")
 HyperImputation = wrap_hyperimpute_model("hyperimpute", "HyperImpute")
 
+
 @gin.configurable("BRITS")
 class BRITSImputation(ImputationWrapper):
     """Bidirectional Recurrent Imputation for Time Series (BRITS) imputation using PyPots package."""

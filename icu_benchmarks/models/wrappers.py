@@ -4,13 +4,12 @@ from typing import Dict, Any
 from typing import List, Optional, Union
 
 import sklearn.metrics
-from sklearn.metrics import log_loss, mean_squared_error
+from sklearn.metrics import log_loss
 from torch.nn import MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 import inspect
 import gin
-import lightgbm
 import numpy as np
 import torch
 from ignite.exceptions import NotComputableError
@@ -28,6 +27,7 @@ gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.
 
 gin.config.external_configurable(sklearn.metrics.mean_squared_error, module="sklearn.metrics")
 gin.config.external_configurable(sklearn.metrics.log_loss, module="sklearn.metrics")
+
 
 @gin.configurable("BaseModule")
 class BaseModule(LightningModule):
@@ -89,7 +89,6 @@ class BaseModule(LightningModule):
         return True
 
 
-
 @gin.configurable("DLWrapper")
 class DLWrapper(BaseModule, ABC):
     needs_training = True
@@ -98,20 +97,20 @@ class DLWrapper(BaseModule, ABC):
     _supported_run_modes = [RunMode.classification, RunMode.regression, RunMode.imputation]
 
     def __init__(
-            self,
-            loss=CrossEntropyLoss(),
-            optimizer=torch.optim.Adam,
-            run_mode: RunMode = RunMode.classification,
-            input_shape=None,
-            lr: float = 0.002,
-            momentum: float = 0.9,
-            lr_scheduler: Optional[str] = None,
-            lr_factor: float = 0.99,
-            lr_steps: Optional[List[int]] = None,
-            epochs: int = 100,
-            input_size: torch.Tensor = None,
-            initialization_method: str = "normal",
-            **kwargs,
+        self,
+        loss=CrossEntropyLoss(),
+        optimizer=torch.optim.Adam,
+        run_mode: RunMode = RunMode.classification,
+        input_shape=None,
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        epochs: int = 100,
+        input_size: torch.Tensor = None,
+        initialization_method: str = "normal",
+        **kwargs,
     ):
         """Interface for Deep Learning models."""
         super().__init__()
@@ -179,11 +178,12 @@ class DLWrapper(BaseModule, ABC):
             logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
 
 
-
 @gin.configurable("DLPredictionWrapper")
 class DLPredictionWrapper(DLWrapper):
     """Interface for Deep Learning models."""
+
     _supported_run_modes = [RunMode.classification, RunMode.regression]
+
     def set_weight(self, weight, dataset):
         """Set the weight for the loss function."""
 
@@ -256,7 +256,7 @@ class DLPredictionWrapper(DLWrapper):
         target = torch.masked_select(labels, mask).to(self.device)
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
-            loss = (self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss)
+            loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
             # torch.long because NLL
         elif self.run_mode == RunMode.regression:
             # Regression task
@@ -286,7 +286,6 @@ class MLWrapper(BaseModule, ABC):
         self.run_mode = run_mode
         self.loss = loss
         self.patience = patience
-
 
     def set_metrics(self, labels):
         if self.run_mode == RunMode.classification:
@@ -320,8 +319,6 @@ class MLWrapper(BaseModule, ABC):
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
 
-        # train_rep, train_label = torch.from_numpy(train_rep).to(self.device), torch.from_numpy(train_label).to(self.device)
-        # val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(train_label)
 
         # if "class_weight" in self.model.get_params().keys():  # Set class weights
@@ -330,12 +327,6 @@ class MLWrapper(BaseModule, ABC):
         val_loss = self.fit_model(train_rep, train_label, val_rep, val_label)
 
         train_pred = self.predict(train_rep)
-
-        # if self.run_mode == RunMode.regression:
-        #     train_pred = self.model.predict(train_rep)
-        # else:
-        #     # Classification
-        #     train_pred = self.model.predict_proba(train_rep)
 
         logging.debug(f"Model:{self.model}")
         self.log("train/loss", self.loss(train_label, train_pred), sync_dist=True)
@@ -355,16 +346,11 @@ class MLWrapper(BaseModule, ABC):
         val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(val_label)
 
-        # if self.run_mode == RunMode.regression:
-        #     val_pred = self.model.predict(val_rep)
-        # else:
-        #     val_pred = self.model.predict_proba
         val_pred = self.predict(val_rep)
 
         self.log_metrics("val/loss", self.loss(val_label, val_pred), sync_dist=True)
         logging.info(f"Val loss: {self.loss(val_label, val_pred)}")
         self.log_metrics(val_label, val_pred, "val")
-
 
     def test_step(self, dataset, _):
         test_rep, test_label = dataset
@@ -375,11 +361,13 @@ class MLWrapper(BaseModule, ABC):
         self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
         logging.debug(f"Test loss: {self.loss(test_label, test_pred)}")
         self.log_metrics(test_label, test_pred, "test")
+
     def predict(self, features):
         if self.run_mode == RunMode.regression:
             return self.model.predict(features)
         else:
             return self.model.predict(features)
+
     def log_metrics(self, label, pred, metric_type):
         """Log metrics to the PL logs."""
 
@@ -429,19 +417,20 @@ class ImputationWrapper(DLWrapper):
     needs_training = True
     needs_fit = False
     _supported_run_modes = [RunMode.imputation]
+
     def __init__(
-            self,
-            loss: _Loss = MSELoss(),
-            optimizer: Union[str, Optimizer] = "adam",
-            runmode: RunMode = RunMode.imputation,
-            lr: float = 0.002,
-            momentum: float = 0.9,
-            lr_scheduler: Optional[str] = None,
-            lr_factor: float = 0.99,
-            lr_steps: Optional[List[int]] = None,
-            input_size: torch.Tensor = None,
-            initialization_method: ImputationInit = ImputationInit.NORMAL,
-            **kwargs: str,
+        self,
+        loss: _Loss = MSELoss(),
+        optimizer: Union[str, Optimizer] = "adam",
+        runmode: RunMode = RunMode.imputation,
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        input_size: torch.Tensor = None,
+        initialization_method: ImputationInit = ImputationInit.NORMAL,
+        **kwargs: str,
     ) -> None:
         super().__init__()
         self.check_supported_runmode(runmode)

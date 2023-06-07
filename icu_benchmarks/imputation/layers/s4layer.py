@@ -685,9 +685,9 @@ class SSKernelNPLR(nn.Module):
             k_f = r[:-1, :-1, :, :] - r[:-1, -1:, :, :] * r[-1:, :-1, :, :] / (1 + r[-1:, -1:, :, :])
         elif self.rank == 2:
             r00 = r[: -self.rank, : -self.rank, :, :]
-            r01 = r[: -self.rank, -self.rank:, :, :]
-            r10 = r[-self.rank:, :-self.rank, :, :]
-            r11 = r[-self.rank:, -self.rank:, :, :]
+            r01 = r[: -self.rank, -self.rank :, :, :]
+            r10 = r[-self.rank :, : -self.rank, :, :]
+            r11 = r[-self.rank :, -self.rank :, :, :]
             det = (1 + r11[:1, :1, :, :]) * (1 + r11[1:, 1:, :, :]) - r11[:1, 1:, :, :] * r11[1:, :1, :, :]
             s = (
                 r01[:, :1, :, :] * (1 + r11[1:, 1:, :, :]) * r10[:1, :, :, :]
@@ -698,10 +698,10 @@ class SSKernelNPLR(nn.Module):
             s = s / det
             k_f = r00 - s
         else:
-            r00 = r[: -self.rank, :-self.rank, :, :]
-            r01 = r[: -self.rank, -self.rank:, :, :]
-            r10 = r[-self.rank:, : -self.rank, :, :]
-            r11 = r[-self.rank:, -self.rank:, :, :]
+            r00 = r[: -self.rank, : -self.rank, :, :]
+            r01 = r[: -self.rank, -self.rank :, :, :]
+            r10 = r[-self.rank :, : -self.rank, :, :]
+            r11 = r[-self.rank :, -self.rank :, :, :]
             r11 = rearrange(r11, "a b h n -> h n a b")
             r11 = torch.linalg.inv(torch.eye(self.rank, device=r.device) + r11)
             r11 = rearrange(r11, "h n a b -> a b h n")
@@ -1025,7 +1025,6 @@ class S4(nn.Module):
         # SSM Kernel arguments
         **kernel_args,
     ):
-
         """
         d_state: the dimension of the state, also denoted by N
         l_max: the maximum sequence length, also denoted by L

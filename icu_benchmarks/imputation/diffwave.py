@@ -73,7 +73,6 @@ class DiffWaveImputer(ImputationWrapper):
         return super().on_fit_start()
 
     def forward(self, input_data):
-
         noise, conditional, mask, diffusion_steps = input_data
 
         conditional = conditional * mask
@@ -302,7 +301,7 @@ class Residual_block(nn.Module):
         cond = self.cond_conv(cond)
         h += cond
 
-        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels:, :])
+        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels :, :])
 
         res = self.res_conv(out)
         assert x.shape == res.shape

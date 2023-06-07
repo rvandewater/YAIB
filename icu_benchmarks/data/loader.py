@@ -239,7 +239,6 @@ class ImputationPredictionDataset(Dataset):
         select_columns: List[str] = None,
         ram_cache: bool = True,
     ):
-
         self.dyn_df = data
 
         if select_columns is not None:

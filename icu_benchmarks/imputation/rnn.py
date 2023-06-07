@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import gin
 
+
 # Adapted from https://github.com/Graph-Machine-Learning-Group/grin/blob/main/lib/nn/models/rnn_imputers.py
 @gin.configurable("RNN")
 class RNNImputation(ImputationWrapper):

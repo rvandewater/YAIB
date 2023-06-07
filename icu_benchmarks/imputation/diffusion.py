@@ -220,7 +220,6 @@ class SimpleDiffusionModel(ImputationWrapper):
 
     # Function that takes an original sample x_0 and introduces random noise for some timestep t
     def forward_diffusion_sample(self, x_0, t):
-
         # Random Noise
         noise = torch.randn_like(x_0)
 

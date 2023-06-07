@@ -77,9 +77,7 @@ def build_parser() -> ArgumentParser:
     )
 
     # MODEL TRAINING ARGUMENTS
-    prep_and_train = subparsers.add_parser(
-        "train", help="Preprocess features and train model.", parents=[parent_parser]
-    )
+    prep_and_train = subparsers.add_parser("train", help="Preprocess features and train model.", parents=[parent_parser])
     prep_and_train.add_argument(
         "--reproducible", required=False, default=True, action=BooleanOptionalAction, help="Make torch reproducible."
     )

@@ -34,7 +34,7 @@ def execute_repeated_cv(
     pretrained_imputation_model: object = None,
     cpu: bool = False,
     verbose: bool = False,
-    wandb: bool = False
+    wandb: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -82,7 +82,7 @@ def execute_repeated_cv(
                 cv_folds=cv_folds,
                 fold_index=fold_index,
                 pretrained_imputation_model=pretrained_imputation_model,
-                runmode=mode
+                runmode=mode,
             )
 
             repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"

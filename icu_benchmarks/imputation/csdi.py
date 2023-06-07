@@ -33,7 +33,6 @@ class CSDI(ImputationWrapper):
         *args,
         **kwargs,
     ):
-
         super().__init__(
             input_size=input_size,
             time_step_embedding_size=time_step_embedding_size,
@@ -208,7 +207,6 @@ class CSDI(ImputationWrapper):
         return self.get_hist_mask(observed_mask)
 
     def forward(self, amputated_data, amputation_mask):
-
         amputated_data = amputated_data.permute(0, 2, 1)
         amputation_mask = amputation_mask.permute(0, 2, 1)
         observed_mask = torch.ones_like(amputation_mask) - amputation_mask

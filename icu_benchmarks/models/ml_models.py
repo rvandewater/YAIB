@@ -1,6 +1,3 @@
-import inspect
-import logging
-
 import gin
 import lightgbm
 from sklearn import linear_model
@@ -55,6 +52,7 @@ class LogisticRegression(MLWrapper):
         self.model = self.set_model_args(linear_model.LogisticRegression, *args, **kwargs)
         super().__init__(*args, **kwargs)
 
+
 @gin.configurable()
 class LinearRegression(MLWrapper):
     _supported_run_modes = [RunMode.regression]
@@ -63,6 +61,7 @@ class LinearRegression(MLWrapper):
         self.model = self.set_model_args(linear_model.LinearRegression, *args, **kwargs)
         super().__init__(*args, **kwargs)
 
+
 @gin.configurable()
 class ElasticNet(MLWrapper):
     _supported_run_modes = [RunMode.regression]
@@ -70,6 +69,8 @@ class ElasticNet(MLWrapper):
     def __init__(self, *args, **kwargs):
         self.model = self.set_model_args(linear_model.ElasticNet, *args, **kwargs)
         super().__init__(*args, **kwargs)
+
+
 @gin.configurable
 class RFClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]

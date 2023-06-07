@@ -83,7 +83,6 @@ class SSSDS4(ImputationWrapper):
         return super().on_fit_start()
 
     def forward(self, input_data):
-
         noise, conditional, mask, diffusion_steps = input_data
 
         conditional = torch.cat([conditional, mask.float()], dim=1)
@@ -299,7 +298,7 @@ class Residual_block(nn.Module):
 
         h = self.S42(h.permute(2, 0, 1)).permute(1, 2, 0)
 
-        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels:, :])
+        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels :, :])
 
         res = self.res_conv(out)
         assert x.shape == res.shape

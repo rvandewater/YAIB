@@ -18,7 +18,8 @@ from icu_benchmarks.run_utils import (
     create_run_dir,
     aggregate_results,
     log_full_line,
-    load_pretrained_imputation_model, setup_logging,
+    load_pretrained_imputation_model,
+    setup_logging,
 )
 from icu_benchmarks.contants import RunMode
 
@@ -58,8 +59,6 @@ def main(my_args=tuple(sys.argv[1:])):
         name = data_dir.name
     logging.info(f"Running experiment {name}.")
 
-
-
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
 
@@ -94,7 +93,7 @@ def main(my_args=tuple(sys.argv[1:])):
             log_full_line(f"Available GPU {name}: {torch.cuda.get_device_name(name)}", level=logging.INFO)
     else:
         log_full_line(
-            f"No GPUs available: please check your device and Torch,Cuda installation if unintended.", level=logging.WARNING
+            "No GPUs available: please check your device and Torch,Cuda installation if unintended.", level=logging.WARNING
         )
 
     log_full_line(f"Logging to {log_dir}.", logging.INFO)
@@ -121,13 +120,7 @@ def main(my_args=tuple(sys.argv[1:])):
         # Train
         checkpoint = log_dir / args.checkpoint if args.checkpoint else None
         model_path = (
-            Path("configs")
-            / (
-                "imputation_models"
-                if mode == RunMode.imputation
-                else "prediction_models"
-            )
-            / f"{model}.gin"
+            Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]
@@ -147,7 +140,7 @@ def main(my_args=tuple(sys.argv[1:])):
             debug=args.debug,
             generate_cache=args.generate_cache,
             load_cache=args.load_cache,
-            verbose=args.verbose
+            verbose=args.verbose,
         )
 
     log_full_line(f"Logging to {run_dir.resolve()}", level=logging.INFO)

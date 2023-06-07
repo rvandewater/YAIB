@@ -5,11 +5,10 @@ import logging
 import pandas as pd
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
 from pathlib import Path
-from icu_benchmarks.wandb_utils import set_wandb_run_name
 from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
@@ -26,26 +25,26 @@ def assure_minimum_length(dataset):
 
 @gin.configurable("train_common")
 def train_common(
-        data: dict[str, pd.DataFrame],
-        log_dir: Path,
-        load_weights: bool = False,
-        source_dir: Path = None,
-        reproducible: bool = True,
-        mode: str = RunMode.classification,
-        model: object = gin.REQUIRED,
-        weight: str = None,
-        optimizer: type = Adam,
-        precision=32,
-        batch_size=64,
-        epochs=1000,
-        patience=20,
-        min_delta=1e-5,
-        test_on: str = Split.test,
-        use_wandb: bool = False,
-        cpu: bool = False,
-        verbose=False,
-        ram_cache=False,
-        num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
+    data: dict[str, pd.DataFrame],
+    log_dir: Path,
+    load_weights: bool = False,
+    source_dir: Path = None,
+    reproducible: bool = True,
+    mode: str = RunMode.classification,
+    model: object = gin.REQUIRED,
+    weight: str = None,
+    optimizer: type = Adam,
+    precision=32,
+    batch_size=64,
+    epochs=1000,
+    patience=20,
+    min_delta=1e-5,
+    test_on: str = Split.test,
+    use_wandb: bool = False,
+    cpu: bool = False,
+    verbose=False,
+    ram_cache=False,
+    num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -127,7 +126,7 @@ def train_common(
     if verbose:
         callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
     if precision == 16 or "16-mixed":
-        torch.set_float32_matmul_precision('medium')
+        torch.set_float32_matmul_precision("medium")
     trainer = Trainer(
         max_epochs=epochs if model.needs_training else 1,
         callbacks=callbacks,
