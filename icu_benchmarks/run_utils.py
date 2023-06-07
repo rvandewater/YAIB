@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 import scipy.stats as stats
 import shutil
-from statistics import mean, stdev, pstdev
+from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
 
