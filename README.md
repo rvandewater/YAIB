@@ -1,6 +1,6 @@
 ![YAIB logo](docs/figures/yaib_logo.png)
 
-# Yet Another ICU Benchmark
+# 🧪 Yet Another ICU Benchmark
 
 [![CI](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml)
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -21,6 +21,7 @@ We support the following datasets out of the box:
 | **Frequency** (time-series) | 1 hour                                                                                              | 5 minutes                                           | 2 / 5 minutes                                       | up to 1 minute                                   |
 | **Originally published**    | 2015  / 2020                                                                                        | 2017                                                | 2020                                                | 2019                                             |                                                                                                     |                                                     |                                                     |                                                  |
 | **Origin**                  | USA                                                                                                 | USA                                                 | Switzerland                                         | Netherlands                                      |
+
 New datasets can also be added. We are currently working on a package to make this process as smooth as possible.
 The benchmark is designed for operating on preprocessed parquet files.
 <!-- We refer to  PyICU (in development)
@@ -35,15 +36,17 @@ We provide five common tasks for clinical prediction by default:
 | 3   | Sepsis                    | Hourly (within 6H) | Binary Classification |
 | 4   | Kidney Function(KF)       | Once per stay | Regression |
 | 5   | Length of Stay (LoS)      | Hourly (within 7D) | Regression |
-New tasks can be easily added. 
+
+New tasks can be easily added.
 For the purposes of getting started right away, we include the eICU and MIMIC-III demo datasets in our repository.
 
 The following repositories may be relevant as well:
+
 - [YAIB-cohorts](https://github.com/rvandewater/YAIB-cohorts): Cohort generation for YAIB.
 - [YAIB-models](https://github.com/rvandewater/YAIB-models): Pretrained models for YAIB.
 - [ReciPys](https://github.com/rvandewater/ReciPys): Preprocessing package for YAIB pipelines.
 
-## Paper
+# 📄Paper
 
 To reproduce the benchmarks in our paper, we refer to: the [ML reproducibility document](PAPER.md).
 If you use this code in your research, please cite the following publication:
@@ -53,7 +56,7 @@ If you use this code in your research, please cite the following publication:
 
 This paper can also be found on arxiv: TBD
 
-# Installation
+# 💿Installation
 
 YAIB can be installed using conda or pip. Below you will find the three CLI commands to install YAIB using conda.
 The
@@ -85,32 +88,50 @@ If you are on a Mac with Metal Performance Shader, install the package with the 
 pip install torch numpy && pip install -e .[mps]
 ```
 
-# Usage
+# 👩‍💻Usage
 
 Please refer to [our wiki](https://github.com/rvandewater/YAIB/wiki) for detailed information on how to use YAIB.
 
-## Getting the Datasets
+## Quickstart 🚀 (demo data)
+
+In the folder `demo_data` we provide processed publicly available demo datasets from eICU and MIMIC with the necessary labels
+for `Mortality at 24h`,`Sepsis`, `Akute Kidney Injury`, `Kidney Function`, and `Length of Stay`.
+
+If you do not yet have access to the ICU datasets, you can run the following command to train models for the included demo
+cohorts:
+
+```
+wandb sweep --verbose experiments/demo_benchmark_classification.yml
+wandb sweep --verbose experiments/demo_benchmark_regression.yml
+```
+
+```train
+wandb agent <sweep_id>
+```
+
+> Tip: You can choose to run each of the configurations on a SLURM cluster instance by `wandb agent --count 1 <sweep_id>`
+
+> Note: You will need to have a wandb account and be logged in to run the above commands.
+
+## Getting the datasets
 
 HiRID, eICU, and MIMIC IV can be accessed through [PhysioNet](https://physionet.org/). A guide to this process can be
 found [here](https://eicu-crd.mit.edu/gettingstarted/access/).
 AUMCdb can be accessed through a separate access [procedure](https://github.com/AmsterdamUMC/AmsterdamUMCdb). We do not have
 involvement in the access procedure and can not answer to any requests for data access.
 
-## Data Conversion
+## Cohort creation
 
 Since the datasets were created independently of each other, they do not share the same data structure or data identifiers. In
 order to make them interoperable, use the preprocessing utilities
 provided by the [ricu package](https://github.com/eth-mds/ricu).
 Ricu pre-defines a large number of clinical concepts and how to load them from a given dataset, providing a common interface to
 the data, that is used in this
-benchmark.
+benchmark. Please refer to our [cohort definition](https://github.com/rvandewater/YAIB-cohorts) code for generating the cohorts
+using our python interface for ricu.
+After this, you can run the benchmark once you have gained access to the datasets.
 
-### Extracting cohorts
-
-Please refer to our [cohort definition](https://github.com/rvandewater/YAIB-cohorts) code for generating the cohorts to run our
-benchmark once you have gained access to the datasets.
-
-# Data
+## Data
 
 Users can supply their own datasets in specific format.
 
@@ -135,12 +156,7 @@ used to "group by" for, e.g., aggregating patient vital signs. The
 the common case, time). The other keys in this dictionary define the
 feature columns and outcome variables to be used for prediction.
 
-## Demo Data
-
-In the folder `demo_data` we provide processed publicly available demo datasets from eICU and MIMIC with the necessary labels
-for `Mortality at 24h`,`Sepsis`, `Akute Kidney Injury`, `Kidney Function`, `Length of Stay`.
-
-# Running the Benchmark
+# 👟 Running YAIB
 
 ## Preprocessing and Training
 
@@ -174,6 +190,25 @@ icu-benchmarks train \
 > For Windows based systems, the next line character (\\)  needs to be replaced by (^) (Command Prompt) or (`) (Powershell)
 > respectively.
 
+
+Alternatively, the easiest method to train all the models in the paper is to run these commands from the directory root:
+
+```train
+wandb sweep --verbose experiments/benchmark_classification.yml
+wandb sweep --verbose experiments/benchmark_regression.yml
+```
+
+This will create two hyperparameter sweeps for WandB for the classification and regression tasks.
+This configuration will train all the models in the paper. You can then run the following command to train the models:
+
+```train
+wandb agent <sweep_id>
+```
+
+> Tip: You can choose to run each of the configurations on a SLURM cluster instance by `wandb agent --count 1 <sweep_id>`
+
+> Note: You will need to have a wandb account and be logged in to run the above commands.
+
 ## Evaluate
 
 It is possible to evaluate a model trained on another dataset. In this case, the source dataset is the demo data from MIMIC and
@@ -194,14 +229,14 @@ icu-benchmarks evaluate \
     --source-dir ../yaib_logs/mimic_demo/Mortality24/LGBMClassifier/2022-12-12T15-24-46/fold_0
 ```
 
-
-
 [//]: # (## Metrics)
 
 [//]: # ()
+
 [//]: # (Several metrics are defined for this benchmark:)
 
 [//]: # ()
+
 [//]: # (- Binary Classification: Because our tasks are all highly imbalanced, we use both ROC and PR Area Under the Curve)
 
 [//]: # (  using [sklearn.metrics.roc_auc_score]&#40;https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html&#41;)
@@ -215,30 +250,36 @@ icu-benchmarks evaluate \
 ## Models
 
 We provide several existing machine learning models that are commonly used for multivariate time-series data.
-`pytorch` is used for the deep learning models, `lightgbm` for the boosted tree approaches, and `sklearn` for the logistic
-regression model and metrics.
-The benchmark provides the following built-in models:
+`pytorch` is used for the deep learning models, `lightgbm` for the boosted tree approaches, and `sklearn` for other classical
+machine learning models.
+The benchmark provides (among others) the following built-in models:
 
 - [Logistic Regression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html?highlight=logistic+regression):
   Standard regression approach.
-- [Elastic Net](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html): Linear regression with combined L1 and L2 priors as regularizer.
+- [Elastic Net](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html): Linear regression with
+  combined L1 and L2 priors as regularizer.
 - [LightGBM](https://proceedings.neurips.cc/paper/2017/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf): Efficient gradient
   boosting trees.
 - [Long Short-term Memory (LSTM)](https://ieeexplore.ieee.org/document/818041): The most commonly used type of Recurrent Neural
   Networks for long sequences.
-- [Gated Recurrent Unit (GRU)](https://arxiv.org/abs/1406.1078) : A extension to LSTM which showed improvements ([paper](https://arxiv.org/abs/1412.3555)).
+- [Gated Recurrent Unit (GRU)](https://arxiv.org/abs/1406.1078) : A extension to LSTM which showed
+  improvements ([paper](https://arxiv.org/abs/1412.3555)).
 - [Temporal Convolutional Networks (TCN)](https://arxiv.org/pdf/1803.01271 ): 1D convolution approach to sequence data. By
   using dilated convolution to extend the receptive field of the network it has shown great performance on long-term
   dependencies.
 - [Transformers](https://papers.nips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf): The most common Attention
   based approach.
-# Development
 
-To adapt YAIB to your own use case, you can use the [development information](docs/development.md) document as a reference.
+# 🛠️ Development
+
+To adapt YAIB to your own use case, you can use
+the [development information](https://github.com/rvandewater/YAIB/wiki/Contribution-and-development) page as a reference.
+We appreciate contributions to the project. Please read the [contribution guidelines](CONTRIBUTING.md) before submitting a pull
+request.
 
 # Acknowledgements
 
-We do not own any of the datasets used in this benchmark. This project uses adapted components of
+We do not own any of the datasets used in this benchmark. This project uses heavily adapted components of
 the [HiRID benchmark](https://github.com/ratschlab/HIRID-ICU-Benchmark/). We thank the authors for providing this codebase and
 encourage further development to benefit the scientific community. The demo datasets have been released under
 an [Open Data Commons Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
