@@ -1,11 +1,14 @@
-
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.ml_models
 import icu_benchmarks.models.dl_models
 import icu_benchmarks.data.split_process_data
 
+# CROSS-VALIDATION
+include "configs/tasks/common/CrossValidation.gin"
+
 Run.mode = "Imputation"
 
+# DATASET STRUCTURE
 vars = {
     "GROUP": "stay_id",
     "SEQUENCE": "time",
@@ -24,5 +27,3 @@ preprocess.vars = %vars
 ImputationDataset.vars = %vars
 ImputationDataset.ram_cache = True
 
-execute_repeated_cv.cv_repetitions = 5
-execute_repeated_cv.cv_folds = 5

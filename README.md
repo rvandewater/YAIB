@@ -14,30 +14,31 @@ ICU) EHR data.
 
 We support the following datasets out of the box:
 
-| Dataset                 | [MIMIC-III](https://physionet.org/content/mimiciii/) / [IV](https://physionet.org/content/mimiciv/) | [eICU-CRD](https://physionet.org/content/eicu-crd/) | [HiRID](https://physionet.org/content/hirid/1.1.1/) | [AUMCdb](https://doi.org/10.17026/dans-22u-f8vd) |
+| **Dataset**                 | [MIMIC-III](https://physionet.org/content/mimiciii/) / [IV](https://physionet.org/content/mimiciv/) | [eICU-CRD](https://physionet.org/content/eicu-crd/) | [HiRID](https://physionet.org/content/hirid/1.1.1/) | [AUMCdb](https://doi.org/10.17026/dans-22u-f8vd) |
 |-------------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------|-----------------------------------------------------|--------------------------------------------------|
-| Admissions              | 40k / 73k                                                                                           | 200k                                                | 33k                                                 | 23k                                              |
-| Frequency (time-series) | 1 hour                                                                                              | 5 minutes                                           | 2 / 5 minutes                                       | up to 1 minute                                   |
-| Origin                  | USA                                                                                                 | USA                                                 | Switzerland                                         | Netherlands                                      |
-
+| **Admissions**              | 40k / 73k                                                                                           | 200k                                                | 33k                                                 | 23k                                              |
+| **Version**                 | v1.4 / v2.2                                                                                         | v2.0                                                | v1.1.1                                              | v1.0.2                                           |                                                     |                                                     |                                                  |
+| **Frequency** (time-series) | 1 hour                                                                                              | 5 minutes                                           | 2 / 5 minutes                                       | up to 1 minute                                   |
+| **Originally published**    | 2015  / 2020                                                                                        | 2017                                                | 2020                                                | 2019                                             |                                                                                                     |                                                     |                                                     |                                                  |
+| **Origin**                  | USA                                                                                                 | USA                                                 | Switzerland                                         | Netherlands                                      |
 New datasets can also be added. We are currently working on a package to make this process as smooth as possible.
-The benchmark is designed for operating on preprocessed parquet files. We include five tasks by default:
+The benchmark is designed for operating on preprocessed parquet files.
 <!-- We refer to  PyICU (in development)
 or [ricu package](https://github.com/eth-mds/ricu) for generating these parquet files for particular cohorts and endpoints. -->
 
-We provide several common tasks for clinical prediction by default:
+We provide five common tasks for clinical prediction by default:
 
-| No  | Task Theme                | Frequency        | Type                                | 
+| No  | Task                 | Frequency        | Type                                | 
 |-----|---------------------------|--------------------|-------------------------------------|
 | 1   | ICU Mortality             | Once per Stay (after 24H) | Binary Classification  |
 | 2   | Acute Kidney Injury (AKI) | Hourly (within 6H) | Binary Classification |
 | 3   | Sepsis                    | Hourly (within 6H) | Binary Classification |
 | 4   | Kidney Function(KF)       | Once per stay | Regression |
 | 5   | Length of Stay (LoS)      | Hourly (within 7D) | Regression |
-
+New tasks can be easily added. 
 For the purposes of getting started right away, we include the eICU and MIMIC-III demo datasets in our repository.
 
-The following repositories may be relevant for you as well:
+The following repositories may be relevant as well:
 - [YAIB-cohorts](https://github.com/rvandewater/YAIB-cohorts): Cohort generation for YAIB.
 - [YAIB-models](https://github.com/rvandewater/YAIB-models): Pretrained models for YAIB.
 - [ReciPys](https://github.com/rvandewater/ReciPys): Preprocessing package for YAIB pipelines.
@@ -143,7 +144,7 @@ for `Mortality at 24h`,`Sepsis`, `Akute Kidney Injury`, `Kidney Function`, `Leng
 
 ## Preprocessing and Training
 
-The following command will run training and evaluation on the MIMIC demo dataset for (Binary) Mortality prediction at 24h with
+The following command will run training and evaluation on the MIMIC demo dataset for (Binary) mortality prediction at 24h with
 the
 LGBMClassifier. Child samples are reduced due to the small amount of training data. We load available cache and, if available,
 load
@@ -193,55 +194,23 @@ icu-benchmarks evaluate \
     --source-dir ../yaib_logs/mimic_demo/Mortality24/LGBMClassifier/2022-12-12T15-24-46/fold_0
 ```
 
-## Imputation
 
-Below is an example call for training an imputation model
 
-```
-icu-benchmarks train \
-    -d demo_data/mortality24/mimic_demo \
-    -n mimic_demo \
-    -t DatasetImputation \
-    -m Mean \
-    -lc -gc \
-    -s 2222 \
-    -l ../yaib_logs/ 
-```
+[//]: # (## Metrics)
 
-For more details on how to implement new imputation methods, visit [this document](docs/imputation_methods.md).
+[//]: # ()
+[//]: # (Several metrics are defined for this benchmark:)
 
-## Training a Classification model using a pretrained imputation model
+[//]: # ()
+[//]: # (- Binary Classification: Because our tasks are all highly imbalanced, we use both ROC and PR Area Under the Curve)
 
-Below is an example call to train a classification model using a pretrained imputation model:
+[//]: # (  using [sklearn.metrics.roc_auc_score]&#40;https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html&#41;)
 
-``` bash
-icu-benchmarks train \
-    -d demo_data/mortality24/mimic_demo \
-    -n mimic_demo \
-    -t BinaryClassificationPretrainedImputation \
-    -tn Mortality24 \
-    -m LGBMClassifier \
-    -hp LGBMClassifier.min_child_samples=10 \
-    -gc \
-    -lc \
-    -s 2222 \
-    -l ../yaib_logs/ \
-    --use_pretrained_imputation path/to/pretrained/imputation_model.ckpt
-    --tune
-```
+[//]: # (  and [sklearn.metrics.average_precision_score]&#40;https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html#sklearn.metrics.average_precision_score&#41;)
 
-Where `path/to/pretrained/imputation_model.ckpt` is the path to the `model.ckpt` created by training an imputation model with
-our framework.
+[//]: # (- Regression : The Mean Absolute Error &#40;MAE&#41; is used)
 
-## Metrics
-
-Several metrics are defined for this benchmark:
-
-- Binary Classification: Because our tasks are all highly imbalanced, we use both ROC and PR Area Under the Curve
-  using [sklearn.metrics.roc_auc_score](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html)
-  and [sklearn.metrics.average_precision_score](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html#sklearn.metrics.average_precision_score)
-- Regression : The Mean Absolute Error (MAE) is used
-  with [sklearn.metrics.mean_absolute_error](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html)
+[//]: # (  with [sklearn.metrics.mean_absolute_error]&#40;https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html&#41;)
 
 ## Models
 
@@ -252,18 +221,17 @@ The benchmark provides the following built-in models:
 
 - [Logistic Regression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html?highlight=logistic+regression):
   Standard regression approach.
+- [Elastic Net](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html): Linear regression with combined L1 and L2 priors as regularizer.
 - [LightGBM](https://proceedings.neurips.cc/paper/2017/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf): Efficient gradient
   boosting trees.
 - [Long Short-term Memory (LSTM)](https://ieeexplore.ieee.org/document/818041): The most commonly used type of Recurrent Neural
   Networks for long sequences.
-- [Gated Recurrent Unit (GRU)](https://arxiv.org/abs/1406.1078) : A extension to LSTM which showed
-  improvements ([paper](https://arxiv.org/abs/1412.3555)).
+- [Gated Recurrent Unit (GRU)](https://arxiv.org/abs/1406.1078) : A extension to LSTM which showed improvements ([paper](https://arxiv.org/abs/1412.3555)).
 - [Temporal Convolutional Networks (TCN)](https://arxiv.org/pdf/1803.01271 ): 1D convolution approach to sequence data. By
   using dilated convolution to extend the receptive field of the network it has shown great performance on long-term
   dependencies.
 - [Transformers](https://papers.nips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf): The most common Attention
   based approach.
-
 # Development
 
 To adapt YAIB to your own use case, you can use the [development information](docs/development.md) document as a reference.
@@ -272,10 +240,10 @@ To adapt YAIB to your own use case, you can use the [development information](do
 
 We do not own any of the datasets used in this benchmark. This project uses adapted components of
 the [HiRID benchmark](https://github.com/ratschlab/HIRID-ICU-Benchmark/). We thank the authors for providing this codebase and
-encourage further development to benefit the scientific community.
+encourage further development to benefit the scientific community. The demo datasets have been released under
+an [Open Data Commons Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
 
 # License
 
 This source code is released under the MIT license, included [here](LICENSE). We do not own any of the datasets used or
-included in this repository. The demo datasets have been released under
-an [Open Data Commons Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
+included in this repository. 

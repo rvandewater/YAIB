@@ -127,15 +127,6 @@ class DefaultClassificationPreprocessor(Preprocessor):
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars[Segment.dynamic]))
         data = apply_recipe_to_splits(dyn_rec, data, Segment.dynamic)
-        # data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].loc[
-        #     :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
-        # ]
-        # data[Split.val][Segment.dynamic] = data[Split.val][Segment.dynamic].loc[
-        #     :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
-        # ]
-        # data[Split.test][Segment.dynamic] = data[Split.test][Segment.dynamic].loc[
-        #     :, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]
-        # ]
         return data
 
     def _dynamic_feature_generation(self, data, dynamic_vars):
@@ -148,8 +139,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
 
     def to_cache_string(self):
         return (
-                super().to_cache_string()
-                + f"_classification_{self.generate_features}_{self.scaling}_{self.imputation_model.__class__.__name__}"
+            super().to_cache_string()
+            + f"_classification_{self.generate_features}_{self.scaling}_{self.imputation_model.__class__.__name__}"
         )
 
 
@@ -157,8 +148,12 @@ class DefaultClassificationPreprocessor(Preprocessor):
 class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
     # Override base classification preprocessor
     def __init__(
-            self, generate_features: bool = True, scaling: bool = True, use_static_features: bool = True,
-            outcome_max=None, outcome_min=None
+        self,
+        generate_features: bool = True,
+        scaling: bool = True,
+        use_static_features: bool = True,
+        outcome_max=None,
+        outcome_min=None,
     ):
         """
         Args:
@@ -193,8 +188,14 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
         outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"])
         # If the range is predefined, use predefined transformation function
         if self.outcome_max is not None and self.outcome_min is not None:
-            outcome_rec.add_step(StepSklearn(sklearn_transformer=FunctionTransformer(func=
-                lambda x: ((x + abs(self.outcome_min)) / (abs(self.outcome_min) + self.outcome_max))), sel=all_outcomes()))
+            outcome_rec.add_step(
+                StepSklearn(
+                    sklearn_transformer=FunctionTransformer(
+                        func=lambda x: ((x + abs(self.outcome_min)) / (abs(self.outcome_min) + self.outcome_max))
+                    ),
+                    sel=all_outcomes(),
+                )
+            )
         else:
             # If the range is not predefined, use MinMaxScaler
             outcome_rec.add_step(StepSklearn(MinMaxScaler(), sel=all_outcomes()))
@@ -206,10 +207,10 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
 @gin.configurable("base_imputation_preprocessor")
 class DefaultImputationPreprocessor(Preprocessor):
     def __init__(
-            self,
-            scaling: bool = True,
-            use_static_features: bool = True,
-            filter_missing_values: bool = True,
+        self,
+        scaling: bool = True,
+        use_static_features: bool = True,
+        filter_missing_values: bool = True,
     ):
         """Preprocesses data for imputation.
 
@@ -258,6 +259,7 @@ class DefaultImputationPreprocessor(Preprocessor):
             data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
             logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
         return data
+
 
 @staticmethod
 def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:

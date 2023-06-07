@@ -4,6 +4,12 @@ import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.dl_models
 import icu_benchmarks.models.ml_models
 
+# DATASET CONFIGURATION
+include "configs/tasks/common/PredictionTaskVariables.gin"
+
+# CROSS-VALIDATION
+include "configs/tasks/common/CrossValidation.gin"
+
 # MODE & CLASSIFICATION SETTINGS
 Run.mode = "Classification"
 
@@ -17,24 +23,6 @@ train_common.weight = "balanced"
 # DEEP LEARNING
 DLPredictionWrapper.loss = @cross_entropy
 
-# DATASET
-preprocess.file_names = {
-    "DYNAMIC": "dyn.parquet",
-    "OUTCOME": "outc.parquet",
-    "STATIC": "sta.parquet",
-}
-
-vars = {
-    "GROUP": "stay_id",
-    "SEQUENCE": "time",
-    "LABEL": "label",
-    "DYNAMIC": ["alb", "alp", "alt", "ast", "be", "bicar", "bili", "bili_dir", "bnd", "bun", "ca", "cai", "ck", "ckmb", "cl",
-        "crea", "crp", "dbp", "fgn", "fio2", "glu", "hgb", "hr", "inr_pt", "k", "lact", "lymph", "map", "mch", "mchc", "mcv",
-        "methb", "mg", "na", "neut", "o2sat", "pco2", "ph", "phos", "plt", "po2", "ptt", "resp", "sbp", "temp", "tnt", "urine",
-        "wbc"],
-    "STATIC": ["age", "sex", "height", "weight"],
-}
-
 static_features = True
 
 # SELECTING PREPROCESSOR
@@ -46,6 +34,4 @@ preprocess.use_static = %static_features
 ClassificationDataset.vars = %vars
 ClassificationDataset.ram_cache = True
 
-# CROSS-VALIDATION
-execute_repeated_cv.cv_repetitions = 5
-execute_repeated_cv.cv_folds = 5
+
