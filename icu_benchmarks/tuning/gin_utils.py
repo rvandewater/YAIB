@@ -1,5 +1,5 @@
 import logging
-
+from ..wandb_utils import wandb_log
 import gin
 
 
@@ -39,6 +39,8 @@ def bind_gin_params(hyperparams_names: list[str], hyperparams_values: list):
         hyperparams_names: List of hyperparameter names.
         hyperparams_values: List of hyperparameter values.
     """
+    logging.info("Binding Hyperparameters:")
     for param, value in zip(hyperparams_names, hyperparams_values):
         gin.bind_parameter(param, value)
         logging.info(f"{param} = {value}")
+        wandb_log({param: value})

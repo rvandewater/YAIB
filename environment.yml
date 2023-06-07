@@ -1,25 +1,36 @@
 name: yaib
 channels:
   - pytorch
+  - nvidia
   - conda-forge
   - anaconda
 dependencies:
-  - black=22.10.0
-  - coverage=6.5.0
+  - python=3.10
+  - black=23.3.0
+  - coverage=7.2.3
   - flake8=5.0.4
   - gin-config=0.5.0
-  - ignite=0.4.10
-  - lightgbm=3.3.3
-  - numpy=1.23.4
-  - pandas=1.5.1
-  - pyarrow=9.0.0
-  - pytest=7.2.0
-  - pytorch=1.12.1
-  - cudatoolkit=11.6.0
-  - scikit-learn=1.1.3
-  - tensorboard=2.11.0
+  - ignite=0.4.11
+  # Versioning of Pytorch (2.0) dependent on compatible CUDA version
+  - pytorch
+  - pytorch-cuda=11.8
+  - lightgbm=3.3.5
+  - numpy=1.24.3
+  - pandas=2.0.0
+  - pyarrow=11.0.0
+  - pytest=7.3.1
+  - scikit-learn=1.2.2
+  - tensorboard=2.12.2
   - tqdm=4.64.1
-  - pip=22.3.1
+  - pytorch-lightning=2.0.1
+  - wandb=0.15.0
+  - pip=23.1
   - scikit-optimize=0.9.0
+  - einops=0.6.1
+  - hydra-core=1.3
   - pip:
       - git+https://github.com/rvandewater/recipys.git
+      - hyperimpute==0.1.16
+      - pypots==0.0.10
+      - hydra-submitit-launcher==1.2.0
+

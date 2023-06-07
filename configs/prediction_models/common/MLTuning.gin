@@ -1,0 +1,5 @@
+# Hyperparameter tuner settings for classical Machine Learning.
+tune_hyperparameters.scopes = ["model"]
+tune_hyperparameters.n_initial_points = 10
+tune_hyperparameters.n_calls = 50
+tune_hyperparameters.folds_to_tune_on = 3

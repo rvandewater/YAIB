@@ -1,0 +1,4 @@
+import icu_benchmarks.imputation.baselines
+
+# Train params
+train_common.model = @Miwae

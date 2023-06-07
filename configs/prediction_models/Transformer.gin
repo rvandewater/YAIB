@@ -1,0 +1,24 @@
+# Settings for Transformer model.
+
+# Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
+
+# Optimizer params
+train_common.model = @Transformer
+
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = (1e-5, 3e-4)
+
+# Encoder params
+model/hyperparameter.class_to_tune = @Transformer
+model/hyperparameter.ff_hidden_mult = 2
+model/hyperparameter.l1_reg = 0.0
+model/hyperparameter.num_classes = %NUM_CLASSES
+model/hyperparameter.hidden = (32, 256, "log-uniform", 2)
+model/hyperparameter.heads = (1, 8, "log-uniform", 2)
+model/hyperparameter.depth = (1, 3)
+model/hyperparameter.dropout = (0.0, 0.4)
+model/hyperparameter.dropout_att = (0.0, 0.4)
+
+

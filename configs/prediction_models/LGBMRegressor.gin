@@ -1,0 +1,17 @@
+# Settings for Light Gradient Boosting Machine (LGBM) regressor.
+
+# Common settings for ML models
+include "configs/prediction_models/common/MLCommon.gin"
+
+# Train params
+train_common.model = @LGBMRegressor
+
+model/hyperparameter.class_to_tune = @LGBMRegressor
+model/hyperparameter.colsample_bytree = (0.33, 1.0)
+model/hyperparameter.max_depth = (3, 7)
+model/hyperparameter.min_child_samples = 1000
+model/hyperparameter.n_estimators = 100000
+model/hyperparameter.num_leaves = (8, 128, "log-uniform", 2)
+model/hyperparameter.subsample = (0.33, 1.0)
+model/hyperparameter.subsample_freq = 1
+model/hyperparameter.eval_metric = "logloss"

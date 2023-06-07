@@ -1,7 +1,7 @@
 import json
 import gin
 import logging
-from logging import INFO, NOTSET
+from logging import NOTSET
 import numpy as np
 from pathlib import Path
 from skopt import gp_minimize
@@ -11,6 +11,8 @@ from icu_benchmarks.models.utils import JsonResultLoggingEncoder, log_table_row,
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import log_full_line
 from icu_benchmarks.tuning.gin_utils import get_gin_hyperparameters, bind_gin_params
+from icu_benchmarks.contants import RunMode
+from icu_benchmarks.wandb_utils import wandb_log
 
 TUNE = 25
 logging.addLevelName(25, "TUNE")
@@ -22,35 +24,47 @@ def choose_and_bind_hyperparameters(
     data_dir: Path,
     log_dir: Path,
     seed: int,
+    run_mode: RunMode = RunMode.classification,
     checkpoint: str = None,
-    scopes: list[str] = gin.REQUIRED,
+    scopes: list[str] = [],
     n_initial_points: int = 3,
     n_calls: int = 20,
-    folds_to_tune_on: int = gin.REQUIRED,
+    folds_to_tune_on: int = None,
     checkpoint_file: str = "hyperparameter_tuning_logs.json",
     generate_cache: bool = False,
     load_cache: bool = False,
     debug: bool = False,
+    verbose: bool = False,
+    wandb: bool = False,
 ):
     """Choose hyperparameters to tune and bind them to gin.
 
     Args:
+        wandb: Whether we use wandb or not.
+        load_cache: Load cached data if available.
+        generate_cache: Generate cache data.
         do_tune: Whether to tune hyperparameters or not.
         data_dir: Path to the data directory.
         log_dir: Path to the log directory.
         seed: Random seed.
+        run_mode: The run mode of the experiment.
         checkpoint: Name of the checkpoint run to load previously explored hyperparameters from.
         scopes: List of gin scopes to search for hyperparameters to tune.
         n_initial_points: Number of initial points to explore.
         n_calls: Number of iterations to optimize the hyperparameters.
         folds_to_tune_on: Number of folds to tune on.
         checkpoint_file: Name of the checkpoint file.
-        debug: Whether to load less data and enable more logging.
+        debug: Whether to load less data.
+        verbose: Set to true to increase log output.
 
     Raises:
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
     hyperparams = {}
+
+    if len(scopes) == 0 or folds_to_tune_on is None:
+        logging.warning("No scopes and/or folds to tune on, skipping tuning.")
+        return
 
     # Collect hyperparameters.
     hyperparams_bounds, hyperparams_names = collect_bound_hyperparameters(hyperparams, scopes)
@@ -79,9 +93,9 @@ def choose_and_bind_hyperparameters(
         else:
             logging.warning("No checkpoint file found, starting from scratch.")
 
-    # Function to
+    # Function that trains the model with the given hyperparameters.
     def bind_params_and_train(hyperparams):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=log_dir) as temp_dir:
             bind_gin_params(hyperparams_names, hyperparams)
             if not do_tune:
                 return 0
@@ -89,12 +103,15 @@ def choose_and_bind_hyperparameters(
                 data_dir,
                 Path(temp_dir),
                 seed,
+                mode=run_mode,
                 cv_repetitions_to_train=1,
                 cv_folds_to_train=folds_to_tune_on,
                 generate_cache=generate_cache,
                 load_cache=load_cache,
                 test_on="val",
                 debug=debug,
+                verbose=verbose,
+                wandb=wandb,
             )
 
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
@@ -108,11 +125,17 @@ def choose_and_bind_hyperparameters(
             f.write(json.dumps(data, cls=JsonResultLoggingEncoder))
             table_cells = [len(res.x_iters)] + res.x_iters[-1] + [res.func_vals[-1]]
             highlight = res.x_iters[-1] == res.x  # highlight if best so far
+            log_table_row(header, TUNE)
             log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
+            wandb_log({"hp-iteration": len(res.x_iters)})
 
     if do_tune:
         log_full_line("STARTING TUNING", level=TUNE, char="=")
-        logging.log(TUNE, f"Tuning from {n_initial_points} points in {n_calls} iterations on {folds_to_tune_on} folds.")
+        logging.log(
+            TUNE,
+            f"Applying Bayesian Optimization from {n_initial_points} points in {n_calls} "
+            f"iterations on {folds_to_tune_on} folds.",
+        )
         log_table_row(header, TUNE)
     else:
         logging.log(TUNE, "Hyperparameter tuning disabled")
@@ -124,8 +147,6 @@ def choose_and_bind_hyperparameters(
             logging.log(TUNE, "Choosing hyperparameters randomly from bounds.")
             n_initial_points = 1
             n_calls = 1
-    if not debug:
-        logging.disable(level=INFO)
 
     # Call gaussian process. To choose a random set of hyperparameters this functions is also called.
     res = gp_minimize(

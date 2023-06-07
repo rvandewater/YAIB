@@ -1,0 +1,48 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/miiv"
+  - "-t"
+  - "DatasetImputation"
+  - "-c"
+  - "--wandb-sweep"
+  - "--wandb"
+method: bayes
+metric:
+  name: avg.jsd
+  goal: minimize
+name: csdi hyperparameter sweep
+parameters:
+  model:
+    values: ["CSDI"] # DiffWave not working yet
+  ImputationDataset.mask_method:
+    values: ["MCAR"]
+  seed:
+    values: [1111]
+  data_dir:
+    values: ["../data/hirid"]
+  execute_repeated_cv.cv_repetitions:
+    values: [2]
+  execute_repeated_cv.cv_folds:
+    values: [2]
+  CSDI.time_step_embedding_size:
+    values: [64, 128, 256]
+  CSDI.feature_embedding_size:
+    values: [8, 16, 32, 64]
+  CSDI.target_strategy:
+    values: ["random", "hist", "mix"]
+  CSDI.num_diffusion_steps:
+    values: [50, 100, 200]
+  CSDI.diffusion_step_embedding_dim:
+    values: [64, 128, 256]
+  CSDI.n_attention_heads:
+    values: [6, 8, 10]
+  CSDI.num_residual_layers:
+    values: [2, 4, 6, 8]
+  CSDI.noise_schedule:
+    values: ["quad", "linear"]
+  CSDI.n_samples:
+    values: [5, 10, 15]

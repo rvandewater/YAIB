@@ -1,0 +1,14 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.dl_models
+import icu_benchmarks.models.utils
+import icu_benchmarks.imputation.baselines
+import icu_benchmarks.data.preprocess
+
+# Train params
+train_common.model = @BRITS
+train_common.epochs = 100
+
+# Model params
+BRITS.rnn_hidden_size = 64
+BRITS.batch_size = 256
