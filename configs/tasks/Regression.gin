@@ -12,30 +12,25 @@ include "configs/tasks/common/CrossValidation.gin"
 
 # MODE SETTINGS
 Run.mode = "Regression"
-
-# MODEL SETTINGS
 NUM_CLASSES = 1
 HORIZON = 24
-
 train_common.weight = "balanced"
-train_common.ram_cache = False
+train_common.ram_cache = True
 
 # LOSS FUNCTION
 DLPredictionWrapper.loss = @mse_loss
 MLWrapper.loss = @mean_squared_error
 
-static_features = True
-
 # SELECTING PREPROCESSOR
 preprocess.preprocessor = @base_regression_preprocessor
 preprocess.vars = %vars
-preprocess.use_static = %static_features
+preprocess.use_static = True
 
 # SPECIFYING REGRESSION OUTCOME SCALING
 base_regression_preprocessor.outcome_min = 0
 base_regression_preprocessor.outcome_max = 15
 
 # SELECTING DATASET
-ClassificationDataset.vars = %vars
-ClassificationDataset.ram_cache = True
+PredictionDataset.vars = %vars
+PredictionDataset.ram_cache = True
 

@@ -12,8 +12,8 @@ from .constants import DataSegment as Segment
 from .constants import DataSplit as Split
 
 
-class SICUDataset(Dataset):
-    """Standardized ICU Dataset: subclass of Torch Dataset that represents the data to learn on.
+class CommonDataset(Dataset):
+    """Common dataset: subclass of Torch Dataset that represents the data to learn on.
 
     Args: data: Dict of the different splits of the data. split: Either 'train','val' or 'test'. vars: Contains the names of
     columns in the data. grouping_segment: str, optional: The segment of the data contains the grouping column with only
@@ -65,9 +65,9 @@ class SICUDataset(Dataset):
         return [cat(value, dim=0) for value in values]
 
 
-@gin.configurable("ClassificationDataset")
-class ClassificationDataset(SICUDataset):
-    """Subclass of SICU dataset for classification tasks.
+@gin.configurable("PredictionDataset")
+class PredictionDataset(CommonDataset):
+    """Subclass of common dataset for prediction tasks.
 
     Args:
         ram_cache (bool, optional): Whether the complete dataset should be stored in ram. Defaults to True.
@@ -155,8 +155,8 @@ class ClassificationDataset(SICUDataset):
 
 
 @gin.configurable("ImputationDataset")
-class ImputationDataset(SICUDataset):
-    """Subclass of SICU (Standardized ICU) Dataset that contains data for imputation models."""
+class ImputationDataset(CommonDataset):
+    """Subclass of Common Dataset that contains data for imputation models."""
 
     def __init__(
         self,

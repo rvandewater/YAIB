@@ -1,17 +1,8 @@
-import gin.torch.external_configurables
-import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.dl_models
-
-base_classification_preprocessor.generate_features = False
-base_regression_preprocessor.generate_features = False
+# Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
 
 # Train params
 train_common.model = @LSTMNet
-train_common.optimizer = @Adam
-train_common.epochs = 1000
-train_common.batch_size = 64 # FIXME bug with tensor dimensions on Apple MPS leads to BS = input length constraint
-train_common.patience = 10
-train_common.min_delta = 1e-4
 
 # Optimizer params
 optimizer/hyperparameter.class_to_tune = @Adam
@@ -24,7 +15,4 @@ model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.hidden_dim = (32, 256, "log-uniform", 2)
 model/hyperparameter.layer_dim = (1, 3)
 
-tune_hyperparameters.scopes = ["model", "optimizer"]
-tune_hyperparameters.n_initial_points = 5
-tune_hyperparameters.n_calls = 30
-tune_hyperparameters.folds_to_tune_on = 2
+

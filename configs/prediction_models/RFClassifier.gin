@@ -1,13 +1,8 @@
-import gin.torch.external_configurables
-import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.ml_models
-import icu_benchmarks.models.utils
-
-base_classification_preprocessor.generate_features = False
+# Common settings for ML models
+include "configs/prediction_models/common/MLCommon.gin"
 
 # Train params
 train_common.model = @RFClassifier
-MLWrapper.patience = 10
 
 model/hyperparameter.class_to_tune = @RFClassifier
 model/hyperparameter.n_estimators = (10, 50, 100, 200, 500)
@@ -18,7 +13,4 @@ model/hyperparameter.max_features = ('sqrt', 'log2', None)
 model/hyperparameter.bootstrap = (True, False)
 model/hyperparameter.class_weight = (None, 'balanced')
 
-tune_hyperparameters.scopes = ["model"]
-tune_hyperparameters.n_initial_points = 10
-tune_hyperparameters.n_calls = 50
-tune_hyperparameters.folds_to_tune_on = 3
+

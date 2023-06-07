@@ -10,7 +10,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
 from pathlib import Path
 from icu_benchmarks.wandb_utils import set_wandb_run_name
-from icu_benchmarks.data.loader import ClassificationDataset, ImputationDataset
+from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
@@ -73,7 +73,7 @@ def train_common(
     """
 
     logging.info(f"Training model: {model.__name__}.")
-    dataset_class = ImputationDataset if mode == RunMode.imputation else ClassificationDataset
+    dataset_class = ImputationDataset if mode == RunMode.imputation else PredictionDataset
 
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training

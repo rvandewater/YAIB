@@ -1,13 +1,8 @@
-import gin.torch.external_configurables
-import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.ml_models
-import icu_benchmarks.models.utils
-
-base_classification_preprocessor.generate_features = True
+# Common settings for ML models
+include "configs/prediction_models/common/MLCommon.gin"
 
 # Train params
 train_common.model = @LGBMClassifier
-MLWrapper.patience = 10
 
 model/hyperparameter.class_to_tune = @LGBMClassifier
 model/hyperparameter.colsample_bytree = (0.33, 1.0)
@@ -17,8 +12,3 @@ model/hyperparameter.n_estimators = 100000
 model/hyperparameter.num_leaves = (8, 128, "log-uniform", 2)
 model/hyperparameter.subsample = (0.33, 1.0)
 model/hyperparameter.subsample_freq = 1
-
-tune_hyperparameters.scopes = ["model"]
-tune_hyperparameters.n_initial_points = 10
-tune_hyperparameters.n_calls = 50
-tune_hyperparameters.folds_to_tune_on = 3

@@ -10,28 +10,23 @@ include "configs/tasks/common/PredictionTaskVariables.gin"
 # CROSS-VALIDATION
 include "configs/tasks/common/CrossValidation.gin"
 
-# MODE & CLASSIFICATION SETTINGS
+# MODE SETTINGS
 Run.mode = "Classification"
-
-# Binary classification
-NUM_CLASSES = 2
-
+NUM_CLASSES = 2 # Binary classification
 HORIZON = 24
-
 train_common.weight = "balanced"
+train_common.ram_cache = True
 
 # DEEP LEARNING
 DLPredictionWrapper.loss = @cross_entropy
 
-static_features = True
-
 # SELECTING PREPROCESSOR
 preprocess.preprocessor = @base_classification_preprocessor
 preprocess.vars = %vars
-preprocess.use_static = %static_features
+preprocess.use_static = True
 
 # SELECTING DATASET
-ClassificationDataset.vars = %vars
-ClassificationDataset.ram_cache = True
+PredictionDataset.vars = %vars
+PredictionDataset.ram_cache = True
 
 

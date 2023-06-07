@@ -1,0 +1,15 @@
+# Imports to register the models
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.ml_models
+import icu_benchmarks.models.utils
+
+# Patience for early stopping
+MLWrapper.patience = 10
+
+# Generate features from dynamic data
+base_classification_preprocessor.generate_features = True
+base_regression_preprocessor.generate_features = True
+
+# Hyperparameter tuning settings
+include "configs/prediction_models/common/MLTuning.gin"
