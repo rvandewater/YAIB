@@ -46,6 +46,7 @@ The following repositories may be relevant as well:
 - [YAIB-models](https://github.com/rvandewater/YAIB-models): Pretrained models for YAIB.
 - [ReciPys](https://github.com/rvandewater/ReciPys): Preprocessing package for YAIB pipelines.
 
+ For all YAIB related repositories, please see: https://github.com/stars/rvandewater/lists/yaib. 
 # 📄Paper
 
 To reproduce the benchmarks in our paper, we refer to: the [ML reproducibility document](PAPER.md).
@@ -53,10 +54,12 @@ If you use this code in your research, please cite the following publication:
 
 ```
 ```
-
 This paper can also be found on arxiv: TBD
 
 # 💿Installation
+
+
+
 
 YAIB can be installed using conda or pip. Below you will find the three CLI commands to install YAIB using conda.
 The
