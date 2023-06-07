@@ -191,6 +191,7 @@ SoftImputeImputation = wrap_hyperimpute_model("softimpute", "SoftImpute")
 SinkhornImputation = wrap_hyperimpute_model("sinkhorn", "Sinkhorn")
 MiracleImputation = wrap_hyperimpute_model("miracle", "Miracle")
 MiwaeImputation = wrap_hyperimpute_model("miwae", "Miwae")
+HyperImputation = wrap_hyperimpute_model("hyperimpute", "HyperImpute")
 
 
 @gin.configurable("BRITS")

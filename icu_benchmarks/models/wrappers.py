@@ -1,30 +1,32 @@
 import logging
+from abc import ABC
 from typing import Dict, Any
 from typing import List, Optional, Union
+
+import sklearn.metrics
+from sklearn.metrics import log_loss
 from torch.nn import MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 import inspect
 import gin
-import lightgbm
 import numpy as np
-
-from sklearn.metrics import mean_absolute_error
-
 import torch
 from ignite.exceptions import NotComputableError
-
 from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
-
+from joblib import dump
 from pytorch_lightning import LightningModule
 
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
-from icu_benchmarks.models.metrics import MAE
+from icu_benchmarks.contants import RunMode
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
+
+gin.config.external_configurable(sklearn.metrics.mean_squared_error, module="sklearn.metrics")
+gin.config.external_configurable(sklearn.metrics.log_loss, module="sklearn.metrics")
 
 
 @gin.configurable("BaseModule")
@@ -35,6 +37,7 @@ class BaseModule(LightningModule):
     weight = None
     metrics = {}
     trained_columns = None
+    run_mode = None
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError()
@@ -77,17 +80,27 @@ class BaseModule(LightningModule):
         checkpoint["trained_columns"] = self.trained_columns
         return super().on_save_checkpoint(checkpoint)
 
+    def save_model(self, save_path, file_name, file_extension):
+        raise NotImplementedError()
+
+    def check_supported_runmode(self, runmode: RunMode):
+        if runmode not in self._supported_run_modes:
+            raise ValueError(f"Runmode {runmode} not supported for {self.__class__.__name__}")
+        return True
+
 
 @gin.configurable("DLWrapper")
-class DLWrapper(BaseModule):
+class DLWrapper(BaseModule, ABC):
     needs_training = True
     needs_fit = False
     _metrics_warning_printed = set()
+    _supported_run_modes = [RunMode.classification, RunMode.regression, RunMode.imputation]
 
     def __init__(
         self,
         loss=CrossEntropyLoss(),
         optimizer=torch.optim.Adam,
+        run_mode: RunMode = RunMode.classification,
         input_shape=None,
         lr: float = 0.002,
         momentum: float = 0.9,
@@ -99,11 +112,14 @@ class DLWrapper(BaseModule):
         initialization_method: str = "normal",
         **kwargs,
     ):
+        """Interface for Deep Learning models."""
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer
         self.scaler = None
+        self.check_supported_runmode(run_mode)
+        self.run_mode = run_mode
 
     def on_fit_start(self):
         self.metrics = {
@@ -153,12 +169,24 @@ class DLWrapper(BaseModule):
         }
         return super().on_test_epoch_start()
 
+    def save_model(self, save_path, file_name, file_extension=".ckpt"):
+        path = save_path / (file_name + file_extension)
+        try:
+            torch.save(self, path)
+            logging.info(f"Model saved to {str(path.resolve())}.")
+        except Exception as e:
+            logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
 
-@gin.configurable("DLClassificationWrapper")
-class DLClassificationWrapper(DLWrapper):
-    """Interface for Deep Learning classification models."""
+
+@gin.configurable("DLPredictionWrapper")
+class DLPredictionWrapper(DLWrapper):
+    """Interface for Deep Learning models."""
+
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
 
     def set_weight(self, weight, dataset):
+        """Set the weight for the loss function."""
+
         if isinstance(weight, list):
             weight = torch.FloatTensor(weight).to(self.device)
         elif weight == "balanced":
@@ -166,6 +194,8 @@ class DLClassificationWrapper(DLWrapper):
         self.loss_weights = weight
 
     def set_metrics(self, *args):
+        """Set the evaluation metrics for the prediction model."""
+
         def softmax_binary_output_transform(output):
             with torch.no_grad():
                 y_pred, y = output
@@ -178,27 +208,27 @@ class DLClassificationWrapper(DLWrapper):
                 y_pred = torch.softmax(y_pred, dim=1)
                 return y_pred, y
 
-        # Binary classification
-        # output transform is not applied for contrib metrics so we do our own.
-        if self.logit.out_features == 2:
-            self.output_transform = softmax_binary_output_transform
-            metrics = DLMetrics.BINARY_CLASSIFICATION
-
-        # Regression
-        elif self.logit.out_features == 1:
-            self.output_transform = lambda x: x
-            if self.scaler is not None:
-                metrics = {"MAE": MAE(invert_transform=self.scaler.inverse_transform)}
+        # Output transform is not applied for contrib metrics, so we do our own.
+        if self.run_mode == RunMode.classification:
+            # Binary classification
+            if self.logit.out_features == 2:
+                self.output_transform = softmax_binary_output_transform
+                metrics = DLMetrics.BINARY_CLASSIFICATION
             else:
-                metrics = DLMetrics.REGRESSION
-
-        # Multiclass classification
+                # Multiclass classification
+                self.output_transform = softmax_multi_output_transform
+                metrics = DLMetrics.MULTICLASS_CLASSIFICATION
+        # Regression
+        elif self.run_mode == RunMode.regression:
+            self.output_transform = lambda x: x
+            metrics = DLMetrics.REGRESSION
         else:
-            self.output_transform = softmax_multi_output_transform
-            metrics = DLMetrics.MULTICLASS_CLASSIFICATION
+            raise ValueError(f"Run mode {self.run_mode} not supported.")
         return metrics
 
     def step_fn(self, element, step_prefix=""):
+        """Perform a step in the training loop."""
+
         if len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
             if isinstance(data, list):
@@ -224,13 +254,15 @@ class DLClassificationWrapper(DLWrapper):
             aux_loss = 0
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
         target = torch.masked_select(labels, mask).to(self.device)
-        if prediction.shape[-1] > 1:
-            loss = (
-                self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
-            )  # torch.long because NLL
+        if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
+            # Classification task
+            loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
+            # torch.long because NLL
+        elif self.run_mode == RunMode.regression:
+            # Regression task
+            loss = self.loss(prediction[:, 0], target.float()) + aux_loss
         else:
-            loss = self.loss(prediction[:, 0], target.float()) + aux_loss  # Regression task
-
+            raise ValueError(f"Run mode {self.run_mode} not supported.")
         transformed_output = self.output_transform((prediction, target))
         for metric in self.metrics[step_prefix].values():
             metric.update(transformed_output)
@@ -238,35 +270,39 @@ class DLClassificationWrapper(DLWrapper):
         return loss
 
 
-@gin.configurable("MLClassificationWrapper")
-class MLClassificationWrapper(BaseModule):
-    """Interface for classification with traditional Machine Learning models."""
+@gin.configurable("MLWrapper")
+class MLWrapper(BaseModule, ABC):
+    """Interface for prediction with traditional Scikit-learn-like Machine Learning models."""
 
     needs_training = False
     needs_fit = True
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, *args, model=None, patience=10, **kwargs):
+    def __init__(self, *args, run_mode=RunMode.classification, loss=log_loss, patience=10, **kwargs):
         super().__init__()
         self.save_hyperparameters()
-        self.model = model
         self.scaler = None
+        self.check_supported_runmode(run_mode)
+        self.run_mode = run_mode
+        self.loss = loss
+        self.patience = patience
 
     def set_metrics(self, labels):
-        # Binary classification
-        if len(np.unique(labels)) == 2:
-            if isinstance(self.model, lightgbm.basic.Booster):
+        if self.run_mode == RunMode.classification:
+            # Binary classification
+            if len(np.unique(labels)) == 2:
+                # if isinstance(self.model, lightgbm.basic.Booster):
                 self.output_transform = lambda x: x
+                # self.output_transform = lambda x: x[:, 1]
+                self.label_transform = lambda x: x
+
+                self.metrics = MLMetrics.BINARY_CLASSIFICATION
+            # Multiclass classification
             else:
-                self.output_transform = lambda x: x[:, 1]
-            self.label_transform = lambda x: x
-
-            self.metrics = MLMetrics.BINARY_CLASSIFICATION
-
-        # Multiclass classification
-        elif np.all(labels[:10].astype(int) == labels[:10]):
-            self.output_transform = lambda x: np.argmax(x, axis=-1)
-            self.label_transform = lambda x: x
-            self.metrics = MLMetrics.MULTICLASS_CLASSIFICATION
+                # Todo: verify multiclass classification
+                self.output_transform = lambda x: np.argmax(x, axis=-1)
+                self.label_transform = lambda x: x
+                self.metrics = MLMetrics.MULTICLASS_CLASSIFICATION
 
         # Regression
         else:
@@ -276,85 +312,71 @@ class MLClassificationWrapper(BaseModule):
             else:
                 self.output_transform = lambda x: x
                 self.label_transform = lambda x: x
-            self.metrics = {"MAE": mean_absolute_error}
+            self.metrics = MLMetrics.REGRESSION
 
     def fit(self, train_dataset, val_dataset):
+        """Fit the model to the training data."""
         train_rep, train_label = train_dataset.get_data_and_labels()
         val_rep, val_label = val_dataset.get_data_and_labels()
-        train_rep, train_label = torch.from_numpy(train_rep).to(self.device), torch.from_numpy(train_label).to(self.device)
-        val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
+
         self.set_metrics(train_label)
 
-        if "class_weight" in self.model.get_params().keys():  # Set class weights
-            self.model.set_params(class_weight=self.weight)
+        # if "class_weight" in self.model.get_params().keys():  # Set class weights
+        #     self.model.set_params(class_weight=self.weight)
 
-        if "eval_set" in inspect.getfullargspec(self.model.fit).args:  # This is lightgbm
-            self.model.set_params(random_state=np.random.get_state()[1][0])
+        val_loss = self.fit_model(train_rep, train_label, val_rep, val_label)
 
-            self.model.fit(
-                train_rep.cpu().numpy(),
-                train_label.cpu().numpy(),
-                eval_set=(val_rep.cpu().numpy(), val_label.cpu().numpy()),
-                callbacks=[
-                    lightgbm.early_stopping(self.hparams.patience, verbose=False),
-                    lightgbm.log_evaluation(period=-1, show_stdv=False),
-                ],
-            )
-            val_loss = list(self.model.best_score_["valid_0"].values())[0]
-        else:
-            val_loss = 0.0
-            self.model.fit(train_rep, train_label)
+        train_pred = self.predict(train_rep)
 
-        if "MAE" in self.metrics.keys():
-            train_pred = self.model.predict(train_rep)
-        else:
-            train_pred = self.model.predict_proba(train_rep)
-
-        self.log("train/loss", 0.0, sync_dist=True)
+        logging.debug(f"Model:{self.model}")
+        self.log("train/loss", self.loss(train_label, train_pred), sync_dist=True)
+        logging.debug(f"Train loss: {self.loss(train_label, train_pred)}")
         self.log("val/loss", val_loss, sync_dist=True)
-        self.log_dict(
-            {
-                f"train/{name}": metric(self.label_transform(train_label), self.output_transform(train_pred))
-                for name, metric in self.metrics.items()
-                if "_Curve" not in name
-            },
-            sync_dist=True,
-        )
+        logging.debug(f"Val loss: {val_loss}")
+        self.log_metrics(train_label, train_pred, "train")
+
+    def fit_model(self, train_data, train_labels, val_data, val_labels):
+        """Fit the model to the training data (default SKlearn syntax)"""
+        self.model.fit(train_data, train_labels)
+        val_loss = 0.0
+        return val_loss
 
     def validation_step(self, val_dataset, _):
         val_rep, val_label = val_dataset.get_data_and_labels()
         val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(val_label)
 
-        if "MAE" in self.metrics.keys():
-            val_pred = self.model.predict(val_rep)
-        else:
-            val_pred = self.model.predict_proba(val_rep)
+        val_pred = self.predict(val_rep)
 
-        self.log_dict(
-            {
-                f"val/{name}": metric(self.label_transform(val_label), self.output_transform(val_pred))
-                for name, metric in self.metrics.items()
-                if "_Curve" not in name
-            },
-            sync_dist=True,
-        )
+        self.log_metrics("val/loss", self.loss(val_label, val_pred), sync_dist=True)
+        logging.info(f"Val loss: {self.loss(val_label, val_pred)}")
+        self.log_metrics(val_label, val_pred, "val")
 
     def test_step(self, dataset, _):
         test_rep, test_label = dataset
         test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
         self.set_metrics(test_label)
-        if "MAE" in self.metrics.keys() or isinstance(self.model, lightgbm.basic.Booster):  # If we reload a LGBM classifier
-            test_pred = self.model.predict(test_rep)
-        else:
-            test_pred = self.model.predict_proba(test_rep)
+        test_pred = self.predict(test_rep)
 
-        self.log("test/loss", 0.0, sync_dist=True)
+        self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
+        logging.debug(f"Test loss: {self.loss(test_label, test_pred)}")
+        self.log_metrics(test_label, test_pred, "test")
+
+    def predict(self, features):
+        if self.run_mode == RunMode.regression:
+            return self.model.predict(features)
+        else:
+            return self.model.predict(features)
+
+    def log_metrics(self, label, pred, metric_type):
+        """Log metrics to the PL logs."""
+
         self.log_dict(
             {
-                f"test/{name}": metric(self.label_transform(test_label), self.output_transform(test_pred))
+                f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred))
                 for name, metric in self.metrics.items()
-                if "_Curve" not in name
+                # Filter out metrics that return a tuple (e.g. precision_recall_curve)
+                if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
             },
             sync_dist=True,
         )
@@ -368,6 +390,25 @@ class MLClassificationWrapper(BaseModule):
         del state["output_transform"]
         return state
 
+    def save_model(self, save_path, file_name, file_extension=".joblib"):
+        path = save_path / (file_name + file_extension)
+        try:
+            dump(self.model, path)
+            logging.info(f"Model saved to {str(path.resolve())}.")
+        except Exception as e:
+            logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
+
+    def set_model_args(self, model, *args, **kwargs):
+        """Set hyperparameters of the model if they are supported by the model."""
+        signature = inspect.signature(model.__init__).parameters
+        possible_hps = list(signature.keys())
+        # Get passed keyword arguments
+        arguments = locals()["kwargs"]
+        # Get valid hyperparameters
+        hyperparams = {key: value for key, value in arguments.items() if key in possible_hps}
+        logging.debug(f"Creating model with: {hyperparams}.")
+        return model(**hyperparams)
+
 
 @gin.configurable("ImputationWrapper")
 class ImputationWrapper(DLWrapper):
@@ -375,11 +416,13 @@ class ImputationWrapper(DLWrapper):
 
     needs_training = True
     needs_fit = False
+    _supported_run_modes = [RunMode.imputation]
 
     def __init__(
         self,
         loss: _Loss = MSELoss(),
         optimizer: Union[str, Optimizer] = "adam",
+        runmode: RunMode = RunMode.imputation,
         lr: float = 0.002,
         momentum: float = 0.9,
         lr_scheduler: Optional[str] = None,
@@ -390,6 +433,8 @@ class ImputationWrapper(DLWrapper):
         **kwargs: str,
     ) -> None:
         super().__init__()
+        self.check_supported_runmode(runmode)
+        self.run_mode = runmode
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer

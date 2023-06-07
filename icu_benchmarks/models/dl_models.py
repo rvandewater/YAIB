@@ -3,11 +3,11 @@ from numbers import Integral
 import numpy as np
 import torch.nn as nn
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
-from icu_benchmarks.models.wrappers import DLClassificationWrapper
+from icu_benchmarks.models.wrappers import DLPredictionWrapper
 
 
 @gin.configurable
-class RNNet(DLClassificationWrapper):
+class RNNet(DLPredictionWrapper):
     """Torch standard RNN model"""
 
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
@@ -31,7 +31,7 @@ class RNNet(DLClassificationWrapper):
 
 
 @gin.configurable
-class LSTMNet(DLClassificationWrapper):
+class LSTMNet(DLPredictionWrapper):
     """Torch standard LSTM model."""
 
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
@@ -56,7 +56,7 @@ class LSTMNet(DLClassificationWrapper):
 
 
 @gin.configurable
-class GRUNet(DLClassificationWrapper):
+class GRUNet(DLPredictionWrapper):
     """Torch standard GRU model."""
 
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
@@ -81,7 +81,7 @@ class GRUNet(DLClassificationWrapper):
 
 
 @gin.configurable
-class Transformer(DLClassificationWrapper):
+class Transformer(DLPredictionWrapper):
     """Transformer model as defined by the HiRID-Benchmark (https://github.com/ratschlab/HIRID-ICU-Benchmark)."""
 
     def __init__(
@@ -149,7 +149,7 @@ class Transformer(DLClassificationWrapper):
 
 
 @gin.configurable
-class LocalTransformer(DLClassificationWrapper):
+class LocalTransformer(DLPredictionWrapper):
     def __init__(
         self,
         input_size,
@@ -219,7 +219,7 @@ class LocalTransformer(DLClassificationWrapper):
 
 
 @gin.configurable
-class TemporalConvNet(DLClassificationWrapper):
+class TemporalConvNet(DLPredictionWrapper):
     """Temporal Convolutional Network. Adapted from TCN original paper https://github.com/locuslab/TCN"""
 
     def __init__(self, input_size, num_channels, num_classes, *args, max_seq_length=0, kernel_size=2, dropout=0.0, **kwargs):

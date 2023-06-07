@@ -14,7 +14,7 @@ def update_wandb_config(config: dict) -> None:
     Args:
         config (dict): config to set
     """
-    logging.info(f"updating config: {config}")
+    logging.debug(f"Updating Wandb config: {config}")
     if wandb_running():
         wandb.config.update(config)
 

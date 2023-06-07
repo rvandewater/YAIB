@@ -73,7 +73,6 @@ class DiffWaveImputer(ImputationWrapper):
         return super().on_fit_start()
 
     def forward(self, input_data):
-
         noise, conditional, mask, diffusion_steps = input_data
 
         conditional = conditional * mask

@@ -1,5 +1,5 @@
 from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-from ignite.metrics import MeanAbsoluteError, Accuracy, RootMeanSquaredError  # , ConfusionMatrix
+from ignite.metrics import Accuracy, RootMeanSquaredError  # , ConfusionMatrix
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     average_precision_score,
@@ -65,7 +65,7 @@ class DLMetrics:
     }
 
     REGRESSION = {
-        "MAE": MeanAbsoluteError,
+        "MAE": MAE,
     }
 
     IMPUTATION = {

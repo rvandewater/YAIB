@@ -5,13 +5,11 @@ import logging
 import pandas as pd
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
 from pathlib import Path
-
-from icu_benchmarks.wandb_utils import set_wandb_run_name
-from icu_benchmarks.data.loader import ClassificationDataset, ImputationDataset
+from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
@@ -36,6 +34,7 @@ def train_common(
     model: object = gin.REQUIRED,
     weight: str = None,
     optimizer: type = Adam,
+    precision=32,
     batch_size=64,
     epochs=1000,
     patience=20,
@@ -44,6 +43,7 @@ def train_common(
     use_wandb: bool = False,
     cpu: bool = False,
     verbose=False,
+    ram_cache=False,
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
@@ -58,6 +58,7 @@ def train_common(
         model: Model to be trained.
         weight: Weight to be used for the loss function.
         optimizer: Optimizer to be used for training.
+        precision: Pytorch precision to be used for training. Can be 16 or 32.
         batch_size: Batch size to be used for training.
         epochs: Number of epochs to train for.
         patience: Number of epochs to wait before early stopping.
@@ -66,19 +67,24 @@ def train_common(
         use_wandb: If set to true, log to wandb.
         cpu: If set to true, run on cpu.
         verbose: Enable detailed logging.
+        ram_cache: Whether to cache the data in RAM.
         num_workers: Number of workers to use for data loading.
     """
 
     logging.info(f"Training model: {model.__name__}.")
-    dataset_class = ImputationDataset if mode == RunMode.imputation else ClassificationDataset
+    dataset_class = ImputationDataset if mode == RunMode.imputation else PredictionDataset
 
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
-    train_dataset = dataset_class(data, split=Split.train)
-    val_dataset = dataset_class(data, split=Split.val)
+    train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache)
+    val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache)
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
+
+    logging.debug(f"Training on {len(train_dataset)} samples and validating on {len(val_dataset)} samples.")
+    logging.info(f"Using {num_workers} workers for data loading.")
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -98,7 +104,7 @@ def train_common(
 
     data_shape = next(iter(train_loader))[0].shape
 
-    model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs)
+    model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
     model.set_weight(weight, train_dataset)
     if load_weights:
         if source_dir.exists():
@@ -112,10 +118,6 @@ def train_common(
     model.set_trained_columns(train_dataset.get_feature_names())
 
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
-    if use_wandb:
-        run_name = f"{type(model).__name__}"
-        loggers.append(WandbLogger(run_name, save_dir=log_dir))
-        set_wandb_run_name(run_name)
 
     callbacks = [
         EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
@@ -123,11 +125,12 @@ def train_common(
     ]
     if verbose:
         callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
-
+    if precision == 16 or "16-mixed":
+        torch.set_float32_matmul_precision("medium")
     trainer = Trainer(
         max_epochs=epochs if model.needs_training else 1,
         callbacks=callbacks,
-        # precision=16,
+        precision=precision,
         accelerator="auto" if not cpu else "cpu",
         devices=max(torch.cuda.device_count(), 1),
         deterministic=reproducible,
@@ -140,11 +143,8 @@ def train_common(
     if model.needs_fit:
         logging.info("Fitting model to data.")
         model.fit(train_dataset, val_dataset)
-        try:
-            torch.save(model, log_dir / "last.ckpt")
-        except Exception as e:
-            logging.error(f"Cannot save model to path {str((log_dir / 'last.ckpt').resolve())}: {e}.")
-        logging.info("fitting complete!")
+        model.save_model(log_dir, "last")
+        logging.info("Fitting complete.")
 
     if model.needs_training:
         logging.info("Training model.")
@@ -167,8 +167,6 @@ def train_common(
     )
 
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(model, dataloaders=test_loader,)[
-        0
-    ]["test/loss"]
+    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss

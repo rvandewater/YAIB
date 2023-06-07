@@ -1,0 +1,38 @@
+command:
+  - ${env}
+  - ${program}
+  - train
+  - -d
+  - ../data/
+  - -t
+  - Regression
+  - --log-dir
+  - ../yaib_logs
+  - --tune
+  - --wandb-sweep
+  - -gc
+  - -lc
+method: grid
+name: yaib_demo_regression_benchmark
+parameters:
+  data_dir:
+    values:
+      - demo_data/los/eicu_demo
+      - demo_data/los/mimic_demo
+      - demo_data/kf/eicu_demo
+      - demo_data/kf/mimic_demo
+  model:
+    values:
+      - ElasticNet
+      - LGBMRegressor
+      - GRU
+      - LSTM
+      - TCN
+      - Transformer
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks
