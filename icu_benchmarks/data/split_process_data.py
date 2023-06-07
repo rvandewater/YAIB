@@ -14,9 +14,6 @@ from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
 
 
-
-
-
 @gin.configurable("preprocess")
 def preprocess_data(
     data_dir: Path,
@@ -33,7 +30,7 @@ def preprocess_data(
     generate_cache: bool = False,
     fold_index: int = 0,
     pretrained_imputation_model: str = None,
-    runmode: RunMode = RunMode.classification
+    runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -83,22 +80,20 @@ def preprocess_data(
         else:
             logging.info(f"No cached data found in {cache_file}, loading raw features.")
 
-    logging.info(f"Loading data from directory {data_dir.absolute()}")
     # Read parquet files into pandas dataframes and remove the parquet file from memory
+    logging.info(f"Loading data from directory {data_dir.absolute()}")
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
-    #if runmode == RunMode.regression:
-        #max = data[Segment.outcome]["label"].max()
-    prevalence = data["OUTCOME"].groupby("stay_id").max()
-    static = data["STATIC"]
-    median = prevalence["label"].median()
-    avg = prevalence["label"].max()
 
-    # prevalence_sum = prevalence["label"].sum()
+    # Generate the splits
     logging.info("Generating splits.")
-    data = make_single_split(data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug, runmode= runmode)
+    data = make_single_split(
+        data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug, runmode=runmode
+    )
 
+    # Apply preprocessing
     data = preprocessor.apply(data, vars)
 
+    # Generate cache
     if generate_cache:
         caching(cache_dir, cache_file, data, load_cache)
     else:
@@ -107,6 +102,7 @@ def preprocess_data(
     logging.info("Finished preprocessing.")
 
     return data
+
 
 def make_single_split(
     data: dict[pd.DataFrame],
@@ -117,7 +113,7 @@ def make_single_split(
     fold_index: int,
     seed: int = 42,
     debug: bool = False,
-    runmode: RunMode = RunMode.classification
+    runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
@@ -150,8 +146,10 @@ def make_single_split(
         # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
         labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
         if labels.value_counts().min() < cv_folds:
-            raise Exception(f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
-                            f"but {cv_folds} folds are requested. Reduce the number of folds or use more data.")
+            raise Exception(
+                f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
+                f"but {cv_folds} folds are requested. Reduce the number of folds or use more data."
+            )
         outer_cv = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
         inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
 
@@ -182,6 +180,7 @@ def make_single_split(
         }
 
     return data_split
+
 
 def caching(cache_dir, cache_file, data, use_cache, overwrite=True):
     if use_cache and (not overwrite or not cache_file.exists()):
