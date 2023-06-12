@@ -9,10 +9,10 @@ dependencies:
   - black=23.3.0
   - coverage=7.2.3
   - flake8=5.0.4
+  - matplotlib=3.7.1
   - gin-config=0.5.0
   - ignite=0.4.11
-  # Versioning of Pytorch (2.0) dependent on compatible CUDA version
-  - pytorch
+  - pytorch=2.0.1
   - pytorch-cuda=11.8
   - lightgbm=3.3.5
   - numpy=1.24.3
@@ -22,15 +22,16 @@ dependencies:
   - scikit-learn=1.2.2
   - tensorboard=2.12.2
   - tqdm=4.64.1
-  - pytorch-lightning=2.0.1
-  - wandb=0.15.0
+  - pytorch-lightning=2.0.3
+  - wandb=0.15.4
   - pip=23.1
-  - scikit-optimize=0.9.0
   - einops=0.6.1
   - hydra-core=1.3
   - pip:
-      - git+https://github.com/rvandewater/recipys.git
-      - hyperimpute==0.1.16
-      - pypots==0.0.10
+      - git+https://github.com/rvandewater/recipys.git@main
+      # Fixed version because of NumPy incompatibility
+      - git+https://github.com/rvandewater/scikit-optimize.git@main
       - hydra-submitit-launcher==1.2.0
+# Note: versioning of Pytorch might be dependent on compatible CUDA version.
+# Please check yourself if your Pytorch installation supports cuda (for gpu acceleration)
 

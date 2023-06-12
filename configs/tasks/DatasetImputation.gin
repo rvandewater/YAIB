@@ -1,7 +1,5 @@
-import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.ml_models
-import icu_benchmarks.models.dl_models
-import icu_benchmarks.data.split_process_data
+# COMMON IMPORTS
+include "configs/tasks/common/Imports.gin"
 
 # CROSS-VALIDATION
 include "configs/tasks/common/CrossValidation.gin"
