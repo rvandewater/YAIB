@@ -1,4 +1,4 @@
-name: yaib_14
+name: yaib
 channels:
   - pytorch
   - nvidia
@@ -30,8 +30,6 @@ dependencies:
   - pip:
       - git+https://github.com/rvandewater/recipys.git
       - git+https://github.com/rvandewater/scikit-optimize.git
-#      - hyperimpute==0.1.17
-#      - pypots==0.1.1
       - hydra-submitit-launcher==1.2.0
 # Note: versioning of Pytorch might be dependent on compatible CUDA version.
 # Please check yourself if your Pytorch installation supports cuda (for gpu acceleration)
