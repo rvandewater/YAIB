@@ -1,26 +1,41 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+title: Yet Another ICU Benchmark (YAIB)
+message: >-
+  If you use this software, please cite the research paper and optionally the software itself using the
+  metadata from this file.
+type: software
 authors:
-    - family-names: "van de Water"
-    given-names: "Robin"
-    orcid: "https://orcid.org/0000-0002-2895-4872"
-    - family-names: "Schmidt"
-    given-names: "Hendrik"
-    orcid: "https://orcid.org/0009-0007-9501-7567"
-    - family-names: "Elbers"
-    given-names: "Paul"
-    orcid: "https://orcid.org/0000-0003-0447-6893"
-    - family-names: "Thoral"
-    given-names: "Patrick"
-    orcid: "https://orcid.org/0000-0001-8380-7667"
-    - family-names: "Arnrich"
-    given-names: "Bert"
-    orcid: "https://orcid.org/0000-0001-8380-7667"
-    - family-names: "Rockenschaub"
-    given-names: "Patrick"
-    orcid: "https://orcid.org/0000-0002-6499-7933"
-title: "Yet Another ICU Benchmark: A Flexible Multi-Center Framework for Clinical ML"
-version: 0.3.0
-doi: 10.48550/arXiv.2306.05109
-date-released: 08-06-2023
-url: "https://github.com/rvandewater/YAIB"
+  - given-names: Robin
+    family-names: van de Water
+    email: Robin.VandeWater@hpi.de
+    affiliation: Hasso Plattner Institute
+    orcid: 'https://orcid.org/0000-0002-2895-4872'
+  - given-names: Hendrik
+    family-names: Schmidt
+    email: Hendrik.Schmidt@student.hpi.uni-potsdam.de
+    affiliation: Hasso Plattner Institute
+  - given-names: Patrick
+    family-names: Rockenschaub
+    email: patrick.rockenschaub@gmail.com
+    affiliation: Fraunhofer IKS
+    orcid: 'https://orcid.org/0000-0002-6499-7933'
+identifiers:
+  - type: doi
+    value: 10.48550/arXiv.2306.05109
+    description: Research paper
+repository-code: 'https://github.com/rvandewater/YAIB'
+url: 'https://github.com/rvandewater/YAIB/wiki'
+keywords:
+  - machine-learning
+  - ehr
+  - icu
+  - mimic-iii
+  - eicu-crd
+  - clinical-data
+  - mimic-iv
+  - hirid-dataset
+  - amsterdamumcdb
+license: MIT
