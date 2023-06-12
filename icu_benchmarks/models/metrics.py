@@ -5,6 +5,7 @@ from ignite.metrics import EpochMetric
 from sklearn.metrics import balanced_accuracy_score, mean_absolute_error
 from sklearn.calibration import calibration_curve
 from scipy.spatial.distance import jensenshannon
+
 """"
 This file contains metrics that are not available in ignite.metrics. Specifically, it adds transformation capabilities to some
 metrics.
