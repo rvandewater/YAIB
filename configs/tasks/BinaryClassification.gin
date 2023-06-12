@@ -1,8 +1,5 @@
-import icu_benchmarks.data.split_process_data
-import icu_benchmarks.data.loader
-import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.dl_models
-import icu_benchmarks.models.ml_models
+# COMMON IMPORTS
+include "configs/tasks/common/Imports.gin"
 
 # DATASET CONFIGURATION
 include "configs/tasks/common/PredictionTaskVariables.gin"

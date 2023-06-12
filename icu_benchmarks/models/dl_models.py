@@ -2,6 +2,7 @@ import gin
 from numbers import Integral
 import numpy as np
 import torch.nn as nn
+from icu_benchmarks.contants import RunMode
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 
@@ -9,6 +10,8 @@ from icu_benchmarks.models.wrappers import DLPredictionWrapper
 @gin.configurable
 class RNNet(DLPredictionWrapper):
     """Torch standard RNN model"""
+
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
 
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
         super().__init__(
@@ -33,6 +36,8 @@ class RNNet(DLPredictionWrapper):
 @gin.configurable
 class LSTMNet(DLPredictionWrapper):
     """Torch standard LSTM model."""
+
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
 
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
         super().__init__(
@@ -59,6 +64,8 @@ class LSTMNet(DLPredictionWrapper):
 class GRUNet(DLPredictionWrapper):
     """Torch standard GRU model."""
 
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
+
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
         super().__init__(
             input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
@@ -83,6 +90,8 @@ class GRUNet(DLPredictionWrapper):
 @gin.configurable
 class Transformer(DLPredictionWrapper):
     """Transformer model as defined by the HiRID-Benchmark (https://github.com/ratschlab/HIRID-ICU-Benchmark)."""
+
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
 
     def __init__(
         self,
@@ -150,6 +159,8 @@ class Transformer(DLPredictionWrapper):
 
 @gin.configurable
 class LocalTransformer(DLPredictionWrapper):
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
+
     def __init__(
         self,
         input_size,
@@ -221,6 +232,8 @@ class LocalTransformer(DLPredictionWrapper):
 @gin.configurable
 class TemporalConvNet(DLPredictionWrapper):
     """Temporal Convolutional Network. Adapted from TCN original paper https://github.com/locuslab/TCN"""
+
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
 
     def __init__(self, input_size, num_channels, num_classes, *args, max_seq_length=0, kernel_size=2, dropout=0.0, **kwargs):
         super().__init__(

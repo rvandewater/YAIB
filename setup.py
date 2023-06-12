@@ -45,8 +45,8 @@ def parse_environment_yml():
     return sanitized_dependencies
 
 
-with open("README.md") as readme_file:
-    readme = readme_file.read()
+this_directory = Path(__file__).parent
+readme = (this_directory / "README.md").read_text(encoding="utf-8")
 
 setup_requirements = ["pytest-runner"]
 
@@ -54,22 +54,22 @@ setup(
     author="Robin van de Water",
     author_email="robin.vandewater@hpi.de",
     classifiers=[
-        "Development Status :: Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
         "Programming Language :: Python :: 3.10",
     ],
-    description="Yet Another ICU Benchmark is a holistic framework for the automation of clinical prediction models "
-    "on ICU data. Users can create custom datasets, cohorts, prediction tasks, endpoints, and models.",
+    description="Yet Another ICU Benchmark is a holistic framework for the automation of clinical prediction models on ICU data. Users can create custom datasets, cohorts, prediction tasks, endpoints, and models. ",
     entry_points={"console_scripts": ["icu-benchmarks = icu_benchmarks.run:main"]},
     install_requires=parse_environment_yml(),
     extras_require={"mps": ["mkl < 2022"]},
     license="MIT license",
     long_description=readme,
+    long_description_content_type='text/markdown',
     include_package_data=True,
     keywords="benchmark mimic-iii eicu hirid clinical machine learning",
-    name="Yet Another ICU Benchmark",
+    name="yaib",
     packages=find_packages(include=["icu_benchmarks"]),
     setup_requires=setup_requirements,
     test_suite="tests",
@@ -77,4 +77,5 @@ setup(
     url="https://github.com/rvandewater/YAIB",
     version="0.3.0",
     zip_safe=False,
+
 )
