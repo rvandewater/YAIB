@@ -75,6 +75,6 @@ setup(
     test_suite="tests",
     tests_require=[],
     url="https://github.com/rvandewater/YAIB",
-    version="0.2.0",
+    version="0.3.0",
     zip_safe=False,
 )
