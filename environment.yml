@@ -28,8 +28,9 @@ dependencies:
   - einops=0.6.1
   - hydra-core=1.3
   - pip:
-      - git+https://github.com/rvandewater/recipys.git
-      - git+https://github.com/rvandewater/scikit-optimize.git
+      - git+https://github.com/rvandewater/recipys.git@main
+      # Fixed version because of NumPy incompatibility
+      - git+https://github.com/rvandewater/scikit-optimize.git@main
       - hydra-submitit-launcher==1.2.0
 # Note: versioning of Pytorch might be dependent on compatible CUDA version.
 # Please check yourself if your Pytorch installation supports cuda (for gpu acceleration)
