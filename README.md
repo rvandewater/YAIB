@@ -1,4 +1,4 @@
-![YAIB logo](docs/figures/yaib_logo.png)
+![YAIB logo](https://github.com/rvandewater/YAIB/blob/development/docs/figures/yaib_logo.png?raw=true)
 
 # 🧪 Yet Another ICU Benchmark
 
@@ -6,6 +6,7 @@
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ![Platform](https://img.shields.io/badge/platform-linux--64%20|%20win--64%20|%20osx--64-lightgrey)
 [![arXiv](https://img.shields.io/badge/arXiv-2306.05109-b31b1b.svg)](http://arxiv.org/abs/2306.05109)
+[![PyPI version shields.io](https://img.shields.io/pypi/v/yaib.svg)](https://pypi.python.org/pypi/yaib/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 [//]: # (TODO: add coverage once we have some tests )
