@@ -5,7 +5,6 @@
 from pathlib import Path
 from setuptools import setup, find_packages
 
-
 root_path = Path(__file__).resolve().parent
 
 
@@ -60,8 +59,9 @@ setup(
         "Natural Language :: English",
         "Programming Language :: Python :: 3.10",
     ],
-    description="Yet Another ICU Benchmark is a holistic framework for the automation of clinical prediction models on ICU "
-                "data. Users can create custom datasets, cohorts, prediction tasks, endpoints, and models. ",
+    description="Yet Another ICU Benchmark is a holistic framework for the automation of the development of clinical "
+    "prediction models on ICU data. Users can create custom datasets, cohorts, prediction tasks, endpoints, "
+    "and models. ",
     entry_points={"console_scripts": ["icu-benchmarks = icu_benchmarks.run:main"]},
     install_requires=parse_environment_yml(),
     extras_require={"mps": ["mkl < 2022"]},
@@ -69,7 +69,8 @@ setup(
     long_description=readme,
     long_description_content_type="text/markdown",
     include_package_data=True,
-    keywords="benchmark mimic-iii eicu hirid clinical machine learning",
+    keywords="benchmark mimic-iii eicu hirid clinical-ml machine-learning benchmark time-series mimic-iv patient-monitoring "
+    "amsterdamumcdb clinical-data ehr icu ricu pyicu",
     name="yaib",
     packages=find_packages(include=["icu_benchmarks"]),
     setup_requires=setup_requirements,

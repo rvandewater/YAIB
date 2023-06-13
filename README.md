@@ -72,16 +72,19 @@ If you use this code in your research, please cite the following publication:
 This paper can also be found on arxiv [2306.05109](https://arxiv.org/abs/2306.05109)
 
 # 💿Installation
+YAIB is currently ideally installed from source, however we also offer it an early PyPi release.
+
+## Installation from source
 First, we clone this repository using git:
 ````
 git clone https://github.com/rvandewater/YAIB.git
 ````
-Pleas note the branch. The newest features and fixes are available at the development branch:
+Please note the branch. The newest features and fixes are available at the development branch:
 ````
 git checkout development
 ````
-
-YAIB can be installed using a conda environment (preferred) or pip. Below are the three CLI commands to install YAIB using **conda**.
+YAIB can be installed using a conda environment (preferred) or pip. Below are the three CLI commands to install YAIB 
+using **conda**.
 
 The first command will install an environment based on Python 3.10.
 
