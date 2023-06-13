@@ -72,13 +72,18 @@ If you use this code in your research, please cite the following publication:
 This paper can also be found on arxiv [2306.05109](https://arxiv.org/abs/2306.05109)
 
 # 💿Installation
+First, we clone this repository using git:
+````
+git clone https://github.com/rvandewater/YAIB.git
+````
+Pleas note the branch. The newest features and fixes are available at the development branch:
+````
+git checkout development
+````
 
+YAIB can be installed using a conda environment (preferred) or pip. Below are the three CLI commands to install YAIB using **conda**.
 
-
-
-YAIB can be installed using conda or pip. Below you will find the three CLI commands to install YAIB using conda.
-
-The first command will install an environment based on Python 3.10 .
+The first command will install an environment based on Python 3.10.
 
 ```
 conda env update -f <environment.yml|environment_mps.yml>
@@ -93,12 +98,13 @@ conda activate yaib
 pip install -e .
 ```
 
-If you want to install the icu-benchmarks package with pip, execute the command below:
+If you want to install the icu-benchmarks package with **pip**, execute the command below:
 
 ```
 pip install torch numpy && pip install -e .
 ```
-
+After installation, please check if your Pytorch version works with CUDA (in case available) to ensure the best performance. 
+YAIB will automatically list available processors at initialization in its log files.
 
 # 👩‍💻Usage
 

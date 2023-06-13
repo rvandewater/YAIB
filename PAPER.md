@@ -5,7 +5,7 @@
 
 # Yet Another ICU Benchmark: _A Flexible Multi-Center Framework for Clinical ML_
 
-This repository is the official implementation of [placeholder](https://arxiv.org/abs/2030.12345).
+This repository is the official implementation of [Yet Another ICU Benchmark: A Flexible Multi-Center Framework for Clinical ML](https://arxiv.org/abs/2306.05109).
 See a graphical overview of our framework below:
 ![yaib_flow](docs/figures/yaib_flow_combined.svg)
 We propose Yet Another ICU Benchmark. It was designed to address the issues of reproduciblity and provide a unified interface to develop
