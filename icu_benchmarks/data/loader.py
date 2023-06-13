@@ -151,7 +151,7 @@ class PredictionDataset(CommonDataset):
 
     def to_tensor(self):
         data, labels = self.get_data_and_labels()
-        return from_numpy(data), from_numpy(labels)
+        return from_numpy(data).to(float32), from_numpy(labels).to(float32)
 
 
 @gin.configurable("ImputationDataset")
