@@ -135,7 +135,7 @@ class DLWrapper(BaseModule, ABC):
         try:
             self.log_dict(
                 {
-                    f"{step_prefix}/{name}": metric.compute()
+                    f"{step_prefix}/{name}": (np.float32(metric.compute()) if isinstance(metric.compute(), np.float64 ) else metric.compute() )
                     for name, metric in self.metrics[step_prefix].items()
                     if "_Curve" not in name
                 },
@@ -358,9 +358,9 @@ class MLWrapper(BaseModule, ABC):
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
 
-        self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
+        self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
         logging.debug(f"Test loss: {self.loss(test_label, test_pred)}")
-        self.log_metrics(test_label, test_pred, "test")
+        self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
 
     def predict(self, features):
         if self.run_mode == RunMode.regression:
@@ -373,7 +373,7 @@ class MLWrapper(BaseModule, ABC):
 
         self.log_dict(
             {
-                f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred))
+                f"{metric_type}/{name}": np.float32(metric(self.label_transform(label), self.output_transform(pred)))
                 for name, metric in self.metrics.items()
                 # Filter out metrics that return a tuple (e.g. precision_recall_curve)
                 if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
