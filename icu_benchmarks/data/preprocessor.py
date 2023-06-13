@@ -3,9 +3,9 @@ import logging
 
 import gin
 import pandas as pd
-from recipies.recipe import Recipe
-from recipies.selector import all_numeric_predictors, all_outcomes, has_type, all_of
-from recipies.step import StepScale, StepImputeFill, StepSklearn, StepHistorical, Accumulator, StepImputeModel
+from recipys.recipe import Recipe
+from recipys.selector import all_numeric_predictors, all_outcomes, has_type, all_of
+from recipys.step import StepScale, StepImputeFill, StepSklearn, StepHistorical, Accumulator, StepImputeModel
 from sklearn.impute import SimpleImputer, MissingIndicator
 from sklearn.preprocessing import LabelEncoder, FunctionTransformer, MinMaxScaler
 
