@@ -3,7 +3,8 @@ from numbers import Integral
 import numpy as np
 import torch.nn as nn
 from icu_benchmarks.contants import RunMode
-from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
+from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding,LazyEmbedding,StaticCovariateEncoder,TFTBack
+
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 
 
@@ -280,3 +281,40 @@ class TemporalConvNet(DLPredictionWrapper):
         o = o.permute(0, 2, 1)  # Permute to channel last
         pred = self.logit(o)
         return pred
+@gin.configurable
+class TemporalFusionTransformer(DLPredictionWrapper):
+    """ 
+    Implementation of https://arxiv.org/abs/1912.09363 
+    """
+    def __init__(self, encoder_length,static_categorical_inp_lens,temporal_known_categorical_inp_lens,
+    temporal_observed_categorical_inp_lens,static_continuous_inp_size,temporal_known_continuous_inp_size,
+    temporal_observed_continuous_inp_size,temporal_target_size,hidden_size,num_static_vars,dropout,num_historic_vars,num_future_vars,
+                 n_head,attn_dropout,example_length,d_head,quantiles):
+        super().__init__()
+
+
+
+        self.encoder_length = encoder_length #this determines from how distant past we want to use data from
+
+        self.embedding = LazyEmbedding(static_categorical_inp_lens,temporal_known_categorical_inp_lens,
+                temporal_observed_categorical_inp_lens,static_continuous_inp_size,temporal_known_continuous_inp_size,
+                temporal_observed_continuous_inp_size,temporal_target_size,hidden_size)
+        self.static_encoder = StaticCovariateEncoder(num_static_vars,hidden_size,dropout)
+        self.TFTpart2 = torch.jit.script(TFTBack(encoder_length,num_historic_vars,hidden_size,dropout,num_future_vars,
+                n_head,attn_dropout,example_length,d_head,quantiles))
+
+    def forward(self, x: Dict[str, Tensor]) -> Tensor:
+        s_inp, t_known_inp, t_observed_inp, t_observed_tgt = self.embedding(x)
+
+        # Static context
+        cs, ce, ch, cc = self.static_encoder(s_inp)
+        ch, cc = ch.unsqueeze(0), cc.unsqueeze(0) #lstm initial states
+
+        # Temporal input
+        _historical_inputs = [t_known_inp[:,:self.encoder_length,:], t_observed_tgt[:,:self.encoder_length,:]]
+        if t_observed_inp is not None:
+            _historical_inputs.insert(0,t_observed_inp[:,:self.encoder_length,:])
+
+        historical_inputs = torch.cat(_historical_inputs, dim=-2)
+        future_inputs = t_known_inp[:, self.encoder_length:]
+        return self.TFTpart2(historical_inputs, cs, ch, cc, ce, future_inputs)
