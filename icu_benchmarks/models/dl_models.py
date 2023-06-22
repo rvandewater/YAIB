@@ -6,7 +6,7 @@ from icu_benchmarks.contants import RunMode
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding,LazyEmbedding,StaticCovariateEncoder,TFTBack
 from typing import Dict
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
-from torch import Tensor,cat
+from torch import Tensor,cat,jit
 
 
 @gin.configurable
@@ -310,7 +310,7 @@ class TemporalFusionTransformer(DLPredictionWrapper):
                 temporal_observed_categorical_inp_size,static_continuous_inp_size,temporal_known_continuous_inp_size,
                 temporal_observed_continuous_inp_size,temporal_target_size,hidden)
         self.static_encoder = StaticCovariateEncoder(num_static_vars,hidden,dropout)
-        self.TFTpart2 = torch.jit.script(TFTBack(encoder_length,num_historic_vars,hidden,dropout,num_future_vars,
+        self.TFTpart2 = jit.script(TFTBack(encoder_length,num_historic_vars,hidden,dropout,num_future_vars,
                 n_head,dropout_att,example_length,quantiles))
         self.logit = nn.Linear(len(quantiles), num_classes)
 
