@@ -323,12 +323,12 @@ class MaybeLayerNorm(nn.Module):
     '''
     Implements layer normalization or identity function depending on output_size
     '''
-    def __init__(self, output_size, hidden_size, eps):
+    def __init__(self, output_size, hidden, eps):
         super().__init__()
         if output_size and output_size == 1:
             self.ln = nn.Identity()
         else:
-            self.ln = LayerNorm(output_size if output_size else hidden_size, eps=eps)
+            self.ln = LayerNorm(output_size if output_size else hidden, eps=eps)
     
     def forward(self, x):
         return self.ln(x)
@@ -339,9 +339,9 @@ class GLU(nn.Module):
     Gated Linear Unit consists of a linear layer followed by a GLU where input is split in half along dim to form a and b
     GLU(a,b)=a ⊗ σ(b)where σ is signmoid activation and ⊗ is element-wise product 
     '''
-    def __init__(self, hidden_size, output_size):
+    def __init__(self, hidden, output_size):
         super().__init__()
-        self.lin = nn.Linear(hidden_size, output_size * 2)
+        self.lin = nn.Linear(hidden, output_size * 2)
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.lin(x)
@@ -355,19 +355,19 @@ class GRN(nn.Module):
     '''
     def __init__(self,
                  input_size,
-                 hidden_size,
+                 hidden,
                  output_size=None,
                  context_hidden_size=None,
                  dropout=0.0,):
         super().__init__()
-        self.layer_norm = MaybeLayerNorm(output_size, hidden_size, eps=1e-3)
-        self.lin_a = nn.Linear(input_size, hidden_size)
+        self.layer_norm = MaybeLayerNorm(output_size, hidden, eps=1e-3)
+        self.lin_a = nn.Linear(input_size, hidden)
         if context_hidden_size is not None:
-            self.lin_c = nn.Linear(context_hidden_size, hidden_size, bias=False)
+            self.lin_c = nn.Linear(context_hidden_size, hidden, bias=False)
         else:
             self.lin_c = nn.Identity()
-        self.lin_i = nn.Linear(hidden_size, hidden_size)
-        self.glu = GLU(hidden_size, output_size if output_size else hidden_size)
+        self.lin_i = nn.Linear(hidden, hidden)
+        self.glu = GLU(hidden, output_size if output_size else hidden)
         self.dropout = nn.Dropout(dropout)
         self.out_proj = nn.Linear(input_size, output_size) if output_size else None
 
@@ -398,22 +398,23 @@ def fused_pointwise_linear_v2(x, a, b):
 
 
 class TFTEmbedding(nn.Module):
-    def __init__(self,static_categorical_inp_lens,temporal_known_categorical_inp_lens,
-    temporal_observed_categorical_inp_lens,static_continuous_inp_size,temporal_known_continuous_inp_size,
-    temporal_observed_continuous_inp_size,temporal_target_size,hidden_size,
+    def __init__(self,static_categorical_inp_size,temporal_known_categorical_inp_size,
+    temporal_observed_categorical_inp_size,static_continuous_inp_size,temporal_known_continuous_inp_size,
+    temporal_observed_continuous_inp_size,temporal_target_size,hidden,
      initialize_cont_params=False):
         # initialize_cont_params=False prevents form initializing parameters inside this class
         # so they can be lazily initialized in LazyEmbedding module
         super().__init__()
-        self.s_cat_inp_lens    = static_categorical_inp_lens
-        self.t_cat_k_inp_lens  = temporal_known_categorical_inp_lens
-        self.t_cat_o_inp_lens  = temporal_observed_categorical_inp_lens
+        #these are basically number of varaibales that falls under each category 
+        self.s_cat_inp_size    = static_categorical_inp_size
+        self.t_cat_k_inp_size  = temporal_known_categorical_inp_size
+        self.t_cat_o_inp_size  = temporal_observed_categorical_inp_size
         self.s_cont_inp_size   = static_continuous_inp_size
         self.t_cont_k_inp_size = temporal_known_continuous_inp_size
         self.t_cont_o_inp_size = temporal_observed_continuous_inp_size
         self.t_tgt_size        = temporal_target_size
 
-        self.hidden_size = hidden_size
+        self.hidden = hidden
 
         # There are 7 types of input:
         # 1. Static categorical
@@ -425,22 +426,22 @@ class TFTEmbedding(nn.Module):
         # 7. Temporal observed targets (time series obseved so far)
 
         self.s_cat_embed = nn.ModuleList([
-            nn.Embedding(n, self.hidden_size) for n in self.s_cat_inp_lens]) if self.s_cat_inp_lens else None
+            nn.Embedding(n, self.hidden) for n in self.s_cat_inp_size]) if self.s_cat_inp_size else None
         self.t_cat_k_embed = nn.ModuleList([
-            nn.Embedding(n, self.hidden_size) for n in self.t_cat_k_inp_lens]) if self.t_cat_k_inp_lens else None
+            nn.Embedding(n, self.hidden) for n in self.t_cat_k_inp_size]) if self.t_cat_k_inp_size else None
         self.t_cat_o_embed = nn.ModuleList([
-            nn.Embedding(n, self.hidden_size) for n in self.t_cat_o_inp_lens]) if self.t_cat_o_inp_lens else None
+            nn.Embedding(n, self.hidden) for n in self.t_cat_o_inp_size]) if self.t_cat_o_inp_size else None
 
         if initialize_cont_params:
-            self.s_cont_embedding_vectors = nn.Parameter(torch.Tensor(self.s_cont_inp_size, self.hidden_size)) if self.s_cont_inp_size else None
-            self.t_cont_k_embedding_vectors = nn.Parameter(torch.Tensor(self.t_cont_k_inp_size, self.hidden_size)) if self.t_cont_k_inp_size else None
-            self.t_cont_o_embedding_vectors = nn.Parameter(torch.Tensor(self.t_cont_o_inp_size, self.hidden_size)) if self.t_cont_o_inp_size else None
-            self.t_tgt_embedding_vectors = nn.Parameter(torch.Tensor(self.t_tgt_size, self.hidden_size))
+            self.s_cont_embedding_vectors = nn.Parameter(torch.Tensor(self.s_cont_inp_size, self.hidden)) if self.s_cont_inp_size else None
+            self.t_cont_k_embedding_vectors = nn.Parameter(torch.Tensor(self.t_cont_k_inp_size, self.hidden)) if self.t_cont_k_inp_size else None
+            self.t_cont_o_embedding_vectors = nn.Parameter(torch.Tensor(self.t_cont_o_inp_size, self.hidden)) if self.t_cont_o_inp_size else None
+            self.t_tgt_embedding_vectors = nn.Parameter(torch.Tensor(self.t_tgt_size, self.hidden))
 
-            self.s_cont_embedding_bias = nn.Parameter(torch.zeros(self.s_cont_inp_size, self.hidden_size)) if self.s_cont_inp_size else None
-            self.t_cont_k_embedding_bias = nn.Parameter(torch.zeros(self.t_cont_k_inp_size, self.hidden_size)) if self.t_cont_k_inp_size else None
-            self.t_cont_o_embedding_bias = nn.Parameter(torch.zeros(self.t_cont_o_inp_size, self.hidden_size)) if self.t_cont_o_inp_size else None
-            self.t_tgt_embedding_bias = nn.Parameter(torch.zeros(self.t_tgt_size, self.hidden_size))
+            self.s_cont_embedding_bias = nn.Parameter(torch.zeros(self.s_cont_inp_size, self.hidden)) if self.s_cont_inp_size else None
+            self.t_cont_k_embedding_bias = nn.Parameter(torch.zeros(self.t_cont_k_inp_size, self.hidden)) if self.t_cont_k_inp_size else None
+            self.t_cont_o_embedding_bias = nn.Parameter(torch.zeros(self.t_cont_o_inp_size, self.hidden)) if self.t_cont_o_inp_size else None
+            self.t_tgt_embedding_bias = nn.Parameter(torch.zeros(self.t_tgt_size, self.hidden))
 
             self.reset_parameters()
 
@@ -537,12 +538,12 @@ class TFTEmbedding(nn.Module):
 class LazyEmbedding(nn.modules.lazy.LazyModuleMixin, TFTEmbedding):
     cls_to_become = TFTEmbedding
 
-    def __init__(self, static_categorical_inp_lens,temporal_known_categorical_inp_lens,
-    temporal_observed_categorical_inp_lens,static_continuous_inp_size,temporal_known_continuous_inp_size,
-    temporal_observed_continuous_inp_size,temporal_target_size,hidden_size):
-        super().__init__(static_categorical_inp_lens,temporal_known_categorical_inp_lens,
-    temporal_observed_categorical_inp_lens,static_continuous_inp_size,temporal_known_continuous_inp_size,
-    temporal_observed_continuous_inp_size,temporal_target_size,hidden_size, initialize_cont_params=False)
+    def __init__(self, static_categorical_inp_size,temporal_known_categorical_inp_size,
+    temporal_observed_categorical_inp_size,static_continuous_inp_size,temporal_known_continuous_inp_size,
+    temporal_observed_continuous_inp_size,temporal_target_size,hidden):
+        super().__init__(static_categorical_inp_size,temporal_known_categorical_inp_size,
+    temporal_observed_categorical_inp_size,static_continuous_inp_size,temporal_known_continuous_inp_size,
+    temporal_observed_continuous_inp_size,temporal_target_size,hidden, initialize_cont_params=False)
 
         if static_continuous_inp_size:
             self.s_cont_embedding_vectors = UninitializedParameter()
@@ -576,19 +577,19 @@ class LazyEmbedding(nn.modules.lazy.LazyModuleMixin, TFTEmbedding):
             t_tgt_obs = x['target'] # Has to be present
 
             if s_cont_inp is not None:
-                self.s_cont_embedding_vectors.materialize((s_cont_inp.shape[-1], self.hidden_size))
-                self.s_cont_embedding_bias.materialize((s_cont_inp.shape[-1], self.hidden_size))
+                self.s_cont_embedding_vectors.materialize((s_cont_inp.shape[-1], self.hidden))
+                self.s_cont_embedding_bias.materialize((s_cont_inp.shape[-1], self.hidden))
 
             if t_cont_k_inp is not None:
-                self.t_cont_k_embedding_vectors.materialize((t_cont_k_inp.shape[-1], self.hidden_size))
-                self.t_cont_k_embedding_bias.materialize((t_cont_k_inp.shape[-1], self.hidden_size))
+                self.t_cont_k_embedding_vectors.materialize((t_cont_k_inp.shape[-1], self.hidden))
+                self.t_cont_k_embedding_bias.materialize((t_cont_k_inp.shape[-1], self.hidden))
 
             if t_cont_o_inp is not None:
-                self.t_cont_o_embedding_vectors.materialize((t_cont_o_inp.shape[-1], self.hidden_size))
-                self.t_cont_o_embedding_bias.materialize((t_cont_o_inp.shape[-1], self.hidden_size))
+                self.t_cont_o_embedding_vectors.materialize((t_cont_o_inp.shape[-1], self.hidden))
+                self.t_cont_o_embedding_bias.materialize((t_cont_o_inp.shape[-1], self.hidden))
 
-            self.t_tgt_embedding_vectors.materialize((t_tgt_obs.shape[-1], self.hidden_size))
-            self.t_tgt_embedding_bias.materialize((t_tgt_obs.shape[-1], self.hidden_size))
+            self.t_tgt_embedding_vectors.materialize((t_tgt_obs.shape[-1], self.hidden))
+            self.t_tgt_embedding_bias.materialize((t_tgt_obs.shape[-1], self.hidden))
 
             self.reset_parameters()
 
@@ -597,10 +598,10 @@ class VariableSelectionNetwork(nn.Module):
     Learns to select important netowrks consists of GRNs with one GRN for variable weights 
     and the others for input embedding
     '''
-    def __init__(self, hidden_size,dropout, num_inputs):
+    def __init__(self, hidden,dropout, num_inputs):
         super().__init__()
-        self.joint_grn = GRN(hidden_size*num_inputs, hidden_size, output_size=num_inputs, context_hidden_size=hidden_size)
-        self.var_grns = nn.ModuleList([GRN(hidden_size, hidden_size, dropout=dropout) for _ in range(num_inputs)])
+        self.joint_grn = GRN(hidden*num_inputs, hidden, output_size=num_inputs, context_hidden=hidden)
+        self.var_grns = nn.ModuleList([GRN(hidden, hidden, dropout=dropout) for _ in range(num_inputs)])
 
     def forward(self, x: Tensor, context: Optional[Tensor] = None):
         Xi = torch.flatten(x, start_dim=-2)
@@ -620,10 +621,10 @@ class StaticCovariateEncoder(nn.Module):
     Network to produce 4 contexts vectors to enrich static variables 
     Vriable selection Network --> GRNs
     '''
-    def __init__(self, num_static_vars,hidden_size,dropout):
+    def __init__(self, num_static_vars,hidden,dropout):
         super().__init__()
-        self.vsn = VariableSelectionNetwork(hidden_size,dropout, num_static_vars)
-        self.context_grns = nn.ModuleList([GRN(hidden_size, hidden_size, dropout=dropout) for _ in range(4)])
+        self.vsn = VariableSelectionNetwork(hidden,dropout, num_static_vars)
+        self.context_grns = nn.ModuleList([GRN(hidden, hidden, dropout=dropout) for _ in range(4)])
 
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         variable_ctx, sparse_weights = self.vsn(x)
@@ -643,14 +644,14 @@ class InterpretableMultiHeadAttention(nn.Module):
     Multi-head attention different as it outputs the attention_probability and it combines the attention weights instead of 
     concating them different from the one implemented already in YAIB
     '''
-    def __init__(self,n_head,hidden_size,attn_dropout,dropout,example_length,d_head):
+    def __init__(self,n_head,hidden,dropout_att,dropout,example_length):
         super().__init__()
         self.n_head = n_head
-        assert hidden_size % n_head == 0
-        self.d_head = hidden_size // n_head
-        self.qkv_linears = nn.Linear(hidden_size, (2 * n_head + 1) * d_head, bias=False)
-        self.out_proj = nn.Linear(self.d_head, hidden_size, bias=False)
-        self.attn_dropout = nn.Dropout(attn_dropout)
+        assert hidden % n_head == 0
+        self.d_head = hidden // n_head
+        self.qkv_linears = nn.Linear(hidden, (2 * n_head + 1) * self.d_head, bias=False)
+        self.out_proj = nn.Linear(self.d_head, hidden, bias=False)
+        self.dropout_att = nn.Dropout(dropout_att)
         self.out_dropout = nn.Dropout(dropout)
         self.scale = self.d_head**-0.5
         self.register_buffer("_mask", torch.triu(torch.full((example_length, example_length), float('-inf')), 1).unsqueeze(0))
@@ -670,7 +671,7 @@ class InterpretableMultiHeadAttention(nn.Module):
         attn_score = attn_score + self._mask
 
         attn_prob = F.softmax(attn_score, dim=3)
-        attn_prob = self.attn_dropout(attn_prob)
+        attn_prob = self.dropout_att(attn_prob)
 
         # attn_vec = torch.einsum('bnij,bjd->bnid', attn_prob, v)
         attn_vec = torch.matmul(attn_prob, v.unsqueeze(1))
@@ -686,36 +687,36 @@ class TFTBack(nn.Module):
     followed by a gate and a dense layer 
     GRNs-->multi-head attention-->GRNs-->GLU-->Linear-->output
     '''
-    def __init__(self, encoder_length,num_historic_vars,hidden_size,dropout,num_future_vars,
-                 n_head,attn_dropout,example_length,d_head,quantiles):
+    def __init__(self, encoder_length,num_historic_vars,hidden,dropout,num_future_vars,
+                 n_head,dropout_att,example_length,quantiles):
         super().__init__()
 
         self.encoder_length = encoder_length
-        self.history_vsn = VariableSelectionNetwork(hidden_size,dropout, num_historic_vars)
-        self.history_encoder = nn.LSTM(hidden_size, hidden_size, batch_first=True)
-        self.future_vsn = VariableSelectionNetwork(hidden_size,dropout,num_future_vars)
-        self.future_encoder = nn.LSTM(hidden_size, hidden_size, batch_first=True)
+        self.history_vsn = VariableSelectionNetwork(hidden,dropout, num_historic_vars)
+        self.history_encoder = nn.LSTM(hidden, hidden, batch_first=True)
+        self.future_vsn = VariableSelectionNetwork(hidden,dropout,num_future_vars)
+        self.future_encoder = nn.LSTM(hidden, hidden, batch_first=True)
 
 
-        self.input_gate = GLU(hidden_size, hidden_size)
-        self.input_gate_ln = LayerNorm(hidden_size, eps=1e-3)
+        self.input_gate = GLU(hidden, hidden)
+        self.input_gate_ln = LayerNorm(hidden, eps=1e-3)
 
-        self.enrichment_grn = GRN(hidden_size,
-                                  hidden_size,
-                                  context_hidden_size=hidden_size, 
+        self.enrichment_grn = GRN(hidden,
+                                  hidden,
+                                  context_hidden_size=hidden, 
                                   dropout=dropout)
-        self.attention = InterpretableMultiHeadAttention(n_head,hidden_size,attn_dropout,dropout,example_length,d_head)
-        self.attention_gate = GLU(hidden_size, hidden_size)
-        self.attention_ln = LayerNorm(hidden_size, eps=1e-3)
+        self.attention = InterpretableMultiHeadAttention(n_head,hidden,dropout_att,dropout,example_length)
+        self.attention_gate = GLU(hidden, hidden)
+        self.attention_ln = LayerNorm(hidden, eps=1e-3)
 
-        self.positionwise_grn = GRN(hidden_size,
-                                    hidden_size,
+        self.positionwise_grn = GRN(hidden,
+                                    hidden,
                                     dropout=dropout)
 
-        self.decoder_gate = GLU(hidden_size, hidden_size)
-        self.decoder_ln = LayerNorm(hidden_size, eps=1e-3)
+        self.decoder_gate = GLU(hidden, hidden)
+        self.decoder_ln = LayerNorm(hidden, eps=1e-3)
 
-        self.quantile_proj = nn.Linear(hidden_size, len(quantiles))
+        self.quantile_proj = nn.Linear(hidden, len(quantiles))
         
     def forward(self, historical_inputs, cs, ch, cc, ce, future_inputs):
         historical_features, _ = self.history_vsn(historical_inputs, cs)

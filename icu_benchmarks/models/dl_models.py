@@ -4,8 +4,9 @@ import numpy as np
 import torch.nn as nn
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding,LazyEmbedding,StaticCovariateEncoder,TFTBack
-
+from typing import Dict
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
+from torch import Tensor,cat
 
 
 @gin.configurable
@@ -286,22 +287,31 @@ class TemporalFusionTransformer(DLPredictionWrapper):
     """ 
     Implementation of https://arxiv.org/abs/1912.09363 
     """
-    def __init__(self, encoder_length,static_categorical_inp_lens,temporal_known_categorical_inp_lens,
-    temporal_observed_categorical_inp_lens,static_continuous_inp_size,temporal_known_continuous_inp_size,
-    temporal_observed_continuous_inp_size,temporal_target_size,hidden_size,num_static_vars,dropout,num_historic_vars,num_future_vars,
-                 n_head,attn_dropout,example_length,d_head,quantiles):
+
+
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
+    def __init__(self, encoder_length,hidden,num_static_vars,dropout,num_historic_vars,num_future_vars,
+                 n_head,dropout_att,example_length,quantiles,static_categorical_inp_size=1,temporal_known_categorical_inp_size=4,
+    temporal_observed_categorical_inp_size=0,static_continuous_inp_size=3,temporal_known_continuous_inp_size=0,
+    temporal_observed_continuous_inp_size=48,temporal_target_size=1):
         super().__init__()
 
-
-
+        #dervied embeddings size
+        num_static_vars=static_categorical_inp_size+static_continuous_inp_size
+        num_future_vars=temporal_known_categorical_inp_size+temporal_known_continuous_inp_size
+        num_historic_vars=sum([num_future_vars,
+                                      temporal_observed_continuous_inp_size,
+                                      temporal_target_size,
+                                      temporal_observed_categorical_inp_size,
+                                      ])
         self.encoder_length = encoder_length #this determines from how distant past we want to use data from
 
-        self.embedding = LazyEmbedding(static_categorical_inp_lens,temporal_known_categorical_inp_lens,
-                temporal_observed_categorical_inp_lens,static_continuous_inp_size,temporal_known_continuous_inp_size,
-                temporal_observed_continuous_inp_size,temporal_target_size,hidden_size)
-        self.static_encoder = StaticCovariateEncoder(num_static_vars,hidden_size,dropout)
-        self.TFTpart2 = torch.jit.script(TFTBack(encoder_length,num_historic_vars,hidden_size,dropout,num_future_vars,
-                n_head,attn_dropout,example_length,d_head,quantiles))
+        self.embedding = LazyEmbedding(static_categorical_inp_size,temporal_known_categorical_inp_size,
+                temporal_observed_categorical_inp_size,static_continuous_inp_size,temporal_known_continuous_inp_size,
+                temporal_observed_continuous_inp_size,temporal_target_size,hidden)
+        self.static_encoder = StaticCovariateEncoder(num_static_vars,hidden,dropout)
+        self.TFTpart2 = torch.jit.script(TFTBack(encoder_length,num_historic_vars,hidden,dropout,num_future_vars,
+                n_head,dropout_att,example_length,quantiles))
 
     def forward(self, x: Dict[str, Tensor]) -> Tensor:
         s_inp, t_known_inp, t_observed_inp, t_observed_tgt = self.embedding(x)
@@ -315,6 +325,6 @@ class TemporalFusionTransformer(DLPredictionWrapper):
         if t_observed_inp is not None:
             _historical_inputs.insert(0,t_observed_inp[:,:self.encoder_length,:])
 
-        historical_inputs = torch.cat(_historical_inputs, dim=-2)
+        historical_inputs = cat(_historical_inputs, dim=-2)
         future_inputs = t_known_inp[:, self.encoder_length:]
         return self.TFTpart2(historical_inputs, cs, ch, cc, ce, future_inputs)
