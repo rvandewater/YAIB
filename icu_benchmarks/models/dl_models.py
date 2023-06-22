@@ -3,7 +3,7 @@ from numbers import Integral
 import numpy as np
 import torch.nn as nn
 from icu_benchmarks.contants import RunMode
-from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding,LazyEmbedding,StaticCovariateEncoder,TFTBack
+from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding,LazyEmbedding,StaticCovariateEncoder,TFTBack,QuantileLoss
 from typing import Dict
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 from torch import Tensor,cat,jit
@@ -294,7 +294,7 @@ class TemporalFusionTransformer(DLPredictionWrapper):
                  n_head,dropout_att,example_length,quantiles,static_categorical_inp_size=1,temporal_known_categorical_inp_size=4,
     temporal_observed_categorical_inp_size=0,static_continuous_inp_size=3,temporal_known_continuous_inp_size=0,
     temporal_observed_continuous_inp_size=48,temporal_target_size=1):
-        super().__init__()
+        super().__init__(loss=QuantileLoss())
 
         #dervied embeddings size
         num_static_vars=static_categorical_inp_size+static_continuous_inp_size
