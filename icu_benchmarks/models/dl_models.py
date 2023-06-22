@@ -290,7 +290,7 @@ class TemporalFusionTransformer(DLPredictionWrapper):
 
 
     _supported_run_modes = [RunMode.classification, RunMode.regression]
-    def __init__(self, encoder_length,hidden,num_static_vars,dropout,num_historic_vars,num_future_vars,
+    def __init__(self,num_classes, encoder_length,hidden,num_static_vars,dropout,num_historic_vars,num_future_vars,
                  n_head,dropout_att,example_length,quantiles,static_categorical_inp_size=1,temporal_known_categorical_inp_size=4,
     temporal_observed_categorical_inp_size=0,static_continuous_inp_size=3,temporal_known_continuous_inp_size=0,
     temporal_observed_continuous_inp_size=48,temporal_target_size=1):
@@ -312,6 +312,7 @@ class TemporalFusionTransformer(DLPredictionWrapper):
         self.static_encoder = StaticCovariateEncoder(num_static_vars,hidden,dropout)
         self.TFTpart2 = torch.jit.script(TFTBack(encoder_length,num_historic_vars,hidden,dropout,num_future_vars,
                 n_head,dropout_att,example_length,quantiles))
+        self.logit = nn.Linear(len(quantiles), num_classes)
 
     def forward(self, x: Dict[str, Tensor]) -> Tensor:
         s_inp, t_known_inp, t_observed_inp, t_observed_tgt = self.embedding(x)
@@ -327,4 +328,6 @@ class TemporalFusionTransformer(DLPredictionWrapper):
 
         historical_inputs = cat(_historical_inputs, dim=-2)
         future_inputs = t_known_inp[:, self.encoder_length:]
-        return self.TFTpart2(historical_inputs, cs, ch, cc, ce, future_inputs)
+        o=self.TFTpart2(historical_inputs, cs, ch, cc, ce, future_inputs)
+        pred = self.logit(o)
+        return pred
