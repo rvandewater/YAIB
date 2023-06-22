@@ -2,15 +2,15 @@ from typing import List
 from pandas import DataFrame
 import gin
 import numpy as np
-from torch import Tensor, cat, from_numpy, float32
+from torch import Tensor, cat, from_numpy, float32,stack,empty
 from torch.utils.data import Dataset
 import logging
 from typing import Dict, Tuple
-
+from collections import OrderedDic
 from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
 from .constants import DataSplit as Split
-
+FEAT_NAMES = ['s_cat' , 's_cont' , 'k_cat' , 'k_cont' , 'o_cat' , 'o_cont' , 'target', 'id']
 
 class CommonDataset(Dataset):
     """Common dataset: subclass of Torch Dataset that represents the data to learn on.
@@ -31,6 +31,7 @@ class CommonDataset(Dataset):
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
         self.features_df = (
+            #drops time coulmn and sets index to stay_id
             data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
         )
 
@@ -152,6 +153,82 @@ class PredictionDataset(CommonDataset):
     def to_tensor(self):
         data, labels = self.get_data_and_labels()
         return from_numpy(data).to(float32), from_numpy(labels).to(float32)
+
+@gin.configurable("PredictionDatasetTFT")
+class PredictionDatasetTFT(PredictionDataset):
+    """Subclass of prediction dataset for TFT as we need to define if variables are cont,static,known or observed.
+
+    Args:
+        ram_cache (bool, optional): Whether the complete dataset should be stored in ram. Defaults to True.
+    """
+
+    def __init__(self, *args, ram_cache: bool = True, **kwargs):
+        super().__init__(*args,ram_cache = True, grouping_segment=Segment.outcome, **kwargs)
+        
+
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
+        """Function to sample from the data split of choice. Used for TFT.
+
+        Args:
+            idx: A specific row index to sample.
+
+        Returns:
+            A sample from the data, consisting of data, labels and padding mask.
+        """
+        if self._cached_dataset is not None:
+            return self._cached_dataset[idx]
+
+        pad_value = 0.0
+        stay_id = self.outcome_df.index.unique()[idx]  # [self.vars["GROUP"]]
+
+        
+        # We need to be sure that tensors are returned in the correct order to be processed correclty by tft
+        tensors = tuple([] for _ in range(8))
+        for var in self.features_df.columns:
+            if  var == 'sex' :
+                tensors[0].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
+            elif var == 'age' or var== 'height' or var== 'weight':
+                tensors[1].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
+            else :
+                tensors[5].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
+    
+
+        tensors[6].append(self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float))
+        tensors[7].append(stay_id.to_numpy())
+        tensors = [stack(x, dim=-1) if x else empty(0) for x in tensors]
+
+        window = self.features_df.loc[stay_id:stay_id].to_numpy()
+        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
+
+        if len(tensors[6]) == 1:
+            # only one label per stay, align with window
+            tensors[6] = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, tensors[6]], axis=0)
+
+        length_diff = self.maxlen - window.shape[0]
+
+        pad_mask = np.ones(window.shape[0])
+
+        # Padding the array to fulfill size requirement
+        if length_diff > 0:
+            # window shorter than the longest window in dataset, pad to same length
+
+            window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
+            tensors[6] = np.concatenate([tensors[6], np.ones(length_diff) * pad_value], axis=0)
+            pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
+
+        not_labeled = np.argwhere(np.isnan(tensors[6]))
+        if len(not_labeled) > 0:
+            tensors[6][not_labeled] = -1
+            pad_mask[not_labeled] = 0
+
+        pad_mask = pad_mask.astype(bool)
+        tensors[6] = tensors[6].astype(np.float32)
+        data = window.astype(np.float32)
+
+        return  OrderedDict(zip(FEAT_NAMES, tensors))
+
+    
+
 
 
 @gin.configurable("ImputationDataset")
@@ -285,3 +362,4 @@ class ImputationPredictionDataset(Dataset):
         window = self.dyn_df.loc[stay_id:stay_id, :]
 
         return from_numpy(window.values).to(float32)
+
