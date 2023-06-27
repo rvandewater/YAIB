@@ -1,4 +1,4 @@
-# Settings for Transformer model.
+# Settings for TFT model.
 
 # Common settings for DL models
 include "configs/prediction_models/common/DLCommon.gin"
@@ -17,8 +17,10 @@ model/hyperparameter.hidden = (32, 256, "log-uniform", 2)
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.dropout = (0.0, 0.4)
 model/hyperparameter.dropout_att = (0.0, 0.4)
-model/hyperparameter.n_heads = (1, 8, "log-uniform", 2)
-model/hyperparameter.quantiles=[0.1, 0.5, 0.9]
+model/hyperparameter.n_heads = 1
+
 model/hyperparameter.example_length=(1,14,"log-uniform", 2)
+
+
 
 

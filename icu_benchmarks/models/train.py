@@ -72,7 +72,7 @@ def train_common(
     """
 
     logging.info(f"Training model: {model.__name__}.")
-    dataset_class = ImputationDataset if mode == RunMode.imputation else model == PredictionDatasetTFT if model =='TemporalFusionTransformer' else PredictionDataset 
+    dataset_class = ImputationDataset if mode == RunMode.imputation else (PredictionDatasetTFT if model.__name__ =='TemporalFusionTransformer' else PredictionDataset )
     
 
     logging.info(f"Logging to directory: {log_dir}.")

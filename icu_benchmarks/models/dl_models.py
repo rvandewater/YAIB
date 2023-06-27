@@ -3,7 +3,7 @@ from numbers import Integral
 import numpy as np
 import torch.nn as nn
 from icu_benchmarks.contants import RunMode
-from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding,LazyEmbedding,StaticCovariateEncoder,TFTBack,QuantileLoss
+from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding,LazyEmbedding,StaticCovariateEncoder,TFTBack
 from typing import Dict
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 from torch import Tensor,cat,jit
@@ -282,6 +282,7 @@ class TemporalConvNet(DLPredictionWrapper):
         o = o.permute(0, 2, 1)  # Permute to channel last
         pred = self.logit(o)
         return pred
+    
 @gin.configurable
 class TemporalFusionTransformer(DLPredictionWrapper):
     """ 
@@ -290,28 +291,35 @@ class TemporalFusionTransformer(DLPredictionWrapper):
 
 
     _supported_run_modes = [RunMode.classification, RunMode.regression]
-    def __init__(self,num_classes, encoder_length,hidden,num_static_vars,dropout,num_historic_vars,num_future_vars,
-                 n_head,dropout_att,example_length,quantiles,static_categorical_inp_size=1,temporal_known_categorical_inp_size=4,
-    temporal_observed_categorical_inp_size=0,static_continuous_inp_size=3,temporal_known_continuous_inp_size=0,
-    temporal_observed_continuous_inp_size=48,temporal_target_size=1):
-        super().__init__(loss=QuantileLoss())
-
-        #dervied embeddings size
-        num_static_vars=static_categorical_inp_size+static_continuous_inp_size
-        num_future_vars=temporal_known_categorical_inp_size+temporal_known_continuous_inp_size
+    def __init__(self,num_classes, encoder_length,hidden,dropout,
+                 n_heads,dropout_att,example_length,*args,quantiles=[0.1, 0.5, 0.9],static_categorical_inp_size=[4],temporal_known_categorical_inp_size=[],
+    temporal_observed_categorical_inp_size=[],static_continuous_inp_size=3,temporal_known_continuous_inp_size=0,
+    temporal_observed_continuous_inp_size=48,temporal_target_size=1,**kwargs):
+        #derived variables
+        num_static_vars=len(static_categorical_inp_size)+static_continuous_inp_size
+        num_future_vars=len(temporal_known_categorical_inp_size)+temporal_known_continuous_inp_size
         num_historic_vars=sum([num_future_vars,
                                       temporal_observed_continuous_inp_size,
                                       temporal_target_size,
-                                      temporal_observed_categorical_inp_size,
+                                      len(temporal_observed_categorical_inp_size),
                                       ])
+      
+        super().__init__(num_classes=num_classes, encoder_length=encoder_length,hidden=hidden,
+                 n_heads=n_heads,dropout_att=dropout_att,example_length=example_length,quantiles=quantiles,
+                 num_static_vars=num_static_vars,num_future_vars=num_future_vars,num_historic_vars=num_historic_vars,*args,static_categorical_inp_size=1,temporal_known_categorical_inp_size=4,
+                temporal_observed_categorical_inp_size=0,static_continuous_inp_size=3,temporal_known_continuous_inp_size=0,
+                temporal_observed_continuous_inp_size=48,temporal_target_size=1,**kwargs)
+
+        
+        
         self.encoder_length = encoder_length #this determines from how distant past we want to use data from
 
         self.embedding = LazyEmbedding(static_categorical_inp_size,temporal_known_categorical_inp_size,
                 temporal_observed_categorical_inp_size,static_continuous_inp_size,temporal_known_continuous_inp_size,
                 temporal_observed_continuous_inp_size,temporal_target_size,hidden)
         self.static_encoder = StaticCovariateEncoder(num_static_vars,hidden,dropout)
-        self.TFTpart2 = jit.script(TFTBack(encoder_length,num_historic_vars,hidden,dropout,num_future_vars,
-                n_head,dropout_att,example_length,quantiles))
+        self.TFTpart2 = TFTBack(encoder_length,num_historic_vars,hidden,dropout,num_future_vars,
+                n_heads,dropout_att,example_length,quantiles)
         self.logit = nn.Linear(len(quantiles), num_classes)
 
     def forward(self, x: Dict[str, Tensor]) -> Tensor:

@@ -8,6 +8,7 @@ from sklearn.metrics import log_loss
 from torch.nn import MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
+
 import inspect
 import gin
 import numpy as np
@@ -17,28 +18,16 @@ from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 from joblib import dump
 from pytorch_lightning import LightningModule
-import layers
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
-#gin.config.external_configurable(layers.QuantileLoss, module="layers")
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
 gin.config.external_configurable(sklearn.metrics.mean_squared_error, module="sklearn.metrics")
 gin.config.external_configurable(sklearn.metrics.log_loss, module="sklearn.metrics")
 
-@gin.configurable
-class QuantileLoss(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.register_buffer('q', torch.tensor(config.quantiles))
 
-    def forward(self, predictions, targets):
-        diff = predictions - targets
-        ql = (1-self.q)*F.relu(diff) + self.q*F.relu(-diff)
-        losses = ql.view(-1, ql.shape[-1]).mean(0)
-        return losses
 @gin.configurable("BaseModule")
 class BaseModule(LightningModule):
     needs_training = False
@@ -108,6 +97,7 @@ class DLWrapper(BaseModule, ABC):
 
     def __init__(
         self,
+        
         loss=CrossEntropyLoss(),
         optimizer=torch.optim.Adam,
         run_mode: RunMode = RunMode.classification,
@@ -120,8 +110,10 @@ class DLWrapper(BaseModule, ABC):
         epochs: int = 100,
         input_size: torch.Tensor = None,
         initialization_method: str = "normal",
+        
         **kwargs,
     ):
+        
         """Interface for Deep Learning models."""
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])

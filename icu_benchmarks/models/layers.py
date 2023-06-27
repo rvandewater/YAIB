@@ -1,4 +1,3 @@
-import os
 import gin
 import math
 import torch
@@ -7,8 +6,9 @@ import torch.nn.functional as F
 from torch.nn.utils import weight_norm
 from torch import Tensor
 from torch.nn.parameter import UninitializedParameter
-from typing import Dict, Tuple, Optional, List
+from typing import Dict, Tuple, Optional
 from torch.nn import LayerNorm
+
 
 @gin.configurable("masking")
 def parallel_recomb(q_t, kv_t, att_type="all", local_context=3, bin_size=None):
@@ -357,13 +357,13 @@ class GRN(nn.Module):
                  input_size,
                  hidden,
                  output_size=None,
-                 context_hidden_size=None,
+                 context_hidden=None,
                  dropout=0.0,):
         super().__init__()
         self.layer_norm = MaybeLayerNorm(output_size, hidden, eps=1e-3)
         self.lin_a = nn.Linear(input_size, hidden)
-        if context_hidden_size is not None:
-            self.lin_c = nn.Linear(context_hidden_size, hidden, bias=False)
+        if context_hidden is not None:
+            self.lin_c = nn.Linear(context_hidden, hidden, bias=False)
         else:
             self.lin_c = nn.Identity()
         self.lin_i = nn.Linear(hidden, hidden)
@@ -570,6 +570,7 @@ class LazyEmbedding(nn.modules.lazy.LazyModuleMixin, TFTEmbedding):
         self.t_tgt_embedding_bias = UninitializedParameter()
 
     def initialize_parameters(self, x):
+        
         if self.has_uninitialized_params():
             s_cont_inp = x.get('s_cont', None)
             t_cont_k_inp = x.get('k_cont', None)
@@ -703,7 +704,7 @@ class TFTBack(nn.Module):
 
         self.enrichment_grn = GRN(hidden,
                                   hidden,
-                                  context_hidden_size=hidden, 
+                                  context_hidden=hidden, 
                                   dropout=dropout)
         self.attention = InterpretableMultiHeadAttention(n_head,hidden,dropout_att,dropout,example_length)
         self.attention_gate = GLU(hidden, hidden)
@@ -715,7 +716,8 @@ class TFTBack(nn.Module):
 
         self.decoder_gate = GLU(hidden, hidden)
         self.decoder_ln = LayerNorm(hidden, eps=1e-3)
-
+        
+        
         self.quantile_proj = nn.Linear(hidden, len(quantiles))
         
     def forward(self, historical_inputs, cs, ch, cc, ce, future_inputs):
@@ -758,3 +760,14 @@ class TFTBack(nn.Module):
         out = self.quantile_proj(x)
 
         return out
+@gin.configurable
+class QuantileLoss(torch.nn.Module):
+    def __init__(self, quantiles):
+        super().__init__()
+        self.register_buffer('q', torch.tensor(quantiles))
+
+    def forward(self, predictions, targets):
+        diff = predictions - targets
+        ql = (1-self.q)*F.relu(diff) + self.q*F.relu(-diff)
+        losses = ql.view(-1, ql.shape[-1]).mean(0)
+        return losses

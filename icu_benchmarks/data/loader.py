@@ -6,11 +6,10 @@ from torch import Tensor, cat, from_numpy, float32,stack,empty
 from torch.utils.data import Dataset
 import logging
 from typing import Dict, Tuple
-from collections import OrderedDic
 from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
 from .constants import DataSplit as Split
-from collections import  OrderedDict
+from collections import OrderedDict
 FEAT_NAMES = ['s_cat' , 's_cont' , 'k_cat' , 'k_cont' , 'o_cat' , 'o_cont' , 'target', 'id']
 
 class CommonDataset(Dataset):
