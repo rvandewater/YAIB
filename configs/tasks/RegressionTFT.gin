@@ -1,0 +1,33 @@
+# COMMON IMPORTS
+include "configs/tasks/common/Imports.gin"
+
+# DATASET CONFIGURATION
+include "configs/tasks/common/PredictionTaskVariables.gin"
+
+# CROSS-VALIDATION
+include "configs/tasks/common/CrossValidation.gin"
+
+# MODE SETTINGS
+Run.mode = "Regression"
+NUM_CLASSES = 1
+HORIZON = 24
+train_common.weight = "balanced"
+train_common.ram_cache = True
+
+# LOSS FUNCTION
+DLPredictionWrapper.loss = @QuantileLoss
+
+
+# SELECTING PREPROCESSOR
+preprocess.preprocessor = @base_regression_preprocessor
+preprocess.vars = %vars
+preprocess.use_static = True
+
+# SPECIFYING REGRESSION OUTCOME SCALING
+base_regression_preprocessor.outcome_min = 0
+base_regression_preprocessor.outcome_max = 15
+
+# SELECTING DATASET
+PredictionDataset.vars = %vars
+PredictionDataset.ram_cache = True
+
