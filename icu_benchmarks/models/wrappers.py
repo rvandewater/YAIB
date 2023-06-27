@@ -17,14 +17,14 @@ from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 from joblib import dump
 from pytorch_lightning import LightningModule
-
+import layers
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
 
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
+#gin.config.external_configurable(layers.QuantileLoss, module="layers")
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
-
 gin.config.external_configurable(sklearn.metrics.mean_squared_error, module="sklearn.metrics")
 gin.config.external_configurable(sklearn.metrics.log_loss, module="sklearn.metrics")
 
