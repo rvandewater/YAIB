@@ -8,7 +8,7 @@ from sklearn.metrics import log_loss
 from torch.nn import MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
-
+from collections import OrderedDict
 import inspect
 import gin
 import numpy as np
@@ -230,8 +230,11 @@ class DLPredictionWrapper(DLWrapper):
 
     def step_fn(self, element, step_prefix=""):
         """Perform a step in the training loop."""
-
-        if len(element) == 2:
+        if(isinstance(element[0] ,OrderedDict)):
+            data,mask=element[0], element[1].to(self.device)
+            for key, value in data.items():
+                data[key] = value.float().to(self.device)
+        elif len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
             if isinstance(data, list):
                 for i in range(len(data)):

@@ -431,6 +431,7 @@ class TFTEmbedding(nn.Module):
             nn.Embedding(n, self.hidden) for n in self.t_cat_k_inp_size]) if self.t_cat_k_inp_size else None
         self.t_cat_o_embed = nn.ModuleList([
             nn.Embedding(n, self.hidden) for n in self.t_cat_o_inp_size]) if self.t_cat_o_inp_size else None
+        
 
         if initialize_cont_params:
             self.s_cont_embedding_vectors = nn.Parameter(torch.Tensor(self.s_cont_inp_size, self.hidden)) if self.s_cont_inp_size else None
@@ -480,7 +481,8 @@ class TFTEmbedding(nn.Module):
             cont_emb: Tensor,
             cont_bias: Tensor,
             ) -> Tuple[Optional[Tensor], Optional[Tensor]]:
-        e_cat = torch.stack([embed(cat[...,i]) for i, embed in enumerate(cat_emb)], dim=-2) if cat is not None else None
+        e_cat = torch.stack([embed(cat[...,i].int()) for i, embed in enumerate(cat_emb)], dim=-2) if (cat is not None) and (cat_emb is not None) else None 
+        
         if cont is not None:
             #the line below is equivalent to following einsums
             #e_cont = torch.einsum('btf,fh->bthf', cont, cont_emb)
@@ -508,12 +510,10 @@ class TFTEmbedding(nn.Module):
         t_cat_o_inp = x.get('o_cat', None)
         t_cont_o_inp = x.get('o_cont', None)
         t_tgt_obs = x['target'] # Has to be present
-
         # Static inputs are expected to be equal for all timesteps
         # For memory efficiency there is no assert statement
         s_cat_inp = s_cat_inp[:,0,:] if s_cat_inp is not None else None
         s_cont_inp = s_cont_inp[:,0,:] if s_cont_inp is not None else None
-
         s_inp = self._apply_embedding(s_cat_inp,
                                       s_cont_inp,
                                       self.s_cat_embed,
@@ -577,15 +577,16 @@ class LazyEmbedding(nn.modules.lazy.LazyModuleMixin, TFTEmbedding):
             t_cont_o_inp = x.get('o_cont', None)
             t_tgt_obs = x['target'] # Has to be present
 
-            if s_cont_inp is not None:
+
+            if (s_cont_inp is not None) and (s_cont_inp.size()[1]>0):
                 self.s_cont_embedding_vectors.materialize((s_cont_inp.shape[-1], self.hidden))
                 self.s_cont_embedding_bias.materialize((s_cont_inp.shape[-1], self.hidden))
 
-            if t_cont_k_inp is not None:
+            if (t_cont_k_inp is not None)  and (t_cont_k_inp.size()[1]>0):
                 self.t_cont_k_embedding_vectors.materialize((t_cont_k_inp.shape[-1], self.hidden))
                 self.t_cont_k_embedding_bias.materialize((t_cont_k_inp.shape[-1], self.hidden))
 
-            if t_cont_o_inp is not None:
+            if (t_cont_o_inp) is not None  and (t_cont_o_inp.size()[1]>0):
                 self.t_cont_o_embedding_vectors.materialize((t_cont_o_inp.shape[-1], self.hidden))
                 self.t_cont_o_embedding_bias.materialize((t_cont_o_inp.shape[-1], self.hidden))
 

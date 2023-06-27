@@ -292,7 +292,7 @@ class TemporalFusionTransformer(DLPredictionWrapper):
 
     _supported_run_modes = [RunMode.classification, RunMode.regression]
     def __init__(self,num_classes, encoder_length,hidden,dropout,
-                 n_heads,dropout_att,example_length,*args,quantiles=[0.1, 0.5, 0.9],static_categorical_inp_size=[4],temporal_known_categorical_inp_size=[],
+                 n_heads,dropout_att,example_length,*args,quantiles=[0.1, 0.5, 0.9],static_categorical_inp_size=[2],temporal_known_categorical_inp_size=[],
     temporal_observed_categorical_inp_size=[],static_continuous_inp_size=3,temporal_known_continuous_inp_size=0,
     temporal_observed_continuous_inp_size=48,temporal_target_size=1,**kwargs):
         #derived variables

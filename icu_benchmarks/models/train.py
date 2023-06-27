@@ -13,7 +13,7 @@ from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset,Pred
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
-
+from collections import OrderedDict
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 
 
@@ -102,10 +102,13 @@ def train_common(
         pin_memory=True,
         drop_last=True,
     )
-    print(type(next(iter(train_loader))[0]))
-    data_shape = next(iter(train_loader))[0].shape
-
-    model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+    if(isinstance(next(iter(train_loader))[0] ,OrderedDict)):
+         model = model(optimizer=optimizer, epochs=epochs, run_mode=mode)
+    
+    else:
+        data_shape = next(iter(train_loader))[0].shape
+    
+        model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
     model.set_weight(weight, train_dataset)
     if load_weights:
         if source_dir.exists():
