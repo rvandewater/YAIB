@@ -315,6 +315,7 @@ class TemporalFusionTransformer(DLPredictionWrapper):
         self.logit = nn.Linear(len(quantiles), num_classes)
 
     def forward(self, x: Dict[str, Tensor]) -> Tensor:
+        
         s_inp, t_known_inp, t_observed_inp, t_observed_tgt = self.embedding(x)
 
         # Static context
