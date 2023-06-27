@@ -2,7 +2,7 @@ from typing import List
 from pandas import DataFrame
 import gin
 import numpy as np
-from torch import Tensor, cat, from_numpy, float32,stack,empty
+from torch import Tensor, cat, from_numpy, float32,empty,stack
 from torch.utils.data import Dataset
 import logging
 from typing import Dict, Tuple
@@ -103,7 +103,8 @@ class PredictionDataset(CommonDataset):
             labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
 
         length_diff = self.maxlen - window.shape[0]
-
+        
+        
         pad_mask = np.ones(window.shape[0])
 
         # Padding the array to fulfill size requirement
@@ -163,7 +164,7 @@ class PredictionDatasetTFT(PredictionDataset):
     """
 
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
-        super().__init__(*args,ram_cache = True, grouping_segment=Segment.outcome, **kwargs)
+        super().__init__(*args,ram_cache = True, **kwargs)
         
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
@@ -183,7 +184,7 @@ class PredictionDatasetTFT(PredictionDataset):
 
         
         # We need to be sure that tensors are returned in the correct order to be processed correclty by tft
-        tensors = tuple([] for _ in range(8))
+        tensors = [[] for _ in range(8)]
         for var in self.features_df.columns:
             if  var == 'sex' :
                 tensors[0].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
@@ -192,33 +193,34 @@ class PredictionDatasetTFT(PredictionDataset):
             else :
                 tensors[5].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
     
-
-        tensors[6].append(self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float))
-        tensors[7].append(stay_id.to_numpy())
-        tensors = [stack(x, dim=-1) if x else empty(0) for x in tensors]
-
+        
+        tensors[6].extend(self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float))
+        tensors[7].append(np.asarray([stay_id]))
+        
+        window_shape0=np.shape(tensors[0])[1]
        # window = self.features_df.loc[stay_id:stay_id].to_numpy()
        # labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
-
+        
         if len(tensors[6]) == 1:
             # only one label per stay, align with window
-            tensors[6] = np.concatenate([np.empty(tensors[0].shape[0] - 1) * np.nan, tensors[6]], axis=0)
+            tensors[6] = np.concatenate([np.empty(window_shape0 - 1) * np.nan, tensors[6]], axis=0)
 
-        length_diff = self.maxlen - tensors[0].shape[0]
+        length_diff = self.maxlen - window_shape0
 
-        pad_mask = np.ones(tensors[0].shape[0])
+        pad_mask = np.ones(window_shape0)
 
         # Padding the array to fulfill size requirement
         if length_diff > 0:
             # window shorter than the longest window in dataset, pad to same length
-            tensors[0]= np.concatenate([tensors[0], np.ones((length_diff, tensors[0].shape[1])) * pad_value], axis=0)
-            tensors[1]= np.concatenate([tensors[1], np.ones((length_diff, tensors[1].shape[1])) * pad_value], axis=0)
-            tensors[2]= np.concatenate([tensors[2], np.ones((length_diff, tensors[2].shape[1])) * pad_value], axis=0)
-            tensors[3]= np.concatenate([tensors[3], np.ones((length_diff, tensors[3].shape[1])) * pad_value], axis=0)
-            tensors[4]= np.concatenate([tensors[4], np.ones((length_diff, tensors[4].shape[1])) * pad_value], axis=0)
-            tensors[5]= np.concatenate([tensors[5], np.ones((length_diff, tensors[5].shape[1])) * pad_value], axis=0)
-            tensors[7]= np.concatenate([tensors[7], np.ones((length_diff, tensors[7].shape[1])) * pad_value], axis=0)
+            tensors[0]= np.concatenate([tensors[0], np.ones((length_diff, np.shape(tensors[0])[0])) * pad_value], axis=0)
+            tensors[1]= np.concatenate([tensors[1], np.ones((length_diff, np.shape(tensors[1])[0])) * pad_value], axis=0)
+            tensors[2]= np.concatenate([tensors[2], np.ones((length_diff, np.shape(tensors[2])[0])) * pad_value], axis=0)
+            tensors[3]= np.concatenate([tensors[3], np.ones((length_diff, np.shape(tensors[3])[0])) * pad_value], axis=0)
+            tensors[4]= np.concatenate([tensors[4], np.ones((length_diff, np.shape(tensors[4])[0])) * pad_value], axis=0)
+            tensors[5]= np.concatenate([tensors[5], np.ones((length_diff, np.shape(tensors[5])[0])) * pad_value], axis=0)
+            tensors[7]= np.concatenate([tensors[7], np.ones((length_diff, np.shape(tensors[7])[0])) * pad_value], axis=0)
            # window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
+            
             tensors[6] = np.concatenate([tensors[6], np.ones(length_diff) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
 
@@ -228,16 +230,9 @@ class PredictionDatasetTFT(PredictionDataset):
             pad_mask[not_labeled] = 0
 
         pad_mask = pad_mask.astype(bool)
-        tensors[6] = tensors[6].astype(np.float32)
        # data = window.astype(np.float32)
-        tensors[0]= tensors[0].astype(np.float32)
-        tensors[1]= tensors[1].astype(np.float32)
-        tensors[2]=tensors[2].astype(np.float32)
-        tensors[3]= tensors[3].astype(np.float32)
-        tensors[4]= tensors[4].astype(np.float32)
-        tensors[5]=tensors[5].astype(np.float32)
-        tensors[7]= tensors[7].astype(np.float32)
-
+        tensors = [from_numpy(np.array(tensor)).to(float32) for tensor in tensors]
+        tensors = [stack((x,), dim=-1) if x.numel() else empty(0) for x in tensors]
         return  OrderedDict(zip(FEAT_NAMES, tensors)),from_numpy(pad_mask)
 
     
