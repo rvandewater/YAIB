@@ -758,6 +758,7 @@ class TFTBack(nn.Module):
         out = self.quantile_proj(x)
 
         return out
+@gin.configurable
 class QuantileLoss(nn.Module):
     def __init__(self, config):
         super().__init__()
