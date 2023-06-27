@@ -102,7 +102,7 @@ def train_common(
         pin_memory=True,
         drop_last=True,
     )
-
+    print(type(next(iter(train_loader))[0]))
     data_shape = next(iter(train_loader))[0].shape
 
     model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
