@@ -7,6 +7,9 @@
 ![Platform](https://img.shields.io/badge/platform-linux--64%20|%20win--64%20|%20osx--64-lightgrey)
 [![arXiv](https://img.shields.io/badge/arXiv-2306.05109-b31b1b.svg)](http://arxiv.org/abs/2306.05109)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/yaib.svg)](https://pypi.python.org/pypi/yaib/)
+[![python](https://img.shields.io/badge/-Python_3.10-blue?logo=python&logoColor=white)](https://www.python.org/downloads/release/python-3100/)
+[![pytorch](https://img.shields.io/badge/PyTorch_2.0+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
+[![lightning](https://img.shields.io/badge/-Lightning_2.0+-792ee5?logo=pytorchlightning&logoColor=white)](https://pytorchlightning.ai/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 [//]: # (TODO: add coverage once we have some tests )
@@ -48,7 +51,8 @@ The following repositories may be relevant as well:
 - [YAIB-models](https://github.com/rvandewater/YAIB-models): Pretrained models for YAIB.
 - [ReciPys](https://github.com/rvandewater/ReciPys): Preprocessing package for YAIB pipelines.
 
- For all YAIB related repositories, please see: https://github.com/stars/rvandewater/lists/yaib. 
+For all YAIB related repositories, please see: https://github.com/stars/rvandewater/lists/yaib.
+
 # 📄Paper
 
 To reproduce the benchmarks in our paper, we refer to: the [ML reproducibility document](PAPER.md).
@@ -73,27 +77,35 @@ If you use this code in your research, please cite the following publication:
 This paper can also be found on arxiv [2306.05109](https://arxiv.org/abs/2306.05109)
 
 # 💿Installation
+
 YAIB is currently ideally installed from source, however we also offer it an early PyPi release.
 
 ## Installation from source
+
 First, we clone this repository using git:
+
 ````
 git clone https://github.com/rvandewater/YAIB.git
 ````
+
 Please note the branch. The newest features and fixes are available at the development branch:
+
 ````
 git checkout development
 ````
-YAIB can be installed using a conda environment (preferred) or pip. Below are the three CLI commands to install YAIB 
+
+YAIB can be installed using a conda environment (preferred) or pip. Below are the three CLI commands to install YAIB
 using **conda**.
 
 The first command will install an environment based on Python 3.10.
 
 ```
-conda env update -f <environment.yml|environment_mps.yml>
+conda env update -f environment.yml
 ```
 
-> Use `environment.yml` on x86 hardware and `environment_mps.yml` on Macs with Metal Performance Shaders.
+> Use `environment.yml` on x86 hardware. Please note that this installs Pytorch as well. 
+
+> For mps, one needs to comment out _pytorch-cuda_, see the [PyTorch install guide](https://pytorch.org/get-started/locally/).
 
 We then activate the environment and install a package called `icu-benchmarks`, after which YAIB should be operational.
 
@@ -102,12 +114,16 @@ conda activate yaib
 pip install -e .
 ```
 
-If you want to install the icu-benchmarks package with **pip**, execute the command below:
+[//]: # (If you want to install the icu-benchmarks package with **pip**, execute the command below:)
 
-```
-pip install torch numpy && pip install -e .
-```
-After installation, please check if your Pytorch version works with CUDA (in case available) to ensure the best performance. 
+[//]: # ()
+
+[//]: # (```)
+
+[//]: # (pip install torch numpy && pip install -e .)
+
+[//]: # (```)
+After installation, please check if your Pytorch version works with CUDA (in case available) to ensure the best performance.
 YAIB will automatically list available processors at initialization in its log files.
 
 # 👩‍💻Usage
