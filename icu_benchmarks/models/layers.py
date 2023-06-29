@@ -360,8 +360,12 @@ class GRN(nn.Module):
                  context_hidden=None,
                  dropout=0.0,):
         super().__init__()
+        
         self.layer_norm = MaybeLayerNorm(output_size, hidden, eps=1e-3)
+        
         self.lin_a = nn.Linear(input_size, hidden)
+        
+        
         if context_hidden is not None:
             self.lin_c = nn.Linear(context_hidden, hidden, bias=False)
         else:
@@ -372,7 +376,9 @@ class GRN(nn.Module):
         self.out_proj = nn.Linear(input_size, output_size) if output_size else None
 
     def forward(self, a: Tensor, c: Optional[Tensor] = None):
+        
         x = self.lin_a(a)
+        
         if c is not None:
             x = x + self.lin_c(c).unsqueeze(1)
         x = F.elu(x)
@@ -381,16 +387,18 @@ class GRN(nn.Module):
         x = self.glu(x)
         y = a if self.out_proj is None else self.out_proj(a)
         x = x + y
+        
         return self.layer_norm(x) 
 
 
 # @torch.jit.script #Currently broken with autocast
 def fused_pointwise_linear_v1(x, a, b):
+    
     out = torch.mul(x.unsqueeze(-1), a)
     out = out + b
     return out
 
-@torch.jit.script
+#@torch.jit.script
 def fused_pointwise_linear_v2(x, a, b):
     out = x.unsqueeze(3) * a
     out = out + b
@@ -438,14 +446,12 @@ class TFTEmbedding(nn.Module):
             self.t_cont_k_embedding_vectors = nn.Parameter(torch.Tensor(self.t_cont_k_inp_size, self.hidden)) if self.t_cont_k_inp_size else None
             self.t_cont_o_embedding_vectors = nn.Parameter(torch.Tensor(self.t_cont_o_inp_size, self.hidden)) if self.t_cont_o_inp_size else None
             self.t_tgt_embedding_vectors = nn.Parameter(torch.Tensor(self.t_tgt_size, self.hidden))
-
             self.s_cont_embedding_bias = nn.Parameter(torch.zeros(self.s_cont_inp_size, self.hidden)) if self.s_cont_inp_size else None
             self.t_cont_k_embedding_bias = nn.Parameter(torch.zeros(self.t_cont_k_inp_size, self.hidden)) if self.t_cont_k_inp_size else None
             self.t_cont_o_embedding_bias = nn.Parameter(torch.zeros(self.t_cont_o_inp_size, self.hidden)) if self.t_cont_o_inp_size else None
             self.t_tgt_embedding_bias = nn.Parameter(torch.zeros(self.t_tgt_size, self.hidden))
 
             self.reset_parameters()
-
 
     def reset_parameters(self):
         ''''
@@ -481,18 +487,20 @@ class TFTEmbedding(nn.Module):
             cont_emb: Tensor,
             cont_bias: Tensor,
             ) -> Tuple[Optional[Tensor], Optional[Tensor]]:
-        e_cat = torch.stack([embed(cat[...,i].int()) for i, embed in enumerate(cat_emb)], dim=-2) if (cat is not None) and (cat_emb is not None) else None 
         
-        if cont is not None:
+        e_cat = torch.stack([embed(cat[...,i].int()) for i, embed in enumerate(cat_emb)], dim=-2) if (cat is not None) and (cat.size()[1]>0) else None 
+        if (cont is not None ) and (cont.size()[1]>0):
             #the line below is equivalent to following einsums
             #e_cont = torch.einsum('btf,fh->bthf', cont, cont_emb)
             #e_cont = torch.einsum('bf,fh->bhf', cont, cont_emb)
-            
-            e_cont = fused_pointwise_linear_v1(cont, cont_emb, cont_bias)
+            e_cont = torch.mul(cont.unsqueeze(-1), cont_emb)
+            e_cont = e_cont + cont_bias
+           # e_cont = fused_pointwise_linear_v1(cont, cont_emb, cont_bias)
         else:
             e_cont = None
-
+        
         if e_cat is not None and e_cont is not None:
+           
             return torch.cat([e_cat, e_cont], dim=-2)
         elif e_cat is not None:
             return e_cat
@@ -512,13 +520,21 @@ class TFTEmbedding(nn.Module):
         t_tgt_obs = x['target'] # Has to be present
         # Static inputs are expected to be equal for all timesteps
         # For memory efficiency there is no assert statement
+        
+        
+        
         s_cat_inp = s_cat_inp[:,0,:] if s_cat_inp is not None else None
         s_cont_inp = s_cont_inp[:,0,:] if s_cont_inp is not None else None
+       
+        
+        
         s_inp = self._apply_embedding(s_cat_inp,
                                       s_cont_inp,
                                       self.s_cat_embed,
                                       self.s_cont_embedding_vectors,
                                       self.s_cont_embedding_bias)
+                                      
+        
         t_known_inp = self._apply_embedding(t_cat_k_inp,
                                             t_cont_k_inp,
                                             self.t_cat_k_embed,
@@ -531,7 +547,8 @@ class TFTEmbedding(nn.Module):
                                                self.t_cont_o_embedding_bias)
 
         # Temporal observed targets
-        t_observed_tgt = fused_pointwise_linear_v2(t_tgt_obs, self.t_tgt_embedding_vectors, self.t_tgt_embedding_bias)
+        t_observed_tgt = torch.matmul(t_tgt_obs.unsqueeze(3).unsqueeze(4), self.t_tgt_embedding_vectors.unsqueeze(1)).squeeze(3)
+        t_observed_tgt = t_observed_tgt + self.t_tgt_embedding_bias
 
         return s_inp, t_known_inp, t_observed_inp, t_observed_tgt
 
@@ -544,14 +561,12 @@ class LazyEmbedding(nn.modules.lazy.LazyModuleMixin, TFTEmbedding):
         super().__init__(static_categorical_inp_size,temporal_known_categorical_inp_size,
     temporal_observed_categorical_inp_size,static_continuous_inp_size,temporal_known_continuous_inp_size,
     temporal_observed_continuous_inp_size,temporal_target_size,hidden, initialize_cont_params=False)
-
         if static_continuous_inp_size:
             self.s_cont_embedding_vectors = UninitializedParameter()
             self.s_cont_embedding_bias = UninitializedParameter()
         else:
             self.s_cont_embedding_vectors = None
             self.s_cont_embedding_bias = None
-
         if temporal_known_continuous_inp_size:
             self.t_cont_k_embedding_vectors = UninitializedParameter()
             self.t_cont_k_embedding_bias = UninitializedParameter()
@@ -565,7 +580,6 @@ class LazyEmbedding(nn.modules.lazy.LazyModuleMixin, TFTEmbedding):
         else:
             self.t_cont_o_embedding_vectors = None
             self.t_cont_o_embedding_bias = None
-
         self.t_tgt_embedding_vectors = UninitializedParameter()
         self.t_tgt_embedding_bias = UninitializedParameter()
 
@@ -576,8 +590,7 @@ class LazyEmbedding(nn.modules.lazy.LazyModuleMixin, TFTEmbedding):
             t_cont_k_inp = x.get('k_cont', None)
             t_cont_o_inp = x.get('o_cont', None)
             t_tgt_obs = x['target'] # Has to be present
-
-
+            print(s_cont_inp.shape)
             if (s_cont_inp is not None) and (s_cont_inp.size()[1]>0):
                 self.s_cont_embedding_vectors.materialize((s_cont_inp.shape[-1], self.hidden))
                 self.s_cont_embedding_bias.materialize((s_cont_inp.shape[-1], self.hidden))
@@ -602,6 +615,7 @@ class VariableSelectionNetwork(nn.Module):
     '''
     def __init__(self, hidden,dropout, num_inputs):
         super().__init__()
+       
         self.joint_grn = GRN(hidden*num_inputs, hidden, output_size=num_inputs, context_hidden=hidden)
         self.var_grns = nn.ModuleList([GRN(hidden, hidden, dropout=dropout) for _ in range(num_inputs)])
 
@@ -614,6 +628,7 @@ class VariableSelectionNetwork(nn.Module):
         #the line below performs batched matrix vector multiplication
         #for temporal features it's bthf,btf->bth
         #for static features it's bhf,bf->bh
+        
         variable_ctx = torch.matmul(transformed_embed, sparse_weights.unsqueeze(-1)).squeeze(-1)
 
         return variable_ctx, sparse_weights
@@ -629,8 +644,9 @@ class StaticCovariateEncoder(nn.Module):
         self.context_grns = nn.ModuleList([GRN(hidden, hidden, dropout=dropout) for _ in range(4)])
 
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        
         variable_ctx, sparse_weights = self.vsn(x)
-
+        
         # Context vectors:
         # variable selection context
         # enrichment context

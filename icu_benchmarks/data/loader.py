@@ -226,11 +226,11 @@ class PredictionDatasetTFT(PredictionDataset):
         if len(not_labeled) > 0:
             tensors[6][not_labeled] = -1
             pad_mask[not_labeled] = 0
-
+        tensors[6]=[tensors[6]]
         pad_mask = pad_mask.astype(bool)
        # data = window.astype(np.float32)
-        tensors = [from_numpy(np.array(tensor)).to(float32) for tensor in tensors]
-        tensors = [stack((x,), dim=-1) if x.numel() else empty(0) for x in tensors]
+        tensors = (from_numpy(np.array(tensor)).to(float32) for tensor in tensors)
+        tensors = [stack((x,), dim=-1) if x.numel() > 0 else empty(0) for x in tensors]
         
         return  OrderedDict(zip(FEAT_NAMES, tensors)),from_numpy(pad_mask)
 

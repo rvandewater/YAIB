@@ -306,7 +306,7 @@ class TemporalFusionTransformer(DLPredictionWrapper):
       
         super().__init__(num_classes=num_classes, encoder_length=encoder_length,hidden=hidden,
                  n_heads=n_heads,dropout_att=dropout_att,example_length=example_length,quantiles=quantiles,
-                 num_static_vars=num_static_vars,num_future_vars=num_future_vars,num_historic_vars=num_historic_vars,*args,static_categorical_inp_size=1,temporal_known_categorical_inp_size=4,
+                 num_static_vars=num_static_vars,num_future_vars=num_future_vars,num_historic_vars=num_historic_vars,*args,static_categorical_inp_size=1,temporal_known_categorical_inp_size=0,
                 temporal_observed_categorical_inp_size=0,static_continuous_inp_size=3,temporal_known_continuous_inp_size=0,
                 temporal_observed_continuous_inp_size=48,temporal_target_size=1,**kwargs)
 
@@ -317,19 +317,18 @@ class TemporalFusionTransformer(DLPredictionWrapper):
         self.embedding = LazyEmbedding(static_categorical_inp_size,temporal_known_categorical_inp_size,
                 temporal_observed_categorical_inp_size,static_continuous_inp_size,temporal_known_continuous_inp_size,
                 temporal_observed_continuous_inp_size,temporal_target_size,hidden)
+        
         self.static_encoder = StaticCovariateEncoder(num_static_vars,hidden,dropout)
         self.TFTpart2 = TFTBack(encoder_length,num_historic_vars,hidden,dropout,num_future_vars,
                 n_heads,dropout_att,example_length,quantiles)
         self.logit = nn.Linear(len(quantiles), num_classes)
 
     def forward(self, x: Dict[str, Tensor]) -> Tensor:
-        
+       # print(x.get('s_cont', None))
         s_inp, t_known_inp, t_observed_inp, t_observed_tgt = self.embedding(x)
-
         # Static context
         cs, ce, ch, cc = self.static_encoder(s_inp)
         ch, cc = ch.unsqueeze(0), cc.unsqueeze(0) #lstm initial states
-
         # Temporal input
         _historical_inputs = [t_known_inp[:,:self.encoder_length,:], t_observed_tgt[:,:self.encoder_length,:]]
         if t_observed_inp is not None:

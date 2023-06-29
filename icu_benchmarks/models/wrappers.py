@@ -232,8 +232,20 @@ class DLPredictionWrapper(DLWrapper):
         """Perform a step in the training loop."""
         if(isinstance(element[0] ,OrderedDict)):
             data,mask=element[0], element[1].to(self.device)
+
             for key, value in data.items():
-                data[key] = value.float().to(self.device)
+                
+                value = value.float().to(self.device)
+
+                
+
+                if value.shape[-1] == 1:
+                    value = value.squeeze(-1)
+                if value.dim() == 3:
+                    value = value.permute(0, 2, 1)
+
+                data[key] = value
+                
         elif len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
             if isinstance(data, list):
