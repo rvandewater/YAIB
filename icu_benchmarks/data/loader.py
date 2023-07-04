@@ -205,25 +205,26 @@ class PredictionDatasetTFT(PredictionDataset):
         if len(tensors[6]) == 1:
             # only one label per stay, align with window
             tensors[6] = np.concatenate([np.empty(window_shape0 - 1) * np.nan, tensors[6]], axis=0)
-
+        
         length_diff = self.maxlen - window_shape0
-        pad_mask = np.ones(window_shape0)
         print(np.shape(tensors[0]))
+        print(np.shape(np.ones((length_diff, np.shape(tensors[0])[0]))))
+        pad_mask = np.ones(window_shape0)
         # Padding the array to fulfill size requirement
         if length_diff > 0:
             # window shorter than the longest window in dataset, pad to same length
-            tensors[0]= np.concatenate([tensors[0], np.ones((length_diff, np.shape(tensors[0])[0])) * pad_value], axis=0)
-            tensors[1]= np.concatenate([tensors[1], np.ones((length_diff, np.shape(tensors[1])[0])) * pad_value], axis=0)
+            tensors[0]= np.concatenate([tensors[0], np.ones(( np.shape(tensors[0])[0],length_diff)) * pad_value], axis=1)
+            tensors[1]= np.concatenate([tensors[1], np.ones(( np.shape(tensors[1])[0],length_diff)) * pad_value], axis=1)
           #  tensors[2]= np.concatenate([tensors[2], np.ones((length_diff, np.shape(tensors[2])[0])) * pad_value], axis=0)
           #  tensors[3]= np.concatenate([tensors[3], np.ones((length_diff, np.shape(tensors[3])[0])) * pad_value], axis=0)
           #  tensors[4]= np.concatenate([tensors[4], np.ones((length_diff, np.shape(tensors[4])[0])) * pad_value], axis=0)
-            tensors[5]= np.concatenate([tensors[5], np.ones((length_diff, np.shape(tensors[5])[0])) * pad_value], axis=0)
-            tensors[7]= np.concatenate([tensors[7], np.ones((length_diff, np.shape(tensors[7])[0])) * stay_id], axis=0)
+            tensors[5]= np.concatenate([tensors[5], np.ones(( np.shape(tensors[5])[0],length_diff)) * pad_value], axis=1)
+            tensors[7]= np.concatenate([tensors[7], np.ones(( np.shape(tensors[7])[0],length_diff)) * stay_id], axis=1)
            # window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
             
             tensors[6] = np.concatenate([tensors[6], np.ones(length_diff) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
-
+            print(np.shape(tensors[0]))
         not_labeled = np.argwhere(np.isnan(tensors[6]))
         if len(not_labeled) > 0:
             tensors[6][not_labeled] = -1
