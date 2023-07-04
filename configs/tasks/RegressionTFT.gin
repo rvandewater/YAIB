@@ -16,7 +16,7 @@ train_common.ram_cache = True
 
 # LOSS FUNCTION
 DLPredictionWrapper.loss = @QuantileLoss
-
+QuantileLoss.quantiles=[0.1, 0.5, 0.9]
 
 # SELECTING PREPROCESSOR
 preprocess.preprocessor = @base_regression_preprocessor

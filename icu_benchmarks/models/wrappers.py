@@ -20,7 +20,6 @@ from joblib import dump
 from pytorch_lightning import LightningModule
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
-
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
@@ -278,6 +277,7 @@ class DLPredictionWrapper(DLWrapper):
             # torch.long because NLL
         elif self.run_mode == RunMode.regression:
             # Regression task
+            
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss
         else:
             raise ValueError(f"Run mode {self.run_mode} not supported.")

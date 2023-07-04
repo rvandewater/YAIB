@@ -147,7 +147,6 @@ class PredictionDataset(CommonDataset):
         if len(labels) == self.num_stays:
             # order of groups could be random, we make sure not to change it
             rep = rep.groupby(level=self.vars["GROUP"], sort=False).last()
-     #   print('after')
         rep = rep.to_numpy().astype(float)
 
         return rep, labels
@@ -198,7 +197,6 @@ class PredictionDatasetTFT(PredictionDataset):
         
         tensors[6].extend(self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float))
         tensors[7].append(np.asarray([stay_id]))
-        
         window_shape0=np.shape(tensors[0])[1]
        # window = self.features_df.loc[stay_id:stay_id].to_numpy()
        # labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
@@ -207,24 +205,24 @@ class PredictionDatasetTFT(PredictionDataset):
             tensors[6] = np.concatenate([np.empty(window_shape0 - 1) * np.nan, tensors[6]], axis=0)
         
         length_diff = self.maxlen - window_shape0
-        print(np.shape(tensors[0]))
-        print(np.shape(np.ones((length_diff, np.shape(tensors[0])[0]))))
+        length_diff_id=self.maxlen - np.shape(tensors[7])[1]
         pad_mask = np.ones(window_shape0)
         # Padding the array to fulfill size requirement
+        
         if length_diff > 0:
             # window shorter than the longest window in dataset, pad to same length
-            tensors[0]= np.concatenate([tensors[0], np.ones(( np.shape(tensors[0])[0],length_diff)) * pad_value], axis=1)
-            tensors[1]= np.concatenate([tensors[1], np.ones(( np.shape(tensors[1])[0],length_diff)) * pad_value], axis=1)
+            tensors[0]= np.concatenate([tensors[0], np.ones(( np.shape(tensors[0])[0],self.maxlen - np.shape(tensors[0])[1])) * pad_value], axis=1)
+            tensors[1]= np.concatenate([tensors[1], np.ones(( np.shape(tensors[1])[0],self.maxlen - np.shape(tensors[1])[1])) * pad_value], axis=1)
           #  tensors[2]= np.concatenate([tensors[2], np.ones((length_diff, np.shape(tensors[2])[0])) * pad_value], axis=0)
           #  tensors[3]= np.concatenate([tensors[3], np.ones((length_diff, np.shape(tensors[3])[0])) * pad_value], axis=0)
           #  tensors[4]= np.concatenate([tensors[4], np.ones((length_diff, np.shape(tensors[4])[0])) * pad_value], axis=0)
-            tensors[5]= np.concatenate([tensors[5], np.ones(( np.shape(tensors[5])[0],length_diff)) * pad_value], axis=1)
-            tensors[7]= np.concatenate([tensors[7], np.ones(( np.shape(tensors[7])[0],length_diff)) * stay_id], axis=1)
+            tensors[5]= np.concatenate([tensors[5], np.ones(( np.shape(tensors[5])[0],self.maxlen - np.shape(tensors[5])[1])) * pad_value], axis=1)
+            
            # window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
             
-            tensors[6] = np.concatenate([tensors[6], np.ones(length_diff) * pad_value], axis=0)
+            tensors[6] = np.concatenate([tensors[6], np.ones(self.maxlen - np.shape(tensors[6])[0]) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
-            print(np.shape(tensors[0]))
+        tensors[7]= np.concatenate([tensors[7], np.ones(( np.shape(tensors[7])[0],self.maxlen - np.shape(tensors[7])[1])) * stay_id], axis=1)#should be done regardless of length_diff
         not_labeled = np.argwhere(np.isnan(tensors[6]))
         if len(not_labeled) > 0:
             tensors[6][not_labeled] = -1
@@ -232,9 +230,10 @@ class PredictionDatasetTFT(PredictionDataset):
         tensors[6]=[tensors[6]]
         pad_mask = pad_mask.astype(bool)
        # data = window.astype(np.float32)
+        
+        
         tensors = (from_numpy(np.array(tensor)).to(float32) for tensor in tensors)
         tensors = [stack((x,), dim=-1) if x.numel() > 0 else empty(0) for x in tensors]
-        
         return  OrderedDict(zip(Features.FEAT_NAMES, tensors)),from_numpy(pad_mask)
 
     

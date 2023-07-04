@@ -13,7 +13,7 @@ optimizer/hyperparameter.lr = (1e-5, 3e-4)
 # Encoder params
 model/hyperparameter.class_to_tune = @TemporalFusionTransformer
 model/hyperparameter.encoder_length = 20
-model/hyperparameter.hidden = 64
+model/hyperparameter.hidden = 12
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.dropout = 0.1
 model/hyperparameter.dropout_att = 0.0
