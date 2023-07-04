@@ -9,8 +9,8 @@ from typing import Dict, Tuple
 from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
 from .constants import DataSplit as Split
+from .constants import FeatType as Features
 from collections import OrderedDict
-FEAT_NAMES = ['s_cat' , 's_cont' , 'k_cat' , 'k_cont' , 'o_cat' , 'o_cont' , 'target', 'id']
 
 class CommonDataset(Dataset):
     """Common dataset: subclass of Torch Dataset that represents the data to learn on.
@@ -147,6 +147,7 @@ class PredictionDataset(CommonDataset):
         if len(labels) == self.num_stays:
             # order of groups could be random, we make sure not to change it
             rep = rep.groupby(level=self.vars["GROUP"], sort=False).last()
+     #   print('after')
         rep = rep.to_numpy().astype(float)
 
         return rep, labels
@@ -180,11 +181,12 @@ class PredictionDatasetTFT(PredictionDataset):
             return self._cached_dataset[idx]
 
         pad_value = 0.0
-        stay_id = self.outcome_df.index.unique()[idx]  # [self.vars["GROUP"]]
+        stay_id = self.outcome_df.index.unique()[idx]  
 
         
         # We need to be sure that tensors are returned in the correct order to be processed correclty by tft
         tensors = [[] for _ in range(8)]
+        
         for var in self.features_df.columns:
             if  var == 'sex' :
                 tensors[0].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
@@ -206,7 +208,7 @@ class PredictionDatasetTFT(PredictionDataset):
 
         length_diff = self.maxlen - window_shape0
         pad_mask = np.ones(window_shape0)
-
+        print(np.shape(tensors[0]))
         # Padding the array to fulfill size requirement
         if length_diff > 0:
             # window shorter than the longest window in dataset, pad to same length
@@ -232,7 +234,7 @@ class PredictionDatasetTFT(PredictionDataset):
         tensors = (from_numpy(np.array(tensor)).to(float32) for tensor in tensors)
         tensors = [stack((x,), dim=-1) if x.numel() > 0 else empty(0) for x in tensors]
         
-        return  OrderedDict(zip(FEAT_NAMES, tensors)),from_numpy(pad_mask)
+        return  OrderedDict(zip(Features.FEAT_NAMES, tensors)),from_numpy(pad_mask)
 
     
 

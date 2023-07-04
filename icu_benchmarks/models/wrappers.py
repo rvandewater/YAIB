@@ -234,7 +234,6 @@ class DLPredictionWrapper(DLWrapper):
             data,mask=element[0], element[1].to(self.device)
 
             for key, value in data.items():
-                
                 value = value.float().to(self.device)
 
                 
@@ -243,7 +242,8 @@ class DLPredictionWrapper(DLWrapper):
                     value = value.squeeze(-1)
                 if value.dim() == 3:
                     value = value.permute(0, 2, 1)
-
+                if(key=='target'):
+                    labels=value.squeeze()
                 data[key] = value
                 
         elif len(element) == 2:
@@ -270,6 +270,7 @@ class DLPredictionWrapper(DLWrapper):
         else:
             aux_loss = 0
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
+        
         target = torch.masked_select(labels, mask).to(self.device)
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task

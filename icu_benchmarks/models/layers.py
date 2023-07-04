@@ -590,7 +590,6 @@ class LazyEmbedding(nn.modules.lazy.LazyModuleMixin, TFTEmbedding):
             t_cont_k_inp = x.get('k_cont', None)
             t_cont_o_inp = x.get('o_cont', None)
             t_tgt_obs = x['target'] # Has to be present
-            print(s_cont_inp.shape)
             if (s_cont_inp is not None) and (s_cont_inp.size()[1]>0):
                 self.s_cont_embedding_vectors.materialize((s_cont_inp.shape[-1], self.hidden))
                 self.s_cont_embedding_bias.materialize((s_cont_inp.shape[-1], self.hidden))
@@ -615,22 +614,24 @@ class VariableSelectionNetwork(nn.Module):
     '''
     def __init__(self, hidden,dropout, num_inputs):
         super().__init__()
-       
+        self.hidden=hidden
         self.joint_grn = GRN(hidden*num_inputs, hidden, output_size=num_inputs, context_hidden=hidden)
         self.var_grns = nn.ModuleList([GRN(hidden, hidden, dropout=dropout) for _ in range(num_inputs)])
 
     def forward(self, x: Tensor, context: Optional[Tensor] = None):
+        if x.numel() == 0:  # Check if x is an empty tensor
+            batch_size = context.size(0) if context is not None else 1
+            variable_ctx = torch.zeros(batch_size,1, self.hidden,device=x.device)
+            sparse_weights = torch.ones(batch_size,1, self.hidden,device=x.device)
+            return variable_ctx, sparse_weights
+
         Xi = torch.flatten(x, start_dim=-2)
         grn_outputs = self.joint_grn(Xi, c=context)
         sparse_weights = F.softmax(grn_outputs, dim=-1)
         transformed_embed_list = [m(x[...,i,:]) for i, m in enumerate(self.var_grns)]
         transformed_embed = torch.stack(transformed_embed_list, dim=-1)
-        #the line below performs batched matrix vector multiplication
-        #for temporal features it's bthf,btf->bth
-        #for static features it's bhf,bf->bh
-        
         variable_ctx = torch.matmul(transformed_embed, sparse_weights.unsqueeze(-1)).squeeze(-1)
-
+        
         return variable_ctx, sparse_weights
 
 class StaticCovariateEncoder(nn.Module):
@@ -685,7 +686,6 @@ class InterpretableMultiHeadAttention(nn.Module):
         # attn_score = torch.einsum('bind,bjnd->bnij', q, k)
         attn_score = torch.matmul(q.permute((0, 2, 1, 3)), k.permute((0, 2, 3, 1)))
         attn_score.mul_(self.scale)
-
         attn_score = attn_score + self._mask
 
         attn_prob = F.softmax(attn_score, dim=3)
@@ -741,8 +741,9 @@ class TFTBack(nn.Module):
         historical_features, _ = self.history_vsn(historical_inputs, cs)
         history, state = self.history_encoder(historical_features, (ch, cc))
         future_features, _ = self.future_vsn(future_inputs, cs)
+
         future, _ = self.future_encoder(future_features, state)
-        torch.cuda.synchronize()
+        
 
         # skip connection
         input_embedding = torch.cat([historical_features, future_features], dim=1)

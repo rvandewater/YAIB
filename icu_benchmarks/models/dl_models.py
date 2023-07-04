@@ -294,7 +294,7 @@ class TemporalFusionTransformer(DLPredictionWrapper):
     def __init__(self,num_classes, encoder_length,hidden,dropout,
                  n_heads,dropout_att,example_length,*args,quantiles=[0.1, 0.5, 0.9],static_categorical_inp_size=[2],temporal_known_categorical_inp_size=[],
     temporal_observed_categorical_inp_size=[],static_continuous_inp_size=3,temporal_known_continuous_inp_size=0,
-    temporal_observed_continuous_inp_size=48,temporal_target_size=1,**kwargs):
+    temporal_observed_continuous_inp_size=96,temporal_target_size=1,**kwargs):
         #derived variables
         num_static_vars=len(static_categorical_inp_size)+static_continuous_inp_size
         num_future_vars=len(temporal_known_categorical_inp_size)+temporal_known_continuous_inp_size
@@ -303,7 +303,7 @@ class TemporalFusionTransformer(DLPredictionWrapper):
                                       temporal_target_size,
                                       len(temporal_observed_categorical_inp_size),
                                       ])
-      
+        
         super().__init__(num_classes=num_classes, encoder_length=encoder_length,hidden=hidden,
                  n_heads=n_heads,dropout_att=dropout_att,example_length=example_length,quantiles=quantiles,
                  num_static_vars=num_static_vars,num_future_vars=num_future_vars,num_historic_vars=num_historic_vars,*args,static_categorical_inp_size=1,temporal_known_categorical_inp_size=0,
@@ -324,18 +324,32 @@ class TemporalFusionTransformer(DLPredictionWrapper):
         self.logit = nn.Linear(len(quantiles), num_classes)
 
     def forward(self, x: Dict[str, Tensor]) -> Tensor:
-       # print(x.get('s_cont', None))
+        
+       
         s_inp, t_known_inp, t_observed_inp, t_observed_tgt = self.embedding(x)
         # Static context
         cs, ce, ch, cc = self.static_encoder(s_inp)
         ch, cc = ch.unsqueeze(0), cc.unsqueeze(0) #lstm initial states
         # Temporal input
-        _historical_inputs = [t_known_inp[:,:self.encoder_length,:], t_observed_tgt[:,:self.encoder_length,:]]
+        
+        _historical_inputs = []
+        
+        # Check for t_observed_inp
         if t_observed_inp is not None:
-            _historical_inputs.insert(0,t_observed_inp[:,:self.encoder_length,:])
+            _historical_inputs.append(t_observed_inp[:, :self.encoder_length, :])
 
+        # Check for t_known_inp
+        if t_known_inp is not None:
+            _historical_inputs.append(t_known_inp[:, :self.encoder_length, :])
+        # Check for t_observed_tgt
+        if t_observed_tgt is not None:
+            _historical_inputs.append(t_observed_tgt[:, :self.encoder_length, :])
         historical_inputs = cat(_historical_inputs, dim=-2)
-        future_inputs = t_known_inp[:, self.encoder_length:]
-        o=self.TFTpart2(historical_inputs, cs, ch, cc, ce, future_inputs)
+        future_inputs= Tensor()
+        if t_known_inp is not None:
+            future_inputs = t_known_inp[:, self.encoder_length:]
+        
+        
+        o=self.TFTpart2(historical_inputs, cs, ch, cc, ce, future_inputs.to(historical_inputs.device))
         pred = self.logit(o)
         return pred
