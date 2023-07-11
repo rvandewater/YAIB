@@ -388,7 +388,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         self.args=args
         self.ram_cache=ram_cache
         self.kwargs=kwargs
-        
+        self.column_names=features.columns
         super().__init__(data=self.data,
             time_idx="time_idx",
             target="label",
@@ -438,6 +438,9 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         
 
         return list((1/counts[1]) * counts[1].sum() / counts[0].shape[0])
+    def get_feature_names(self):
+        
+        return self.column_names
         
         
             
