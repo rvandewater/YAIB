@@ -8,8 +8,9 @@ from torch.utils.data import DataLoader
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
+from pytorch_forecasting import TimeSeriesDataSet
 from pathlib import Path
-from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset,PredictionDatasetTFT
+from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset,PredictionDatasetTFT,PredictionDatasetTFTpytorch
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
@@ -72,12 +73,13 @@ def train_common(
     """
 
     logging.info(f"Training model: {model.__name__}.")
-    dataset_class = ImputationDataset if mode == RunMode.imputation else (PredictionDatasetTFT if model.__name__ =='TemporalFusionTransformer' else PredictionDataset )
-    
+    dataset_class = (ImputationDataset if mode == RunMode.imputation
+                 else (PredictionDatasetTFT if model.__name__ == 'TFT'
+                       else (PredictionDatasetTFTpytorch if model.__name__ == 'TFTpytorch' else PredictionDataset)))
 
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
-
+    
     train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache)
     val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache)
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
@@ -85,31 +87,36 @@ def train_common(
 
     logging.debug(f"Training on {len(train_dataset)} samples and validating on {len(val_dataset)} samples.")
     logging.info(f"Using {num_workers} workers for data loading.")
-
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        drop_last=True,
-    )
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=True,
-        drop_last=True,
-    )
-    
-    if(isinstance(next(iter(train_loader))[0] ,OrderedDict)):
-         model = model(optimizer=optimizer, epochs=epochs, run_mode=mode)
-    
+    if(model.__name__ =='TFTpytorch'):
+        
+        train_loader = train_dataset.to_dataloader(train=True, batch_size=batch_size, num_workers=num_workers,pin_memory=True,drop_last=True)
+        val_loader = val_dataset.to_dataloader(train=False, batch_size=batch_size ,num_workers=num_workers,pin_memory=True,drop_last=True)
+        model=model(dataset=train_dataset,optimizer=optimizer, epochs=epochs, run_mode=mode)
     else:
-        data_shape = next(iter(train_loader))[0].shape
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            pin_memory=True,
+            drop_last=True,
+        )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=True,
+            drop_last=True,
+        )
     
-        model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+        if(isinstance(next(iter(train_loader))[0] ,OrderedDict)):
+            model = model(optimizer=optimizer, epochs=epochs, run_mode=mode)
+        
+        else:
+            data_shape = next(iter(train_loader))[0].shape
+        
+            model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
     model.set_weight(weight, train_dataset)
     if load_weights:
         if source_dir.exists():

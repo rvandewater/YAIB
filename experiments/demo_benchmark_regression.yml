@@ -19,16 +19,16 @@ parameters:
     values:
       - demo_data/los/eicu_demo
       - demo_data/los/mimic_demo
-      - demo_data/kf/eicu_demo
-      - demo_data/kf/mimic_demo
+   #   - demo_data/kf/eicu_demo
+   #   - demo_data/kf/mimic_demo
   model:
     values:
-      - ElasticNet
-      - LGBMRegressor
-      - GRU
-      - LSTM
-      - TCN
-      - Transformer
+  #    - ElasticNet
+  #    - LGBMRegressor
+  #    - GRU
+  #    - LSTM
+  #    - TCN
+      - TemporalFusionTransformer
   seed:
     values:
       - 1111

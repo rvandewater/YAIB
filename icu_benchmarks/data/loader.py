@@ -1,5 +1,6 @@
 from typing import List
 from pandas import DataFrame
+import pandas as pd
 import gin
 import numpy as np
 from torch import Tensor, cat, from_numpy, float32,empty,stack
@@ -11,7 +12,7 @@ from .constants import DataSegment as Segment
 from .constants import DataSplit as Split
 from .constants import FeatType as Features
 from collections import OrderedDict
-
+from pytorch_forecasting import TimeSeriesDataSet
 class CommonDataset(Dataset):
     """Common dataset: subclass of Torch Dataset that represents the data to learn on.
 
@@ -92,7 +93,7 @@ class PredictionDataset(CommonDataset):
             return self._cached_dataset[idx]
 
         pad_value = 0.0
-        stay_id = self.outcome_df.index.unique()[idx]  # [self.vars["GROUP"]]
+        stay_id = self.outcome_df.index.unique()[idx]  
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id].to_numpy()
@@ -185,7 +186,6 @@ class PredictionDatasetTFT(PredictionDataset):
         
         # We need to be sure that tensors are returned in the correct order to be processed correclty by tft
         tensors = [[] for _ in range(8)]
-        
         for var in self.features_df.columns:
             if  var == 'sex' :
                 tensors[0].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
@@ -198,8 +198,7 @@ class PredictionDatasetTFT(PredictionDataset):
         tensors[6].extend(self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float))
         tensors[7].append(np.asarray([stay_id]))
         window_shape0=np.shape(tensors[0])[1]
-       # window = self.features_df.loc[stay_id:stay_id].to_numpy()
-       # labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
+
         if len(tensors[6]) == 1:
             # only one label per stay, align with window
             tensors[6] = np.concatenate([np.empty(window_shape0 - 1) * np.nan, tensors[6]], axis=0)
@@ -213,12 +212,10 @@ class PredictionDatasetTFT(PredictionDataset):
             # window shorter than the longest window in dataset, pad to same length
             tensors[0]= np.concatenate([tensors[0], np.ones(( np.shape(tensors[0])[0],self.maxlen - np.shape(tensors[0])[1])) * pad_value], axis=1)
             tensors[1]= np.concatenate([tensors[1], np.ones(( np.shape(tensors[1])[0],self.maxlen - np.shape(tensors[1])[1])) * pad_value], axis=1)
-          #  tensors[2]= np.concatenate([tensors[2], np.ones((length_diff, np.shape(tensors[2])[0])) * pad_value], axis=0)
-          #  tensors[3]= np.concatenate([tensors[3], np.ones((length_diff, np.shape(tensors[3])[0])) * pad_value], axis=0)
-          #  tensors[4]= np.concatenate([tensors[4], np.ones((length_diff, np.shape(tensors[4])[0])) * pad_value], axis=0)
+
             tensors[5]= np.concatenate([tensors[5], np.ones(( np.shape(tensors[5])[0],self.maxlen - np.shape(tensors[5])[1])) * pad_value], axis=1)
             
-           # window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
+         
             
             tensors[6] = np.concatenate([tensors[6], np.ones(self.maxlen - np.shape(tensors[6])[0]) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
@@ -229,7 +226,7 @@ class PredictionDatasetTFT(PredictionDataset):
             pad_mask[not_labeled] = 0
         tensors[6]=[tensors[6]]
         pad_mask = pad_mask.astype(bool)
-       # data = window.astype(np.float32)
+       
         
         
         tensors = (from_numpy(np.array(tensor)).to(float32) for tensor in tensors)
@@ -317,7 +314,7 @@ class ImputationPredictionDataset(Dataset):
         select_columns (List[str], optional): the columns to serve as input for the imputation model. Defaults to None.
         ram_cache (bool, optional): wether the dataset should be stored in ram. Defaults to True.
     """
-
+    
     def __init__(
         self,
         data: DataFrame,
@@ -372,3 +369,75 @@ class ImputationPredictionDataset(Dataset):
 
         return from_numpy(window.values).to(float32)
 
+@gin.configurable("PredictionDatasetTFTpytorch")
+class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
+    def __init__(self,
+        data: dict,
+        split: str ,
+        max_prediction_length: int,
+        max_encoder_length: int,
+        *args,
+        ram_cache: bool = True,
+        **kwargs):
+        data[split]["FEATURES"]["time_idx"]=((data[split]["FEATURES"]["time"]/ pd.Timedelta(seconds=3600))).astype(int)
+        data=data.get(split)
+        labels = data["OUTCOME"]
+        features=data["FEATURES"]
+        self.data=pd.merge(labels, features, on=['stay_id', 'time'])
+        self.split = split
+        self.args=args
+        self.ram_cache=ram_cache
+        self.kwargs=kwargs
+        
+        super().__init__(data=self.data,
+            time_idx="time_idx",
+            target="label",
+            group_ids=["stay_id"],
+            min_encoder_length=max_encoder_length // 2,  
+            max_encoder_length=max_encoder_length,
+            min_prediction_length=1,
+            max_prediction_length=max_prediction_length,
+            static_categoricals=[],
+            static_reals=["height", "weight","age","sex"],
+            time_varying_known_categoricals=[],
+            time_varying_known_reals=[],
+            time_varying_unknown_categoricals=[],
+            time_varying_unknown_reals=[
+                "alb", "alp", "alt", "ast", "be", "bicar", "bili", "bili_dir", "bnd", "bun", "ca", "cai", "ck", "ckmb", "cl",
+        "crea", "crp", "dbp", "fgn", "fio2", "glu", "hgb", "hr", "inr_pt", "k", "lact", "lymph", "map", "mch", "mchc", "mcv",
+        "methb", "mg", "na", "neut", "o2sat", "pco2", "ph", "phos", "plt", "po2", "ptt", "resp", "sbp", "temp", "tnt", "urine",
+        "wbc",'MissingIndicator_1', 'MissingIndicator_2',
+       'MissingIndicator_3', 'MissingIndicator_4', 'MissingIndicator_5',
+       'MissingIndicator_6', 'MissingIndicator_7', 'MissingIndicator_8',
+       'MissingIndicator_9', 'MissingIndicator_10', 'MissingIndicator_11',
+       'MissingIndicator_12', 'MissingIndicator_13', 'MissingIndicator_14',
+       'MissingIndicator_15', 'MissingIndicator_16', 'MissingIndicator_17',
+       'MissingIndicator_18', 'MissingIndicator_19', 'MissingIndicator_20',
+       'MissingIndicator_21', 'MissingIndicator_22', 'MissingIndicator_23',
+       'MissingIndicator_24', 'MissingIndicator_25', 'MissingIndicator_26',
+       'MissingIndicator_27', 'MissingIndicator_28', 'MissingIndicator_29',
+       'MissingIndicator_30', 'MissingIndicator_31', 'MissingIndicator_32',
+       'MissingIndicator_33', 'MissingIndicator_34', 'MissingIndicator_35',
+       'MissingIndicator_36', 'MissingIndicator_37', 'MissingIndicator_38',
+       'MissingIndicator_39', 'MissingIndicator_40', 'MissingIndicator_41',
+       'MissingIndicator_42', 'MissingIndicator_43', 'MissingIndicator_44',
+       'MissingIndicator_45', 'MissingIndicator_46', 'MissingIndicator_47',
+       'MissingIndicator_48'
+            ],
+            add_relative_time_idx=True,
+            add_target_scales=True,
+            add_encoder_length=True,)
+    def get_balance(self) -> list:
+        """Return the weight balance for the split of interest.
+
+        Returns:
+            Weights for each label.
+        """
+        
+        counts = self.data["target"][0].unique(return_counts=True)
+        
+
+        return list((1/counts[1]) * counts[1].sum() / counts[0].shape[0])
+        
+        
+            

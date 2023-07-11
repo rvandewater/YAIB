@@ -7,7 +7,9 @@ from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalB
 from typing import Dict
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 from torch import Tensor,cat,jit
+from pytorch_forecasting import TemporalFusionTransformer
 
+from pytorch_forecasting.metrics import  QuantileLoss
 
 @gin.configurable
 class RNNet(DLPredictionWrapper):
@@ -282,9 +284,9 @@ class TemporalConvNet(DLPredictionWrapper):
         o = o.permute(0, 2, 1)  # Permute to channel last
         pred = self.logit(o)
         return pred
-    
+
 @gin.configurable
-class TemporalFusionTransformer(DLPredictionWrapper):
+class TFT(DLPredictionWrapper):
     """ 
     Implementation of https://arxiv.org/abs/1912.09363 
     """
@@ -353,3 +355,24 @@ class TemporalFusionTransformer(DLPredictionWrapper):
         o=self.TFTpart2(historical_inputs, cs, ch, cc, ce, future_inputs.to(historical_inputs.device))
         pred = self.logit(o)
         return pred
+    
+@gin.configurable
+class TFTpytorch(DLPredictionWrapper):
+    """ 
+    Implementation of https://arxiv.org/abs/1912.09363 
+    """
+    supported_run_modes = [RunMode.classification, RunMode.regression]
+    def __init__(self,dataset,hidden,dropout,
+                 n_heads,dropout_att,lr,optimizer,*args,**kwargs):
+        self.device=device
+        TemporalFusionTransformer.from_dataset(
+        dataset,
+        learning_rate=lr,
+        hidden_size=hidden,
+        attention_head_size=n_heads,
+        dropout=dropout,
+        hidden_continuous_size=hidden,
+        loss=QuantileLoss(),
+        optimizer=optimizer,
+        
+)
