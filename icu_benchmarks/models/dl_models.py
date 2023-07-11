@@ -6,7 +6,7 @@ from icu_benchmarks.contants import RunMode
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding,LazyEmbedding,StaticCovariateEncoder,TFTBack
 from typing import Dict
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
-from torch import Tensor,cat,jit
+from torch import Tensor,cat,jit,FloatTensor
 from pytorch_forecasting import TemporalFusionTransformer
 
 from pytorch_forecasting.metrics import  QuantileLoss
@@ -363,8 +363,9 @@ class TFTpytorch(DLPredictionWrapper):
     """
     supported_run_modes = [RunMode.classification, RunMode.regression]
     def __init__(self,dataset,hidden,dropout,
-                 n_heads,dropout_att,lr,optimizer,*args,**kwargs):
-        self.device=device
+                 n_heads,dropout_att,lr,optimizer,*args,device='cpu',**kwargs):
+        
+        
         TemporalFusionTransformer.from_dataset(
         dataset,
         learning_rate=lr,
@@ -376,3 +377,11 @@ class TFTpytorch(DLPredictionWrapper):
         optimizer=optimizer,
         
 )
+    
+    def set_weight(self, weight, dataset):
+        """Set the weight for the loss function."""
+        if isinstance(weight, list):
+            weight = FloatTensor(weight)
+        elif weight == "balanced":
+            weight = FloatTensor(dataset.get_balance())
+        self.loss_weights = weight

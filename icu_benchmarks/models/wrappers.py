@@ -187,7 +187,6 @@ class DLPredictionWrapper(DLWrapper):
 
     def set_weight(self, weight, dataset):
         """Set the weight for the loss function."""
-
         if isinstance(weight, list):
             weight = torch.FloatTensor(weight).to(self.device)
         elif weight == "balanced":
