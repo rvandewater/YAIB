@@ -191,6 +191,8 @@ class PredictionDatasetTFT(PredictionDataset):
                 tensors[0].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
             elif var == 'age' or var== 'height' or var== 'weight':
                 tensors[1].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
+            elif "MissingIndicator" in var:
+                tensors[4].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
             else :
                 tensors[5].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
     
@@ -212,7 +214,7 @@ class PredictionDatasetTFT(PredictionDataset):
             # window shorter than the longest window in dataset, pad to same length
             tensors[0]= np.concatenate([tensors[0], np.ones(( np.shape(tensors[0])[0],self.maxlen - np.shape(tensors[0])[1])) * pad_value], axis=1)
             tensors[1]= np.concatenate([tensors[1], np.ones(( np.shape(tensors[1])[0],self.maxlen - np.shape(tensors[1])[1])) * pad_value], axis=1)
-
+            tensors[4]= np.concatenate([tensors[4], np.ones(( np.shape(tensors[4])[0],self.maxlen - np.shape(tensors[4])[1])) * pad_value], axis=1)
             tensors[5]= np.concatenate([tensors[5], np.ones(( np.shape(tensors[5])[0],self.maxlen - np.shape(tensors[5])[1])) * pad_value], axis=1)
             
          
@@ -395,7 +397,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
             group_ids=["stay_id"],
             min_encoder_length=max_encoder_length // 2,  
             max_encoder_length=max_encoder_length,
-            min_prediction_length=1,
+            min_prediction_length=2,
             max_prediction_length=max_prediction_length,
             static_categoricals=[],
             static_reals=["height", "weight","age","sex"],

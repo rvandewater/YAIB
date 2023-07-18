@@ -101,6 +101,7 @@ def execute_repeated_cv(
                 verbose=verbose,
                 use_wandb=wandb,
             )
+            
             train_time = datetime.now() - start_time
 
             log_full_line(

@@ -540,6 +540,7 @@ class TFTEmbedding(nn.Module):
                                             self.t_cat_k_embed,
                                             self.t_cont_k_embedding_vectors,
                                             self.t_cont_k_embedding_bias)
+        
         t_observed_inp = self._apply_embedding(t_cat_o_inp,
                                                t_cont_o_inp,
                                                self.t_cat_o_embed,
@@ -756,7 +757,7 @@ class TFTBack(nn.Module):
         enriched = self.enrichment_grn(temporal_features, c=ce)
 
         # Temporal self attention
-        x, _ = self.attention(enriched)
+        x, attn_prob= self.attention(enriched)
 
         # Don't compute hictorical quantiles
         x = x[:, self.encoder_length:, :]
