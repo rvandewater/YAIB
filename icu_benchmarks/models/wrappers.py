@@ -243,15 +243,19 @@ class DLPredictionWrapper(DLWrapper):
                 if(key=='target'):
                     labels=value.squeeze()
                 data[key] = value
-                
+        
+            
         elif len(element) == 2:
-            data, labels = element[0], element[1].to(self.device)
-            if isinstance(data, list):
-                for i in range(len(data)):
-                    data[i] = data[i].float().to(self.device)
+            if(isinstance(element[1] ,tuple)):
+                data, labels = element[0], element[1]
             else:
-                data = data.float().to(self.device)
-            mask = torch.ones_like(labels).bool()
+                data, labels = element[0], element[1].to(self.device)
+                if isinstance(data, list):
+                    for i in range(len(data)):
+                        data[i] = data[i].float().to(self.device)
+                else:
+                    data = data.float().to(self.device)
+                mask = torch.ones_like(labels).bool()
 
         elif len(element) == 3:
             data, labels, mask = element[0], element[1].to(self.device), element[2].to(self.device)
@@ -262,7 +266,10 @@ class DLPredictionWrapper(DLWrapper):
                 data = data.float().to(self.device)
         else:
             raise Exception("Loader should return either (data, label) or (data, label, mask)")
+        
         out = self(data)
+        
+        
         if len(out) == 2 and isinstance(out, tuple):
             out, aux_loss = out
         else:

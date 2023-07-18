@@ -18,5 +18,7 @@ model/hyperparameter.dropout = (0.0, 0.4)
 model/hyperparameter.dropout_att = (0.0, 0.4)
 model/hyperparameter.n_heads =1
 model/hyperparameter.lr = (1e-5, 3e-4)
-PredictionDatasetTFTpytorch.max_encoder_length = 24
-PredictionDatasetTFTpytorch.max_prediction_length = 48
+PredictionDatasetTFTpytorch.max_encoder_length = 6
+PredictionDatasetTFTpytorch.max_prediction_length = 12
+
+
