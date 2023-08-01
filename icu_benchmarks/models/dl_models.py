@@ -357,7 +357,7 @@ class TFT(DLPredictionWrapper):
         return pred
 
 @gin.configurable
-class TFTpytorch(TemporalFusionTransformer,DLPredictionWrapper):
+class TFTpytorch(DLPredictionWrapper):
     """
     Implementation of https://arxiv.org/abs/1912.09363 
     """
@@ -365,21 +365,13 @@ class TFTpytorch(TemporalFusionTransformer,DLPredictionWrapper):
     def __init__(self,dataset,hidden,dropout,
                  n_heads,dropout_att,lr,optimizer,num_classes,*args,**kwargs):
         
-        DLPredictionWrapper.__init__(self,lr=lr,optimizer=optimizer,*args,**kwargs)        
-        
-        TemporalFusionTransformer.__init__(self)
-
+        super().__init__(lr=lr,optimizer=optimizer,*args,**kwargs)      
         self.model=TemporalFusionTransformer.from_dataset(dataset=dataset,hidden_size=hidden,dropout=dropout,
                  attention_head_size=n_heads,learning_rate=lr,optimizer=optimizer,loss=QuantileLoss(),hidden_continuous_size=hidden)
-        self.hparams.update(self.model.hparams)
-
-        #for key in model.hparams.keys():
-        # self.hparams[key]=model.hparams[key]
-       # del self.hparams["input_shape"]
-       # del self.hparams["input_size"]
-        #print(self.hparams)
-       # print(self.m)
+          
         self.logit = nn.Linear(7, num_classes)
+        
+        
     def set_weight(self, weight, dataset):
         """
         Set the weight for the loss function
@@ -389,52 +381,9 @@ class TFTpytorch(TemporalFusionTransformer,DLPredictionWrapper):
         elif weight == "balanced":
             weight = FloatTensor(dataset.get_balance())
         self.loss_weights = weight
+    def forward(self,x):
+        out= self.model(x)
+        pred = self.logit(out["prediction"])
+        return pred
     
-    def test_step(self, batch, batch_idx):
-        x, y = batch
-        log, out = self.step(x, y, batch_idx)
-        print("finally here")
-        log.update(self.create_log(x, y, out, batch_idx))
-        self.testing_step_outputs.append(log)
-        self.log(f"test/loss", log, on_step=False, on_epoch=True, sync_dist=True)
-
-        return log
-
-
-"""
-@gin.configurable
-class TFTpytorch(TemporalFusionTransformer,DLPredictionWrapper):
-    
-    Implementation of https://arxiv.org/abs/1912.09363 
-    
-    supported_run_modes = [RunMode.classification, RunMode.regression]
-    def __init__(self,dataset,hidden,dropout,
-                 n_heads,dropout_att,lr,optimizer,num_classes,*args,**kwargs):
-        
-        DLPredictionWrapper.__init__(self,lr=lr,optimizer=optimizer,*args,**kwargs)        
-        self.model=TemporalFusionTransformer.from_dataset(dataset)
-        
-    
-        
-    def set_weight(self, weight, dataset):
-        
-        Set the weight for the loss function
-        
-        if isinstance(weight, list):
-            weight = FloatTensor(weight)
-        elif weight == "balanced":
-            weight = FloatTensor(dataset.get_balance())
-        self.loss_weights = weight
-    
-    def test_step(self, batch, batch_idx):
-        x, y = batch
-        log, out = self.model.step(x, y, batch_idx)
-        log.update(self.model.create_log(x, y, out, batch_idx))
-        self.testing_step_outputs.append(log)
-        self.model.log(f"test/loss", log, on_step=False, on_epoch=True, sync_dist=True)
-
-        return log
-    def forward(self, x: Dict[str,Tensor]) -> Dict[str, Tensor]:
-        return self.model.forward(x)
-    
-"""
+   

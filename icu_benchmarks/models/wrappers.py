@@ -96,7 +96,6 @@ class DLWrapper(BaseModule, ABC):
 
     def __init__(
         self,
-        
         loss=CrossEntropyLoss(),
         optimizer=torch.optim.Adam,
         run_mode: RunMode = RunMode.classification,
@@ -109,7 +108,6 @@ class DLWrapper(BaseModule, ABC):
         epochs: int = 100,
         input_size: torch.Tensor = None,
         initialization_method: str = "normal",
-        
         **kwargs,
     ):
         
@@ -247,7 +245,8 @@ class DLPredictionWrapper(DLWrapper):
             
         elif len(element) == 2:
             if(isinstance(element[1] ,tuple)):
-                data, labels = element[0], element[1]
+                data, labels = element[0], element[1][0]
+                mask = torch.ones_like(labels).bool()
             else:
                 data, labels = element[0], element[1].to(self.device)
                 if isinstance(data, list):
@@ -266,10 +265,7 @@ class DLPredictionWrapper(DLWrapper):
                 data = data.float().to(self.device)
         else:
             raise Exception("Loader should return either (data, label) or (data, label, mask)")
-        
         out = self(data)
-        
-        
         if len(out) == 2 and isinstance(out, tuple):
             out, aux_loss = out
         else:
@@ -290,7 +286,7 @@ class DLPredictionWrapper(DLWrapper):
         transformed_output = self.output_transform((prediction, target))
         for metric in self.metrics[step_prefix].values():
             metric.update(transformed_output)
-        self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True, prog_bar=True)
         return loss
 
 

@@ -15,6 +15,7 @@ from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 from collections import OrderedDict
+import pickle 
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 
 
@@ -70,8 +71,12 @@ def train_common(
         verbose: Enable detailed logging.
         ram_cache: Whether to cache the data in RAM.
         num_workers: Number of workers to use for data loading.
+         with open('saved_dictionary.pkl', 'wb') as f:
+        pickle.dump(data, f)
+    data["train"]["OUTCOME"].to_csv('outcome.csv', index=False)
+    data["train"]["FEATURES"].to_csv('features.csv', index=False)
     """
-
+   
     logging.info(f"Training model: {model.__name__}.")
     dataset_class = (ImputationDataset if mode == RunMode.imputation
                  else (PredictionDatasetTFT if model.__name__ == 'TFT'
@@ -89,12 +94,10 @@ def train_common(
     logging.info(f"Using {num_workers} workers for data loading.")
     if(model.__name__ =='TFTpytorch'):
         
-        train_loader = train_dataset.to_dataloader(train=True, batch_size=batch_size, num_workers=num_workers,pin_memory=True,drop_last=True)
-        val_loader = val_dataset.to_dataloader(train=False, batch_size=batch_size ,num_workers=num_workers,pin_memory=True,drop_last=True)
-        test_loader = test_dataset.to_dataloader(train=False, batch_size=min(batch_size * 4, len(test_dataset)), num_workers=num_workers,pin_memory=True,drop_last=True,shuffle=False)
+        train_loader = train_dataset.to_dataloader(train=True, batch_size=batch_size, num_workers=0,pin_memory=False,drop_last=True)
+        val_loader = val_dataset.to_dataloader(train=False, batch_size=batch_size ,num_workers=0,pin_memory=False,drop_last=True)
+        test_loader = test_dataset.to_dataloader(train=False, batch_size=min(batch_size * 4, len(test_dataset)), num_workers=0,pin_memory=False,drop_last=True,shuffle=False)
         model=model(train_dataset,optimizer=optimizer, epochs=epochs, run_mode=mode)
-        model=model.model
-        
         
         
         
@@ -116,6 +119,7 @@ def train_common(
             drop_last=True,
         )
     
+    
         if(isinstance(next(iter(train_loader))[0] ,OrderedDict)):
             model = model(optimizer=optimizer, epochs=epochs, run_mode=mode)
         
@@ -123,6 +127,7 @@ def train_common(
             data_shape = next(iter(train_loader))[0].shape
         
             model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+
     model.set_weight(weight, train_dataset)
     if load_weights:
         if source_dir.exists():
@@ -149,7 +154,7 @@ def train_common(
         max_epochs=epochs if model.needs_training else 1,
         callbacks=callbacks,
         precision=precision,
-        accelerator= "cpu",
+        accelerator= "auto" if not cpu else "cpu",
         devices=max(torch.cuda.device_count(), 1),
         deterministic=reproducible,
         benchmark=not reproducible,
@@ -157,8 +162,7 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=0,
     )
-  #  print(trainer.test(model, dataloaders=test_loader, verbose=verbose))
-   # test_loss = trainer.test(model.model, dataloaders=test_loader, verbose=verbose)[0]["RMSE"]
+    
 
     if model.needs_fit:
         logging.info("Fitting model to data.")
@@ -168,14 +172,16 @@ def train_common(
 
     if model.needs_training:
         logging.info("Training model.")
-        
-        
-        trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+        if(type(model).__name__ =='TFTpytorch'):
+            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+        else:
+            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
         logging.info("Training complete.")
     test_dataset = dataset_class(data, split=test_on)
     test_dataset = assure_minimum_length(test_dataset)
     if(type(model).__name__ =='TFTpytorch'):
         test_loader = test_dataset.to_dataloader(train=False, batch_size=min(batch_size * 4, len(test_dataset)), num_workers=num_workers,pin_memory=True,drop_last=True,shuffle=False)
+        test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     else:
        
         test_loader = (
@@ -190,6 +196,6 @@ def train_common(
         if model.needs_training
         else DataLoader([test_dataset.to_tensor()], batch_size=1)
     )
-    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
+        test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss

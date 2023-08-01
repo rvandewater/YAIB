@@ -379,8 +379,9 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         max_prediction_length: int,
         max_encoder_length: int,
         *args,
-        ram_cache: bool = True,
+        ram_cache: bool = False,
         **kwargs):
+
         data[split]["FEATURES"]["time_idx"]=((data[split]["FEATURES"]["time"]/ pd.Timedelta(seconds=3600))).astype(int)
         data=data.get(split)
         labels = data["OUTCOME"]
@@ -428,7 +429,8 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
             ],
             add_relative_time_idx=True,
             add_target_scales=True,
-            add_encoder_length=True,)
+            add_encoder_length=True,
+            )
     def get_balance(self) -> list:
         """Return the weight balance for the split of interest.
 

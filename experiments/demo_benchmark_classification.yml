@@ -17,21 +17,21 @@ name: yaib_demo_classification_benchmark
 parameters:
   data_dir:
     values:
-      - demo_data/mortality24/eicu_demo
-      - demo_data/mortality24/mimic_demo
+     # - demo_data/mortality24/eicu_demo
+     # - demo_data/mortality24/mimic_demo
       - demo_data/aki/eicu_demo
-      - demo_data/aki/mimic_demo
-      - demo_data/sepsis/eicu_demo
+     # - demo_data/aki/mimic_demo
+     # - demo_data/sepsis/eicu_demo
       - demo_data/sepsis/mimic_demo
   model:
     values:
-   #   - LogisticRegression
-    #  - LGBMClassifier
-    #  - GRU
-    #  - LSTM
-    #  - TCN
-    #  - Transformer
-      - TemporalFusionTransformer
+      - LogisticRegression
+      - LGBMClassifier
+      - GRU
+      - LSTM
+      - TCN
+      - Transformer
+      - TFT
   seed:
     values:
       - 1111

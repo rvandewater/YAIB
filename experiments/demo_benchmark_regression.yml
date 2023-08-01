@@ -23,12 +23,12 @@ parameters:
    #   - demo_data/kf/mimic_demo
   model:
     values:
-  #    - ElasticNet
-  #    - LGBMRegressor
-  #    - GRU
-  #    - LSTM
-  #    - TCN
-      - TemporalFusionTransformer
+      - ElasticNet
+      - LGBMRegressor
+      - GRU
+      - LSTM
+      - TCN
+      - TFT
   seed:
     values:
       - 1111
