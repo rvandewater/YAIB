@@ -22,6 +22,7 @@ from icu_benchmarks.run_utils import (
     setup_logging,
 )
 from icu_benchmarks.contants import RunMode
+from icu_benchmarks.models import domain_adaptation
 
 
 @gin.configurable("Run")
