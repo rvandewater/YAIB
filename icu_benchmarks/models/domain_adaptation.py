@@ -12,14 +12,14 @@ import scipy.stats as stats
 from sklearn.metrics import log_loss
 from skopt import gp_minimize
 
-from icu_benchmarks.data.loader import RICUDataset
-from icu_benchmarks.data.preprocess import preprocess_data
-from icu_benchmarks.hyperparameter_tuning import choose_and_bind_hyperparameters
-from icu_benchmarks.models.metric_constants import MLMetrics
+from icu_benchmarks.data.loader import PredictionDataset
+from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
+from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.wrappers import DLWrapper, MLWrapper
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import log_full_line
+from .constants import MLMetrics
 
 
 def load_model(model_dir: Path, log_dir: Path):
@@ -42,7 +42,7 @@ def load_model(model_dir: Path, log_dir: Path):
     return model
 
 
-def get_predictions_for_single_model(dataset: RICUDataset, model_dir: Path, log_dir: Path):
+def get_predictions_for_single_model(dataset: PredictionDataset, model_dir: Path, log_dir: Path):
     """Get predictions for a single model.
 
     Args:
@@ -100,7 +100,7 @@ def get_predictions_for_all_models(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    test_dataset = RICUDataset(data, split=test_on)
+    test_dataset = PredictionDataset(data, split=test_on)
     _, test_labels = test_dataset.get_data_and_labels()
 
     test_predictions = {}
@@ -153,6 +153,8 @@ def domain_adaptation(
     
     gin_config_before_tuning = gin.config_str()
 
+    preprocessor = preprocessor(use_static_features=True)
+
     # evaluate models on same test split
     data_dir = task_dir / dataset
     source_datasets = [d for d in datasets if d != dataset]
@@ -180,16 +182,7 @@ def domain_adaptation(
                 results[f"{repetition}_{fold_index}"] = {}
                 fold_results = results[f"{repetition}_{fold_index}"]
 
-                data = preprocess_data(
-                    data_dir,
-                    seed=seed,
-                    debug=debug,
-                    use_cache=True,
-                    cv_repetitions=cv_repetitions,
-                    repetition_index=repetition,
-                    cv_folds=cv_folds,
-                    fold_index=fold_index,
-                )
+                data = preprocessor.apply(data, vars)
 
                 log_dir_fold = log_dir / f"cv_rep_{repetition}" / f"fold_{fold_index}"
                 log_dir_fold.mkdir(parents=True, exist_ok=True)
@@ -218,7 +211,7 @@ def domain_adaptation(
                     else:
                         with open(log_dir_fold / f"{split}_predictions.json", "r") as f:
                             predictions = json.load(f)
-                        _, labels = RICUDataset(data, split=split).get_data_and_labels()
+                        _, labels = PredictionDataset(data, split=split).get_data_and_labels()
                     return predictions, labels
 
                 # get predictions for train set
@@ -294,12 +287,12 @@ def domain_adaptation(
                     target_model_with_predictions = MLWrapper()
                 target_model_with_predictions.set_log_dir(log_dir_fold)
                 target_model_with_predictions.train(
-                    RICUDataset(data_with_predictions, split="train"),
-                    RICUDataset(data_with_predictions, split="val"),
+                    PredictionDataset(data_with_predictions, split="train"),
+                    PredictionDataset(data_with_predictions, split="val"),
                     "balanced",
                     seed,
                 )
-                dataset_with_predictions = RICUDataset(data_with_predictions, split="test")
+                dataset_with_predictions = PredictionDataset(data_with_predictions, split="test")
                 preds_w_preds = target_model_with_predictions.predict(dataset_with_predictions, None, None)
                 if isinstance(target_model_with_predictions, MLWrapper):
                     preds_w_preds = preds_w_preds[:, 1]
