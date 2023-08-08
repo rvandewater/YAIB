@@ -1,0 +1,25 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.dl_models
+import icu_benchmarks.models.utils
+import icu_benchmarks.imputation.rnn
+import icu_benchmarks.data.preprocess
+
+# Train params
+train_common.model = @RNN
+train_common.epochs = 100
+train_common.batch_size = 64
+train_common.patience = 10
+train_common.min_delta = 1e-4
+
+train_common.optimizer = @Adam
+ImputationWrapper.lr_scheduler = "cosine"
+
+# Optimizer params
+Adam.lr = 1e-2
+Adam.weight_decay = 1e-6
+
+# Model params
+RNN.cell = 'gru'
+RNN.hidden_size = 64
+RNN.state_init = 'zero'

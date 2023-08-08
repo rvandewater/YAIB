@@ -35,7 +35,7 @@ def parallel_recomb(q_t, kv_t, att_type="all", local_context=3, bin_size=None):
 
 
 class PositionalEncoding(nn.Module):
-    "Positional Encoding, mostly from: https://pytorch.org/tutorials/beginner/transformer_tutorial.html"
+    """Positional Encoding, mostly from: https://pytorch.org/tutorials/beginner/transformer_tutorial.html"""
 
     def __init__(self, emb, max_len=3000):
         super().__init__()
@@ -53,25 +53,18 @@ class PositionalEncoding(nn.Module):
 
 
 class SelfAttention(nn.Module):
-    """Multi Head Attention block from Attention is All You Need.
-    Input has shape (batch_size, n_timestamps, emb).
-
-    ----------
-    emb:
-        Dimension of the input vector.
-    hidden:
-        Dimension of query, key, value matrices.
-    heads:
-        Number of heads.
-
-    mask:
-        Mask the future timestamps
-    """
+    """Multi Head Attention block from Attention is All You Need (https://arxiv.org/abs/1706.03762). Input has shape
+    (batch_size, n_timestamps, emb)."""
 
     def __init__(
         self, emb, hidden, heads=8, mask=True, att_type="all", local_context=None, mask_aggregation="union", dropout_att=0.0
     ):
-        """Initialize the Multi Head Block."""
+        """Initialize the Multi Head Block.
+        Args:
+            emb: Dimension of the input vector.
+            hidden: Hidden dimension of query, key, value matrices.
+            heads: Number of heads.
+            mask: Whether to mask the attention matrix."""
         super().__init__()
 
         self.emb = emb
@@ -95,13 +88,10 @@ class SelfAttention(nn.Module):
 
     def forward(self, x):
         """
-        x:
-            Input data tensor with shape (batch_size, n_timestemps, emb)
-        hidden:
-            Hidden dim (dimension of query, key, value matrixes)
-
-        Returns
-            Self attention tensor with shape (batch_size, n_timestemps, emb)
+        Args:
+            x: Input data tensor with shape (batch_size, n_timestamps, emb)
+        Returns:
+            Self attention tensor with shape (batch_size, n_timestamps, emb)
         """
         # bs - batch_size, n - vectors number, emb - embedding dimensionality
         bs, n, emb = x.size()
@@ -139,7 +129,6 @@ class SelfAttention(nn.Module):
                     dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(dot.device)).view(bs * h, n, n)
 
                 elif self.mask_aggregation == "split":
-
                     dot_list = list(torch.split(dot, dot.shape[0] // len(self.att_type), dim=0))
                     for i, att_type in enumerate(self.att_type):
                         mask_tensor = parallel_recomb(
@@ -280,8 +269,9 @@ class TransformerBlock(nn.Module):
         return x
 
 
-# From TCN original paper https://github.com/locuslab/TCN
 class Chomp1d(nn.Module):
+    """From TCN original paper https://github.com/locuslab/TCN"""
+
     def __init__(self, chomp_size):
         super(Chomp1d, self).__init__()
         self.chomp_size = chomp_size

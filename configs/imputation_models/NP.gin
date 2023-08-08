@@ -1,0 +1,34 @@
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.dl_models
+import icu_benchmarks.models.utils
+import icu_benchmarks.imputation.np
+import icu_benchmarks.data.preprocess
+
+# Train params
+train_common.model = @NP
+
+ImputationWrapper.optimizer = @Adam
+ImputationWrapper.lr_scheduler = "cosine"
+
+Adam.lr = 0.1
+Adam.weight_decay = 1e-6
+
+# Model params
+# Deterministic encoder params
+NP.encoder_layers = 6
+NP.encoder_h_dim = 72
+
+# Decoder params
+NP.decoder_layers = 3
+NP.decoder_h_dim = 72
+
+# Additional params
+NP.r_dim = 12    # Dimension of output representation r
+NP.z_dim = 12    # Dimension of latent variable z
+
+# Sampling params
+NP.train_sample_times = 100
+NP.val_sample_times = 500
+NP.test_sample_times = 500
+NP.predict_sample_times = 100

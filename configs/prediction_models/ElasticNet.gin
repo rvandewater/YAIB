@@ -1,0 +1,15 @@
+# Settings for ElasticNet model.
+
+# Common settings for ML models
+include "configs/prediction_models/common/MLCommon.gin"
+
+# Train params
+train_common.model = @ElasticNet
+
+model/hyperparameter.class_to_tune = @ElasticNet
+#model/hyperparameter.solver = "saga"
+model/hyperparameter.n_jobs = 8
+model/hyperparameter.max_iter = 10000
+model/hyperparameter.alpha = (1e-2, 1e1, "log-uniform")
+model/hyperparameter.tol = (1e-5, 1e-1, "log-uniform")
+model/hyperparameter.l1_ratio = (0.0, 1.0)

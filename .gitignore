@@ -113,7 +113,18 @@ lsf*
 icu_benchmarks/legacy_MH
 MH_DEBUG
 
+.vscode
+lightning_logs
+
+# Mac file system
+.DS_Store
+
+# wandb logs
+wandb/
 # Cached data
 **/cache/
 .DS_Store
 .vscode/launch.json
+yaib_logs/
+*.ckpt
+*.csv
