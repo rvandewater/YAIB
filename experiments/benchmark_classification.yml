@@ -17,26 +17,28 @@ name: yaib_classification_benchmark
 parameters:
   data_dir:
     values:
-      - ../data/mortality24/miiv
-      - ../data/mortality24/hirid
-      - ../data/mortality24/eicu
-      - ../data/mortality24/aumc
-      - ../data/aki/miiv
-      - ../data/aki/hirid
-      - ../data/aki/eicu
-      - ../data/aki/aumc
-      - ../data/sepsis/miiv
-      - ../data/sepsis/hirid
-      - ../data/sepsis/eicu
-      - ../data/sepsis/aumc
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/aki/miiv
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/aki/hirid
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/aki/eicu
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/aki/aumc
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/morality24/miiv
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/morality24/miiv
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/morality24/miiv
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/morality24/miiv
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/sepsis/miiv
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/sepsis/hirid
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/sepsis/eicu
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/sepsis/aumc
   model:
     values:
-      - LogisticRegression
-      - LGBMClassifier
-      - GRU
-      - LSTM
-      - TCN
-      - Transformer
+    #  - LogisticRegression
+    #  - LGBMClassifier
+    #  - GRU
+    #  - LSTM
+    #  - TCN
+    #  - Transformer
+      - TFT
+      
   seed:
     values:
       - 1111

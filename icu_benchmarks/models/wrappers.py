@@ -244,6 +244,7 @@ class DLPredictionWrapper(DLWrapper):
         
             
         elif len(element) == 2:
+           
             if(isinstance(element[1] ,tuple)):
                 data, labels = element[0], element[1][0]
                 mask = torch.ones_like(labels).bool()

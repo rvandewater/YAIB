@@ -368,7 +368,7 @@ class TFTpytorch(DLPredictionWrapper):
         super().__init__(lr=lr,optimizer=optimizer,*args,**kwargs)      
         self.model=TemporalFusionTransformer.from_dataset(dataset=dataset,hidden_size=hidden,dropout=dropout,
                  attention_head_size=n_heads,learning_rate=lr,optimizer=optimizer,loss=QuantileLoss(),hidden_continuous_size=hidden)
-          
+        
         self.logit = nn.Linear(7, num_classes)
         
         

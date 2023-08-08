@@ -17,14 +17,14 @@ name: yaib_regression_benchmark
 parameters:
   data_dir:
     values:
-      - ../data/los/miiv
-      - ../data/los/hirid
-      - ../data/los/eicu
-      - ../data/los/aumc
-      - ../data/kf/miiv
-      - ../data/kf/hirid
-      - ../data/kf/eicu
-      - ../data/kf/aumc
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/los/miiv
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/los/hirid
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/los/eicu
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/los/aumc
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/kf/miiv
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/kf/hirid
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/kf/eicu
+      - /dhc/groups/icu-prediction/datasets/YAIB_Preprint/kf/aumc
   model:
     values:
       - ElasticNet
@@ -33,6 +33,8 @@ parameters:
       - LSTM
       - TCN
       - Transformer
+      - TFT
+      
   seed:
     values:
       - 1111
