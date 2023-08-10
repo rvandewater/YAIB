@@ -1,11 +1,16 @@
-![YAIB logo](docs/figures/yaib_logo.png)
+![YAIB logo](https://github.com/rvandewater/YAIB/blob/development/docs/figures/yaib_logo.png?raw=true)
 
 # 🧪 Yet Another ICU Benchmark
 
 [![CI](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml)
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ![Platform](https://img.shields.io/badge/platform-linux--64%20|%20win--64%20|%20osx--64-lightgrey)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![arXiv](https://img.shields.io/badge/arXiv-2306.05109-b31b1b.svg)](http://arxiv.org/abs/2306.05109)
+[![PyPI version shields.io](https://img.shields.io/pypi/v/yaib.svg)](https://pypi.python.org/pypi/yaib/)
+[![python](https://img.shields.io/badge/-Python_3.10-blue?logo=python&logoColor=white)](https://www.python.org/downloads/release/python-3100/)
+[![pytorch](https://img.shields.io/badge/PyTorch_2.0+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
+[![lightning](https://img.shields.io/badge/-Lightning_2.0+-792ee5?logo=pytorchlightning&logoColor=white)](https://pytorchlightning.ai/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 [//]: # (TODO: add coverage once we have some tests )
 
@@ -15,11 +20,11 @@ ICU) EHR data.
 We support the following datasets out of the box:
 
 | **Dataset**                 | [MIMIC-III](https://physionet.org/content/mimiciii/) / [IV](https://physionet.org/content/mimiciv/) | [eICU-CRD](https://physionet.org/content/eicu-crd/) | [HiRID](https://physionet.org/content/hirid/1.1.1/) | [AUMCdb](https://doi.org/10.17026/dans-22u-f8vd) |
-|-------------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------|-----------------------------------------------------|--------------------------------------------------|
+|-----------------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------|-----------------------------------------------------|--------------------------------------------------|
 | **Admissions**              | 40k / 73k                                                                                           | 200k                                                | 33k                                                 | 23k                                              |
-| **Version**                 | v1.4 / v2.2                                                                                         | v2.0                                                | v1.1.1                                              | v1.0.2                                           |                                                     |                                                     |                                                  |
+| **Version**                 | v1.4 / v2.2                                                                                         | v2.0                                                | v1.1.1                                              | v1.0.2                                           |  
 | **Frequency** (time-series) | 1 hour                                                                                              | 5 minutes                                           | 2 / 5 minutes                                       | up to 1 minute                                   |
-| **Originally published**    | 2015  / 2020                                                                                        | 2017                                                | 2020                                                | 2019                                             |                                                                                                     |                                                     |                                                     |                                                  |
+| **Originally published**    | 2015  / 2020                                                                                        | 2017                                                | 2020                                                | 2019                                             | 
 | **Origin**                  | USA                                                                                                 | USA                                                 | Switzerland                                         | Netherlands                                      |
 
 New datasets can also be added. We are currently working on a package to make this process as smooth as possible.
@@ -29,13 +34,13 @@ or [ricu package](https://github.com/eth-mds/ricu) for generating these parquet 
 
 We provide five common tasks for clinical prediction by default:
 
-| No  | Task                 | Frequency        | Type                                | 
-|-----|---------------------------|--------------------|-------------------------------------|
-| 1   | ICU Mortality             | Once per Stay (after 24H) | Binary Classification  |
-| 2   | Acute Kidney Injury (AKI) | Hourly (within 6H) | Binary Classification |
-| 3   | Sepsis                    | Hourly (within 6H) | Binary Classification |
-| 4   | Kidney Function(KF)       | Once per stay | Regression |
-| 5   | Length of Stay (LoS)      | Hourly (within 7D) | Regression |
+| No  | Task                      | Frequency                 | Type                  | 
+|-----|---------------------------|---------------------------|-----------------------|
+| 1   | ICU Mortality             | Once per Stay (after 24H) | Binary Classification |
+| 2   | Acute Kidney Injury (AKI) | Hourly (within 6H)        | Binary Classification |
+| 3   | Sepsis                    | Hourly (within 6H)        | Binary Classification |
+| 4   | Kidney Function(KF)       | Once per stay             | Regression            |
+| 5   | Length of Stay (LoS)      | Hourly (within 7D)        | Regression            |
 
 New tasks can be easily added.
 For the purposes of getting started right away, we include the eICU and MIMIC-III demo datasets in our repository.
@@ -46,31 +51,61 @@ The following repositories may be relevant as well:
 - [YAIB-models](https://github.com/rvandewater/YAIB-models): Pretrained models for YAIB.
 - [ReciPys](https://github.com/rvandewater/ReciPys): Preprocessing package for YAIB pipelines.
 
- For all YAIB related repositories, please see: https://github.com/stars/rvandewater/lists/yaib. 
+For all YAIB related repositories, please see: https://github.com/stars/rvandewater/lists/yaib.
+
 # 📄Paper
 
 To reproduce the benchmarks in our paper, we refer to: the [ML reproducibility document](PAPER.md).
 If you use this code in your research, please cite the following publication:
 
 ```
+@article{vandewaterYetAnotherICUBenchmark2023,
+	title = {Yet Another ICU Benchmark: A Flexible Multi-Center Framework for Clinical ML},
+	shorttitle = {Yet Another ICU Benchmark},
+	url = {http://arxiv.org/abs/2306.05109},
+	language = {en},
+	urldate = {2023-06-09},
+	publisher = {arXiv},
+	author = {Robin van de Water and Hendrik Schmidt and Paul Elbers and Patrick Thoral and Bert Arnrich and Patrick Rockenschaub},
+	month = jun,
+	year = {2023},
+	note = {arXiv:2306.05109 [cs]},
+	keywords = {Computer Science - Machine Learning},
+}
 ```
-This paper can also be found on arxiv: TBD
+
+This paper can also be found on arxiv [2306.05109](https://arxiv.org/abs/2306.05109)
 
 # 💿Installation
 
+YAIB is currently ideally installed from source, however we also offer it an early PyPi release.
 
+## Installation from source
 
+First, we clone this repository using git:
 
-YAIB can be installed using conda or pip. Below you will find the three CLI commands to install YAIB using conda.
-The
+````
+git clone https://github.com/rvandewater/YAIB.git
+````
 
-The first command will install an environment based on Python 3.10 (currently).
+Please note the branch. The newest features and fixes are available at the development branch:
+
+````
+git checkout development
+````
+
+YAIB can be installed using a conda environment (preferred) or pip. Below are the three CLI commands to install YAIB
+using **conda**.
+
+The first command will install an environment based on Python 3.10.
 
 ```
-conda env update -f <environment.yml|environment_mps.yml>
+conda env update -f environment.yml
 ```
 
-> Use `environment.yml` on x86 hardware and `environment_mps.yml` on Macs with Metal Performance Shaders.
+> Use `environment.yml` on x86 hardware. Please note that this installs Pytorch as well. 
+
+> For mps, one needs to comment out _pytorch-cuda_, see the [PyTorch install guide](https://pytorch.org/get-started/locally/).
 
 We then activate the environment and install a package called `icu-benchmarks`, after which YAIB should be operational.
 
@@ -79,23 +114,25 @@ conda activate yaib
 pip install -e .
 ```
 
-If you want to install the icu-benchmarks package with pip, execute the command below:
+[//]: # (If you want to install the icu-benchmarks package with **pip**, execute the command below:)
 
-```
-pip install torch numpy && pip install -e .
-```
+[//]: # ()
 
-If you are on a Mac with Metal Performance Shader, install the package with the following command:
+[//]: # (```)
 
-```
-pip install torch numpy && pip install -e .[mps]
-```
+[//]: # (pip install torch numpy && pip install -e .)
+
+[//]: # (```)
+After installation, please check if your Pytorch version works with CUDA (in case available) to ensure the best performance.
+YAIB will automatically list available processors at initialization in its log files.
 
 # 👩‍💻Usage
 
 Please refer to [our wiki](https://github.com/rvandewater/YAIB/wiki) for detailed information on how to use YAIB.
 
 ## Quickstart 🚀 (demo data)
+The authors of MIMIC-III and eICU have made a small demo dataset available to demonstrate their use. They can be found on Physionet: [MIMIC-III Clinical Database Demo](https://physionet.org/content/mimiciii-demo/1.4/) and [eICU Collaborative Research Database Demo](https://physionet.org/content/eicu-crd-demo/2.0.1/). These datasets are published under the [Open Data Commons Open Database License v1.0](https://opendatacommons.org/licenses/odbl/1-0/) and can be used without credentialing procedure. We have created demo cohorts processed **solely from these datasets** for each of our currently supported task endpoints. To the best of our knowledge, this complies with the license and the respective dataset author's instructions. Usage of the task cohorts and the dataset is only permitted with the above license.
+We **strongly recommend** completing a human subject research training to ensure you properly handle human subject research data. 
 
 In the folder `demo_data` we provide processed publicly available demo datasets from eICU and MIMIC with the necessary labels
 for `Mortality at 24h`,`Sepsis`, `Akute Kidney Injury`, `Kidney Function`, and `Length of Stay`.
@@ -133,31 +170,6 @@ the data, that is used in this
 benchmark. Please refer to our [cohort definition](https://github.com/rvandewater/YAIB-cohorts) code for generating the cohorts
 using our python interface for ricu.
 After this, you can run the benchmark once you have gained access to the datasets.
-
-## Data
-
-Users can supply their own datasets in specific format.
-
-Adding a new dataset type can be easily done by providing it in a `.gin`
-task definition file, see. Note, however, that any datasets formatted in the default way do not require any changes to be
-used by YAIB. By
-default, we have chosen to work with the Apache
-parquet file format, which is a modern,
-open-source column-oriented format that does not require a lot of
-storage due to efficient data compression. We separate the data into
-three separate files: `DYNAMIC`, `STATIC`, and `OUTCOME`; this is
-defined for dynamic variables (that change during the stay), constant
-parameters, and the prediction task label respectively. Our [cohort
-definition code](https://github.com/rvandewater/YAIB-cohorts) produces
-the files exactly in this format. Furthermore, we see the concept of
-`roles` with the definition of the `vars` dictionary. These roles are
-assigned as defined in [ReciPys](https://github.com/rvandewater/ReciPys), the preprocessing package developed
-alongside YAIB.
-The `GROUP` variable defines which internal dataset variable should be
-used to "group by" for, e.g., aggregating patient vital signs. The
-`SEQUENCE` variable defines the sequential dimension of the dataset (in
-the common case, time). The other keys in this dictionary define the
-feature columns and outcome variables to be used for prediction.
 
 # 👟 Running YAIB
 
@@ -232,24 +244,6 @@ icu-benchmarks evaluate \
     --source-dir ../yaib_logs/mimic_demo/Mortality24/LGBMClassifier/2022-12-12T15-24-46/fold_0
 ```
 
-[//]: # (## Metrics)
-
-[//]: # ()
-
-[//]: # (Several metrics are defined for this benchmark:)
-
-[//]: # ()
-
-[//]: # (- Binary Classification: Because our tasks are all highly imbalanced, we use both ROC and PR Area Under the Curve)
-
-[//]: # (  using [sklearn.metrics.roc_auc_score]&#40;https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html&#41;)
-
-[//]: # (  and [sklearn.metrics.average_precision_score]&#40;https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html#sklearn.metrics.average_precision_score&#41;)
-
-[//]: # (- Regression : The Mean Absolute Error &#40;MAE&#41; is used)
-
-[//]: # (  with [sklearn.metrics.mean_absolute_error]&#40;https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html&#41;)
-
 ## Models
 
 We provide several existing machine learning models that are commonly used for multivariate time-series data.
@@ -277,7 +271,7 @@ The benchmark provides (among others) the following built-in models:
 
 To adapt YAIB to your own use case, you can use
 the [development information](https://github.com/rvandewater/YAIB/wiki/Contribution-and-development) page as a reference.
-We appreciate contributions to the project. Please read the [contribution guidelines](CONTRIBUTING.md) before submitting a pull
+We appreciate contributions to the project. Please read the [contribution guidelines](CONTRIBUTING.MD) before submitting a pull
 request.
 
 # Acknowledgements

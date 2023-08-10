@@ -191,7 +191,7 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
             outcome_rec.add_step(
                 StepSklearn(
                     sklearn_transformer=FunctionTransformer(
-                        func=lambda x: ((x + abs(self.outcome_min)) / (abs(self.outcome_min) + self.outcome_max))
+                        func=lambda x: ((x - self.outcome_min) / (self.outcome_max - self.outcome_min))
                     ),
                     sel=all_outcomes(),
                 )

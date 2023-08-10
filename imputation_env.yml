@@ -1,0 +1,7 @@
+# Environment yml file for using the full range of imputation methods.
+# Note that these were excluded from the main yml file, as they have a lot of dependencies that might downgrade other packages.
+name: yaib
+dependencies:
+  - pip:
+      - hyperimpute==0.1.17
+      - pypots==0.1.1
