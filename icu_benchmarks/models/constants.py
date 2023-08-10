@@ -14,9 +14,10 @@ from sklearn.metrics import (
     mean_squared_error,
     # f1_score,
 )
+from torchmetrics.classification import BinaryFairness
 from enum import Enum
 
-from icu_benchmarks.models.metrics import CalibrationCurve, BalancedAccuracy, MAE, JSD
+from icu_benchmarks.models.custom_metrics import CalibrationCurve, BalancedAccuracy, MAE, JSD
 
 
 # TODO: revise transformation for metrics in wrappers.py in order to handle metrics that can not handle a mix of binary and
@@ -30,6 +31,7 @@ class MLMetrics:
         "PR": average_precision_score,
         "PR_Curve": precision_recall_curve,
         "RO_Curve": roc_curve,
+        "Binary_Fairness": BinaryFairness(2, 'demographic_parity'),
     }
 
     MULTICLASS_CLASSIFICATION = {
@@ -57,6 +59,7 @@ class DLMetrics:
         "PR": AveragePrecision,
         "PR_Curve": PrecisionRecallCurve,
         "RO_Curve": RocCurve,
+        "Binary_Fairness": BinaryFairness(num_groups=2, task='demographic_parity'),
     }
 
     MULTICLASS_CLASSIFICATION = {
