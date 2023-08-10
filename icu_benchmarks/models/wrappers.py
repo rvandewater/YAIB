@@ -3,8 +3,7 @@ from abc import ABC
 from typing import Dict, Any
 from typing import List, Optional, Union
 
-import sklearn.metrics
-from sklearn.metrics import log_loss
+from sklearn.metrics import log_loss, mean_squared_error
 from torch.nn import MSELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
@@ -25,8 +24,8 @@ gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
 
-gin.config.external_configurable(sklearn.metrics.mean_squared_error, module="sklearn.metrics")
-gin.config.external_configurable(sklearn.metrics.log_loss, module="sklearn.metrics")
+gin.config.external_configurable(mean_squared_error, module="sklearn.metrics")
+gin.config.external_configurable(log_loss, module="sklearn.metrics")
 
 
 @gin.configurable("BaseModule")
