@@ -22,6 +22,7 @@ from icu_benchmarks.run_utils import (
     setup_logging,
 )
 from icu_benchmarks.contants import RunMode
+from icu_benchmarks.models import domain_adaptation
 
 
 @gin.configurable("Run")
@@ -116,6 +117,15 @@ def main(my_args=tuple(sys.argv[1:])):
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
         gin.parse_config_file(source_dir / "train_config.gin")
+    if args.command == "da":
+        gin_config_files = (
+            [Path(f"configs/experiments/{args.experiment}.gin")]
+            if args.experiment
+            else [Path(f"configs/models/{model}.gin"), Path(f"configs/tasks/{task}.gin")]
+        )
+        gin.parse_config_files_and_bindings(gin_config_files, args.gin_bindings, finalize_config=False)
+        domain_adaptation(name, args.data_dir, args.log_dir, args.seed, args.task_name, model, debug=args.debug)
+        return
     else:
         # Train
         checkpoint = log_dir / args.checkpoint if args.checkpoint else None
