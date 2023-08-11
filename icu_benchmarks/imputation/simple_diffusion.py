@@ -11,8 +11,7 @@ class SimpleDiffusionModel(ImputationWrapper):
     """Imputation model based on a Simple Diffusion Model.
     Adapted from https://colab.research.google.com/drive/1sjy9odlSSy0RBVgMTgP7s99NXsqglsUL."""
 
-    needs_training = True
-    needs_fit = False
+    requires_backprop = True
 
     input_size = []
 
