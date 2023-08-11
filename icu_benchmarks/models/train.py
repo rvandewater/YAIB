@@ -3,6 +3,7 @@ import gin
 import torch
 import logging
 import pandas as pd
+import pickle
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -108,10 +109,11 @@ def train_common(
     model.set_weight(weight, train_dataset)
     if load_weights:
         if source_dir.exists():
-            # if not model.needs_training:
-            checkpoint = torch.load(source_dir / "model.ckpt")
-            # else:
-            model = model.load_state_dict(checkpoint["state_dict"])
+            if model.needs_training:
+              checkpoint = torch.load(source_dir / "model.ckpt")
+              model = model.load_state_dict(checkpoint)
+            else:
+              model = torch.load(source_dir / "last.ckpt")
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
 
