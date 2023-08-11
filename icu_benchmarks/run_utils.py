@@ -52,6 +52,9 @@ def build_parser() -> ArgumentParser:
         "-db", "--debug", required=False, default=False, action=BooleanOptionalAction, help="Set to load less data."
     )
     general_args.add_argument(
+        "--reproducible", required=False, default=True, action=BooleanOptionalAction, help="Make torch reproducible."
+    )
+    general_args.add_argument(
         "-lc",
         "--load_cache",
         required=False,
@@ -78,9 +81,6 @@ def build_parser() -> ArgumentParser:
 
     # MODEL TRAINING ARGUMENTS
     prep_and_train = subparsers.add_parser("train", help="Preprocess features and train model.", parents=[parent_parser])
-    prep_and_train.add_argument(
-        "--reproducible", required=False, default=True, action=BooleanOptionalAction, help="Make torch reproducible."
-    )
     prep_and_train.add_argument("-hp", "--hyperparams", required=False, nargs="+", help="Hyperparameters for model.")
     prep_and_train.add_argument("--tune", default=False, action=BooleanOptionalAction, help="Find best hyperparameters.")
     prep_and_train.add_argument("--checkpoint", required=False, type=Path, help="Use previous checkpoint.")
