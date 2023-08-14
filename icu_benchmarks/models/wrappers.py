@@ -323,7 +323,7 @@ class DLPredictionWrapper(DLWrapper):
                     elif step_prefix == "val":
                         feature_names = self.trainer.train_dataloader.dataset.features
                     else:
-                        feature_names = self.trainer.test_dataloader.dataset.features
+                        feature_names = self.trainer.test_dataloaders.dataset.features
                     value.update(transformed_output[0], transformed_output[1], data, feature_names)
                 else:
                     value.update(transformed_output[0], transformed_output[1])

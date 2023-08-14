@@ -92,6 +92,9 @@ class PredictionDataset(CommonDataset):
         pad_value = 0.0
         stay_id = self.outcome_df.index.unique()[idx]  # [self.vars["GROUP"]]
 
+        # Get the feature names
+        self.features = list(self.features_df.columns)
+
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id].to_numpy()
         labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
@@ -101,6 +104,9 @@ class PredictionDataset(CommonDataset):
             labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
 
         length_diff = self.maxlen - window.shape[0]
+
+        # Indicate padding for feature names
+        self.features.extend("padding" for _ in range(length_diff))
 
         pad_mask = np.ones(window.shape[0])
 
