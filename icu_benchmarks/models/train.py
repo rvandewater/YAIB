@@ -8,14 +8,14 @@ from torch.utils.data import DataLoader
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
-from pytorch_forecasting import TimeSeriesDataSet,TemporalFusionTransformer
 from pathlib import Path
-from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset,PredictionDatasetTFT,PredictionDatasetTFTpytorch
+from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset, PredictionDatasetTFT, PredictionDatasetTFTpytorch
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 from collections import OrderedDict
-import pickle 
+
+
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 
 
@@ -71,20 +71,22 @@ def train_common(
         verbose: Enable detailed logging.
         ram_cache: Whether to cache the data in RAM.
         num_workers: Number of workers to use for data loading.
-         with open('saved_dictionary.pkl', 'wb') as f:
-        pickle.dump(data, f)
-    data["train"]["OUTCOME"].to_csv('outcome.csv', index=False)
-    data["train"]["FEATURES"].to_csv('features.csv', index=False)
     """
-   
     logging.info(f"Training model: {model.__name__}.")
-    dataset_class = (ImputationDataset if mode == RunMode.imputation
-                 else (PredictionDatasetTFT if model.__name__ == 'TFT'
-                       else (PredictionDatasetTFTpytorch if model.__name__ == 'TFTpytorch' else PredictionDataset)))
+    # choose dataset_class based on the model
+    dataset_class = (
+        ImputationDataset
+        if mode == RunMode.imputation
+        else (
+            PredictionDatasetTFT
+            if model.__name__ == "TFT"
+            else (PredictionDatasetTFTpytorch if model.__name__ == "TFTpytorch" else PredictionDataset)
+        )
+    )
 
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
-    
+
     train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache)
     val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache)
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
@@ -92,16 +94,23 @@ def train_common(
     test_dataset = dataset_class(data, split=test_on)
     logging.debug(f"Training on {len(train_dataset)} samples and validating on {len(val_dataset)} samples.")
     logging.info(f"Using {num_workers} workers for data loading.")
-    if(model.__name__ =='TFTpytorch'):
-        
-        train_loader = train_dataset.to_dataloader(train=True, batch_size=batch_size, num_workers=0,pin_memory=False,drop_last=True)
-        val_loader = val_dataset.to_dataloader(train=False, batch_size=batch_size ,num_workers=0,pin_memory=False,drop_last=True)
-        test_loader = test_dataset.to_dataloader(train=False, batch_size=min(batch_size * 4, len(test_dataset)), num_workers=0,pin_memory=False,drop_last=True,shuffle=False)
-        model=model(train_dataset,optimizer=optimizer, epochs=epochs, run_mode=mode)
-        
-        
-        
-        
+    if model.__name__ == "TFTpytorch":
+        train_loader = train_dataset.to_dataloader(
+            train=True, batch_size=batch_size, num_workers=0, pin_memory=False, drop_last=True
+        )
+        val_loader = val_dataset.to_dataloader(
+            train=False, batch_size=batch_size, num_workers=0, pin_memory=False, drop_last=True
+        )
+        test_loader = test_dataset.to_dataloader(
+            train=False,
+            batch_size=min(batch_size * 4, len(test_dataset)),
+            num_workers=0,
+            pin_memory=False,
+            drop_last=True,
+            shuffle=False,
+        )
+        model = model(train_dataset, optimizer=optimizer, epochs=epochs, run_mode=mode)
+
     else:
         train_loader = DataLoader(
             train_dataset,
@@ -119,14 +128,13 @@ def train_common(
             pin_memory=True,
             drop_last=True,
         )
-    
-    
-        if(isinstance(next(iter(train_loader))[0] ,OrderedDict)):
+
+        if isinstance(next(iter(train_loader))[0], OrderedDict):
             model = model(optimizer=optimizer, epochs=epochs, run_mode=mode)
-        
+
         else:
             data_shape = next(iter(train_loader))[0].shape
-        
+
             model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
 
     model.set_weight(weight, train_dataset)
@@ -155,15 +163,14 @@ def train_common(
         max_epochs=epochs if model.needs_training else 1,
         callbacks=callbacks,
         precision=precision,
-        accelerator= "auto" if not cpu else "cpu",
+        accelerator="auto" if not cpu else "cpu",
         devices=max(torch.cuda.device_count(), 1),
-        deterministic=reproducible,
+        deterministic=False,
         benchmark=not reproducible,
         enable_progress_bar=verbose,
         logger=loggers,
         num_sanity_val_steps=0,
     )
-    
 
     if model.needs_fit:
         logging.info("Fitting model to data.")
@@ -173,30 +180,23 @@ def train_common(
 
     if model.needs_training:
         logging.info("Training model.")
-        if(type(model).__name__ =='TFTpytorch'):
-            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
-        else:
-            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+        trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
         logging.info("Training complete.")
     test_dataset = dataset_class(data, split=test_on)
     test_dataset = assure_minimum_length(test_dataset)
-    if(type(model).__name__ =='TFTpytorch'):
-        test_loader = test_dataset.to_dataloader(train=False, batch_size=min(batch_size * 4, len(test_dataset)), num_workers=num_workers,pin_memory=True,drop_last=True,shuffle=False)
-        test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
-    else:
-       
-        test_loader = (
-            DataLoader(
-                test_dataset,
-                batch_size=min(batch_size * 4, len(test_dataset)),
-                shuffle=False,
-                num_workers=num_workers,
-                pin_memory=True,
-                drop_last=True,
-            )
+
+    test_loader = (
+        DataLoader(
+            test_dataset,
+            batch_size=min(batch_size * 4, len(test_dataset)),
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=True,
+            drop_last=True,
+        )
         if model.needs_training
         else DataLoader([test_dataset.to_tensor()], batch_size=1)
     )
-        test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
+    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss

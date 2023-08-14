@@ -188,8 +188,3 @@ class JSONMetricsLogger(Logger):
     @rank_zero_only
     def log_hyperparams(self, params):
         pass
-@gin.configurable
-def heads_divisible_by_hidden(hidden):
-    heads_range = range(1, 9)  # Range for heads from 1 to 8
-    divisible_heads = (heads for heads in heads_range if hidden % heads == 0)
-    return divisible_heads

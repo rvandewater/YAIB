@@ -3,13 +3,22 @@ from numbers import Integral
 import numpy as np
 import torch.nn as nn
 from icu_benchmarks.contants import RunMode
-from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding,LazyEmbedding,StaticCovariateEncoder,TFTBack
+from icu_benchmarks.models.layers import (
+    TransformerBlock,
+    LocalBlock,
+    TemporalBlock,
+    PositionalEncoding,
+    LazyEmbedding,
+    StaticCovariateEncoder,
+    TFTBack,
+)
 from typing import Dict
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
-from torch import Tensor,cat,jit,FloatTensor
-from pytorch_forecasting import TemporalFusionTransformer,TimeSeriesDataSet
+from torch import Tensor, cat, FloatTensor
+from pytorch_forecasting import TemporalFusionTransformer
 
-from pytorch_forecasting.metrics import  QuantileLoss
+from pytorch_forecasting.metrics import QuantileLoss
+
 
 @gin.configurable
 class RNNet(DLPredictionWrapper):
@@ -285,93 +294,150 @@ class TemporalConvNet(DLPredictionWrapper):
         pred = self.logit(o)
         return pred
 
+
 @gin.configurable
 class TFT(DLPredictionWrapper):
-    """ 
-    Implementation of https://arxiv.org/abs/1912.09363 
+    """
+    Implementation of https://arxiv.org/abs/1912.09363 from https://github.com/NVIDIA/DeepLearningExamples/tree/master/PyTorch/Forecasting/TFT
     """
 
-
     _supported_run_modes = [RunMode.classification, RunMode.regression]
-    def __init__(self,num_classes, encoder_length,hidden,dropout,
-                 n_heads,dropout_att,example_length,*args,quantiles=[0.1, 0.5, 0.9],static_categorical_inp_size=[2],temporal_known_categorical_inp_size=[],
-    temporal_observed_categorical_inp_size=[48],static_continuous_inp_size=3,temporal_known_continuous_inp_size=0,
-    temporal_observed_continuous_inp_size=48,temporal_target_size=1,**kwargs):
-        #derived variables
-        num_static_vars=len(static_categorical_inp_size)+static_continuous_inp_size
-        num_future_vars=len(temporal_known_categorical_inp_size)+temporal_known_continuous_inp_size
-        num_historic_vars=sum([num_future_vars,
-                                      temporal_observed_continuous_inp_size,
-                                      temporal_target_size,
-                                      len(temporal_observed_categorical_inp_size),
-                                      ])
-        
-        super().__init__(num_classes=num_classes, encoder_length=encoder_length,hidden=hidden,
-                 n_heads=n_heads,dropout_att=dropout_att,example_length=example_length,quantiles=quantiles,
-                 num_static_vars=num_static_vars,num_future_vars=num_future_vars,num_historic_vars=num_historic_vars,*args,static_categorical_inp_size=1,temporal_known_categorical_inp_size=0,
-                temporal_observed_categorical_inp_size=48,static_continuous_inp_size=3,temporal_known_continuous_inp_size=0,
-                temporal_observed_continuous_inp_size=48,temporal_target_size=1,**kwargs)
 
-        
-        
-        self.encoder_length = encoder_length #this determines from how distant past we want to use data from
+    def __init__(
+        self,
+        num_classes,
+        encoder_length,  # determines interval to use for prediction
+        hidden,
+        dropout,
+        n_heads,
+        dropout_att,
+        example_length,  # determines interval to predict
+        *args,
+        quantiles=[0.1, 0.5, 0.9],  # quantiles to produce
+        static_categorical_inp_size=[2],  # number of catergories
+        temporal_known_categorical_inp_size=[],
+        temporal_observed_categorical_inp_size=[48],  # number of categorical observed variables
+        static_continuous_inp_size=3,  # number of static coutinous variables
+        temporal_known_continuous_inp_size=0,
+        temporal_observed_continuous_inp_size=48,
+        temporal_target_size=1,  # number of target variables
+        **kwargs,
+    ):
+        # derived variables
+        num_static_vars = len(static_categorical_inp_size) + static_continuous_inp_size
+        num_future_vars = len(temporal_known_categorical_inp_size) + temporal_known_continuous_inp_size
+        num_historic_vars = sum(
+            [
+                num_future_vars,
+                temporal_observed_continuous_inp_size,
+                temporal_target_size,
+                len(temporal_observed_categorical_inp_size),
+            ]
+        )
 
-        self.embedding = LazyEmbedding(static_categorical_inp_size,temporal_known_categorical_inp_size,
-                temporal_observed_categorical_inp_size,static_continuous_inp_size,temporal_known_continuous_inp_size,
-                temporal_observed_continuous_inp_size,temporal_target_size,hidden)
-        
-        self.static_encoder = StaticCovariateEncoder(num_static_vars,hidden,dropout)
-        self.TFTpart2 = TFTBack(encoder_length,num_historic_vars,hidden,dropout,num_future_vars,
-                n_heads,dropout_att,example_length,quantiles)
-        self.logit = nn.Linear(len(quantiles), num_classes)
+        super().__init__(
+            num_classes=num_classes,
+            encoder_length=encoder_length,
+            hidden=hidden,
+            n_heads=n_heads,
+            dropout_att=dropout_att,
+            example_length=example_length,
+            quantiles=quantiles,
+            num_static_vars=num_static_vars,
+            num_future_vars=num_future_vars,
+            num_historic_vars=num_historic_vars,
+            *args,
+            static_categorical_inp_size=1,
+            temporal_known_categorical_inp_size=0,
+            temporal_observed_categorical_inp_size=48,
+            static_continuous_inp_size=3,
+            temporal_known_continuous_inp_size=0,
+            temporal_observed_continuous_inp_size=48,
+            temporal_target_size=1,
+            **kwargs,
+        )
+
+        self.encoder_length = encoder_length  # this determines from how distant past we want to use data from
+
+        self.embedding = LazyEmbedding(
+            static_categorical_inp_size,
+            temporal_known_categorical_inp_size,
+            temporal_observed_categorical_inp_size,
+            static_continuous_inp_size,
+            temporal_known_continuous_inp_size,
+            temporal_observed_continuous_inp_size,
+            temporal_target_size,
+            hidden,
+        )  # embeddings for all variables
+
+        self.static_encoder = StaticCovariateEncoder(num_static_vars, hidden, dropout)  # encoding for static variables
+        self.TFTpart2 = TFTBack(
+            encoder_length,
+            num_historic_vars,
+            hidden,
+            dropout,
+            num_future_vars,
+            n_heads,
+            dropout_att,
+            example_length,
+            quantiles,
+        )  # The main part of the TFT
+        self.logit = nn.Linear(
+            len(quantiles), num_classes
+        )  # Linear layer on top to output to the number of classes and allow modification by predictionwrapper
 
     def forward(self, x: Dict[str, Tensor]) -> Tensor:
-        
-       
         s_inp, t_known_inp, t_observed_inp, t_observed_tgt = self.embedding(x)
         # Static context
         cs, ce, ch, cc = self.static_encoder(s_inp)
-        ch, cc = ch.unsqueeze(0), cc.unsqueeze(0) #lstm initial states
+        ch, cc = ch.unsqueeze(0), cc.unsqueeze(0)  # lstm initial states
         # Temporal input
-        
+
         _historical_inputs = []
-        
+
         # Check for t_observed_inp
         if t_observed_inp is not None:
-            _historical_inputs.append(t_observed_inp[:, :self.encoder_length, :])
+            _historical_inputs.append(t_observed_inp[:, : self.encoder_length, :])
 
         # Check for t_known_inp
         if t_known_inp is not None:
-            _historical_inputs.append(t_known_inp[:, :self.encoder_length, :])
+            _historical_inputs.append(t_known_inp[:, : self.encoder_length, :])
         # Check for t_observed_tgt
         if t_observed_tgt is not None:
-            _historical_inputs.append(t_observed_tgt[:, :self.encoder_length, :])
+            _historical_inputs.append(t_observed_tgt[:, : self.encoder_length, :])
         historical_inputs = cat(_historical_inputs, dim=-2)
-        future_inputs= Tensor()
+        future_inputs = Tensor()
         if t_known_inp is not None:
-            future_inputs = t_known_inp[:, self.encoder_length:]
-        
-        
-        o=self.TFTpart2(historical_inputs, cs, ch, cc, ce, future_inputs.to(historical_inputs.device))
+            future_inputs = t_known_inp[:, self.encoder_length :]
+
+        o = self.TFTpart2(historical_inputs, cs, ch, cc, ce, future_inputs.to(historical_inputs.device))
         pred = self.logit(o)
         return pred
+
 
 @gin.configurable
 class TFTpytorch(DLPredictionWrapper):
     """
-    Implementation of https://arxiv.org/abs/1912.09363 
+    Implementation of https://arxiv.org/abs/1912.09363 from pytorch forecasting
     """
+
     supported_run_modes = [RunMode.classification, RunMode.regression]
-    def __init__(self,dataset,hidden,dropout,
-                 n_heads,dropout_att,lr,optimizer,num_classes,*args,**kwargs):
-        
-        super().__init__(lr=lr,optimizer=optimizer,*args,**kwargs)      
-        self.model=TemporalFusionTransformer.from_dataset(dataset=dataset,hidden_size=hidden,dropout=dropout,
-                 attention_head_size=n_heads,learning_rate=lr,optimizer=optimizer,loss=QuantileLoss(),hidden_continuous_size=hidden)
-        
+
+    def __init__(self, dataset, hidden, dropout, n_heads, dropout_att, lr, optimizer, num_classes, *args, **kwargs):
+        super().__init__(lr=lr, optimizer=optimizer, *args, **kwargs)
+        self.model = TemporalFusionTransformer.from_dataset(
+            dataset=dataset,
+            hidden_size=hidden,
+            dropout=dropout,
+            attention_head_size=n_heads,
+            learning_rate=lr,
+            optimizer=optimizer,
+            loss=QuantileLoss(),
+            hidden_continuous_size=hidden,
+        )
+
         self.logit = nn.Linear(7, num_classes)
-        
-        
+
     def set_weight(self, weight, dataset):
         """
         Set the weight for the loss function
@@ -381,9 +447,8 @@ class TFTpytorch(DLPredictionWrapper):
         elif weight == "balanced":
             weight = FloatTensor(dataset.get_balance())
         self.loss_weights = weight
-    def forward(self,x):
-        out= self.model(x)
+
+    def forward(self, x):
+        out = self.model(x)
         pred = self.logit(out["prediction"])
         return pred
-    
-   

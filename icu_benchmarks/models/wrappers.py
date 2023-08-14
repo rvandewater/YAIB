@@ -20,6 +20,7 @@ from joblib import dump
 from pytorch_lightning import LightningModule
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
+
 gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
@@ -110,7 +111,6 @@ class DLWrapper(BaseModule, ABC):
         initialization_method: str = "normal",
         **kwargs,
     ):
-        
         """Interface for Deep Learning models."""
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])
@@ -134,7 +134,9 @@ class DLWrapper(BaseModule, ABC):
         try:
             self.log_dict(
                 {
-                    f"{step_prefix}/{name}": (np.float32(metric.compute()) if isinstance(metric.compute(), np.float64 ) else metric.compute() )
+                    f"{step_prefix}/{name}": (
+                        np.float32(metric.compute()) if isinstance(metric.compute(), np.float64) else metric.compute()
+                    )
                     for name, metric in self.metrics[step_prefix].items()
                     if "_Curve" not in name
                 },
@@ -226,30 +228,28 @@ class DLPredictionWrapper(DLWrapper):
 
     def step_fn(self, element, step_prefix=""):
         """Perform a step in the training loop."""
-        if(isinstance(element[0] ,OrderedDict)):
-            data,mask=element[0], element[1].to(self.device)
+        if isinstance(element[0], OrderedDict):  # check if the data loader is the one for the TFT nvidia implementation
+            data, mask = element[0], element[1].to(self.device)
 
             for key, value in data.items():
                 value = value.float().to(self.device)
-
-                
 
                 if value.shape[-1] == 1:
                     value = value.squeeze(-1)
                 if value.dim() == 3:
                     value = value.permute(0, 2, 1)
-                if(key=='target'):
-                    labels=value.squeeze()
+                if key == "target":
+                    labels = value.squeeze()
                 data[key] = value
-        
-            
+
         elif len(element) == 2:
-           
-            if(isinstance(element[1] ,tuple)):
+            if (isinstance(element[1], tuple)) or (
+                isinstance(element[1], list)
+            ):  # check if the data loader is the one for the pytorch forecasring implementation
                 data, labels = element[0], element[1][0]
                 mask = torch.ones_like(labels).bool()
             else:
-                data, labels = element[0], element[1].to(self.device)
+                data, labels = element[0], (element[1]).to(self.device)
                 if isinstance(data, list):
                     for i in range(len(data)):
                         data[i] = data[i].float().to(self.device)
@@ -266,13 +266,14 @@ class DLPredictionWrapper(DLWrapper):
                 data = data.float().to(self.device)
         else:
             raise Exception("Loader should return either (data, label) or (data, label, mask)")
+
         out = self(data)
         if len(out) == 2 and isinstance(out, tuple):
             out, aux_loss = out
         else:
             aux_loss = 0
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
-        
+
         target = torch.masked_select(labels, mask).to(self.device)
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
@@ -280,7 +281,7 @@ class DLPredictionWrapper(DLWrapper):
             # torch.long because NLL
         elif self.run_mode == RunMode.regression:
             # Regression task
-            
+
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss
         else:
             raise ValueError(f"Run mode {self.run_mode} not supported.")
