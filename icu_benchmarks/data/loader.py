@@ -19,7 +19,6 @@ class CommonDataset(Dataset):
     columns in the data. grouping_segment: str, optional: The segment of the data contains the grouping column with only
     unique values. Defaults to Segment.outcome. Is used to calculate the number of stays in the data.
     """
-
     def __init__(
         self,
         data: dict,
@@ -152,6 +151,7 @@ class PredictionDataset(CommonDataset):
     def to_tensor(self):
         data, labels = self.get_data_and_labels()
         return from_numpy(data), from_numpy(labels)
+
 
 
 @gin.configurable("ImputationDataset")

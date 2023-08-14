@@ -14,10 +14,10 @@ from sklearn.metrics import (
     mean_squared_error,
     # f1_score,
 )
-from torchmetrics.classification import BinaryFairness
+from torchmetrics.classification import BinaryFairness, AUROC, AveragePrecision, \
+    PrecisionRecallCurve, ROC, CalibrationError, F1Score
 from enum import Enum
-
-from icu_benchmarks.models.custom_metrics import CalibrationCurve, BalancedAccuracy, MAE, JSD
+from icu_benchmarks.models.custom_metrics import CalibrationCurve, BalancedAccuracy, MAE, JSD, TorchMetricsWrapper, BinaryFairnessWrapper
 
 
 # TODO: revise transformation for metrics in wrappers.py in order to handle metrics that can not handle a mix of binary and
@@ -53,13 +53,17 @@ class MLMetrics:
 # TODO: add support for confusion matrix
 class DLMetrics:
     BINARY_CLASSIFICATION = {
-        "AUC": ROC_AUC,
-        "Calibration_Curve": CalibrationCurve,
+        "AUC": AUROC(task="binary"),
+        "AUC_ignite": ROC_AUC,
+        # "PR" : AveragePrecision(task="binary"),
+        # "F1": F1Score(task="binary", num_classes=2),
+        "Calibration_Error": CalibrationError(task="binary",n_bins=10),
+        # "Calibration_Curve": CalibrationCurve,
         # "Confusion_Matrix": ConfusionMatrix(num_classes=2),
-        "PR": AveragePrecision,
-        "PR_Curve": PrecisionRecallCurve,
-        "RO_Curve": RocCurve,
-        "Binary_Fairness": BinaryFairness(num_groups=2, task='demographic_parity'),
+        # "PR":  TorchMetricsWrapper(AveragePrecision(task="binary")),
+        # "PR_Curve": PrecisionRecallCurve,
+        # "RO_Curve": RocCurve,
+        "Binary_Fairness": BinaryFairnessWrapper(num_groups=2, task='demographic_parity', group_name="sex"),
     }
 
     MULTICLASS_CLASSIFICATION = {
