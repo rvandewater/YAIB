@@ -28,7 +28,7 @@ def build_parser() -> ArgumentParser:
     parser.add_argument("-tn", "--task-name", help="Name of the task, used for naming experiments.")
     parser.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     parser.add_argument("-e", "--experiment", help="Name of the experiment gin.")
-    parser.add_argument( "-l", "--log-dir", default=Path("../yaib_logs/"), type=Path, help="Log directory for model weights.")
+    parser.add_argument("-l", "--log-dir", default=Path("../yaib_logs/"), type=Path, help="Log directory for model weights.")
     parser.add_argument("-s", "--seed", default=1234, type=int, help="Random seed for processing, tuning and training.")
     parser.add_argument("-v", "--verbose", default=False, action=BOA, help="Set to log verbosly. Disable for clean logs.")
     parser.add_argument("--cpu", default=False, action=BOA, help="Set to use CPU.")

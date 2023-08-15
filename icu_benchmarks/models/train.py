@@ -3,7 +3,6 @@ import gin
 import torch
 import logging
 import pandas as pd
-import pickle
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -120,12 +119,12 @@ def train_common(
                     return Exception(f"No weights to load at path : {source_dir}")
                 model = model.load_state_dict(checkpoint)
             else:
-              model = torch.load(source_dir / "last.ckpt")
+                model = torch.load(source_dir / "last.ckpt")
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
 
     model.set_trained_columns(train_dataset.get_feature_names())
-    
+
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
     callbacks = [
         EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),

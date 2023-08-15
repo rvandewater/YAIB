@@ -11,7 +11,6 @@ from torch.optim import Optimizer
 import inspect
 import gin
 import numpy as np
-import pickle
 import torch
 from ignite.exceptions import NotComputableError
 from icu_benchmarks.models.constants import ImputationInit
