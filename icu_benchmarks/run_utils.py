@@ -83,7 +83,7 @@ def build_parser() -> ArgumentParser:
     prep_and_train = subparsers.add_parser("train", help="Preprocess features and train model.", parents=[parent_parser])
     prep_and_train.add_argument("-hp", "--hyperparams", required=False, nargs="+", help="Hyperparameters for model.")
     prep_and_train.add_argument("--tune", default=False, action=BooleanOptionalAction, help="Find best hyperparameters.")
-    prep_and_train.add_argument("--checkpoint", required=False, type=Path, help="Use previous checkpoint.")
+    prep_and_train.add_argument("--hp-checkpoint", required=False, type=Path, help="Use previous hyperparameter checkpoint.")
 
     # EVALUATION PARSER
     evaluate = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])

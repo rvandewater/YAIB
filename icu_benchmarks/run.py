@@ -118,7 +118,7 @@ def main(my_args=tuple(sys.argv[1:])):
         gin.parse_config_file(source_dir / "train_config.gin")
     else:
         # Train
-        checkpoint = log_dir / args.checkpoint if args.checkpoint else None
+        hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
             Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
@@ -136,7 +136,7 @@ def main(my_args=tuple(sys.argv[1:])):
             run_dir,
             args.seed,
             run_mode=mode,
-            checkpoint=checkpoint,
+            checkpoint=hp_checkpoint,
             debug=args.debug,
             generate_cache=args.generate_cache,
             load_cache=args.load_cache,
