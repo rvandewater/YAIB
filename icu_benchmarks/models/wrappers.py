@@ -292,8 +292,7 @@ class MLWrapper(BaseModule, ABC):
             # Binary classification
             if len(np.unique(labels)) == 2:
                 # if isinstance(self.model, lightgbm.basic.Booster):
-                self.output_transform = lambda x: x
-                # self.output_transform = lambda x: x[:, 1]
+                self.output_transform = lambda x: x[:, 1]
                 self.label_transform = lambda x: x
 
                 self.metrics = MLMetrics.BINARY_CLASSIFICATION
