@@ -139,15 +139,15 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                     with open(fold_iter / "durations.json", "r") as f:
                         result = json.load(f)
                         aggregated[repetition.name][fold_iter.name].update(result)
-
+    avgs = {}
     # Aggregate results per metric
-    list_scores = {}
     for repetition, folds in aggregated.items():
+        list_scores = []
         for fold, result in folds.items():
             for metric, score in result.items():
-                if isinstance(score, (float, int)):
-                    list_scores[metric] = list_scores.setdefault(metric, [])
-                    list_scores[metric].append(score)
+                if(metric == "MAE"):
+                    list_scores.append(score)
+        avgs[repetition] = (list_scores[metric])
 
     # Compute statistical metric over aggregated results
     averaged_scores = {metric: (mean(list)) for metric, list in list_scores.items()}
@@ -177,7 +177,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     logging.info(f"Accumulated results: {accumulated_metrics}")
 
     wandb_log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
-
+aggregate_results(Path(r"C:\Users\Robin\Downloads\gru_creat\2023-05-22T16-19-26"))
 
 def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
     """Logs a full line of a given character with a message centered.
