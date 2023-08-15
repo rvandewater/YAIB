@@ -365,8 +365,8 @@ class MLWrapper(BaseModule, ABC):
     def predict(self, features):
         if self.run_mode == RunMode.regression:
             return self.model.predict(features)
-        else:
-            return self.model.predict(features)
+        else: # Classification: return probabilities
+            return self.model.predict_proba(features)
 
     def log_metrics(self, label, pred, metric_type):
         """Log metrics to the PL logs."""

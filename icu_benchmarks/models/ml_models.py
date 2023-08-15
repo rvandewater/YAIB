@@ -1,5 +1,6 @@
 import gin
 import lightgbm
+import numpy as np
 from sklearn import linear_model
 from sklearn import ensemble
 from sklearn import neural_network
@@ -11,13 +12,15 @@ from icu_benchmarks.contants import RunMode
 class LGBMWrapper(MLWrapper):
     def fit_model(self, train_data, train_labels, val_data, val_labels):
         """Fitting function for LGBM models."""
+        # self.model.set_params(random_state=np.random.get_state()[1][0])
+
         self.model.fit(
             train_data,
             train_labels,
             eval_set=(val_data, val_labels),
             verbose=True,
             callbacks=[
-                lightgbm.early_stopping(self.hparams.patience, verbose=False),
+                lightgbm.early_stopping(self.hparams.patience, verbose=True),
                 lightgbm.log_evaluation(period=-1, show_stdv=False),
             ],
         )
@@ -33,6 +36,9 @@ class LGBMClassifier(LGBMWrapper):
         self.model = self.set_model_args(lightgbm.LGBMClassifier, *args, **kwargs)
         super().__init__(*args, **kwargs)
 
+    def predict(self, features):
+        """Predicts labels for the given features."""
+        return self.model.predict(features)
 
 @gin.configurable
 class LGBMRegressor(LGBMWrapper):
