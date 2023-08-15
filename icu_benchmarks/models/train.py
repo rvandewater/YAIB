@@ -123,7 +123,7 @@ def train_common(
                 else:
                     return Exception(f"No weights to load at path : {source_dir}")
                 if(pl_model):
-                    model = model.load_from_checkpoint(source_dir / "last.ckpt")
+                    model = model.load_from_checkpoint(model_path)
                 else:
                     checkpoint = torch.load(model_path)
                     model.load_state_dict(checkpoint)
