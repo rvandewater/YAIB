@@ -28,6 +28,7 @@ def assure_minimum_length(dataset):
 def train_common(
     data: dict[str, pd.DataFrame],
     log_dir: Path,
+    eval_only: bool = False,
     load_weights: bool = False,
     source_dir: Path = None,
     reproducible: bool = True,
@@ -52,6 +53,7 @@ def train_common(
     Args:
         data: Dict containing data to be trained on.
         log_dir: Path to directory where model output should be saved.
+        eval_only: If set to true, skip training and only evaluate the model.
         load_weights: If set to true, skip training and load weights from source_dir instead.
         source_dir: If set to load weights, path to directory containing trained weights.
         reproducible: If set to true, set torch to run reproducibly.
@@ -118,9 +120,8 @@ def train_common(
             raise Exception(f"No weights to load at path : {source_dir}")
 
     model.set_trained_columns(train_dataset.get_feature_names())
-
+    
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
-
     callbacks = [
         EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
@@ -142,16 +143,16 @@ def train_common(
         num_sanity_val_steps=0,
     )
 
-    if model.needs_fit:
-        logging.info("Fitting model to data.")
-        model.fit(train_dataset, val_dataset)
-        model.save_model(log_dir, "last")
-        logging.info("Fitting complete.")
-
-    if model.needs_training:
-        logging.info("Training model.")
-        trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
-        logging.info("Training complete.")
+    if not eval_only:
+        if model.needs_fit:
+            logging.info("Fitting model to data.")
+            model.fit(train_dataset, val_dataset)
+            model.save_model(log_dir, "last")
+            logging.info("Fitting complete.")
+        if model.needs_training:
+            logging.info("Training model.")
+            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+            logging.info("Training complete.")
 
     test_dataset = dataset_class(data, split=test_on)
     test_dataset = assure_minimum_length(test_dataset)

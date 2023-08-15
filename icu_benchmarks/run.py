@@ -44,11 +44,8 @@ def main(my_args=tuple(sys.argv[1:])):
     verbose = args.verbose
     setup_logging(date_format, log_format, verbose)
 
-    # Load weights if in evaluation mode
-    load_weights = args.command == "evaluate"
-    data_dir = Path(args.data_dir)
-
     # Get arguments
+    data_dir = Path(args.data_dir)
     name = args.name
     task = args.task
     model = args.model
@@ -110,8 +107,12 @@ def main(my_args=tuple(sys.argv[1:])):
         except Exception as e:
             logging.error(f"Could not import custom preprocessor from {args.preprocessor}: {e}")
 
+    # Load pretrained model in evaluate mode or when finetuning
+    evaluate = args.eval
+    load_weights = evaluate or args.fine_tune
     if load_weights:
-        # Evaluate
+        if args.source_dir is None:
+            raise ValueError("Please specify a source directory when evaluating or finetuning.")
         log_dir /= f"from_{args.source_name}"
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
@@ -150,6 +151,7 @@ def main(my_args=tuple(sys.argv[1:])):
         data_dir,
         run_dir,
         args.seed,
+        eval_only=evaluate,
         load_weights=load_weights,
         source_dir=source_dir,
         reproducible=reproducible,
