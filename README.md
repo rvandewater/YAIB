@@ -230,6 +230,7 @@ In this case, the source dataset is the demo data from MIMIC and the target is t
 
 ```
 icu-benchmarks \
+    --eval \
     -d demo_data/mortality24/eicu_demo \
     -n eicu_demo \
     -t BinaryClassification \
@@ -239,7 +240,6 @@ icu-benchmarks \
     --load_cache \
     -s 2222 \
     -l ../yaib_logs \
-    --eval \
     -sn mimic \
     --source-dir ../yaib_logs/mimic_demo/Mortality24/LGBMClassifier/2022-12-12T15-24-46/repetition_0/fold_0
 ```
