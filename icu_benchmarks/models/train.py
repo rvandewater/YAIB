@@ -46,6 +46,7 @@ def train_common(
     cpu: bool = False,
     verbose=False,
     ram_cache=False,
+    pl_model=True,
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
@@ -71,6 +72,7 @@ def train_common(
         cpu: If set to true, run on cpu.
         verbose: Enable detailed logging.
         ram_cache: Whether to cache the data in RAM.
+        pl_model: Loading a pytorch lightning model.
         num_workers: Number of workers to use for data loading.
     """
 
@@ -109,11 +111,9 @@ def train_common(
 
     model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
     model.set_weight(weight, train_dataset)
-    pl_model = True
     if load_weights:
         if source_dir.exists():
             if model.needs_training:
-                model_path = ""
                 if (source_dir / "last.ckpt").exists():
                     model_path = source_dir / "last.ckpt"
                 elif(source_dir / "model.ckpt").exists():
