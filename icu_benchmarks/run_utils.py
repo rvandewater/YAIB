@@ -29,61 +29,36 @@ def build_parser() -> ArgumentParser:
     general_args = parent_parser.add_argument_group("General arguments")
     general_args.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
     general_args.add_argument("-t", "--task", default="BinaryClassification", required=True, help="Name of the task gin.")
-    general_args.add_argument("-n", "--name", required=False, help="Name of the (target) dataset.")
-    general_args.add_argument("-tn", "--task-name", required=False, help="Name of the task, used for naming experiments.")
-    general_args.add_argument("-m", "--model", default="LGBMClassifier", required=False, help="Name of the model gin.")
-    general_args.add_argument("-e", "--experiment", required=False, help="Name of the experiment gin.")
+    general_args.add_argument("-n", "--name", help="Name of the (target) dataset.")
+    general_args.add_argument("-tn", "--task-name", help="Name of the task, used for naming experiments.")
+    general_args.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
+    general_args.add_argument("-e", "--experiment", help="Name of the experiment gin.")
     general_args.add_argument(
-        "-l", "--log-dir", required=False, default=Path("../yaib_logs/"), type=Path, help="Log directory with model weights."
+        "-l", "--log-dir", default=Path("../yaib_logs/"), type=Path, help="Log directory for model weights."
+    )
+    general_args.add_argument("-s", "--seed", default=1234, type=int, help="Random seed for processing, tuning and training.")
+    general_args.add_argument(
+        "-v", "--verbose", default=False, action=BooleanOptionalAction, help="Set to log verbosly. Disable for clean logs."
+    )
+    general_args.add_argument("--cpu", default=False, action=BooleanOptionalAction, help="Set to use CPU.")
+    general_args.add_argument("-db", "--debug", default=False, action=BooleanOptionalAction, help="Set to load less data.")
+    general_args.add_argument("--reproducible", default=True, action=BooleanOptionalAction, help="Make torch reproducible.")
+    general_args.add_argument(
+        "-lc", "--load_cache", default=False, action=BooleanOptionalAction, help="Set to load generated data cache."
     )
     general_args.add_argument(
-        "-s", "--seed", required=False, default=1234, type=int, help="Random seed for processing, tuning and training."
+        "-gc", "--generate_cache", default=False, action=BooleanOptionalAction, help="Set to generate data cache."
     )
-    general_args.add_argument(
-        "-v",
-        "--verbose",
-        default=False,
-        required=False,
-        action=BooleanOptionalAction,
-        help="Whether to use verbose logging. Disable for clean logs.",
-    )
-    general_args.add_argument("--cpu", default=False, required=False, action=BooleanOptionalAction, help="Set to use CPU.")
-    general_args.add_argument(
-        "-db", "--debug", required=False, default=False, action=BooleanOptionalAction, help="Set to load less data."
-    )
-    general_args.add_argument(
-        "--reproducible", required=False, default=True, action=BooleanOptionalAction, help="Make torch reproducible."
-    )
-    general_args.add_argument(
-        "-lc",
-        "--load_cache",
-        required=False,
-        default=False,
-        action=BooleanOptionalAction,
-        help="Set to load generated data cache.",
-    )
-    general_args.add_argument(
-        "-gc",
-        "--generate_cache",
-        required=False,
-        default=False,
-        action=BooleanOptionalAction,
-        help="Set to generate data cache.",
-    )
-    general_args.add_argument("-p", "--preprocessor", required=False, type=Path, help="Load custom preprocessor from file.")
-    general_args.add_argument("-pl", "--plot", required=False, action=BooleanOptionalAction, help="Generate common plots.")
-    general_args.add_argument(
-        "-wd", "--wandb-sweep", required=False, action="store_true", help="Activates wandb hyper parameter sweep."
-    )
-    general_args.add_argument(
-        "-imp", "--pretrained-imputation", required=False, type=str, help="Path to pretrained imputation model."
-    )
+    general_args.add_argument("-p", "--preprocessor", type=Path, help="Load custom preprocessor from file.")
+    general_args.add_argument("-pl", "--plot", action=BooleanOptionalAction, help="Generate common plots.")
+    general_args.add_argument("-wd", "--wandb-sweep", action="store_true", help="Activates wandb hyper parameter sweep.")
+    general_args.add_argument("-imp", "--pretrained-imputation", type=str, help="Path to pretrained imputation model.")
 
     # MODEL TRAINING ARGUMENTS
     prep_and_train = subparsers.add_parser("train", help="Preprocess features and train model.", parents=[parent_parser])
-    prep_and_train.add_argument("-hp", "--hyperparams", required=False, nargs="+", help="Hyperparameters for model.")
+    prep_and_train.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
     prep_and_train.add_argument("--tune", default=False, action=BooleanOptionalAction, help="Find best hyperparameters.")
-    prep_and_train.add_argument("--hp-checkpoint", required=False, type=Path, help="Use previous hyperparameter checkpoint.")
+    prep_and_train.add_argument("--hp-checkpoint", type=Path, help="Use previous hyperparameter checkpoint.")
 
     # EVALUATION PARSER
     evaluate = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
