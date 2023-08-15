@@ -112,8 +112,13 @@ def train_common(
     if load_weights:
         if source_dir.exists():
             if model.needs_training:
-              checkpoint = torch.load(source_dir / "model.ckpt")
-              model = model.load_state_dict(checkpoint)
+                if(source_dir / "model.ckpt").exists():
+                  checkpoint = torch.load(source_dir / "model.ckpt")
+                elif (source_dir / "model-v1.ckpt").exists():
+                  checkpoint = torch.load(source_dir / "model-v1.ckpt")
+                else:
+                    return Exception(f"No weights to load at path : {source_dir}")
+                model = model.load_state_dict(checkpoint)
             else:
               model = torch.load(source_dir / "last.ckpt")
         else:
