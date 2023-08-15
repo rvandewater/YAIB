@@ -3,6 +3,7 @@ import gin
 import torch
 import logging
 import pandas as pd
+from joblib import load
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -108,18 +109,26 @@ def train_common(
 
     model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
     model.set_weight(weight, train_dataset)
+    pl_model = True
     if load_weights:
         if source_dir.exists():
             if model.needs_training:
-                if(source_dir / "model.ckpt").exists():
-                  checkpoint = torch.load(source_dir / "model.ckpt")
+                model_path = ""
+                if (source_dir / "last.ckpt").exists():
+                    model_path = source_dir / "last.ckpt"
+                elif(source_dir / "model.ckpt").exists():
+                    model_path = source_dir / "model.ckpt"
                 elif (source_dir / "model-v1.ckpt").exists():
-                  checkpoint = torch.load(source_dir / "model-v1.ckpt")
+                    model_path = source_dir / "model-v1.ckpt"
                 else:
                     return Exception(f"No weights to load at path : {source_dir}")
-                model = model.load_state_dict(checkpoint)
+                if(pl_model):
+                    model = model.load_from_checkpoint(source_dir / "last.ckpt")
+                else:
+                    checkpoint = torch.load(model_path)
+                    model.load_state_dict(checkpoint)
             else:
-                model = torch.load(source_dir / "last.ckpt")
+                model = load(source_dir/"model.joblib")
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
 
