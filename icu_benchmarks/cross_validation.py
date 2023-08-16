@@ -19,6 +19,7 @@ def execute_repeated_cv(
     data_dir: Path,
     log_dir: Path,
     seed: int,
+    eval_only: bool = False,
     load_weights: bool = False,
     source_dir: Path = None,
     cv_repetitions: int = 5,
@@ -43,6 +44,7 @@ def execute_repeated_cv(
         data_dir: Path to the data directory.
         log_dir: Path to the log directory.
         seed: Random seed.
+        eval_only: Whether to only evaluate the model.
         load_weights: Whether to load weights from source_dir.
         source_dir: Path to the source directory.
         cv_folds: Number of folds for cross validation.
@@ -92,6 +94,7 @@ def execute_repeated_cv(
             agg_loss += train_common(
                 data,
                 log_dir=repetition_fold_dir,
+                eval_only=eval_only,
                 load_weights=load_weights,
                 source_dir=source_dir,
                 reproducible=reproducible,
