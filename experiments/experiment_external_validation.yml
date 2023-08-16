@@ -1,0 +1,45 @@
+command:
+  - ${env}
+  - ${program}
+  - --eval
+  - -d
+  - ../data/
+  - -t
+  - Regression
+  - --log-dir
+  - ../yaib_logs_transfer
+  - --tune
+  - --wandb-sweep
+  - -gc
+  - -lc
+  - -sn
+  - eicu
+  - --source-dir
+  - /dhc/home/robin.vandewater/projects/transfer_learning/fold_0
+method: grid
+name: yaib_regression_benchmark
+parameters:
+  data_dir:
+    values:
+      - ../data/kf/miiv
+      - ../data/kf/hirid
+      - ../data/kf/eicu
+      - ../data/kf/aumc
+  model:
+    values:
+#      - ElasticNet
+#      - LGBMRegressor
+      - GRU
+#      - LSTM
+#      - TCN
+#      - Transformer
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks
+
+
+C:\Users\Robin\Downloads\gru_creat\eicu\repetition_0\fold_0\
