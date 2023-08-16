@@ -1,12 +1,9 @@
-# -*- coding: utf-8 -*-
 from datetime import datetime
-
 import gin
 import logging
 import sys
 from pathlib import Path
 import importlib.util
-
 import torch.cuda
 
 from icu_benchmarks.wandb_utils import update_wandb_config, apply_wandb_sweep, set_wandb_run_name
