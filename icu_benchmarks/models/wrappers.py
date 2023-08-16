@@ -348,8 +348,7 @@ class MLWrapper(BaseModule, ABC):
             # Binary classification
             if len(np.unique(labels)) == 2:
                 # if isinstance(self.model, lightgbm.basic.Booster):
-                self.output_transform = lambda x: x
-                # self.output_transform = lambda x: x[:, 1]
+                self.output_transform = lambda x: x[:, 1]
                 self.label_transform = lambda x: x
 
                 self.metrics = MLMetrics.BINARY_CLASSIFICATION
@@ -377,8 +376,8 @@ class MLWrapper(BaseModule, ABC):
 
         self.set_metrics(train_label)
 
-        # if "class_weight" in self.model.get_params().keys():  # Set class weights
-        #     self.model.set_params(class_weight=self.weight)
+        if "class_weight" in self.model.get_params().keys():  # Set class weights
+            self.model.set_params(class_weight=self.weight)
 
         val_loss = self.fit_model(train_rep, train_label, val_rep, val_label)
 
@@ -421,8 +420,8 @@ class MLWrapper(BaseModule, ABC):
     def predict(self, features):
         if self.run_mode == RunMode.regression:
             return self.model.predict(features)
-        else:
-            return self.model.predict(features)
+        else:  # Classification: return probabilities
+            return self.model.predict_proba(features)
 
     def log_metrics(self, label, pred, metric_type):
         """Log metrics to the PL logs."""
