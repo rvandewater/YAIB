@@ -145,7 +145,14 @@ def main(my_args=tuple(sys.argv[1:])):
         )
 
     log_full_line(f"Logging to {run_dir.resolve()}", level=logging.INFO)
-    log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)
+    if evaluate:
+        mode_string = "STARTING EVALUATION"
+    elif args.fine_tune:
+        mode_string = "STARTING FINE TUNING"
+    else:
+        mode_string = "STARTING TRAINING"
+    log_full_line(mode_string, level=logging.INFO, char="=", num_newlines=3)
+
     start_time = datetime.now()
     execute_repeated_cv(
         data_dir,
