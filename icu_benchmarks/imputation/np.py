@@ -13,8 +13,7 @@ class NPImputation(ImputationWrapper):
     """Imputation using Neural Processes. Implementation adapted from https://github.com/EmilienDupont/neural-processes/.
     Provides imputation wrapper for NeuralProcess class."""
 
-    needs_training = True
-    needs_fit = False
+    requires_backprop = True
 
     def __init__(
         self,

@@ -1,9 +1,0 @@
-include "configs/tasks/BinaryClassification.gin"
-include "configs/models/LSTM.gin"
-
-# Optimizer params
-optimizer/hyperparameter.lr = 1e-4
-
-# Encoder params
-model/hyperparameter.hidden_dim = 128
-model/hyperparameter.layer_dim = 1

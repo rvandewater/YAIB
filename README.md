@@ -14,8 +14,8 @@
 
 [//]: # (TODO: add coverage once we have some tests )
 
-Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on Intensive Care Unit (
-ICU) EHR data.
+Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on Intensive Care Unit 
+(ICU) EHR data.
 
 We support the following datasets out of the box:
 

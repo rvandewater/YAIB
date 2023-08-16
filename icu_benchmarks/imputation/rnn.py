@@ -10,8 +10,7 @@ import gin
 class RNNImputation(ImputationWrapper):
     """Imputation model with Gated Recurrent Units (GRU) or Long-Short Term Memory Network (LSTM). Defaults to GRU."""
 
-    needs_training = True
-    needs_fit = False
+    requires_backprop = True
 
     def __init__(self, *args, input_size, hidden_size=64, state_init="zero", cell="gru", **kwargs) -> None:
         super().__init__(*args, input_size=input_size, hidden_size=hidden_size, state_init=state_init, cell=cell, **kwargs)
@@ -69,8 +68,7 @@ class BRNNImputation(ImputationWrapper):
     """Imputation model with Bidirectional Gated Recurrent Units (GRU) or Long-Short Term Memory Network (LSTM). Defaults to
     GRU."""
 
-    needs_training = True
-    needs_fit = False
+    requires_backprop = True
 
     def __init__(self, *args, input_size, hidden_size=64, state_init="zero", dropout=0.0, cell="gru", **kwargs) -> None:
         super().__init__(

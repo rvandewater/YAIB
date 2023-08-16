@@ -8,8 +8,7 @@ import gin
 class MLPImputation(ImputationWrapper):
     """Imputation model based on a Multi-Layer Perceptron (MLP)."""
 
-    needs_training = True
-    needs_fit = False
+    requires_backprop = True
 
     def __init__(self, *args, input_size, num_hidden_layers=3, hidden_layer_size=10, **kwargs) -> None:
         super().__init__(
