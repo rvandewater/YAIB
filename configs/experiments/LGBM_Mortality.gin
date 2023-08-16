@@ -1,7 +1,0 @@
-include "configs/tasks/BinaryClassification.gin"
-include "configs/models/LGBMClassifier.gin"
-
-model/hyperparameter.max_depth = 7
-model/hyperparameter.num_leaves = 32
-model/hyperparameter.subsample = 1
-model/hyperparameter.colsample_bytree = 0.66

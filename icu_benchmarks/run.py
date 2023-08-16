@@ -44,11 +44,8 @@ def main(my_args=tuple(sys.argv[1:])):
     verbose = args.verbose
     setup_logging(date_format, log_format, verbose)
 
-    # Load weights if in evaluation mode
-    load_weights = args.command == "evaluate"
-    data_dir = Path(args.data_dir)
-
     # Get arguments
+    data_dir = Path(args.data_dir)
     name = args.name
     task = args.task
     model = args.model
@@ -110,15 +107,19 @@ def main(my_args=tuple(sys.argv[1:])):
         except Exception as e:
             logging.error(f"Could not import custom preprocessor from {args.preprocessor}: {e}")
 
+    # Load pretrained model in evaluate mode or when finetuning
+    evaluate = args.eval
+    load_weights = evaluate or args.fine_tune
     if load_weights:
-        # Evaluate
+        if args.source_dir is None:
+            raise ValueError("Please specify a source directory when evaluating or finetuning.")
         log_dir /= f"from_{args.source_name}"
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
         gin.parse_config_file(source_dir / "train_config.gin")
     else:
         # Train
-        checkpoint = log_dir / args.checkpoint if args.checkpoint else None
+        hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
             Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
@@ -136,7 +137,7 @@ def main(my_args=tuple(sys.argv[1:])):
             run_dir,
             args.seed,
             run_mode=mode,
-            checkpoint=checkpoint,
+            checkpoint=hp_checkpoint,
             debug=args.debug,
             generate_cache=args.generate_cache,
             load_cache=args.load_cache,
@@ -144,12 +145,20 @@ def main(my_args=tuple(sys.argv[1:])):
         )
 
     log_full_line(f"Logging to {run_dir.resolve()}", level=logging.INFO)
-    log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)
+    if evaluate:
+        mode_string = "STARTING EVALUATION"
+    elif args.fine_tune:
+        mode_string = "STARTING FINE TUNING"
+    else:
+        mode_string = "STARTING TRAINING"
+    log_full_line(mode_string, level=logging.INFO, char="=", num_newlines=3)
+
     start_time = datetime.now()
     execute_repeated_cv(
         data_dir,
         run_dir,
         args.seed,
+        eval_only=evaluate,
         load_weights=load_weights,
         source_dir=source_dir,
         reproducible=reproducible,

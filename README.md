@@ -14,8 +14,8 @@
 
 [//]: # (TODO: add coverage once we have some tests )
 
-Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on Intensive Care Unit (
-ICU) EHR data.
+Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on Intensive Care Unit 
+(ICU) EHR data.
 
 We support the following datasets out of the box:
 
@@ -182,17 +182,16 @@ load
 existing cache files.
 
 ```
-icu-benchmarks train \
+icu-benchmarks \
     -d demo_data/mortality24/mimic_demo \
     -n mimic_demo \
     -t BinaryClassification \
     -tn Mortality24 \
     -m LGBMClassifier \
     -hp LGBMClassifier.min_child_samples=10 \
-    --generate_cache
+    --generate_cache \
     --load_cache \
     --seed 2222 \
-    -s 2222 \
     -l ../yaib_logs/ \
     --tune
 ```
@@ -224,13 +223,14 @@ wandb agent <sweep_id>
 
 > Note: You will need to have a wandb account and be logged in to run the above commands.
 
-## Evaluate
+## Evaluate or Finetune
 
-It is possible to evaluate a model trained on another dataset. In this case, the source dataset is the demo data from MIMIC and
-the target is the eICU demo:
+It is possible to evaluate a model trained on another dataset and no additional training is done.
+In this case, the source dataset is the demo data from MIMIC and the target is the eICU demo:
 
 ```
-icu-benchmarks evaluate \
+icu-benchmarks \
+    --eval \
     -d demo_data/mortality24/eicu_demo \
     -n eicu_demo \
     -t BinaryClassification \
@@ -241,8 +241,10 @@ icu-benchmarks evaluate \
     -s 2222 \
     -l ../yaib_logs \
     -sn mimic \
-    --source-dir ../yaib_logs/mimic_demo/Mortality24/LGBMClassifier/2022-12-12T15-24-46/fold_0
+    --source-dir ../yaib_logs/mimic_demo/Mortality24/LGBMClassifier/2022-12-12T15-24-46/repetition_0/fold_0
 ```
+
+> A similar syntax is used for finetuning, where a model is loaded and then retrained. To run finetuning, replace `--eval` with `-ft`.
 
 ## Models
 

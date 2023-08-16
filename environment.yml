@@ -23,6 +23,7 @@ dependencies:
   - tensorboard=2.12.2
   - tqdm=4.64.1
   - pytorch-lightning=2.0.3
+  - torchmetrics=1.0.3
   - wandb=0.15.4
   - pip=23.1
   - einops=0.6.1
