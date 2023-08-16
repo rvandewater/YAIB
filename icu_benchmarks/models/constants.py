@@ -26,20 +26,15 @@ class MLMetrics:
     BINARY_CLASSIFICATION = {
         "AUC": roc_auc_score,
         "Calibration_Curve": calibration_curve,
-        # "Confusion_Matrix": confusion_matrix,
-        # "F1": f1_score,
         "PR": average_precision_score,
         "PR_Curve": precision_recall_curve,
         "RO_Curve": roc_curve,
-        "Binary_Fairness": BinaryFairness(2, 'demographic_parity'),
     }
 
     MULTICLASS_CLASSIFICATION = {
         "Accuracy": accuracy_score,
         "AUC": roc_auc_score,
         "Balanced_Accuracy": balanced_accuracy_score,
-        # "Confusion_Matrix": confusion_matrix,
-        # "F1": f1_score,
         "PR": average_precision_score,
     }
 
@@ -53,16 +48,18 @@ class MLMetrics:
 # TODO: add support for confusion matrix
 class DLMetrics:
     BINARY_CLASSIFICATION = {
+        "AUC": ROC_AUC,
+        "Calibration_Curve": CalibrationCurve,
+        "PR": AveragePrecision,
+        "PR_Curve": PrecisionRecallCurve,
+        "RO_Curve": RocCurve,
+    }
+
+    BINARY_CLASSIFICATION_TORCHMETRICS = {
         "AUC": AUROC(task="binary"),
-        "AUC_ignite": ROC_AUC,
-        # "PR" : AveragePrecision(task="binary"),
-        # "F1": F1Score(task="binary", num_classes=2),
-        "Calibration_Error": CalibrationError(task="binary",n_bins=10),
-        # "Calibration_Curve": CalibrationCurve,
-        # "Confusion_Matrix": ConfusionMatrix(num_classes=2),
-        # "PR":  TorchMetricsWrapper(AveragePrecision(task="binary")),
-        # "PR_Curve": PrecisionRecallCurve,
-        # "RO_Curve": RocCurve,
+        "PR": AveragePrecision(task="binary"),
+        "Calibration_Error": CalibrationError(task="binary", n_bins=10),
+        "F1": F1Score(task="binary", num_classes=2),
         "Binary_Fairness": BinaryFairnessWrapper(num_groups=2, task='demographic_parity', group_name="sex"),
     }
 
