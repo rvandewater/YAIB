@@ -166,7 +166,6 @@ def train_common(
             model.save_model(log_dir, "last")
             logging.info("Training complete.")
 
-
     test_dataset = dataset_class(data, split=test_on)
     test_dataset = assure_minimum_length(test_dataset)
     test_loader = (

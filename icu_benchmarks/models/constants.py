@@ -9,19 +9,25 @@ from sklearn.metrics import (
     mean_absolute_error,
     precision_recall_curve,
     roc_curve,
-    # confusion_matrix,
     r2_score,
     mean_squared_error,
-    # f1_score,
 )
-from torchmetrics.classification import BinaryFairness, AUROC, AveragePrecision, \
-    PrecisionRecallCurve, ROC, CalibrationError, F1Score
+from torchmetrics.classification import (
+    AUROC,
+    AveragePrecision,
+    PrecisionRecallCurve,
+    CalibrationError,
+    F1Score,
+)
 from enum import Enum
-from icu_benchmarks.models.custom_metrics import CalibrationCurve, BalancedAccuracy, MAE, JSD, TorchMetricsWrapper, BinaryFairnessWrapper
+from icu_benchmarks.models.custom_metrics import (
+    CalibrationCurve,
+    BalancedAccuracy,
+    MAE,
+    JSD,
+    BinaryFairnessWrapper,
+)
 
-
-# TODO: revise transformation for metrics in wrappers.py in order to handle metrics that can not handle a mix of binary and
-#  continuous targets
 class MLMetrics:
     BINARY_CLASSIFICATION = {
         "AUC": roc_auc_score,
@@ -60,7 +66,7 @@ class DLMetrics:
         "PR": AveragePrecision(task="binary"),
         "Calibration_Error": CalibrationError(task="binary", n_bins=10),
         "F1": F1Score(task="binary", num_classes=2),
-        "Binary_Fairness": BinaryFairnessWrapper(num_groups=2, task='demographic_parity', group_name="sex"),
+        "Binary_Fairness": BinaryFairnessWrapper(num_groups=2, task="demographic_parity", group_name="sex"),
     }
 
     MULTICLASS_CLASSIFICATION = {

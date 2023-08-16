@@ -56,10 +56,10 @@ class CalibrationCurve(EpochMetric):
 
 class MAE(EpochMetric):
     def __init__(
-            self,
-            output_transform: Callable = lambda x: x,
-            check_compute_fn: bool = False,
-            invert_transform: Callable = lambda x: x,
+        self,
+        output_transform: Callable = lambda x: x,
+        check_compute_fn: bool = False,
+        invert_transform: Callable = lambda x: x,
     ) -> None:
         super(MAE, self).__init__(
             lambda x, y: mae_with_invert_compute_fn(x, y, invert_transform),
@@ -75,9 +75,9 @@ class MAE(EpochMetric):
 
 class JSD(EpochMetric):
     def __init__(
-            self,
-            output_transform: Callable = lambda x: x,
-            check_compute_fn: bool = False,
+        self,
+        output_transform: Callable = lambda x: x,
+        check_compute_fn: bool = False,
     ) -> None:
         super(JSD, self).__init__(
             lambda x, y: JSD_fn(x, y),
@@ -89,7 +89,7 @@ class JSD(EpochMetric):
             return jensenshannon(abs(y_preds).flatten(), abs(y_targets).flatten()) ** 2
 
 
-class TorchMetricsWrapper():
+class TorchMetricsWrapper:
     metric = None
 
     def __init__(self, metric) -> None:
@@ -107,16 +107,17 @@ class TorchMetricsWrapper():
 
 class BinaryFairnessWrapper(BinaryFairness):
     """
-        This class is a wrapper for the BinaryFairness metric from TorchMetrics.
+    This class is a wrapper for the BinaryFairness metric from TorchMetrics.
     """
+
     group_name = None
-    def __init__(self, group_name = "sex", *args, **kwargs) -> None:
+
+    def __init__(self, group_name="sex", *args, **kwargs) -> None:
         self.group_name = group_name
         super().__init__(*args, **kwargs)
+
     def update(self, preds, target, data, feature_names) -> None:
-        """" Standard metric update function"""
+        """ " Standard metric update function"""
         groups = data[:, :, feature_names.index(self.group_name)]
         group_per_id = groups[:, 0]
-        return super().update(preds=preds.cpu(),
-                              target=target.cpu(),
-                              groups=group_per_id.long().cpu())
+        return super().update(preds=preds.cpu(), target=target.cpu(), groups=group_per_id.long().cpu())
