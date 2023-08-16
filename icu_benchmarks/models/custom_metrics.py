@@ -121,3 +121,13 @@ class BinaryFairnessWrapper(BinaryFairness):
         groups = data[:, :, feature_names.index(self.group_name)]
         group_per_id = groups[:, 0]
         return super().update(preds=preds.cpu(), target=target.cpu(), groups=group_per_id.long().cpu())
+
+    def feature_helper(self, trainer, step_prefix):
+        """Helper function to get the feature names from the trainer"""
+        if step_prefix == "train":
+            feature_names = trainer.train_dataloader.dataset.features
+        elif step_prefix == "val":
+            feature_names = trainer.train_dataloader.dataset.features
+        else:
+            feature_names = trainer.test_dataloaders.dataset.features
+        return feature_names

@@ -317,12 +317,7 @@ class DLPredictionWrapper(DLWrapper):
         for key, value in self.metrics[step_prefix].items():
             if isinstance(value, torchmetrics.Metric):
                 if key == "Binary_Fairness":
-                    if step_prefix == "train":
-                        feature_names = self.trainer.train_dataloader.dataset.features
-                    elif step_prefix == "val":
-                        feature_names = self.trainer.train_dataloader.dataset.features
-                    else:
-                        feature_names = self.trainer.test_dataloaders.dataset.features
+                    feature_names = key.feature_helper(self.trainer)
                     value.update(transformed_output[0], transformed_output[1], data, feature_names)
                 else:
                     value.update(transformed_output[0], transformed_output[1])

@@ -28,6 +28,7 @@ from icu_benchmarks.models.custom_metrics import (
     BinaryFairnessWrapper,
 )
 
+
 class MLMetrics:
     BINARY_CLASSIFICATION = {
         "AUC": roc_auc_score,
