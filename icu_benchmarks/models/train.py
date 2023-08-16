@@ -113,7 +113,7 @@ def train_common(
     model.set_weight(weight, train_dataset)
     if load_weights:
         if source_dir.exists():
-            if model.needs_training:
+            if model.requires_backprop:
                 if (source_dir / "last.ckpt").exists():
                     model_path = source_dir / "last.ckpt"
                 elif (source_dir / "model.ckpt").exists():
@@ -144,27 +144,26 @@ def train_common(
     if precision == 16 or "16-mixed":
         torch.set_float32_matmul_precision("medium")
     trainer = Trainer(
-        max_epochs=epochs if model.needs_training else 1,
+        max_epochs=epochs if model.requires_backprop else 1,
         callbacks=callbacks,
         precision=precision,
         accelerator="auto" if not cpu else "cpu",
         devices=max(torch.cuda.device_count(), 1),
-        deterministic=reproducible,
+        deterministic="warn" if reproducible else False,
         benchmark=not reproducible,
         enable_progress_bar=verbose,
         logger=loggers,
         num_sanity_val_steps=0,
     )
-
     if not eval_only:
-        if model.needs_fit:
-            logging.info("Fitting model to data.")
+        if model.requires_backprop:
+            logging.info("Training DL model.")
+            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+            logging.info("Training complete.")
+        else:
+            logging.info("Training ML model.")
             model.fit(train_dataset, val_dataset)
             model.save_model(log_dir, "last")
-            logging.info("Fitting complete.")
-        if model.needs_training:
-            logging.info("Training model.")
-            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
             logging.info("Training complete.")
 
     test_dataset = dataset_class(data, split=test_on)
@@ -178,7 +177,7 @@ def train_common(
             pin_memory=True,
             drop_last=True,
         )
-        if model.needs_training
+        if model.requires_backprop
         else DataLoader([test_dataset.to_tensor()], batch_size=1)
     )
 

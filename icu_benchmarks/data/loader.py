@@ -102,7 +102,6 @@ class PredictionDataset(CommonDataset):
             labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
 
         length_diff = self.maxlen - window.shape[0]
-
         pad_mask = np.ones(window.shape[0])
 
         # Padding the array to fulfill size requirement

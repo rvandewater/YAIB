@@ -1,17 +1,19 @@
 import logging
 from abc import ABC
-from typing import Dict, Any
-from typing import List, Optional, Union
+from typing import Dict, Any, List, Optional, Union
 
-import sklearn.metrics
-from sklearn.metrics import log_loss
+import torchmetrics
+from sklearn.metrics import log_loss, mean_squared_error
+
+import torch
 from torch.nn import MSELoss, CrossEntropyLoss
-from torch.nn.modules.loss import _Loss
-from torch.optim import Optimizer
+import torch.nn as nn
+from torch import Tensor, FloatTensor
+from torch.optim import Optimizer, Adam
+
 import inspect
 import gin
 import numpy as np
-import torch
 from ignite.exceptions import NotComputableError
 from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
@@ -20,22 +22,24 @@ from pytorch_lightning import LightningModule
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
 
-gin.config.external_configurable(torch.nn.functional.nll_loss, module="torch.nn.functional")
-gin.config.external_configurable(torch.nn.functional.cross_entropy, module="torch.nn.functional")
-gin.config.external_configurable(torch.nn.functional.mse_loss, module="torch.nn.functional")
+gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
+gin.config.external_configurable(nn.functional.cross_entropy, module="torch.nn.functional")
+gin.config.external_configurable(nn.functional.mse_loss, module="torch.nn.functional")
 
-gin.config.external_configurable(sklearn.metrics.mean_squared_error, module="sklearn.metrics")
-gin.config.external_configurable(sklearn.metrics.log_loss, module="sklearn.metrics")
+gin.config.external_configurable(mean_squared_error, module="sklearn.metrics")
+gin.config.external_configurable(log_loss, module="sklearn.metrics")
 
 
 @gin.configurable("BaseModule")
 class BaseModule(LightningModule):
-    needs_training = False
-    needs_fit = False
-
+    # DL type models, requires backpropagation
+    requires_backprop = False
+    # Loss function weight initialization type
     weight = None
+    # Metrics to be logged
     metrics = {}
     trained_columns = None
+    # Type of run mode
     run_mode = None
 
     def forward(self, *args, **kwargs):
@@ -90,15 +94,14 @@ class BaseModule(LightningModule):
 
 @gin.configurable("DLWrapper")
 class DLWrapper(BaseModule, ABC):
-    needs_training = True
-    needs_fit = False
+    requires_backprop = True
     _metrics_warning_printed = set()
     _supported_run_modes = [RunMode.classification, RunMode.regression, RunMode.imputation]
 
     def __init__(
         self,
         loss=CrossEntropyLoss(),
-        optimizer=torch.optim.Adam,
+        optimizer=Adam,
         run_mode: RunMode = RunMode.classification,
         input_shape=None,
         lr: float = 0.002,
@@ -107,11 +110,11 @@ class DLWrapper(BaseModule, ABC):
         lr_factor: float = 0.99,
         lr_steps: Optional[List[int]] = None,
         epochs: int = 100,
-        input_size: torch.Tensor = None,
+        input_size: Tensor = None,
         initialization_method: str = "normal",
         **kwargs,
     ):
-        """Interface for Deep Learning models."""
+        """General interface for Deep Learning (DL) models."""
         super().__init__()
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
@@ -162,10 +165,10 @@ class DLWrapper(BaseModule, ABC):
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     def on_test_epoch_start(self) -> None:
-        self.metrics = {
-            step_name: {metric_name: metric() for metric_name, metric in self.set_metrics().items()}
-            for step_name in ["train", "val", "test"]
-        }
+        # self.metrics = {
+        #     step_name: {metric_name: metric() for metric_name, metric in self.set_metrics().items()}
+        #     for step_name in ["train", "val", "test"]
+        # }
         return super().on_test_epoch_start()
 
     def save_model(self, save_path, file_name, file_extension=".ckpt"):
@@ -183,13 +186,47 @@ class DLPredictionWrapper(DLWrapper):
 
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
+    def __init__(
+        self,
+        loss=CrossEntropyLoss(),
+        optimizer=torch.optim.Adam,
+        run_mode: RunMode = RunMode.classification,
+        input_shape=None,
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        epochs: int = 100,
+        input_size: Tensor = None,
+        initialization_method: str = "normal",
+        **kwargs,
+    ):
+        super().__init__(
+            loss=loss,
+            optimizer=optimizer,
+            run_mode=run_mode,
+            input_shape=input_shape,
+            lr=lr,
+            momentum=momentum,
+            lr_scheduler=lr_scheduler,
+            lr_factor=lr_factor,
+            lr_steps=lr_steps,
+            epochs=epochs,
+            input_size=input_size,
+            initialization_method=initialization_method,
+            kwargs=kwargs,
+        )
+        self.output_transform = None
+        self.loss_weights = None
+
     def set_weight(self, weight, dataset):
         """Set the weight for the loss function."""
 
         if isinstance(weight, list):
-            weight = torch.FloatTensor(weight).to(self.device)
+            weight = FloatTensor(weight).to(self.device)
         elif weight == "balanced":
-            weight = torch.FloatTensor(dataset.get_balance()).to(self.device)
+            weight = FloatTensor(dataset.get_balance()).to(self.device)
         self.loss_weights = weight
 
     def set_metrics(self, *args):
@@ -223,10 +260,19 @@ class DLPredictionWrapper(DLWrapper):
             metrics = DLMetrics.REGRESSION
         else:
             raise ValueError(f"Run mode {self.run_mode} not supported.")
+        for key, value in metrics.items():
+            # Torchmetrics metrics are not moved to the device by default
+            if isinstance(value, torchmetrics.Metric):
+                value.to(self.device)
         return metrics
 
     def step_fn(self, element, step_prefix=""):
-        """Perform a step in the training loop."""
+        """Perform a step in the DL prediction model training loop.
+
+        Args:
+            element (object):
+            step_prefix (str): Step type, by default: test, train, val.
+        """
 
         if len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
@@ -247,24 +293,36 @@ class DLPredictionWrapper(DLWrapper):
         else:
             raise Exception("Loader should return either (data, label) or (data, label, mask)")
         out = self(data)
+
+        # If aux_loss is present, it is returned as a tuple
         if len(out) == 2 and isinstance(out, tuple):
             out, aux_loss = out
         else:
             aux_loss = 0
+        # Get prediction and target
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
         target = torch.masked_select(labels, mask).to(self.device)
+
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
             loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
-            # torch.long because NLL
+            # Returns torch.long because negative log likelihood loss
         elif self.run_mode == RunMode.regression:
             # Regression task
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss
         else:
-            raise ValueError(f"Run mode {self.run_mode} not supported.")
+            raise ValueError(f"Run mode {self.run_mode} not yet supported. Please implement it.")
         transformed_output = self.output_transform((prediction, target))
-        for metric in self.metrics[step_prefix].values():
-            metric.update(transformed_output)
+
+        for key, value in self.metrics[step_prefix].items():
+            if isinstance(value, torchmetrics.Metric):
+                if key == "Binary_Fairness":
+                    feature_names = key.feature_helper(self.trainer)
+                    value.update(transformed_output[0], transformed_output[1], data, feature_names)
+                else:
+                    value.update(transformed_output[0], transformed_output[1])
+            else:
+                value.update(transformed_output)
         self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
         return loss
 
@@ -273,8 +331,7 @@ class DLPredictionWrapper(DLWrapper):
 class MLWrapper(BaseModule, ABC):
     """Interface for prediction with traditional Scikit-learn-like Machine Learning models."""
 
-    needs_training = False
-    needs_fit = True
+    requires_backprop = False
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
     def __init__(self, *args, run_mode=RunMode.classification, loss=log_loss, patience=10, **kwargs):
@@ -413,13 +470,12 @@ class MLWrapper(BaseModule, ABC):
 class ImputationWrapper(DLWrapper):
     """Interface for imputation models."""
 
-    needs_training = True
-    needs_fit = False
+    requires_backprop = True
     _supported_run_modes = [RunMode.imputation]
 
     def __init__(
         self,
-        loss: _Loss = MSELoss(),
+        loss: nn.modules.loss._Loss = MSELoss(),
         optimizer: Union[str, Optimizer] = "adam",
         runmode: RunMode = RunMode.imputation,
         lr: float = 0.002,
@@ -427,7 +483,7 @@ class ImputationWrapper(DLWrapper):
         lr_scheduler: Optional[str] = None,
         lr_factor: float = 0.99,
         lr_steps: Optional[List[int]] = None,
-        input_size: torch.Tensor = None,
+        input_size: Tensor = None,
         initialization_method: ImputationInit = ImputationInit.NORMAL,
         **kwargs: str,
     ) -> None:
@@ -446,20 +502,20 @@ class ImputationWrapper(DLWrapper):
             classname = m.__class__.__name__
             if hasattr(m, "weight") and (classname.find("Conv") != -1 or classname.find("Linear") != -1):
                 if init_type == ImputationInit.NORMAL:
-                    torch.nn.init.normal_(m.weight.data, 0.0, gain)
+                    nn.init.normal_(m.weight.data, 0.0, gain)
                 elif init_type == ImputationInit.XAVIER:
-                    torch.nn.init.xavier_normal_(m.weight.data, gain=gain)
+                    nn.init.xavier_normal_(m.weight.data, gain=gain)
                 elif init_type == ImputationInit.KAIMING:
-                    torch.nn.init.kaiming_normal_(m.weight.data, a=0, mode="fan_out")
+                    nn.init.kaiming_normal_(m.weight.data, a=0, mode="fan_out")
                 elif init_type == ImputationInit.ORTHOGONAL:
-                    torch.nn.init.orthogonal_(m.weight.data, gain=gain)
+                    nn.init.orthogonal_(m.weight.data, gain=gain)
                 else:
                     raise NotImplementedError(f"Initialization method {init_type} is not implemented")
                 if hasattr(m, "bias") and m.bias is not None:
-                    torch.nn.init.constant_(m.bias.data, 0.0)
+                    nn.init.constant_(m.bias.data, 0.0)
             elif classname.find("BatchNorm2d") != -1:
-                torch.nn.init.normal_(m.weight.data, 1.0, gain)
-                torch.nn.init.constant_(m.bias.data, 0.0)
+                nn.init.normal_(m.weight.data, 1.0, gain)
+                nn.init.constant_(m.bias.data, 0.0)
 
         self.apply(init_func)
 

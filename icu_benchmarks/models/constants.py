@@ -1,5 +1,5 @@
-from ignite.contrib.metrics import AveragePrecision, ROC_AUC, PrecisionRecallCurve, RocCurve
-from ignite.metrics import Accuracy, RootMeanSquaredError  # , ConfusionMatrix
+from ignite.contrib.metrics import AveragePrecision, ROC_AUC, RocCurve, PrecisionRecallCurve
+from ignite.metrics import Accuracy, RootMeanSquaredError
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     average_precision_score,
@@ -9,24 +9,30 @@ from sklearn.metrics import (
     mean_absolute_error,
     precision_recall_curve,
     roc_curve,
-    # confusion_matrix,
     r2_score,
     mean_squared_error,
-    # f1_score,
+)
+from torchmetrics.classification import (
+    AUROC,
+    AveragePrecision as TorchMetricsAveragePrecision,
+    PrecisionRecallCurve as TorchMetricsPrecisionRecallCurve,
+    CalibrationError,
+    F1Score,
 )
 from enum import Enum
+from icu_benchmarks.models.custom_metrics import (
+    CalibrationCurve,
+    BalancedAccuracy,
+    MAE,
+    JSD,
+    BinaryFairnessWrapper,
+)
 
-from icu_benchmarks.models.metrics import CalibrationCurve, BalancedAccuracy, MAE, JSD
 
-
-# TODO: revise transformation for metrics in wrappers.py in order to handle metrics that can not handle a mix of binary and
-#  continuous targets
 class MLMetrics:
     BINARY_CLASSIFICATION = {
         "AUC": roc_auc_score,
         "Calibration_Curve": calibration_curve,
-        # "Confusion_Matrix": confusion_matrix,
-        # "F1": f1_score,
         "PR": average_precision_score,
         "PR_Curve": precision_recall_curve,
         "RO_Curve": roc_curve,
@@ -36,8 +42,6 @@ class MLMetrics:
         "Accuracy": accuracy_score,
         "AUC": roc_auc_score,
         "Balanced_Accuracy": balanced_accuracy_score,
-        # "Confusion_Matrix": confusion_matrix,
-        # "F1": f1_score,
         "PR": average_precision_score,
     }
 
@@ -53,10 +57,18 @@ class DLMetrics:
     BINARY_CLASSIFICATION = {
         "AUC": ROC_AUC,
         "Calibration_Curve": CalibrationCurve,
-        # "Confusion_Matrix": ConfusionMatrix(num_classes=2),
         "PR": AveragePrecision,
         "PR_Curve": PrecisionRecallCurve,
         "RO_Curve": RocCurve,
+    }
+
+    BINARY_CLASSIFICATION_TORCHMETRICS = {
+        "AUC": AUROC(task="binary"),
+        "PR": TorchMetricsAveragePrecision(task="binary"),
+        "PrecisionRecallCurve": TorchMetricsPrecisionRecallCurve(task="binary"),
+        "Calibration_Error": CalibrationError(task="binary", n_bins=10),
+        "F1": F1Score(task="binary", num_classes=2),
+        "Binary_Fairness": BinaryFairnessWrapper(num_groups=2, task="demographic_parity", group_name="sex"),
     }
 
     MULTICLASS_CLASSIFICATION = {
