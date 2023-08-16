@@ -57,8 +57,10 @@ wandb agent <sweep_id>
 > Tip: You can choose to run each of the configurations on a SLURM cluster instance by `wandb agent --count 1 <sweep_id>`
 
 ### Quickstart
+The authors of MIMIC-III and eICU have made a small demo dataset available to demonstrate their use. They can be found on Physionet: [MIMIC-III Clinical Database Demo](https://physionet.org/content/mimiciii-demo/1.4/) and [eICU Collaborative Research Database Demo](https://physionet.org/content/eicu-crd-demo/2.0.1/). These datasets are published under the [Open Data Commons Open Database License v1.0](https://opendatacommons.org/licenses/odbl/1-0/) and can be used without credentialing procedure. We have created demo cohorts that are processed **solely from these datasets** for each of our currently supported task endpoints. To the best of our knowledge, this is in compliance with the license and the respective dataset author's instructions. Usage of the task cohorts and dataset is only permitted in accordance with the above license.
+We **strongly recommend** completing a human subject research training to ensure you properly handle human subject research data. 
 
-If you do not yet have access to the ICU datasets, you can run the following command to train models for the included demo
+You can run the following command to train models for the included demo
 (MIMIC-III and eICU) task
 cohorts:
 
