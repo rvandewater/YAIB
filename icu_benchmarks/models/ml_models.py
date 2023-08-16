@@ -18,7 +18,7 @@ class LGBMWrapper(MLWrapper):
         callbacks = [lgbm.early_stopping(self.hparams.patience, verbose=True), lgbm.log_evaluation(period=-1)]
 
         if wandb.run is not None:
-            callbacks.append(callbacks)
+            callbacks.append(wandb_callback())
 
         self.model = self.model.fit(
             train_data,
