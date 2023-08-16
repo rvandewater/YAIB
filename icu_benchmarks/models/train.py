@@ -3,6 +3,7 @@ import gin
 import torch
 import logging
 import pandas as pd
+from joblib import load
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -27,6 +28,7 @@ def assure_minimum_length(dataset):
 def train_common(
     data: dict[str, pd.DataFrame],
     log_dir: Path,
+    eval_only: bool = False,
     load_weights: bool = False,
     source_dir: Path = None,
     reproducible: bool = True,
@@ -44,6 +46,7 @@ def train_common(
     cpu: bool = False,
     verbose=False,
     ram_cache=False,
+    pl_model=True,
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
@@ -51,6 +54,7 @@ def train_common(
     Args:
         data: Dict containing data to be trained on.
         log_dir: Path to directory where model output should be saved.
+        eval_only: If set to true, skip training and only evaluate the model.
         load_weights: If set to true, skip training and load weights from source_dir instead.
         source_dir: If set to load weights, path to directory containing trained weights.
         reproducible: If set to true, set torch to run reproducibly.
@@ -68,6 +72,7 @@ def train_common(
         cpu: If set to true, run on cpu.
         verbose: Enable detailed logging.
         ram_cache: Whether to cache the data in RAM.
+        pl_model: Loading a pytorch lightning model.
         num_workers: Number of workers to use for data loading.
     """
 
@@ -108,17 +113,28 @@ def train_common(
     model.set_weight(weight, train_dataset)
     if load_weights:
         if source_dir.exists():
-            # if not model.requires_backprop:
-            checkpoint = torch.load(source_dir / "model.ckpt")
-            # else:
-            model = model.load_state_dict(checkpoint["state_dict"])
+            if model.requires_backprop:
+                if (source_dir / "last.ckpt").exists():
+                    model_path = source_dir / "last.ckpt"
+                elif (source_dir / "model.ckpt").exists():
+                    model_path = source_dir / "model.ckpt"
+                elif (source_dir / "model-v1.ckpt").exists():
+                    model_path = source_dir / "model-v1.ckpt"
+                else:
+                    return Exception(f"No weights to load at path : {source_dir}")
+                if pl_model:
+                    model = model.load_from_checkpoint(model_path)
+                else:
+                    checkpoint = torch.load(model_path)
+                    model.load_state_dict(checkpoint)
+            else:
+                model = load(source_dir / "model.joblib")
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
 
     model.set_trained_columns(train_dataset.get_feature_names())
 
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
-
     callbacks = [
         EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
@@ -139,16 +155,17 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=0,
     )
+    if not eval_only:
+        if model.requires_backprop:
+            logging.info("Training DL model.")
+            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+            logging.info("Training complete.")
+        else:
+            logging.info("Training ML model.")
+            model.fit(train_dataset, val_dataset)
+            model.save_model(log_dir, "last")
+            logging.info("Training complete.")
 
-    if not model.requires_backprop:
-        logging.info("Training ML model.")
-        model.fit(train_dataset, val_dataset)
-        model.save_model(log_dir, "last")
-        logging.info("Training complete.")
-    else:
-        logging.info("Training DL model.")
-        trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
-        logging.info("Training complete.")
 
     test_dataset = dataset_class(data, split=test_on)
     test_dataset = assure_minimum_length(test_dataset)

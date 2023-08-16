@@ -17,7 +17,6 @@ import numpy as np
 from ignite.exceptions import NotComputableError
 from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
-from joblib import dump
 from pytorch_lightning import LightningModule
 
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
@@ -452,10 +451,10 @@ class MLWrapper(BaseModule, ABC):
         del state["output_transform"]
         return state
 
-    def save_model(self, save_path, file_name, file_extension=".joblib"):
+    def save_model(self, save_path, file_name, file_extension=".ckpt"):
         path = save_path / (file_name + file_extension)
         try:
-            dump(self.model, path)
+            torch.save(self, path)
             logging.info(f"Model saved to {str(path.resolve())}.")
         except Exception as e:
             logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
