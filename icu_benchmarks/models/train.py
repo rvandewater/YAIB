@@ -166,22 +166,22 @@ def train_common(
             model.save_model(log_dir, "last")
             logging.info("Training complete.")
 
-    test_dataset = dataset_class(data, split=test_on)
-    test_dataset = assure_minimum_length(test_dataset)
-    test_loader = (
-        DataLoader(
-            test_dataset,
-            batch_size=min(batch_size * 4, len(test_dataset)),
-            shuffle=False,
-            num_workers=num_workers,
-            pin_memory=True,
-            drop_last=True,
+    if test_on == "test":
+        test_dataset = dataset_class(data, split=test_on)
+        test_dataset = assure_minimum_length(test_dataset)
+        test_loader = (
+            DataLoader(
+                test_dataset,
+                batch_size=min(batch_size * 4, len(test_dataset)),
+                shuffle=False,
+                num_workers=num_workers,
+                pin_memory=True,
+                drop_last=True,
+            )
+            if model.requires_backprop
+            else DataLoader([test_dataset.to_tensor()], batch_size=1)
         )
-        if model.requires_backprop
-        else DataLoader([test_dataset.to_tensor()], batch_size=1)
-    )
-
-    model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
+        model.set_weight("balanced", train_dataset)
+        test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss

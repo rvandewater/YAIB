@@ -4,7 +4,7 @@ import logging
 import sys
 from pathlib import Path
 import importlib.util
-import torch.cuda
+from torch import cuda
 
 from icu_benchmarks.wandb_utils import update_wandb_config, apply_wandb_sweep, set_wandb_run_name
 from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters
@@ -58,8 +58,17 @@ def main(my_args=tuple(sys.argv[1:])):
 
     mode = get_mode()
 
+    if args.eval:
+        mode_string = "EVALUATION"
+    elif args.fine_tune:
+        mode_string = "FINE TUNING"
+    else:
+        mode_string = "TRAINING"
+
     if args.wandb_sweep:
-        run_name = f"{mode}_{model}_{name}"
+        run_name = f"{mode}_{model}_{name}_{mode_string}"
+        if(args.eval):
+            run_name += f"_{args.source-name}"
         set_wandb_run_name(run_name)
 
     logging.info(f"Task mode: {mode}.")
@@ -82,12 +91,12 @@ def main(my_args=tuple(sys.argv[1:])):
         if experiment
         else (log_dir_name / (args.task_name if args.task_name is not None else args.task) / model)
     )
-    if torch.cuda.is_available():
-        for name in range(0, torch.cuda.device_count()):
-            log_full_line(f"Available GPU {name}: {torch.cuda.get_device_name(name)}", level=logging.INFO)
+    if cuda.is_available():
+        for name in range(0, cuda.device_count()):
+            log_full_line(f"Available GPU {name}: {cuda.get_device_name(name)}", level=logging.INFO)
     else:
         log_full_line(
-            "No GPUs available: please check your device and Torch,Cuda installation if unintended.", level=logging.WARNING
+            "No GPUs available: please check your device and Torch and Cuda installation if unintended.", level=logging.WARNING
         )
 
     log_full_line(f"Logging to {log_dir}.", logging.INFO)
@@ -142,13 +151,8 @@ def main(my_args=tuple(sys.argv[1:])):
         )
 
     log_full_line(f"Logging to {run_dir.resolve()}", level=logging.INFO)
-    if evaluate:
-        mode_string = "STARTING EVALUATION"
-    elif args.fine_tune:
-        mode_string = "STARTING FINE TUNING"
-    else:
-        mode_string = "STARTING TRAINING"
-    log_full_line(mode_string, level=logging.INFO, char="=", num_newlines=3)
+
+    log_full_line(f"STARTING {mode_string}", level=logging.INFO, char="=", num_newlines=3)
 
     start_time = datetime.now()
     execute_repeated_cv(
@@ -169,7 +173,7 @@ def main(my_args=tuple(sys.argv[1:])):
         wandb=args.wandb_sweep,
     )
 
-    log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
+    log_full_line(f"FINISHED {mode_string}", level=logging.INFO, char="=", num_newlines=3)
     execution_time = datetime.now() - start_time
     log_full_line(f"DURATION: {execution_time}", level=logging.INFO, char="")
     aggregate_results(run_dir, execution_time)

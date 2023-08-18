@@ -13,26 +13,30 @@ command:
   - -gc
   - -lc
   - -sn
-  - eicu
+  - miiv
   - --source-dir
-  - /dhc/home/robin.vandewater/projects/transfer_learning/fold_0
+  - /dhc/home/robin.vandewater/projects/transfer_learning/transformer_los/miiv
 method: grid
 name: yaib_regression_benchmark
 parameters:
   data_dir:
     values:
-      - ../data/kf/miiv
-      - ../data/kf/hirid
-      - ../data/kf/eicu
-      - ../data/kf/aumc
+      - ../../data/los/miiv
+      - ../../data/los/hirid
+      - ../../data/los/eicu
+      - ../../data/los/aumc
+#      - ../../data/kf/miiv
+#      - ../../data/kf/hirid
+#      - ../../data/kf/eicu
+#      - ../../data/kf/aumc
   model:
     values:
 #      - ElasticNet
 #      - LGBMRegressor
-      - GRU
+#      - GRU
 #      - LSTM
 #      - TCN
-#      - Transformer
+      - Transformer
   seed:
     values:
       - 1111
@@ -40,6 +44,3 @@ parameters:
     values:
       - None
 program: icu-benchmarks
-
-
-C:\Users\Robin\Downloads\gru_creat\eicu\repetition_0\fold_0\

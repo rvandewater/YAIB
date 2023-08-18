@@ -1,18 +1,23 @@
 command:
   - ${env}
   - ${program}
+  - --eval
   - -d
   - ../data/
   - -t
   - BinaryClassification
   - --log-dir
-  - ../yaib_logs_mortality24
+  - ../yaib_logs_transfer
   - --tune
   - --wandb-sweep
   - -gc
   - -lc
+  - -sn
+  - aumc
+  - --source-dir
+  - /dhc/home/robin.vandewater/projects/transfer_learning/gru_mortality/aumc
 method: grid
-name: yaib_classification_benchmark
+name: yaib_regression_benchmark
 parameters:
   data_dir:
     values:
@@ -20,18 +25,14 @@ parameters:
       - ../../data/mortality24/hirid
       - ../../data/mortality24/eicu
       - ../../data/mortality24/aumc
-#      - ../data/aki/miiv
-#      - ../data/aki/hirid
-#      - ../data/aki/eicu
-#      - ../data/aki/aumc
-#      - ../data/sepsis/miiv
-#      - ../data/sepsis/hirid
-#      - ../data/sepsis/eicu
-#      - ../data/sepsis/aumc
+#      - ../../data/kf/miiv
+#      - ../../data/kf/hirid
+#      - ../../data/kf/eicu
+#      - ../../data/kf/aumc
   model:
     values:
-#      - LogisticRegression
-#      - LGBMClassifier
+#      - ElasticNet
+#      - LGBMRegressor
       - GRU
 #      - LSTM
 #      - TCN
