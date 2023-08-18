@@ -109,12 +109,6 @@ def train_common(
 
     data_shape = next(iter(train_loader))[0].shape
 
-    if model.requires_backprop:
-        # double number of epochs for finetuning
-        epochs = 2 * epochs if load_weights else epochs
-    else:
-        epochs = 1
-
     model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
     if load_weights:
         if source_dir.exists():
@@ -150,7 +144,7 @@ def train_common(
     if precision == 16 or "16-mixed":
         torch.set_float32_matmul_precision("medium")
     trainer = Trainer(
-        max_epochs=epochs,
+        max_epochs=epochs if model.requires_backprop else 1,
         callbacks=callbacks,
         precision=precision,
         accelerator="auto" if not cpu else "cpu",
@@ -164,12 +158,7 @@ def train_common(
     if not eval_only:
         if model.requires_backprop:
             logging.info("Training DL model.")
-            trainer.fit(
-                model,
-                train_dataloaders=train_loader,
-                val_dataloaders=val_loader,
-                ckpt_path=None if not load_weights else model_path
-            )
+            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
             logging.info("Training complete.")
         else:
             logging.info("Training ML model.")
