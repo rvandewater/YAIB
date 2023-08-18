@@ -70,8 +70,8 @@ def preprocess_data(
     if isinstance(preprocessor, DefaultClassificationPreprocessor):
         preprocessor.set_imputation_model(pretrained_imputation_model)
 
-    hash_config = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}{debug}".encode("utf-8")
-    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_d_{debug}_{hashlib.md5(hash_config).hexdigest()}"
+    hash_config = f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}".encode("utf-8")
+    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}_{hashlib.md5(hash_config).hexdigest()}"
     cache_file = cache_dir / cache_filename
 
     if load_cache:
