@@ -20,6 +20,7 @@ def execute_repeated_cv(
     log_dir: Path,
     seed: int,
     eval_only: bool = False,
+    train_size: int = None,
     load_weights: bool = False,
     source_dir: Path = None,
     cv_repetitions: int = 5,
@@ -45,6 +46,7 @@ def execute_repeated_cv(
         log_dir: Path to the log directory.
         seed: Random seed.
         eval_only: Whether to only evaluate the model.
+        train_size: Fixed size of train split (including validation data).
         load_weights: Whether to load weights from source_dir.
         source_dir: Path to the source directory.
         cv_folds: Number of folds for cross validation.
@@ -81,6 +83,7 @@ def execute_repeated_cv(
                 generate_cache=generate_cache,
                 cv_repetitions=cv_repetitions,
                 repetition_index=repetition,
+                train_size=train_size,
                 cv_folds=cv_folds,
                 fold_index=fold_index,
                 pretrained_imputation_model=pretrained_imputation_model,

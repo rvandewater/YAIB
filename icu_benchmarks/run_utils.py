@@ -44,7 +44,7 @@ def build_parser() -> ArgumentParser:
     parser.add_argument("--tune", default=False, action=BOA, help="Find best hyperparameters.")
     parser.add_argument("--hp-checkpoint", type=Path, help="Use previous hyperparameter checkpoint.")
     parser.add_argument("--eval", default=False, action=BOA, help="Only evaluate model, skip training.")
-    parser.add_argument("-ft", "--fine-tune", default=False, action=BOA, help="Load model and finetune on data.")
+    parser.add_argument("-ft", "--fine-tune", default=None, type=int, help="Finetune model with amount of train data.")
     parser.add_argument("-sn", "--source-name", type=Path, help="Name of the source dataset.")
     parser.add_argument("--source-dir", type=Path, help="Directory containing gin and model weights.")
 

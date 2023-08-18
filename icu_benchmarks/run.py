@@ -109,7 +109,8 @@ def main(my_args=tuple(sys.argv[1:])):
 
     # Load pretrained model in evaluate mode or when finetuning
     evaluate = args.eval
-    load_weights = evaluate or args.fine_tune
+    fine_tune_size = args.fine_tune
+    load_weights = evaluate or fine_tune_size is not None
     if load_weights:
         if args.source_dir is None:
             raise ValueError("Please specify a source directory when evaluating or finetuning.")
@@ -159,6 +160,7 @@ def main(my_args=tuple(sys.argv[1:])):
         run_dir,
         args.seed,
         eval_only=evaluate,
+        train_size=fine_tune_size,
         load_weights=load_weights,
         source_dir=source_dir,
         reproducible=reproducible,
