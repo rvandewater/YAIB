@@ -165,10 +165,10 @@ class DLWrapper(BaseModule, ABC):
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     def on_test_epoch_start(self) -> None:
-        # self.metrics = {
-        #     step_name: {metric_name: metric() for metric_name, metric in self.set_metrics().items()}
-        #     for step_name in ["train", "val", "test"]
-        # }
+        self.metrics = {
+            step_name: {metric_name: metric() for metric_name, metric in self.set_metrics().items()}
+            for step_name in ["train", "val", "test"]
+        }
         return super().on_test_epoch_start()
 
     def save_model(self, save_path, file_name, file_extension=".ckpt"):
