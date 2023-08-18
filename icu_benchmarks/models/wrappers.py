@@ -138,7 +138,9 @@ class DLWrapper(BaseModule, ABC):
         try:
             self.log_dict(
                 {
-                    f"{step_prefix}/{name}": (np.float32(metric.compute()) if isinstance(metric.compute(), np.float64 ) else metric.compute() )
+                    f"{step_prefix}/{name}": (np.float32(metric.compute())
+                                              if isinstance(metric.compute(), np.float64)
+                                              else metric.compute())
                     for name, metric in self.metrics[step_prefix].items()
                     if "_Curve" not in name
                 },
