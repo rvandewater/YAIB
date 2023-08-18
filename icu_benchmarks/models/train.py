@@ -110,7 +110,6 @@ def train_common(
     data_shape = next(iter(train_loader))[0].shape
 
     model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
-    model.set_weight(weight, train_dataset)
     if load_weights:
         if source_dir.exists():
             if model.requires_backprop:
@@ -132,6 +131,7 @@ def train_common(
         else:
             raise Exception(f"No weights to load at path : {source_dir}")
 
+    model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
 
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
