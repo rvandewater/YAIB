@@ -25,6 +25,7 @@ def preprocess_data(
     debug: bool = False,
     cv_repetitions: int = 5,
     repetition_index: int = 0,
+    train_size: int = None,
     cv_folds: int = 5,
     load_cache: bool = False,
     generate_cache: bool = False,
@@ -43,6 +44,7 @@ def preprocess_data(
         debug: Load less data if true.
         cv_repetitions: Number of times to repeat cross validation.
         repetition_index: Index of the repetition to return.
+        train_size: Fixed size of train split (including validation data).
         cv_folds: Number of folds to use for cross validation.
         load_cache: Use cached preprocessed data if true.
         generate_cache: Generate cached preprocessed data if true.
@@ -87,7 +89,16 @@ def preprocess_data(
     # Generate the splits
     logging.info("Generating splits.")
     data = make_single_split(
-        data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, seed=seed, debug=debug, runmode=runmode
+        data,
+        vars,
+        cv_repetitions,
+        repetition_index,
+        cv_folds,
+        fold_index,
+        train_size=train_size,
+        seed=seed,
+        debug=debug,
+        runmode=runmode
     )
 
     # Apply preprocessing
@@ -109,9 +120,9 @@ def make_single_split(
     vars: dict[str],
     cv_repetitions: int,
     repetition_index: int,
+    train_size: int = None,
     cv_folds: int,
     fold_index: int,
-    train_size: int = None,
     seed: int = 42,
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
@@ -124,9 +135,9 @@ def make_single_split(
         vars: Contains the names of columns in the data.
         cv_repetitions: Number of times to repeat cross validation.
         repetition_index: Index of the repetition to return.
+        train_size: Fixed size of train split (including validation data).
         cv_folds: Number of folds for cross validation.
         fold_index: Index of the fold to return.
-        train_size: Fixed size of train size (including validation data).
         seed: Random seed.
         debug: Load less data if true.
 
