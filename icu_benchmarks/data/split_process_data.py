@@ -7,7 +7,7 @@ import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 
-from sklearn.model_selection import StratifiedKFold, KFold
+from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit 
 
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
@@ -111,6 +111,7 @@ def make_single_split(
     repetition_index: int,
     cv_folds: int,
     fold_index: int,
+    train_size: int = None,
     seed: int = 42,
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
@@ -125,6 +126,7 @@ def make_single_split(
         repetition_index: Index of the repetition to return.
         cv_folds: Number of folds for cross validation.
         fold_index: Index of the fold to return.
+        train_size: Fixed size of train size (including validation data).
         seed: Random seed.
         debug: Load less data if true.
 
@@ -150,7 +152,10 @@ def make_single_split(
                 f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
                 f"but {cv_folds} folds are requested. Reduce the number of folds or use more data."
             )
-        outer_cv = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
+        if train_size:
+            outer_cv = StratifiedShuffleSplit(cv_repetitions, train_size=train_size)
+        else:
+            outer_cv = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
         inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
 
         dev, test = list(outer_cv.split(stays, labels))[repetition_index]
@@ -158,7 +163,10 @@ def make_single_split(
         train, val = list(inner_cv.split(dev_stays, labels.iloc[dev]))[fold_index]
     else:
         # If there are no labels, or the task is regression, use regular k-fold.
-        outer_cv = KFold(cv_repetitions, shuffle=True, random_state=seed)
+        if train_size:
+            outer_cv = ShuffleSplit(cv_repetitions, train_size=train_size)
+        else:
+            outer_cv = KFold(n_splits, shuffle=True, random_state=seed)
         inner_cv = KFold(cv_folds, shuffle=True, random_state=seed)
 
         dev, test = list(outer_cv.split(stays))[repetition_index]
