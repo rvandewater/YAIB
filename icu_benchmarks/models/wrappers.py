@@ -100,20 +100,20 @@ class DLWrapper(BaseModule, ABC):
     _supported_run_modes = [RunMode.classification, RunMode.regression, RunMode.imputation]
 
     def __init__(
-        self,
-        loss=CrossEntropyLoss(),
-        optimizer=Adam,
-        run_mode: RunMode = RunMode.classification,
-        input_shape=None,
-        lr: float = 0.002,
-        momentum: float = 0.9,
-        lr_scheduler: Optional[str] = None,
-        lr_factor: float = 0.99,
-        lr_steps: Optional[List[int]] = None,
-        epochs: int = 100,
-        input_size: Tensor = None,
-        initialization_method: str = "normal",
-        **kwargs,
+            self,
+            loss=CrossEntropyLoss(),
+            optimizer=Adam,
+            run_mode: RunMode = RunMode.classification,
+            input_shape=None,
+            lr: float = 0.002,
+            momentum: float = 0.9,
+            lr_scheduler: Optional[str] = None,
+            lr_factor: float = 0.99,
+            lr_steps: Optional[List[int]] = None,
+            epochs: int = 100,
+            input_size: Tensor = None,
+            initialization_method: str = "normal",
+            **kwargs,
     ):
         """General interface for Deep Learning (DL) models."""
         super().__init__()
@@ -190,20 +190,20 @@ class DLPredictionWrapper(DLWrapper):
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
     def __init__(
-        self,
-        loss=CrossEntropyLoss(),
-        optimizer=torch.optim.Adam,
-        run_mode: RunMode = RunMode.classification,
-        input_shape=None,
-        lr: float = 0.002,
-        momentum: float = 0.9,
-        lr_scheduler: Optional[str] = None,
-        lr_factor: float = 0.99,
-        lr_steps: Optional[List[int]] = None,
-        epochs: int = 100,
-        input_size: Tensor = None,
-        initialization_method: str = "normal",
-        **kwargs,
+            self,
+            loss=CrossEntropyLoss(),
+            optimizer=torch.optim.Adam,
+            run_mode: RunMode = RunMode.classification,
+            input_shape=None,
+            lr: float = 0.002,
+            momentum: float = 0.9,
+            lr_scheduler: Optional[str] = None,
+            lr_factor: float = 0.99,
+            lr_steps: Optional[List[int]] = None,
+            epochs: int = 100,
+            input_size: Tensor = None,
+            initialization_method: str = "normal",
+            **kwargs,
     ):
         super().__init__(
             loss=loss,
@@ -337,7 +337,7 @@ class MLWrapper(BaseModule, ABC):
     requires_backprop = False
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, *args, run_mode=RunMode.classification, loss=log_loss, patience=10, **kwargs):
+    def __init__(self, *args, run_mode=RunMode.classification, loss=log_loss, patience=10, mps=False, **kwargs):
         super().__init__()
         self.save_hyperparameters()
         self.scaler = None
@@ -345,6 +345,7 @@ class MLWrapper(BaseModule, ABC):
         self.run_mode = run_mode
         self.loss = loss
         self.patience = patience
+        self.mps = mps
 
     def set_metrics(self, labels):
         if self.run_mode == RunMode.classification:
@@ -416,9 +417,13 @@ class MLWrapper(BaseModule, ABC):
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
 
-        self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
+        if self.mps:
+            self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
+            self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
+        else:
+            self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
+            self.log_metrics(test_label, test_pred, "test")
         logging.debug(f"Test loss: {self.loss(test_label, test_pred)}")
-        self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
 
     def predict(self, features):
         if self.run_mode == RunMode.regression:
@@ -431,7 +436,10 @@ class MLWrapper(BaseModule, ABC):
 
         self.log_dict(
             {
-                f"{metric_type}/{name}": np.float32(metric(self.label_transform(label), self.output_transform(pred)))
+                # MPS dependent type casting
+                f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred)) if not self.mps
+                else metric(self.label_transform(label), self.output_transform(pred))
+                # Fore very metric
                 for name, metric in self.metrics.items()
                 # Filter out metrics that return a tuple (e.g. precision_recall_curve)
                 if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
@@ -476,18 +484,18 @@ class ImputationWrapper(DLWrapper):
     _supported_run_modes = [RunMode.imputation]
 
     def __init__(
-        self,
-        loss: nn.modules.loss._Loss = MSELoss(),
-        optimizer: Union[str, Optimizer] = "adam",
-        runmode: RunMode = RunMode.imputation,
-        lr: float = 0.002,
-        momentum: float = 0.9,
-        lr_scheduler: Optional[str] = None,
-        lr_factor: float = 0.99,
-        lr_steps: Optional[List[int]] = None,
-        input_size: Tensor = None,
-        initialization_method: ImputationInit = ImputationInit.NORMAL,
-        **kwargs: str,
+            self,
+            loss: nn.modules.loss._Loss = MSELoss(),
+            optimizer: Union[str, Optimizer] = "adam",
+            runmode: RunMode = RunMode.imputation,
+            lr: float = 0.002,
+            momentum: float = 0.9,
+            lr_scheduler: Optional[str] = None,
+            lr_factor: float = 0.99,
+            lr_steps: Optional[List[int]] = None,
+            input_size: Tensor = None,
+            initialization_method: ImputationInit = ImputationInit.NORMAL,
+            **kwargs: str,
     ) -> None:
         super().__init__()
         self.check_supported_runmode(runmode)
