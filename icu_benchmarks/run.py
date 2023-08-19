@@ -63,7 +63,10 @@ def main(my_args=tuple(sys.argv[1:])):
 
     if args.wandb_sweep:
         run_name = f"{mode}_{model}_{name}"
+        if (args.fine_tune):
+            run_name += f"_{args.source_name}_fine_tune_{args.fine_tune}"
         set_wandb_run_name(run_name)
+
 
     logging.info(f"Task mode: {mode}.")
     experiment = args.experiment
@@ -115,6 +118,8 @@ def main(my_args=tuple(sys.argv[1:])):
         if args.source_dir is None:
             raise ValueError("Please specify a source directory when evaluating or finetuning.")
         log_dir /= f"from_{args.source_name}"
+        if args.fine_tune:
+            log_dir /= f"fine_tune_{args.fine_tune}"
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
         gin.parse_config_file(source_dir / "train_config.gin")
