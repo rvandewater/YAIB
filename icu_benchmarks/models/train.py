@@ -14,7 +14,7 @@ from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
-from icu_benchmarks.models.constants import Precision
+from icu_benchmarks.models.dl_models import GRUNet
 # from finetuning_scheduler import FinetuningScheduler
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 from pytorch_lightning.loggers import WandbLogger
@@ -111,9 +111,10 @@ def train_common(
 
     data_shape = next(iter(train_loader))[0].shape
 
-    model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+    # model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
     if load_weights:
-        model = load_model(model, source_dir, pl_model)
+        model = GRUNet.load_from_checkpoint(source_dir/"last.ckpt")
+        # model = load_model(model, source_dir, pl_model)
 
     model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
@@ -130,6 +131,7 @@ def train_common(
         callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
     if precision == 16 or "16-mixed":
         torch.set_float32_matmul_precision("medium")
+
     trainer = Trainer(
         max_epochs=epochs if model.requires_backprop else 1,
         callbacks=callbacks,
@@ -141,6 +143,7 @@ def train_common(
         enable_progress_bar=verbose,
         logger=loggers,
         num_sanity_val_steps=0,
+
     )
     if not eval_only:
         if model.requires_backprop:
