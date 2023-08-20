@@ -61,12 +61,18 @@ def main(my_args=tuple(sys.argv[1:])):
 
     mode = get_mode()
 
+    evaluate = args.eval
+    fine_tune_size = args.fine_tune
+    load_weights = evaluate or fine_tune_size is not None
+
     if args.wandb_sweep:
         run_name = f"{mode}_{model}_{name}"
-        if (args.fine_tune):
-            run_name += f"_{args.source_name}_fine_tune_{args.fine_tune}"
+        if load_weights:
+            if args.fine_tune:
+                run_name += f"_source_{args.source_name}_fine-tune_{args.fine_tune}_samples"
+            else:
+                run_name += f"_source_{args.source_name}"
         set_wandb_run_name(run_name)
-
 
     logging.info(f"Task mode: {mode}.")
     experiment = args.experiment
@@ -111,23 +117,25 @@ def main(my_args=tuple(sys.argv[1:])):
             logging.error(f"Could not import custom preprocessor from {args.preprocessor}: {e}")
 
     # Load pretrained model in evaluate mode or when finetuning
-    evaluate = args.eval
-    fine_tune_size = args.fine_tune
-    load_weights = evaluate or fine_tune_size is not None
+
     if load_weights:
         if args.source_dir is None:
-            raise ValueError("Please specify a source directory when evaluating or finetuning.")
-        log_dir /= f"from_{args.source_name}"
+            raise ValueError("Please specify a source directory when evaluating or fine-tuning.")
+        log_dir /= f"_from_{args.source_name}"
+        gin.bind_parameter("train_common.dataset_names", {"train": args.source_name, "val": args.source_name, "test": args.name})
         if args.fine_tune:
             log_dir /= f"fine_tune_{args.fine_tune}"
+            gin.bind_parameter("train_common.dataset_names", {"train": args.name, "val": args.name, "test": args.name})
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
+        logging.info(f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
         gin.parse_config_file(source_dir / "train_config.gin")
     else:
-        # Train
+        # Normal train and evaluate
+        gin.bind_parameter("train_common.dataset_names", {"train": args.name, "val": args.name, "test": args.name})
         hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
-            Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
+                Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]

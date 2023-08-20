@@ -26,7 +26,8 @@ class CommonDataset(Dataset):
         split: str = Split.train,
         vars: Dict[str, str] = gin.REQUIRED,
         grouping_segment: str = Segment.outcome,
-        mps: bool = False
+        mps: bool = False,
+        name: str = "",
     ):
         self.split = split
         self.vars = vars
@@ -39,11 +40,12 @@ class CommonDataset(Dataset):
         self.num_stays = self.grouping_df.index.unique().shape[0]
         self.maxlen = self.features_df.groupby([self.vars["GROUP"]]).size().max()
         self.mps = mps
+        self.name = name
 
     def ram_cache(self, cache: bool = True):
         self._cached_dataset = None
         if cache:
-            logging.info("Caching dataset in ram.")
+            logging.info(f"Caching {self.split} dataset in ram.")
             self._cached_dataset = [self[i] for i in range(len(self))]
 
     def __len__(self) -> int:

@@ -120,9 +120,19 @@ class DLWrapper(BaseModule, ABC):
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer
-        self.scaler = None
         self.check_supported_runmode(run_mode)
         self.run_mode = run_mode
+        self.input_shape = input_shape
+        self.lr = lr
+        self.momentum = momentum
+        self.lr_scheduler = lr_scheduler
+        self.lr_factor = lr_factor
+        self.lr_steps = lr_steps
+        self.epochs = epochs
+        self.input_size = input_size
+        self.initialization_method = initialization_method
+        self.scaler = None
+        logging.info(f"Learning rate: {self.lr}, learning factor {self.lr_factor}, learning steps {self.lr_steps}")
 
     def on_fit_start(self):
         self.metrics = {
@@ -487,7 +497,7 @@ class ImputationWrapper(DLWrapper):
             self,
             loss: nn.modules.loss._Loss = MSELoss(),
             optimizer: Union[str, Optimizer] = "adam",
-            runmode: RunMode = RunMode.imputation,
+            run_mode: RunMode = RunMode.imputation,
             lr: float = 0.002,
             momentum: float = 0.9,
             lr_scheduler: Optional[str] = None,
@@ -495,11 +505,26 @@ class ImputationWrapper(DLWrapper):
             lr_steps: Optional[List[int]] = None,
             input_size: Tensor = None,
             initialization_method: ImputationInit = ImputationInit.NORMAL,
+            epochs=100,
             **kwargs: str,
     ) -> None:
-        super().__init__()
-        self.check_supported_runmode(runmode)
-        self.run_mode = runmode
+
+        super().__init__(
+            loss=loss,
+            optimizer=optimizer,
+            run_mode=run_mode,
+            lr=lr,
+            momentum=momentum,
+            lr_scheduler=lr_scheduler,
+            lr_factor=lr_factor,
+            lr_steps=lr_steps,
+            epochs=epochs,
+            input_size=input_size,
+            initialization_method=initialization_method,
+            kwargs=kwargs,
+        )
+        self.check_supported_runmode(run_mode)
+        self.run_mode = run_mode
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer
