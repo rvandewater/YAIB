@@ -111,7 +111,7 @@ def train_common(
 
     data_shape = next(iter(train_loader))[0].shape
 
-    # model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+    model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
     if load_weights:
         model = GRUNet.load_from_checkpoint(source_dir/"last.ckpt")
         # model = load_model(model, source_dir, pl_model)
@@ -148,7 +148,10 @@ def train_common(
     if not eval_only:
         if model.requires_backprop:
             logging.info("Training DL model.")
-            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+            if load_weights:
+                trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=source_dir/"last.ckpt")
+            else:
+                trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
             logging.info("Training complete.")
         else:
             logging.info("Training ML model.")
