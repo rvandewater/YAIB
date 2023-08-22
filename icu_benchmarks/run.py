@@ -74,6 +74,8 @@ def main(my_args=tuple(sys.argv[1:])):
                 run_name += f"_source_{args.source_name}_fine-tune_{args.fine_tune}_samples"
             else:
                 run_name += f"_source_{args.source_name}"
+        if args.samples:
+            run_name += f"_train_size_{args.samples}"
         set_wandb_run_name(run_name)
 
     logging.info(f"Task mode: {mode}.")

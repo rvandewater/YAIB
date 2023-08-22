@@ -1,7 +1,7 @@
 command:
   - ${env}
   - ${program}
-  - -ft
+  - --samples
   - 0
   - -d
   - ../data/
@@ -12,14 +12,14 @@ command:
   - --tune
   - --wandb-sweep
   - -gc
-  - -lc
+#  - -lc
   - --verbose
   - --source-dir
   - /dhc/home/robin.vandewater/projects/transfer_learning/gru_mortality/hirid
 method: grid
 name: yaib_regression_benchmark
 parameters:
-  fine_tune:
+  samples:
     values:
       - 100
       - 500
