@@ -1,3 +1,5 @@
+import pickle
+
 import torch
 import logging
 
@@ -273,6 +275,20 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
     Returns:
         Transformed features divided into 'train', 'val', and 'test'.
     """
+
+    # cache_file = "data/"
+    # cache_file_name = f"eicu_{Split.train}_{type}"
+    # cache_file += cache_file_name
+    # # # with open(cache_file, "wb") as f:
+    # # #     pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+    # # # logging.info(f"Cached data in {cache_file}.")
+    # with open(cache_file, "rb") as f:
+    #     logging.info(f"Loading cached data from {cache_file}.")
+    #     eicu_train = pickle.load(f)
+    # eicu_train = recipe.prep()
+    # data[Split.train][type] = recipe.bake(data[Split.train][type])
+    # data[Split.val][type] = recipe.bake(data[Split.val][type])
+    # data[Split.test][type] = recipe.bake(data[Split.test][type])
     data[Split.train][type] = recipe.prep()
     data[Split.val][type] = recipe.bake(data[Split.val][type])
     data[Split.test][type] = recipe.bake(data[Split.test][type])
