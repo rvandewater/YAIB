@@ -15,9 +15,12 @@ from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 from icu_benchmarks.models.dl_models import GRUNet
+
 # from finetuning_scheduler import FinetuningScheduler
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 from pytorch_lightning.loggers import WandbLogger
+
+
 def assure_minimum_length(dataset):
     if len(dataset) < 2:
         return [dataset[0], dataset[0]]
@@ -42,7 +45,7 @@ def train_common(
         patience=20,
         min_delta=1e-5,
         test_on: str = Split.test,
-        dataset_names = None,
+        dataset_names=None,
         use_wandb: bool = False,
         cpu: bool = False,
         verbose=False,
@@ -88,8 +91,9 @@ def train_common(
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
 
-    logging.info(f"Training on {train_dataset.name} with {len(train_dataset)} samples and validating on {val_dataset.name} with"
-                 f" {len(val_dataset)} samples.")
+    logging.info(
+        f"Training on {train_dataset.name} with {len(train_dataset)} samples and validating on {val_dataset.name} with"
+        f" {len(val_dataset)} samples.")
     logging.info(f"Using {num_workers} workers for data loading.")
 
     train_loader = DataLoader(
@@ -113,7 +117,7 @@ def train_common(
 
     model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
     if load_weights:
-        model = GRUNet.load_from_checkpoint(source_dir/"last.ckpt")
+        model = GRUNet.load_from_checkpoint(source_dir / "model.ckpt")
         # model = load_model(model, source_dir, pl_model)
 
     model.set_weight(weight, train_dataset)
@@ -123,10 +127,10 @@ def train_common(
     if use_wandb:
         loggers.append(WandbLogger(save_dir=log_dir))
     callbacks = [
-        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience*3, strict=False, verbose=verbose),
+        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience * 3, strict=False, verbose=verbose),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
         LearningRateMonitor(logging_interval="step"),
-        #FinetuningScheduler()
+        # FinetuningScheduler()
     ]
     if verbose:
         callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
@@ -151,7 +155,7 @@ def train_common(
         if model.requires_backprop:
             logging.info("Training DL model.")
             if load_weights:
-                trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=source_dir/"last.ckpt")
+                trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=source_dir/"model.ckpt")
             else:
                 trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
             logging.info("Training complete.")
@@ -183,6 +187,7 @@ def train_common(
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss
+
 
 def load_model(model, source_dir, pl_model=True):
     if source_dir.exists():

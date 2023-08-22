@@ -47,7 +47,7 @@ def build_parser() -> ArgumentParser:
     parser.add_argument("-ft", "--fine-tune", default=None, type=int, help="Finetune model with amount of train data.")
     parser.add_argument("-sn", "--source-name", type=Path, help="Name of the source dataset.")
     parser.add_argument("--source-dir", type=Path, help="Directory containing gin and model weights.")
-
+    parser.add_argument("-sa", "--samples", type=int, default=None, help="Number of samples to use for evaluation.")
     return parser
 
 
@@ -64,7 +64,7 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     Returns:
         Path to the created run log directory.
     """
-    if not (log_dir/ str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))).exists() :
+    if not (log_dir/ str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))).exists():
         log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))
     else:
         log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))
