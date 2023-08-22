@@ -187,12 +187,12 @@ def train_common(
 def load_model(model, source_dir, pl_model=True):
     if source_dir.exists():
         if model.requires_backprop:
-            if (source_dir / "last.ckpt").exists():
-                model_path = source_dir / "last.ckpt"
-            elif (source_dir / "model.ckpt").exists():
+            if (source_dir / "model.ckpt").exists():
                 model_path = source_dir / "model.ckpt"
             elif (source_dir / "model-v1.ckpt").exists():
                 model_path = source_dir / "model-v1.ckpt"
+            elif (source_dir / "last.ckpt").exists():
+                model_path = source_dir / "last.ckpt"
             else:
                 return Exception(f"No weights to load at path : {source_dir}")
             if pl_model:
@@ -201,8 +201,9 @@ def load_model(model, source_dir, pl_model=True):
                 checkpoint = torch.load(model_path)
                 model.load_state_dict(checkpoint)
         else:
-            model = load(source_dir / "model.joblib")
+            model_path = source_dir / "model.joblib"
+            model = load(model_path)
     else:
         raise Exception(f"No weights to load at path : {source_dir}")
-    logging.info(f"Loaded {type(model)} model from {source_dir}")
+    logging.info(f"Loaded {type(model)} model from {model_path}")
     return model
