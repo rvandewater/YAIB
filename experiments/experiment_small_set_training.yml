@@ -1,0 +1,62 @@
+command:
+  - ${env}
+  - ${program}
+  - -ft
+  - 0
+  - -d
+  - ../data/
+  - -t
+  - BinaryClassification
+  - --log-dir
+  - ../yaib_logs_small_set_training
+  - --tune
+  - --wandb-sweep
+  - -gc
+  - -lc
+  - --verbose
+  - --source-dir
+  - /dhc/home/robin.vandewater/projects/transfer_learning/gru_mortality/hirid
+method: grid
+name: yaib_regression_benchmark
+parameters:
+  fine_tune:
+    values:
+      - 100
+      - 500
+      - 1000
+      - 2000
+#      - 3000
+##      - 4000
+#      - 5000
+#      - 6000
+#      - 7000
+##      - 8000
+#      - 9000
+#      - 10000
+#      - 15000
+#      - 20000
+  data_dir:
+    values:
+#      - ../../data/mortality24/miiv
+      - ../../data/mortality24/hirid
+#      - ../../data/mortality24/eicu
+#      - ../../data/mortality24/aumc
+#      - ../../data/kf/miiv
+#      - ../../data/kf/hirid
+#      - ../../data/kf/eicu
+#      - ../../data/kf/aumc
+  model:
+    values:
+#      - ElasticNet
+#      - LGBMRegressor
+      - GRU
+#      - LSTM
+#      - TCN
+#      - Transformer
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks
