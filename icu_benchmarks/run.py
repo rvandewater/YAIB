@@ -134,7 +134,8 @@ def main(my_args=tuple(sys.argv[1:])):
         source_dir = args.source_dir
         logging.info(f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
         gin.parse_config_file(source_dir / "train_config.gin")
-    elif args.samples and args.source_dir is not None: # Train model with limited samples
+    elif args.samples and args.source_dir is not None: # Train model with limited samples and bind existing config
+        logging.info("Binding train gin-config. Note: this might override your config.")
         gin.parse_config_file(args.source_dir / "train_config.gin")
         log_dir /= f"samples_{args.fine_tune}"
         gin.bind_parameter("train_common.dataset_names", {"train": args.name, "val": args.name, "test": args.name})
