@@ -119,7 +119,6 @@ def main(my_args=tuple(sys.argv[1:])):
             logging.error(f"Could not import custom preprocessor from {args.preprocessor}: {e}")
 
     # Load pretrained model in evaluate mode or when finetuning
-    load_weights = False
     if load_weights:
         if args.source_dir is None:
             raise ValueError("Please specify a source directory when evaluating or fine-tuning.")
