@@ -43,7 +43,7 @@ def main(my_args=tuple(sys.argv[1:])):
     date_format = "%Y-%m-%d %H:%M:%S"
     verbose = args.verbose
     setup_logging(date_format, log_format, verbose)
-
+    verbose = True
     # Get arguments
     data_dir = Path(args.data_dir)
     name = args.name
@@ -62,8 +62,10 @@ def main(my_args=tuple(sys.argv[1:])):
     mode = get_mode()
 
     evaluate = args.eval
-    fine_tune_size = args.fine_tune
-    load_weights = evaluate or fine_tune_size is not None
+
+    # Set train size to fine tune size if fine tune is set, else use custom train size
+    train_size = args.fine_tune if args.fine_tune is not None else args.samples
+    load_weights = evaluate or args.fine_tune is not None
 
     if args.wandb_sweep:
         run_name = f"{mode}_{model}_{name}"
@@ -117,7 +119,7 @@ def main(my_args=tuple(sys.argv[1:])):
             logging.error(f"Could not import custom preprocessor from {args.preprocessor}: {e}")
 
     # Load pretrained model in evaluate mode or when finetuning
-
+    load_weights = False
     if load_weights:
         if args.source_dir is None:
             raise ValueError("Please specify a source directory when evaluating or fine-tuning.")
@@ -130,6 +132,11 @@ def main(my_args=tuple(sys.argv[1:])):
         source_dir = args.source_dir
         logging.info(f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
         gin.parse_config_file(source_dir / "train_config.gin")
+    elif args.samples and args.source_dir is not None: # Train model with limited samples
+        gin.parse_config_file(args.source_dir / "train_config.gin")
+        log_dir /= f"samples_{args.fine_tune}"
+        gin.bind_parameter("train_common.dataset_names", {"train": args.name, "val": args.name, "test": args.name})
+        run_dir = create_run_dir(log_dir)
     else:
         # Normal train and evaluate
         gin.bind_parameter("train_common.dataset_names", {"train": args.name, "val": args.name, "test": args.name})
@@ -155,7 +162,7 @@ def main(my_args=tuple(sys.argv[1:])):
             debug=args.debug,
             generate_cache=args.generate_cache,
             load_cache=args.load_cache,
-            verbose=args.verbose,
+            verbose=verbose,
         )
 
     log_full_line(f"Logging to {run_dir.resolve()}", level=logging.INFO)
@@ -173,7 +180,7 @@ def main(my_args=tuple(sys.argv[1:])):
         run_dir,
         args.seed,
         eval_only=evaluate,
-        train_size=fine_tune_size,
+        train_size=train_size,
         load_weights=load_weights,
         source_dir=source_dir,
         reproducible=reproducible,
