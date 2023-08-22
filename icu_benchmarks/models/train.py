@@ -8,7 +8,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar, LearningRateMonitor
 from pathlib import Path
 from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
@@ -123,8 +123,9 @@ def train_common(
     if use_wandb:
         loggers.append(WandbLogger(save_dir=log_dir))
     callbacks = [
-        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
+        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience*3, strict=False, verbose=verbose),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
+        LearningRateMonitor(logging_interval="step"),
         #FinetuningScheduler()
     ]
     if verbose:
@@ -137,12 +138,13 @@ def train_common(
         callbacks=callbacks,
         precision=precision,
         accelerator="auto" if not cpu else "cpu",
-        devices=max(torch.cuda.device_count(), 1),
+        devices=max(torch.cuda.device_count(), 1) if not cpu else -1,
         deterministic="warn" if reproducible else False,
         benchmark=not reproducible,
         enable_progress_bar=verbose,
         logger=loggers,
-        num_sanity_val_steps=0,
+        num_sanity_val_steps=-1,
+        log_every_n_steps=5,
 
     )
     if not eval_only:
@@ -176,6 +178,8 @@ def train_common(
     )
 
     model.set_weight("balanced", train_dataset)
+
+    # test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose, ckpt_path= source_dir/"last.ckpt" if eval_only else None)[0]["test/loss"]
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss

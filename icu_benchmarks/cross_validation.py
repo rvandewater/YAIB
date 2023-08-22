@@ -70,10 +70,11 @@ def execute_repeated_cv(
     if not cv_folds_to_train:
         cv_folds_to_train = cv_folds
     agg_loss = 0
-
+    logging.info(f"Starting nested CV with {cv_repetitions_to_train} repetitions of {cv_folds_to_train} folds")
     seed_everything(seed, reproducible)
     for repetition in range(cv_repetitions_to_train):
         for fold_index in range(cv_folds_to_train):
+
             start_time = datetime.now()
             data = preprocess_data(
                 data_dir,
