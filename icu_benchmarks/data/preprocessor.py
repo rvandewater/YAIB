@@ -5,7 +5,7 @@ import gin
 import pandas as pd
 from recipys.recipe import Recipe
 from recipys.selector import all_numeric_predictors, all_outcomes, has_type, all_of
-from recipys.step import StepScale, StepImputeFill, StepSklearn, StepHistorical, Accumulator, StepImputeModel
+from recipys.step import StepScale, StepImputeFastForwardFill, StepImputeFastZeroFill, StepSklearn, StepHistorical, Accumulator, StepImputeModel
 from sklearn.impute import SimpleImputer, MissingIndicator
 from sklearn.preprocessing import LabelEncoder, FunctionTransformer, MinMaxScaler
 
@@ -92,7 +92,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         if self.scaling:
             sta_rec.add_step(StepScale())
 
-        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), value=0))
+        sta_rec.add_step(StepImputeFastZeroFill(sel=all_numeric_predictors()))
         sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
         sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
 
@@ -122,8 +122,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
         if self.imputation_model is not None:
             dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[Segment.dynamic])))
         dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars[Segment.dynamic]), in_place=False))
-        dyn_rec.add_step(StepImputeFill(method="ffill"))
-        dyn_rec.add_step(StepImputeFill(value=0))
+        dyn_rec.add_step(StepImputeFastForwardFill())
+        dyn_rec.add_step(StepImputeFastZeroFill())
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars[Segment.dynamic]))
         data = apply_recipe_to_splits(dyn_rec, data, Segment.dynamic)
