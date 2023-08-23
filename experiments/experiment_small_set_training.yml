@@ -11,8 +11,6 @@ command:
   - ../yaib_logs_small_set_training
   - --tune
   - --wandb-sweep
-  - -gc
-#  - -lc
   - --verbose
   - --source-dir
   - /dhc/home/robin.vandewater/projects/transfer_learning/gru_mortality/hirid
@@ -25,16 +23,11 @@ parameters:
       - 500
       - 1000
       - 2000
-#      - 3000
-##      - 4000
-#      - 5000
-#      - 6000
-#      - 7000
-##      - 8000
-#      - 9000
-#      - 10000
-#      - 15000
-#      - 20000
+      - 4000
+      - 6000
+      - 8000
+      - 10000
+      - 12000
   data_dir:
     values:
 #      - ../../data/mortality24/miiv
