@@ -1,3 +1,4 @@
+import copy
 import pickle
 
 import torch
@@ -7,7 +8,9 @@ import gin
 import pandas as pd
 from recipys.recipe import Recipe
 from recipys.selector import all_numeric_predictors, all_outcomes, has_type, all_of
-from recipys.step import StepScale, StepImputeFastForwardFill, StepImputeFastZeroFill, StepSklearn, StepHistorical, Accumulator, StepImputeModel
+from recipys.step import StepScale, StepImputeFastForwardFill, StepImputeFastZeroFill, StepSklearn, StepHistorical, \
+    Accumulator, StepImputeModel, StepImputeFill
+
 from sklearn.impute import SimpleImputer, MissingIndicator
 from sklearn.preprocessing import LabelEncoder, FunctionTransformer, MinMaxScaler
 
@@ -57,6 +60,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
             Preprocessed data.
         """
         logging.info("Preprocessing dynamic features.")
+        # input caching here
         data = self._process_dynamic(data, vars)
         if self.use_static_features:
             logging.info("Preprocessing static features.")
@@ -94,6 +98,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
         if self.scaling:
             sta_rec.add_step(StepScale())
 
+        # sta_rec.add_step(StepImputeFastZeroFill(sel=all_numeric_predictors()))
         sta_rec.add_step(StepImputeFastZeroFill(sel=all_numeric_predictors()))
         sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
         sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
@@ -126,6 +131,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
         dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars[Segment.dynamic]), in_place=False))
         dyn_rec.add_step(StepImputeFastForwardFill())
         dyn_rec.add_step(StepImputeFastZeroFill())
+        # dyn_rec.add_step(StepImputeFill(method="ffill"))
+        # dyn_rec.add_step(StepImputeFill(value=0))
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars[Segment.dynamic]))
         data = apply_recipe_to_splits(dyn_rec, data, Segment.dynamic)
@@ -141,8 +148,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
 
     def to_cache_string(self):
         return (
-            super().to_cache_string()
-            + f"_classification_{self.generate_features}_{self.scaling}_{self.imputation_model.__class__.__name__}"
+                super().to_cache_string()
+                + f"_classification_{self.generate_features}_{self.scaling}_{self.imputation_model.__class__.__name__}"
         )
 
 
@@ -150,12 +157,12 @@ class DefaultClassificationPreprocessor(Preprocessor):
 class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
     # Override base classification preprocessor
     def __init__(
-        self,
-        generate_features: bool = True,
-        scaling: bool = True,
-        use_static_features: bool = True,
-        outcome_max=None,
-        outcome_min=None,
+            self,
+            generate_features: bool = True,
+            scaling: bool = True,
+            use_static_features: bool = True,
+            outcome_max=None,
+            outcome_min=None,
     ):
         """
         Args:
@@ -209,10 +216,10 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
 @gin.configurable("base_imputation_preprocessor")
 class DefaultImputationPreprocessor(Preprocessor):
     def __init__(
-        self,
-        scaling: bool = True,
-        use_static_features: bool = True,
-        filter_missing_values: bool = True,
+            self,
+            scaling: bool = True,
+            use_static_features: bool = True,
+            filter_missing_values: bool = True,
     ):
         """Preprocesses data for imputation.
 
@@ -276,20 +283,39 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
         Transformed features divided into 'train', 'val', and 'test'.
     """
 
-    # cache_file = "data/"
-    # cache_file_name = f"eicu_{Split.train}_{type}"
-    # cache_file += cache_file_name
-    # # # with open(cache_file, "wb") as f:
-    # # #     pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-    # # # logging.info(f"Cached data in {cache_file}.")
-    # with open(cache_file, "rb") as f:
-    #     logging.info(f"Loading cached data from {cache_file}.")
-    #     eicu_train = pickle.load(f)
-    # eicu_train = recipe.prep()
-    # data[Split.train][type] = recipe.bake(data[Split.train][type])
-    # data[Split.val][type] = recipe.bake(data[Split.val][type])
-    # data[Split.test][type] = recipe.bake(data[Split.test][type])
-    data[Split.train][type] = recipe.prep()
-    data[Split.val][type] = recipe.bake(data[Split.val][type])
-    data[Split.test][type] = recipe.bake(data[Split.test][type])
+    cache_file = "data/"
+    cache_file_name = f"eicu_{Split.train}_{type}"
+    cache_file += cache_file_name
+    restore_preproc = False
+    cache_preproc = False
+
+    if restore_preproc:
+        recipe = restore_recipe(cache_file)
+        data[Split.train][type] = recipe.bake(data[Split.train][type])
+        data[Split.val][type] = recipe.bake(data[Split.val][type])
+        data[Split.test][type] = recipe.bake(data[Split.test][type])
+    elif cache_preproc:
+        data[Split.train][type] = recipe.prep()
+        cache_recipe(recipe, cache_file)
+        data[Split.val][type] = recipe.bake(data[Split.val][type])
+        data[Split.test][type] = recipe.bake(data[Split.test][type])
+    else:
+        data[Split.train][type] = recipe.prep()
+        data[Split.val][type] = recipe.bake(data[Split.val][type])
+        data[Split.test][type] = recipe.bake(data[Split.test][type])
     return data
+
+
+def cache_recipe(recipe: Recipe, cache_file: str) -> None:
+    recipe_cache = copy.deepcopy(recipe)
+    recipe_cache.cache()
+    logging.info(f"Cached recipe in {cache_file}.")
+    with open(cache_file, "wb") as f:
+        pickle.dump(recipe_cache, f, pickle.HIGHEST_PROTOCOL)
+
+
+def restore_recipe(cache_file: str) -> Recipe:
+    with open(cache_file, "rb") as f:
+        logging.info(f"Loading cached recipe from {cache_file}.")
+        recipe = pickle.load(f)
+    return recipe
