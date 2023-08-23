@@ -8,10 +8,11 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar, LearningRateMonitor
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar, LearningRateMonitor, \
+    LearningRateFinder
 from pathlib import Path
 from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset
-from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
+from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger, create_optimizer
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 from icu_benchmarks.models.dl_models import GRUNet
@@ -118,23 +119,25 @@ def train_common(
 
     model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
     if load_weights:
-        model = GRUNet.load_from_checkpoint(source_dir / "model.ckpt")
-        # model = load_model(model, source_dir, pl_model)
+        model = model.load_from_checkpoint(source_dir / "model.ckpt")#optimizer=create_optimizer("adam", model, 0.1, 1))
+        #model = load_model(model, source_dir, pl_model)
 
     model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
-
+    model.optimizer = create_optimizer("adam", model, 0.00001, 1)
+    model.hparams.lr_scheduler = "exponential"
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
     if use_wandb:
         loggers.append(WandbLogger(save_dir=log_dir))
     callbacks = [
-        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience * 3, strict=False, verbose=verbose),
+        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience * 5, strict=False, verbose=verbose),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
         LearningRateMonitor(logging_interval="step"),
+        # LearningRateFinder()
         # FinetuningScheduler()
     ]
-    if verbose:
-        callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
+    # if verbose:
+    #     callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
     if precision == 16 or "16-mixed":
         torch.set_float32_matmul_precision("medium")
 
@@ -150,13 +153,12 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
-
     )
     if not eval_only:
         if model.requires_backprop:
             logging.info("Training DL model.")
             if load_weights:
-                trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=source_dir/"model.ckpt")
+                trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader) #, ckpt_path=source_dir/"model.ckpt")
             else:
                 trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
             logging.info("Training complete.")

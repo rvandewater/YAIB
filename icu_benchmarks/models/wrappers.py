@@ -102,7 +102,7 @@ class DLWrapper(BaseModule, ABC):
     def __init__(
             self,
             loss=CrossEntropyLoss(),
-            optimizer=Adam,
+            optimizer=None,
             run_mode: RunMode = RunMode.classification,
             input_shape=None,
             lr: float = 0.002,
@@ -144,6 +144,15 @@ class DLWrapper(BaseModule, ABC):
         }
         return super().on_fit_start()
 
+    def on_train_start(self):
+        self.metrics = {
+            step_name: {
+                metric_name: (metric() if isinstance(metric, type) else metric)
+                for metric_name, metric in self.set_metrics().items()
+            }
+            for step_name in ["train", "val", "test"]
+        }
+        return super().on_train_start()
     def finalize_step(self, step_prefix=""):
         try:
             self.log_dict(
@@ -166,16 +175,21 @@ class DLWrapper(BaseModule, ABC):
 
     def configure_optimizers(self):
         if isinstance(self.optimizer, str):
-            optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
-        else:
+            optimizer = create_optimizer(self.optimizer, 0.5, self.hparams.momentum)
+        elif self.optimizer is None:
             optimizer = self.optimizer(self.parameters())
+        else:
+            # Already set
+            optimizer = self.optimizer
 
         if self.hparams.lr_scheduler is None or self.hparams.lr_scheduler == "":
             return optimizer
         scheduler = create_scheduler(
             self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
         )
-        return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        optimizers = {"optimizer": optimizer, "lr_scheduler": scheduler}
+        logging.info(f"Using: {optimizers}")
+        return optimizers
 
     def on_test_epoch_start(self) -> None:
         self.metrics = {
@@ -205,10 +219,10 @@ class DLPredictionWrapper(DLWrapper):
             optimizer=torch.optim.Adam,
             run_mode: RunMode = RunMode.classification,
             input_shape=None,
-            lr: float = 0.002,
+            lr: float = 0.00002,
             momentum: float = 0.9,
             lr_scheduler: Optional[str] = None,
-            lr_factor: float = 0.99,
+            lr_factor: float = 0.099,
             lr_steps: Optional[List[int]] = None,
             epochs: int = 100,
             input_size: Tensor = None,
@@ -233,6 +247,7 @@ class DLPredictionWrapper(DLWrapper):
         self.output_transform = None
         self.loss_weights = None
 
+
     def set_weight(self, weight, dataset):
         """Set the weight for the loss function."""
 
@@ -244,7 +259,6 @@ class DLPredictionWrapper(DLWrapper):
 
     def set_metrics(self, *args):
         """Set the evaluation metrics for the prediction model."""
-
         def softmax_binary_output_transform(output):
             with torch.no_grad():
                 y_pred, y = output
@@ -256,7 +270,6 @@ class DLPredictionWrapper(DLWrapper):
                 y_pred, y = output
                 y_pred = torch.softmax(y_pred, dim=1)
                 return y_pred, y
-
         # Output transform is not applied for contrib metrics, so we do our own.
         if self.run_mode == RunMode.classification:
             # Binary classification
