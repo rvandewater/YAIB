@@ -132,7 +132,6 @@ class DLWrapper(BaseModule, ABC):
         self.input_size = input_size
         self.initialization_method = initialization_method
         self.scaler = None
-        logging.info(f"Learning rate: {self.lr}, learning factor {self.lr_factor}, learning steps {self.lr_steps}")
 
     def on_fit_start(self):
         self.metrics = {
@@ -272,6 +271,7 @@ class DLPredictionWrapper(DLWrapper):
                 y_pred, y = output
                 y_pred = torch.softmax(y_pred, dim=1)
                 return y_pred, y
+
         # Output transform is not applied for contrib metrics, so we do our own.
         if self.run_mode == RunMode.classification:
             # Binary classification
