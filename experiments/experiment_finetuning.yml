@@ -12,50 +12,34 @@ command:
   - --tune
   - --wandb-sweep
   - -gc
-#  - -lc
+  - -lc
   - -sn
   - eicu
   - --source-dir
   - /dhc/home/robin.vandewater/projects/transfer_learning/gru_mortality/eicu
-  - --verbose
 method: grid
-name: yaib_regression_benchmark
+name: yaib_finetuning_benchmark
 parameters:
   fine_tune:
     values:
-#      - 100
-#      - 500
-#      - 1000
-#      - 2000
-##      - 3000
-#      - 4000
-##      - 5000
-#      - 6000
-##      - 7000
-#      - 8000
-##      - 9000
-#      - 10000
+      - 100
+      - 500
+      - 1000
+      - 2000
+      - 4000
+      - 6000
+      - 8000
+      - 10000
       - 12000
-#      - 15000
-#      - 20000
   data_dir:
     values:
-#      - ../../data/mortality24/miiv
-      - ../../data/mortality24/hirid
-#      - ../../data/mortality24/eicu
-#      - ../../data/mortality24/aumc
-#      - ../../data/kf/miiv
-#      - ../../data/kf/hirid
-#      - ../../data/kf/eicu
-#      - ../../data/kf/aumc
+      - ../data/mortality24/miiv
+      - ../data/mortality24/hirid
+      - ../data/mortality24/eicu
+      - ../data/mortality24/aumc
   model:
     values:
-#      - ElasticNet
-#      - LGBMRegressor
       - GRU
-#      - LSTM
-#      - TCN
-#      - Transformer
   seed:
     values:
       - 1111

@@ -7,38 +7,36 @@ command:
   - -t
   - BinaryClassification
   - --log-dir
-  - ../yaib_logs_mortality24
+  - ../yaib_logs
   - --tune
   - --wandb-sweep
-  - --hp-checkpoint
-  - /dhc/home/robin.vandewater/projects/yaib_logs_mortality24/hirid/BinaryClassification/GRU/2023-08-16T16-33-19
-#  - -gc
-#  - -lc
+  - -gc
+  - -lc
 method: grid
 name: yaib_classification_benchmark
 parameters:
   data_dir:
     values:
-#      - ../data/mortality24/miiv
-      - ../../data/mortality24/hirid
-#      - ../data/mortality24/eicu
-#      - ../data/mortality24/aumc
-#      - ../../data/aki/miiv
-#      - ../../data/aki/hirid
-#      - ../../data/aki/eicu
-#      - ../../data/aki/aumc
-#      - ../../data/sepsis/miiv
-#      - ../../data/sepsis/hirid
-#      - ../../data/sepsis/eicu
-#      - ../../data/sepsis/aumc
+      - ../data/mortality24/miiv
+      - ../data/mortality24/hirid
+      - ../data/mortality24/eicu
+      - ../data/mortality24/aumc
+      - ../data/aki/miiv
+      - ../data/aki/hirid
+      - ../data/aki/eicu
+      - ../data/aki/aumc
+      - ../data/sepsis/miiv
+      - ../data/sepsis/hirid
+      - ../data/sepsis/eicu
+      - ../data/sepsis/aumc
   model:
     values:
-#      - LogisticRegression
-#      - LGBMClassifier
+      - LogisticRegression
+      - LGBMClassifier
       - GRU
-#      - LSTM
-#      - TCN
-#      - Transformer
+      - LSTM
+      - TCN
+      - Transformer
   seed:
     values:
       - 1111

@@ -1,3 +1,4 @@
+# This experiment trains models with progressively more samples to see how the performance changes
 command:
   - ${env}
   - ${program}
@@ -11,11 +12,10 @@ command:
   - ../yaib_logs_small_set_training
   - --tune
   - --wandb-sweep
-  - --verbose
   - --source-dir
   - /dhc/home/robin.vandewater/projects/transfer_learning/gru_mortality/hirid
 method: grid
-name: yaib_regression_benchmark
+name: yaib_samples_benchmark
 parameters:
   samples:
     values:
@@ -30,22 +30,13 @@ parameters:
       - 12000
   data_dir:
     values:
-#      - ../../data/mortality24/miiv
+      - ../../data/mortality24/miiv
       - ../../data/mortality24/hirid
-#      - ../../data/mortality24/eicu
-#      - ../../data/mortality24/aumc
-#      - ../../data/kf/miiv
-#      - ../../data/kf/hirid
-#      - ../../data/kf/eicu
-#      - ../../data/kf/aumc
+      - ../../data/mortality24/eicu
+      - ../../data/mortality24/aumc
   model:
     values:
-#      - ElasticNet
-#      - LGBMRegressor
       - GRU
-#      - LSTM
-#      - TCN
-#      - Transformer
   seed:
     values:
       - 1111
