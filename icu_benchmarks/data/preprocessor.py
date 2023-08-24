@@ -16,7 +16,6 @@ from recipys.step import (
     StepHistorical,
     Accumulator,
     StepImputeModel,
-    StepImputeFill,
 )
 
 from sklearn.impute import SimpleImputer, MissingIndicator
@@ -319,21 +318,23 @@ def apply_recipe_to_splits(
 
 
 def cache_recipe(recipe: Recipe, cache_file: str) -> None:
+    """Cache recipe to make it available for e.g. transfer learning."""
     recipe_cache = copy.deepcopy(recipe)
     recipe_cache.cache()
-    # with open(cache_file, "wb") as f:
-    #     pickle.dump(recipe_cache, f, pickle.HIGHEST_PROTOCOL)
-    if not (cache_file/"..").exists():
-        (cache_file/"..").mkdir()
+    if not (cache_file / "..").exists():
+        (cache_file / "..").mkdir()
     cache_file.touch()
     with open(cache_file, "wb") as f:
         pickle.dump(recipe_cache, f, pickle.HIGHEST_PROTOCOL)
     logging.info(f"Cached recipe in {cache_file}.")
 
 
-
 def restore_recipe(cache_file: str) -> Recipe:
-    with open(cache_file, "rb") as f:
-        logging.info(f"Loading cached recipe from {cache_file}.")
-        recipe = pickle.load(f)
-    return recipe
+    """Restore recipe from cache to use for e.g. transfer learning."""
+    if cache_file.exists():
+        with open(cache_file, "rb") as f:
+            logging.info(f"Loading cached recipe from {cache_file}.")
+            recipe = pickle.load(f)
+            return recipe
+    else:
+        raise FileNotFoundError(f"Cache file {cache_file} not found.")

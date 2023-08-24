@@ -68,7 +68,7 @@ def preprocess_data(
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
 
     logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
-    preprocessor = preprocessor(use_static_features=use_static, save_cache=data_dir / "preproc"/ (cache_filename+"_recipe"))
+    preprocessor = preprocessor(use_static_features=use_static, save_cache=data_dir / "preproc" / (cache_filename + "_recipe"))
     if isinstance(preprocessor, DefaultClassificationPreprocessor):
         preprocessor.set_imputation_model(pretrained_imputation_model)
 
@@ -100,7 +100,7 @@ def preprocess_data(
         train_size=train_size,
         seed=seed,
         debug=debug,
-        runmode=runmode
+        runmode=runmode,
     )
 
     # Apply preprocessing
