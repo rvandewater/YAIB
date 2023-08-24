@@ -150,10 +150,7 @@ def train_common(
     if not eval_only:
         if model.requires_backprop:
             logging.info("Training DL model.")
-            if load_weights:
-                trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
-            else:
-                trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
             logging.info("Training complete.")
         else:
             logging.info("Training ML model.")
