@@ -8,14 +8,12 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar, LearningRateMonitor, \
-    LearningRateFinder
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar, LearningRateMonitor
 from pathlib import Path
 from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset
-from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger, create_optimizer
+from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
-from icu_benchmarks.models.dl_models import GRUNet
 
 # from finetuning_scheduler import FinetuningScheduler
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
@@ -118,26 +116,22 @@ def train_common(
     data_shape = next(iter(train_loader))[0].shape
 
     model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+
     if load_weights:
-        model = model.load_from_checkpoint(source_dir / "model.ckpt")#optimizer=create_optimizer("adam", model, 0.1, 1))
-        #model = load_model(model, source_dir, pl_model)
+        model = load_model(model, source_dir, pl_model=pl_model)
 
     model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
-    model.optimizer = create_optimizer("adam", model, 0.00001, 1)
-    model.hparams.lr_scheduler = "exponential"
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
     if use_wandb:
         loggers.append(WandbLogger(save_dir=log_dir))
     callbacks = [
-        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience * 5, strict=False, verbose=verbose),
+        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False, verbose=verbose),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
         LearningRateMonitor(logging_interval="step"),
-        # LearningRateFinder()
-        # FinetuningScheduler()
     ]
-    # if verbose:
-    #     callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
+    if verbose:
+        callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
     if precision == 16 or "16-mixed":
         torch.set_float32_matmul_precision("medium")
 
@@ -158,7 +152,7 @@ def train_common(
         if model.requires_backprop:
             logging.info("Training DL model.")
             if load_weights:
-                trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader) #, ckpt_path=source_dir/"model.ckpt")
+                trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
             else:
                 trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
             logging.info("Training complete.")
@@ -185,8 +179,6 @@ def train_common(
     )
 
     model.set_weight("balanced", train_dataset)
-
-    # test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose, ckpt_path= source_dir/"last.ckpt" if eval_only else None)[0]["test/loss"]
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss
@@ -207,7 +199,7 @@ def load_model(model, source_dir, pl_model=True):
                 model = model.load_from_checkpoint(model_path)
             else:
                 checkpoint = torch.load(model_path)
-                model.load_state_dict(checkpoint)
+                model.load_from_checkpoint(checkpoint)
         else:
             model_path = source_dir / "model.joblib"
             model = load(model_path)
