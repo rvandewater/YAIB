@@ -125,7 +125,9 @@ def main(my_args=tuple(sys.argv[1:])):
         if args.source_dir is None:
             raise ValueError("Please specify a source directory when evaluating or fine-tuning.")
         log_dir /= f"_from_{args.source_name}"
-        gin.bind_parameter("train_common.dataset_names", {"train": args.source_name, "val": args.source_name, "test": args.name})
+        gin.bind_parameter(
+            "train_common.dataset_names", {"train": args.source_name, "val": args.source_name, "test": args.name}
+        )
         if args.fine_tune:
             log_dir /= f"fine_tune_{args.fine_tune}"
             gin.bind_parameter("train_common.dataset_names", {"train": args.name, "val": args.name, "test": args.name})
@@ -133,7 +135,7 @@ def main(my_args=tuple(sys.argv[1:])):
         source_dir = args.source_dir
         logging.info(f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
         gin.parse_config_file(source_dir / "train_config.gin")
-    elif args.samples and args.source_dir is not None: # Train model with limited samples and bind existing config
+    elif args.samples and args.source_dir is not None:  # Train model with limited samples and bind existing config
         logging.info("Binding train gin-config. Note: this might override your config.")
         gin.parse_config_file(args.source_dir / "train_config.gin")
         log_dir /= f"samples_{args.fine_tune}"
@@ -144,7 +146,7 @@ def main(my_args=tuple(sys.argv[1:])):
         gin.bind_parameter("train_common.dataset_names", {"train": args.name, "val": args.name, "test": args.name})
         hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
-                Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
+            Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]

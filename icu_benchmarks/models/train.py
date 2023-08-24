@@ -27,29 +27,29 @@ def assure_minimum_length(dataset):
 
 @gin.configurable("train_common")
 def train_common(
-        data: dict[str, pd.DataFrame],
-        log_dir: Path,
-        eval_only: bool = False,
-        load_weights: bool = False,
-        source_dir: Path = None,
-        reproducible: bool = True,
-        mode: str = RunMode.classification,
-        model: object = gin.REQUIRED,
-        weight: str = None,
-        optimizer: type = Adam,
-        precision=32,
-        batch_size=64,
-        epochs=1000,
-        patience=20,
-        min_delta=1e-5,
-        test_on: str = Split.test,
-        dataset_names=None,
-        use_wandb: bool = False,
-        cpu: bool = False,
-        verbose=False,
-        ram_cache=False,
-        pl_model=True,
-        num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
+    data: dict[str, pd.DataFrame],
+    log_dir: Path,
+    eval_only: bool = False,
+    load_weights: bool = False,
+    source_dir: Path = None,
+    reproducible: bool = True,
+    mode: str = RunMode.classification,
+    model: object = gin.REQUIRED,
+    weight: str = None,
+    optimizer: type = Adam,
+    precision=32,
+    batch_size=64,
+    epochs=1000,
+    patience=20,
+    min_delta=1e-5,
+    test_on: str = Split.test,
+    dataset_names=None,
+    use_wandb: bool = False,
+    cpu: bool = False,
+    verbose=False,
+    ram_cache=False,
+    pl_model=True,
+    num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -92,7 +92,8 @@ def train_common(
     if not eval_only:
         logging.info(
             f"Training on {train_dataset.name} with {len(train_dataset)} samples and validating on {val_dataset.name} with"
-            f" {len(val_dataset)} samples.")
+            f" {len(val_dataset)} samples."
+        )
     logging.info(f"Using {num_workers} workers for data loading.")
 
     train_loader = DataLoader(

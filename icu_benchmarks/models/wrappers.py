@@ -100,20 +100,20 @@ class DLWrapper(BaseModule, ABC):
     _supported_run_modes = [RunMode.classification, RunMode.regression, RunMode.imputation]
 
     def __init__(
-            self,
-            loss=CrossEntropyLoss(),
-            optimizer=Adam,
-            run_mode: RunMode = RunMode.classification,
-            input_shape=None,
-            lr: float = 0.002,
-            momentum: float = 0.9,
-            lr_scheduler: Optional[str] = None,
-            lr_factor: float = 0.99,
-            lr_steps: Optional[List[int]] = None,
-            epochs: int = 100,
-            input_size: Tensor = None,
-            initialization_method: str = "normal",
-            **kwargs,
+        self,
+        loss=CrossEntropyLoss(),
+        optimizer=Adam,
+        run_mode: RunMode = RunMode.classification,
+        input_shape=None,
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        epochs: int = 100,
+        input_size: Tensor = None,
+        initialization_method: str = "normal",
+        **kwargs,
     ):
         """General interface for Deep Learning (DL) models."""
         super().__init__()
@@ -152,13 +152,14 @@ class DLWrapper(BaseModule, ABC):
             for step_name in ["train", "val", "test"]
         }
         return super().on_train_start()
+
     def finalize_step(self, step_prefix=""):
         try:
             self.log_dict(
                 {
-                    f"{step_prefix}/{name}": (np.float32(metric.compute())
-                                              if isinstance(metric.compute(), np.float64)
-                                              else metric.compute())
+                    f"{step_prefix}/{name}": (
+                        np.float32(metric.compute()) if isinstance(metric.compute(), np.float64) else metric.compute()
+                    )
                     for name, metric in self.metrics[step_prefix].items()
                     if "_Curve" not in name
                 },
@@ -215,20 +216,20 @@ class DLPredictionWrapper(DLWrapper):
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
     def __init__(
-            self,
-            loss=CrossEntropyLoss(),
-            optimizer=torch.optim.Adam,
-            run_mode: RunMode = RunMode.classification,
-            input_shape=None,
-            lr: float = 0.002,
-            momentum: float = 0.9,
-            lr_scheduler: Optional[str] = None,
-            lr_factor: float = 0.99,
-            lr_steps: Optional[List[int]] = None,
-            epochs: int = 100,
-            input_size: Tensor = None,
-            initialization_method: str = "normal",
-            **kwargs,
+        self,
+        loss=CrossEntropyLoss(),
+        optimizer=torch.optim.Adam,
+        run_mode: RunMode = RunMode.classification,
+        input_shape=None,
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        epochs: int = 100,
+        input_size: Tensor = None,
+        initialization_method: str = "normal",
+        **kwargs,
     ):
         super().__init__(
             loss=loss,
@@ -248,7 +249,6 @@ class DLPredictionWrapper(DLWrapper):
         self.output_transform = None
         self.loss_weights = None
 
-
     def set_weight(self, weight, dataset):
         """Set the weight for the loss function."""
 
@@ -260,6 +260,7 @@ class DLPredictionWrapper(DLWrapper):
 
     def set_metrics(self, *args):
         """Set the evaluation metrics for the prediction model."""
+
         def softmax_binary_output_transform(output):
             with torch.no_grad():
                 y_pred, y = output
@@ -462,7 +463,8 @@ class MLWrapper(BaseModule, ABC):
         self.log_dict(
             {
                 # MPS dependent type casting
-                f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred)) if not self.mps
+                f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred))
+                if not self.mps
                 else metric(self.label_transform(label), self.output_transform(pred))
                 # Fore very metric
                 for name, metric in self.metrics.items()
@@ -509,21 +511,20 @@ class ImputationWrapper(DLWrapper):
     _supported_run_modes = [RunMode.imputation]
 
     def __init__(
-            self,
-            loss: nn.modules.loss._Loss = MSELoss(),
-            optimizer: Union[str, Optimizer] = "adam",
-            run_mode: RunMode = RunMode.imputation,
-            lr: float = 0.002,
-            momentum: float = 0.9,
-            lr_scheduler: Optional[str] = None,
-            lr_factor: float = 0.99,
-            lr_steps: Optional[List[int]] = None,
-            input_size: Tensor = None,
-            initialization_method: ImputationInit = ImputationInit.NORMAL,
-            epochs=100,
-            **kwargs: str,
+        self,
+        loss: nn.modules.loss._Loss = MSELoss(),
+        optimizer: Union[str, Optimizer] = "adam",
+        run_mode: RunMode = RunMode.imputation,
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        input_size: Tensor = None,
+        initialization_method: ImputationInit = ImputationInit.NORMAL,
+        epochs=100,
+        **kwargs: str,
     ) -> None:
-
         super().__init__(
             loss=loss,
             optimizer=optimizer,
