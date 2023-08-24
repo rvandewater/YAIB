@@ -174,13 +174,15 @@ class DLWrapper(BaseModule, ABC):
             pass
 
     def configure_optimizers(self):
+        """Configure optimizers and learning rate schedulers."""
+
         if isinstance(self.optimizer, str):
-            optimizer = create_optimizer(self.optimizer, 0.5, self.hparams.momentum)
-        elif self.optimizer is None:
-            optimizer = self.optimizer(self.parameters())
-        else:
+            optimizer = create_optimizer(self.optimizer, self.lr, self.hparams.momentum)
+        elif isinstance(self.optimizer, Optimizer):
             # Already set
             optimizer = self.optimizer
+        else:
+            optimizer = self.optimizer(self.parameters())
 
         if self.hparams.lr_scheduler is None or self.hparams.lr_scheduler == "":
             return optimizer

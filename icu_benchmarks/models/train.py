@@ -15,7 +15,6 @@ from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 
-# from finetuning_scheduler import FinetuningScheduler
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 from pytorch_lightning.loggers import WandbLogger
 
