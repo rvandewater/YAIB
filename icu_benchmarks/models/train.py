@@ -6,7 +6,7 @@ import pandas as pd
 from joblib import load
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar, LearningRateMonitor
 from pathlib import Path
@@ -16,7 +16,6 @@ from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
-from pytorch_lightning.loggers import WandbLogger
 
 
 def assure_minimum_length(dataset):

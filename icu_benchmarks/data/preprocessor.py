@@ -176,6 +176,8 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
         use_static_features: bool = True,
         outcome_max=None,
         outcome_min=None,
+        save_cache=None,
+        load_cache=None,
     ):
         """
         Args:
@@ -184,10 +186,12 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
             use_static_features: Use static features.
             max_range: Maximum value in outcome.
             min_range: Minimum value in outcome.
+            save_cache: Save recipe cache.
+            load_cache: Load recipe cache.
         Returns:
             Preprocessed data.
         """
-        super().__init__(generate_features, scaling, use_static_features)
+        super().__init__(generate_features, scaling, use_static_features, save_cache, load_cache)
         self.outcome_max = outcome_max
         self.outcome_min = outcome_min
 
@@ -300,11 +304,11 @@ def apply_recipe_to_splits(
         Transformed features divided into 'train', 'val', and 'test'.
     """
 
-    if load_cache:
+    if isinstance(load_cache, str):
         # Load existing recipe
         recipe = restore_recipe(load_cache)
         data[Split.train][type] = recipe.bake(data[Split.train][type])
-    elif save_cache:
+    elif isinstance(save_cache, str):
         # Save prepped recipe
         data[Split.train][type] = recipe.prep()
         cache_recipe(recipe, save_cache)

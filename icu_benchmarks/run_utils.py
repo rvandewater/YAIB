@@ -1,6 +1,9 @@
+import importlib
+import sys
 import warnings
 from math import sqrt
 
+import gin
 import torch
 import json
 from argparse import ArgumentParser, BooleanOptionalAction as BOA
@@ -12,6 +15,19 @@ import shutil
 from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
+
+
+def import_preprocessor(preprocessor_path: str):
+    # Import custom supplied preprocessor
+    log_full_line(f"Importing custom preprocessor from {preprocessor_path}.", logging.INFO)
+    try:
+        spec = importlib.util.spec_from_file_location("CustomPreprocessor", preprocessor_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["preprocessor"] = module
+        spec.loader.exec_module(module)
+        gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
+    except Exception as e:
+        logging.error(f"Could not import custom preprocessor from {preprocessor_path}: {e}")
 
 
 def build_parser() -> ArgumentParser:

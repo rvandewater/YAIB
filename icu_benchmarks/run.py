@@ -5,7 +5,6 @@ import gin
 import logging
 import sys
 from pathlib import Path
-import importlib.util
 
 import torch.cuda
 
@@ -20,6 +19,7 @@ from icu_benchmarks.run_utils import (
     log_full_line,
     load_pretrained_imputation_model,
     setup_logging,
+    import_preprocessor
 )
 from icu_benchmarks.contants import RunMode
 
@@ -109,16 +109,7 @@ def main(my_args=tuple(sys.argv[1:])):
     log_full_line(f"Logging to {log_dir}.", logging.INFO)
 
     if args.preprocessor:
-        # Import custom supplied preprocessor
-        log_full_line(f"Importing custom preprocessor from {args.preprocessor}.", logging.INFO)
-        try:
-            spec = importlib.util.spec_from_file_location("CustomPreprocessor", args.preprocessor)
-            module = importlib.util.module_from_spec(spec)
-            sys.modules["preprocessor"] = module
-            spec.loader.exec_module(module)
-            gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
-        except Exception as e:
-            logging.error(f"Could not import custom preprocessor from {args.preprocessor}: {e}")
+        import_preprocessor(args.preprocessor)
 
     # Load pretrained model in evaluate mode or when finetuning
     if load_weights:
