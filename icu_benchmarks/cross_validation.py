@@ -74,7 +74,6 @@ def execute_repeated_cv(
     seed_everything(seed, reproducible)
     for repetition in range(cv_repetitions_to_train):
         for fold_index in range(cv_folds_to_train):
-
             start_time = datetime.now()
             data = preprocess_data(
                 data_dir,

@@ -64,7 +64,7 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     Returns:
         Path to the created run log directory.
     """
-    if not (log_dir/ str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))).exists():
+    if not (log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))).exists():
         log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))
     else:
         log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))

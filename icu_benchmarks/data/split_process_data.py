@@ -65,13 +65,15 @@ def preprocess_data(
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 
+    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
+
     logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
-    preprocessor = preprocessor(use_static_features=use_static)
+    preprocessor = preprocessor(use_static_features=use_static, save_cache=data_dir / "preproc" / (cache_filename + "_recipe"))
     if isinstance(preprocessor, DefaultClassificationPreprocessor):
         preprocessor.set_imputation_model(pretrained_imputation_model)
 
     hash_config = hashlib.md5(f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}".encode("utf-8"))
-    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}_{hash_config.hexdigest()}"
+    cache_filename += f"_{hash_config.hexdigest()}"
     cache_file = cache_dir / cache_filename
 
     if load_cache:
@@ -98,7 +100,7 @@ def preprocess_data(
         train_size=train_size,
         seed=seed,
         debug=debug,
-        runmode=runmode
+        runmode=runmode,
     )
 
     # Apply preprocessing
