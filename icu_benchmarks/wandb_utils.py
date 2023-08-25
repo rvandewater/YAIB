@@ -1,5 +1,7 @@
 from argparse import Namespace
 import logging
+from pathlib import Path
+
 import wandb
 
 
@@ -56,6 +58,9 @@ def set_wandb_experiment_name(args, mode):
         args (Namespace): parsed arguments
         mode (RunMode): run mode
     """
+    if args.name is None:
+        data_dir = Path(args.data_dir)
+        args.name = data_dir.name
     run_name = f"{mode}_{args.model}_{args.name}"
 
     if args.fine_tune:
