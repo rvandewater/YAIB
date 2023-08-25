@@ -17,26 +17,13 @@ from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
 
 
-def import_preprocessor(preprocessor_path: str):
-    # Import custom supplied preprocessor
-    log_full_line(f"Importing custom preprocessor from {preprocessor_path}.", logging.INFO)
-    try:
-        spec = importlib.util.spec_from_file_location("CustomPreprocessor", preprocessor_path)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules["preprocessor"] = module
-        spec.loader.exec_module(module)
-        gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
-    except Exception as e:
-        logging.error(f"Could not import custom preprocessor from {preprocessor_path}: {e}")
-
-
 def build_parser() -> ArgumentParser:
     """Builds an ArgumentParser for the command line.
 
     Returns:
         The configured ArgumentParser.
     """
-    parser = ArgumentParser(description="Benchmark lib for processing and evaluation of deep learning models on ICU data")
+    parser = ArgumentParser(description="Framework for benchmarking ML/DL models on ICU data")
 
     parser.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
     parser.add_argument("-t", "--task", default="BinaryClassification", required=True, help="Name of the task gin.")
@@ -88,6 +75,19 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     if randomly_searched_params:
         (log_dir_run / randomly_searched_params).touch()
     return log_dir_run
+
+
+def import_preprocessor(preprocessor_path: str):
+    # Import custom supplied preprocessor
+    log_full_line(f"Importing custom preprocessor from {preprocessor_path}.", logging.INFO)
+    try:
+        spec = importlib.util.spec_from_file_location("CustomPreprocessor", preprocessor_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["preprocessor"] = module
+        spec.loader.exec_module(module)
+        gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
+    except Exception as e:
+        logging.error(f"Could not import custom preprocessor from {preprocessor_path}: {e}")
 
 
 def aggregate_results(log_dir: Path, execution_time: timedelta = None):
@@ -154,6 +154,12 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     logging.info(f"Accumulated results: {accumulated_metrics}")
 
     wandb_log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
+
+
+def name_datasets(train="default", val="default", test="default"):
+    """Names the datasets for logging (optional)."""
+    gin.bind_parameter("train_common.dataset_names", {"train": train, "val": val, "test": test})
+
 
 
 def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
