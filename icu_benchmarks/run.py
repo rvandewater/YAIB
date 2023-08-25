@@ -33,7 +33,11 @@ def get_mode(mode: gin.REQUIRED):
 
 
 def main(my_args=tuple(sys.argv[1:])):
+
     args, _ = build_parser().parse_known_args(my_args)
+    if args.wandb_sweep:
+        args = apply_wandb_sweep(args)
+        set_wandb_experiment_name(args, "run")
     # Initialize loggers
     log_format = "%(asctime)s - %(levelname)s - %(name)s : %(message)s"
     date_format = "%Y-%m-%d %H:%M:%S"
@@ -52,9 +56,7 @@ def main(my_args=tuple(sys.argv[1:])):
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
     # Set arguments for wandb sweep
-    if args.wandb_sweep:
-        args = apply_wandb_sweep(args)
-        set_wandb_experiment_name(args, mode)
+
 
     # Set experiment name
     if name is None:

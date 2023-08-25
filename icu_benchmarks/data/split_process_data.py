@@ -1,3 +1,4 @@
+import copy
 import logging
 import gin
 import json
@@ -7,12 +8,11 @@ import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 
-from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
+from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit, train_test_split
 
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
-from .pooling import pool_datasets
 
 
 @gin.configurable("preprocess")
@@ -32,6 +32,7 @@ def preprocess_data(
         generate_cache: bool = False,
         fold_index: int = 0,
         pretrained_imputation_model: str = None,
+        full_train: bool = False,
         runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
@@ -87,47 +88,24 @@ def preprocess_data(
 
     # Read parquet files into pandas dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
-    pooling = True
-
-    datasets = ["eicu", "hirid", "miiv"]
-    # datasets = ["eicu", "hirid", "aumc"]
-    # datasets = ["eicu", "aumc", "miiv"]
-    # datasets = ["aumc", "hirid", "miiv"]
-
-
-    if pooling:
-        data = {}
-        for folder in data_dir.iterdir():
-            if folder.is_dir():
-                if folder.name in datasets:
-                    data[folder.name] = {f: pq.read_table(folder / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
-        data = pool_datasets(datasets=data, samples=10000, vars=vars, shuffle=True, stratify=None)
-    else:
-        data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
-
-    cache_file = "_".join(datasets)
-    cache_dir = Path(r'C:\Users\Robin\Downloads\mortality24_eicu_hirid_aumc\cache')
-    cache_dir = cache_dir / cache_file
-    if not cache_dir.exists():
-        cache_dir.mkdir()
-    for key, value in data.items():
-        value.to_parquet(cache_dir / Path( key + ".parquet"))
-    caching(cache_dir, cache_file, data, load_cache)
-
+    data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
     # Generate the splits
     logging.info("Generating splits.")
-    data = make_single_split(
-        data,
-        vars,
-        cv_repetitions,
-        repetition_index,
-        cv_folds,
-        fold_index,
-        train_size=train_size,
-        seed=seed,
-        debug=debug,
-        runmode=runmode,
-    )
+    if not full_train:
+        data = make_single_split(
+            data,
+            vars,
+            cv_repetitions,
+            repetition_index,
+            cv_folds,
+            fold_index,
+            train_size=train_size,
+            seed=seed,
+            debug=debug,
+            runmode=runmode,
+        )
+    else:
+        data = make_train_val(data, vars, train_size=0.8, seed=seed, debug=debug)
 
     # Apply preprocessing
     data = preprocessor.apply(data, vars)
@@ -141,6 +119,62 @@ def preprocess_data(
     logging.info("Finished preprocessing.")
 
     return data
+
+def make_train_val(
+        data: dict[pd.DataFrame],
+        vars: dict[str],
+        train_size=0.8,
+        seed: int = 42,
+        debug: bool = False,
+) -> dict[dict[pd.DataFrame]]:
+    """Randomly split the data into training and validation sets for fitting a full model.
+
+    Args:
+        data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
+        vars: Contains the names of columns in the data.
+        train_size: Fixed size of train split (including validation data).
+        seed: Random seed.
+        debug: Load less data if true.
+    Returns:
+        Input data divided into 'train', 'val', and 'test'.
+    """
+    # ID variable
+    id = vars[Var.group]
+
+    # Get stay IDs from outcome segment
+    stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
+
+    if debug:
+        # Only use 1% of the data
+        stays = stays.sample(frac=0.01, random_state=seed)
+
+    # If there are labels, and the task is classification, use stratified k-fold
+    if Var.label in vars:
+        # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
+        labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+        if train_size:
+            train_val = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
+        train, val = list(train_val.split(stays, labels))[0]
+    else:
+        # If there are no labels, use random split
+        train, val = train_test_split(stays, train_size=train_size, random_state=seed)
+
+    split = {
+        Split.train: stays.iloc[train],
+        Split.val: stays.iloc[val]
+    }
+
+    data_split = {}
+
+    for fold in split.keys():  # Loop through splits (train / val / test)
+        # Loop through segments (DYNAMIC / STATIC / OUTCOME)
+        # set sort to true to make sure that IDs are reordered after scrambling earlier
+        data_split[fold] = {
+            data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
+        }
+    # Maintain compatibility with test split
+    data_split[Split.test] = copy.deepcopy(data_split[Split.val])
+    return data_split
 
 
 def make_single_split(
