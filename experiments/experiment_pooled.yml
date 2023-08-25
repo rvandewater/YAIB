@@ -1,0 +1,36 @@
+# This experiment trains models with progressively more samples to see how the performance changes
+command:
+  - ${env}
+  - ${program}
+  - --samples
+  - 0
+  - -d
+  - ../data/
+  - -t
+  - BinaryClassification
+  - --log-dir
+  - ../yaib_logs_pooled_training
+  - --tune
+  - --wandb-sweep
+method: grid
+name: yaib_samples_benchmark
+parameters:
+  samples:
+    values:
+      - 30000
+  data_dir:
+    values:
+      - ../../data/pooled_mortality24_10000/eicu_aumc_miiv
+      - ../../data/pooled_mortality24_10000/aumc_hirid_miiv
+      - ../../data/pooled_mortality24_10000/eicu_hirid_miiv
+#      - ../../data/pooled_mortality24_10000/eicu_hirid_aumc
+  model:
+    values:
+      - GRU
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks
