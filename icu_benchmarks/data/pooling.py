@@ -41,9 +41,6 @@ def pool_datasets(datasets={}, samples=10000, vars = [], seed=42,shuffle=True, s
                 pooled_data[Segment.static].append(static)
                 pooled_data[Segment.dynamic].append(dynamic)
                 pooled_data[Segment.outcome].append(outcome)
-                # value[Segment.static] = [value[Segment.static].loc[stays]
-                # value[Segment.dynamic] = value[Segment.dynamic].loc[stays]
-                # stays = stays.sample(samples=, random_state=seed)
     for key, value in pooled_data.items():
         pooled_data[key] = pd.concat(value, ignore_index=True)
     return pooled_data

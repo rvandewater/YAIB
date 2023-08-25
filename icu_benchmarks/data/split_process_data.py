@@ -88,14 +88,31 @@ def preprocess_data(
     # Read parquet files into pandas dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
     pooling = True
+
+    datasets = ["eicu", "hirid", "miiv"]
+    # datasets = ["eicu", "hirid", "aumc"]
+    # datasets = ["eicu", "aumc", "miiv"]
+    # datasets = ["aumc", "hirid", "miiv"]
+
+
     if pooling:
         data = {}
         for folder in data_dir.iterdir():
             if folder.is_dir():
-                data[folder.name] = {f: pq.read_table(folder / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
-        data = pool_datasets(datasets=data, samples=50, vars=vars, shuffle=True, stratify=None)
+                if folder.name in datasets:
+                    data[folder.name] = {f: pq.read_table(folder / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
+        data = pool_datasets(datasets=data, samples=10000, vars=vars, shuffle=True, stratify=None)
     else:
         data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
+
+    cache_file = "_".join(datasets)
+    cache_dir = Path(r'C:\Users\Robin\Downloads\mortality24_eicu_hirid_aumc\cache')
+    cache_dir = cache_dir / cache_file
+    if not cache_dir.exists():
+        cache_dir.mkdir()
+    for key, value in data.items():
+        value.to_parquet(cache_dir / Path( key + ".parquet"))
+    caching(cache_dir, cache_file, data, load_cache)
 
     # Generate the splits
     logging.info("Generating splits.")
