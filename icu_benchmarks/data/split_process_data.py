@@ -12,26 +12,27 @@ from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSpl
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
+from .pooling import pool_datasets
 
 
 @gin.configurable("preprocess")
 def preprocess_data(
-    data_dir: Path,
-    file_names: dict[str] = gin.REQUIRED,
-    preprocessor: Preprocessor = DefaultClassificationPreprocessor,
-    use_static: bool = True,
-    vars: dict[str] = gin.REQUIRED,
-    seed: int = 42,
-    debug: bool = False,
-    cv_repetitions: int = 5,
-    repetition_index: int = 0,
-    cv_folds: int = 5,
-    train_size: int = None,
-    load_cache: bool = False,
-    generate_cache: bool = False,
-    fold_index: int = 0,
-    pretrained_imputation_model: str = None,
-    runmode: RunMode = RunMode.classification,
+        data_dir: Path,
+        file_names: dict[str] = gin.REQUIRED,
+        preprocessor: Preprocessor = DefaultClassificationPreprocessor,
+        use_static: bool = True,
+        vars: dict[str] = gin.REQUIRED,
+        seed: int = 42,
+        debug: bool = False,
+        cv_repetitions: int = 5,
+        repetition_index: int = 0,
+        cv_folds: int = 5,
+        train_size: int = None,
+        load_cache: bool = False,
+        generate_cache: bool = False,
+        fold_index: int = 0,
+        pretrained_imputation_model: str = None,
+        runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -86,7 +87,15 @@ def preprocess_data(
 
     # Read parquet files into pandas dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
-    data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
+    pooling = True
+    if pooling:
+        data = {}
+        for folder in data_dir.iterdir():
+            if folder.is_dir():
+                data[folder.name] = {f: pq.read_table(folder / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
+        data = pool_datasets(datasets=data, samples=50, vars=vars, shuffle=True, stratify=None)
+    else:
+        data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
 
     # Generate the splits
     logging.info("Generating splits.")
@@ -118,16 +127,16 @@ def preprocess_data(
 
 
 def make_single_split(
-    data: dict[pd.DataFrame],
-    vars: dict[str],
-    cv_repetitions: int,
-    repetition_index: int,
-    cv_folds: int,
-    fold_index: int,
-    train_size: int = None,
-    seed: int = 42,
-    debug: bool = False,
-    runmode: RunMode = RunMode.classification,
+        data: dict[pd.DataFrame],
+        vars: dict[str],
+        cv_repetitions: int,
+        repetition_index: int,
+        cv_folds: int,
+        fold_index: int,
+        train_size: int = None,
+        seed: int = 42,
+        debug: bool = False,
+        runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 

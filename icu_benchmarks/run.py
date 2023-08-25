@@ -47,7 +47,7 @@ def main(my_args=tuple(sys.argv[1:])):
     reproducible = args.reproducible
     evaluate = args.eval
     experiment = args.experiment
-
+    source_dir = args.source_dir
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
