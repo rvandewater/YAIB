@@ -1,0 +1,35 @@
+# This experiment trains models with progressively more samples to see how the performance changes
+command:
+  - ${env}
+  - ${program}
+  - --full-train
+  - -d
+  - ../data/
+  - -t
+  - BinaryClassification
+  - --log-dir
+  - ../yaib_logs_pooled_training
+  - --tune
+  - --wandb-sweep
+  - --tune
+  - --hp-checkpoint
+  - /dhc/home/robin.vandewater/projects/yaib_logs_pooled_training/eicu_hirid_aumc/BinaryClassification/GRU/2023-08-25T17-59-10
+method: grid
+name: yaib_full_benchmark
+parameters:
+  data_dir:
+    values:
+#      - ../../data/pooled_mortality24_10000/eicu_aumc_miiv
+#      - ../../data/pooled_mortality24_10000/aumc_hirid_miiv
+#      - ../../data/pooled_mortality24_10000/eicu_hirid_miiv
+      - ../../data/pooled_mortality24_10000/eicu_hirid_aumc
+  model:
+    values:
+      - GRU
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks
