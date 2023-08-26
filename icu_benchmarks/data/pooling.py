@@ -11,9 +11,10 @@ class PooledDataset:
     eicu_hirid_aumc = ["eicu", "hirid", "aumc"]
     eicu_aumc_miiv = ["eicu", "aumc", "miiv"]
     aumc_hirid_miiv = ["aumc", "hirid", "miiv"]
+    eicu_hirid_aumc_miiv = ["eicu", "hirid", "aumc", "miiv"]
 
 
-def generate_pooled_data(data_dir, vars, datasets, file_names, samples, seed, shuffle, stratify):
+def generate_pooled_data(data_dir, vars, datasets, file_names, samples=10000, seed=42, shuffle=False, stratify=None):
     data = {}
     for folder in data_dir.iterdir():
         if folder.is_dir():
@@ -21,7 +22,7 @@ def generate_pooled_data(data_dir, vars, datasets, file_names, samples, seed, sh
                 data[folder.name] = {
                     f: pq.read_table(folder / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()
                 }
-    data = pool_datasets(datasets=data, samples=10000, vars=vars, shuffle=True, stratify=None)
+    data = pool_datasets(datasets=data, samples=samples, vars=vars, shuffle=True, stratify=None)
     save_pooled_data(data_dir, data, datasets)
 
 
@@ -54,7 +55,7 @@ def pool_datasets(datasets={}, samples=10000, vars=[], seed=42, shuffle=True, st
         # outcome = value[Segment.outcome].groupby(vars["LABEL"], group_keys=False).sample(samples_per_class,random_state=seed)
         outcome = value[Segment.outcome]
         outcome = train_test_split(
-            outcome, stratify=outcome[Var.label], shuffle=shuffle, random_state=seed, train_size=samples
+            outcome, stratify=outcome[vars[Var.label]], shuffle=shuffle, random_state=seed, train_size=samples
         )[0]
         stays = pd.Series(outcome[id].unique())
         static = value[Segment.static]
