@@ -13,8 +13,7 @@ from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSpl
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
-
-
+from .pooling import PooledDataset, generate_pooled_data
 @gin.configurable("preprocess")
 def preprocess_data(
         data_dir: Path,
@@ -77,7 +76,9 @@ def preprocess_data(
     hash_config = hashlib.md5(f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}".encode("utf-8"))
     cache_filename += f"_{hash_config.hexdigest()}"
     cache_file = cache_dir / cache_filename
-
+    # PooledDataset.aumc_eicu_miiv, PooledDataset.hirid_eicu_miiv, PooledDataset.aumc_hirid_eicu, PooledDataset.aumc_hirid_miiv,
+    # for item in [PooledDataset.aumc_hirid_eicu_miiv]:
+    #     generate_pooled_data(Path(r'C:\Users\Robin\Documents\Git\YAIB\data\YAIB_Datasets\data\mortality24'), vars=vars, datasets=item, file_names=file_names, seed=seed, runmode=runmode)
     if load_cache:
         if cache_file.exists():
             with open(cache_file, "rb") as f:
@@ -105,7 +106,7 @@ def preprocess_data(
             runmode=runmode,
         )
     else:
-        data = make_train_val(data, vars, train_size=0.8, seed=seed, debug=debug)
+        data = make_train_val(data, vars, train_size=0.8, seed=seed, debug=debug, runmode=runmode)
 
     # Apply preprocessing
     data = preprocessor.apply(data, vars)
@@ -126,6 +127,7 @@ def make_train_val(
         train_size=0.8,
         seed: int = 42,
         debug: bool = False,
+        runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training and validation sets for fitting a full model.
 
@@ -149,7 +151,7 @@ def make_train_val(
         stays = stays.sample(frac=0.01, random_state=seed)
 
     # If there are labels, and the task is classification, use stratified k-fold
-    if Var.label in vars:
+    if Var.label in vars and runmode is RunMode.classification:
         # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
         labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
         if train_size:
@@ -157,7 +159,9 @@ def make_train_val(
         train, val = list(train_val.split(stays, labels))[0]
     else:
         # If there are no labels, use random split
-        train, val = train_test_split(stays, train_size=train_size, random_state=seed)
+        train_val = ShuffleSplit(train_size=train_size, random_state=seed)
+        train, val = list(train_val.split(stays))[0]
+
 
     split = {
         Split.train: stays.iloc[train],

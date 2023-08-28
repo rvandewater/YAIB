@@ -7,14 +7,17 @@ command:
   - -d
   - ../data/
   - -t
-  - BinaryClassification
+#  - BinaryClassification
+  - Regression
   - --log-dir
 #  - ../../data/pooled_mortality24_10000
-  - ../yaib_logs_pooled_training
+  - ../yaib_logs_pooled_los
   - --tune
   - --wandb-sweep
   - --hp-checkpoint
   - test
+  - -gc
+  - -lc
 method: grid
 name: yaib_pooled_benchmark
 parameters:
@@ -23,14 +26,25 @@ parameters:
 #      - 30000
   data_dir:
     values:
+#      - ../../data/kf/pooled_datasets_6000/hirid_eicu_miiv
+#      - ../../data/kf/pooled_datasets_6000/aumc_hirid_eicu
+#      - ../../data/kf/pooled_datasets_6000/aumc_eicu_miiv
+#      - ../../data/kf/pooled_datasets_6000/aumc_hirid_miiv
+#      - ../../data/kf/pooled_datasets_6000/aumc_hirid_eicu_miiv
+      - ../../data/los/aumc_hirid_eicu_10000
+      - ../../data/los/hirid_eicu_miiv_10000
+      - ../../data/los/aumc_eicu_miiv_10000
+      - ../../data/los/aumc_hirid_miiv_10000
+      - ../../data/los/aumc_hirid_eicu_miiv_10000
 #      - ../../data/pooled_mortality24_10000/eicu_aumc_miiv
 #      - ../../data/pooled_mortality24_10000/aumc_hirid_miiv
 #      - ../../data/pooled_mortality24_10000/eicu_hirid_miiv
 #      - ../../data/pooled_mortality24_10000/eicu_hirid_aumc
-      - ../../data/pooled_mortality24_10000/aumc_hirid_eicu_miiv
+#      - ../../data/pooled_mortality24_10000/aumc_hirid_eicu_miiv
   model:
     values:
-      - GRU
+#      - GRU
+      - Transformer
   seed:
     values:
       - 1111
