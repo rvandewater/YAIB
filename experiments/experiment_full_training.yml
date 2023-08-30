@@ -1,4 +1,4 @@
-# This experiment trains models with progressively more samples to see how the performance changes
+# This experiment trains a production-ready model with a full dataset (no cross-validation).
 command:
   - ${env}
   - ${program}
@@ -6,35 +6,41 @@ command:
   - -d
   - ../data/
   - -t
-#  - BinaryClassification
-  - Regression
+  - BinaryClassification
+#  - Regression
   - --log-dir
-#  - ../yaib_logs_pooled_training
-  - ../yaib_logs_pooled_los
+  - ../yaib_logs
   - --tune
   - --wandb-sweep
   - --tune
-  - --hp-checkpoint
-  - test
 method: grid
 name: yaib_full_benchmark
 parameters:
   data_dir:
     values:
-#      - ../../data/pooled_mortality24_10000/eicu_aumc_miiv
-#      - ../../data/pooled_mortality24_10000/aumc_hirid_miiv
-#      - ../../data/pooled_mortality24_10000/eicu_hirid_miiv
-#      - ../../data/pooled_mortality24_10000/eicu_hirid_aumc
-#      - ../../data/pooled_mortality24_10000/aumc_hirid_eicu_miiv
-      - ../../data/los/aumc_hirid_eicu_10000
-      - ../../data/los/hirid_eicu_miiv_10000
-      - ../../data/los/aumc_eicu_miiv_10000
-      - ../../data/los/aumc_hirid_miiv_10000
-      - ../../data/los/aumc_hirid_eicu_miiv_10000
+      - ../data/mortality24/miiv
+      - ../data/mortality24/hirid
+      - ../data/mortality24/eicu
+      - ../data/mortality24/aumc
+      - ../data/aki/miiv
+      - ../data/aki/hirid
+      - ../data/aki/eicu
+      - ../data/aki/aumc
+      - ../data/sepsis/miiv
+      - ../data/sepsis/hirid
+      - ../data/sepsis/eicu
+      - ../data/sepsis/aumc
+      - ../data/los/miiv
+      - ../data/los/hirid
+      - ../data/los/eicu
+      - ../data/los/aumc
+      - ../data/kf/miiv
+      - ../data/kf/hirid
+      - ../data/kf/eicu
+      - ../data/kf/aumc
   model:
     values:
-      #- GRU
-      - Transformer
+      - GRU
   seed:
     values:
       - 1111

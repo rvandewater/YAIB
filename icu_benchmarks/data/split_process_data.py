@@ -13,7 +13,7 @@ from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSpl
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
-from .pooling import PooledDataset, generate_pooled_data
+
 @gin.configurable("preprocess")
 def preprocess_data(
         data_dir: Path,
@@ -76,9 +76,7 @@ def preprocess_data(
     hash_config = hashlib.md5(f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}".encode("utf-8"))
     cache_filename += f"_{hash_config.hexdigest()}"
     cache_file = cache_dir / cache_filename
-    # PooledDataset.aumc_eicu_miiv, PooledDataset.hirid_eicu_miiv, PooledDataset.aumc_hirid_eicu, PooledDataset.aumc_hirid_miiv,
-    # for item in [PooledDataset.aumc_hirid_eicu_miiv]:
-    #     generate_pooled_data(Path(r'C:\Users\Robin\Documents\Git\YAIB\data\YAIB_Datasets\data\mortality24'), vars=vars, datasets=item, file_names=file_names, seed=seed, runmode=runmode)
+
     if load_cache:
         if cache_file.exists():
             with open(cache_file, "rb") as f:

@@ -1,3 +1,4 @@
+# This experiment evaluates the pooled models trained in a previous experiment.
 command:
   - ${env}
   - ${program}
@@ -5,55 +6,45 @@ command:
   - -d
   - ../data/
   - -t
-#  - BinaryClassification
-  - Regression
+  - BinaryClassification
+#  - Regression
   - --log-dir
-  - ../yaib_logs_pooled
-#  - --tune
+  - ../yaib_logs
   - --wandb-sweep
-#  - -gc
-#  - -lc
-#  - -sn
-#  - eicu_hirid_aumc
-#  - eicu_hirid_miiv
+  - -gc
+  - -lc
   - --source-dir
-#  - /dhc/home/robin.vandewater/projects/yaib_logs_pooled_los/aumc_eicu_miiv_10000/Regression/Transformer/2023-08-28T11-06-03/repetition_0/fold_0
-#  - /dhc/home/robin.vandewater/projects/yaib_logs_pooled_los/aumc_hirid_miiv_10000/Regression/Transformer/2023-08-28T11-06-05/repetition_0/fold_0
-#  - /dhc/home/robin.vandewater/projects/yaib_logs_pooled_los/aumc_hirid_eicu_10000/Regression/Transformer/2023-08-28T11-03-18/repetition_0/fold_0
-#  - /dhc/home/robin.vandewater/projects/yaib_logs_pooled_training/aumc_hirid_eicu_miiv/BinaryClassification/GRU/2023-08-27T12-10-12/repetition_0/fold_0
-  - /dhc/home/robin.vandewater/projects/yaib_logs_pooled_los/hirid_eicu_miiv_10000/Regression/Transformer/2023-08-28T11-06-03/repetition_0/fold_0
-  #- /dhc/home/robin.vandewater/data/pooled_mortality24_10000/aumc_hirid_miiv/BinaryClassification/GRU/2023-08-26T11-41-24/repetition_0/fold_0
-#  - /dhc/home/robin.vandewater/data/pooled_mortality24_10000/eicu_aumc_miiv/BinaryClassification/GRU/2023-08-26T11-40-36/repetition_0/fold_0
-#  - /dhc/home/robin.vandewater/data/pooled_mortality24_10000/eicu_hirid_miiv/BinaryClassification/GRU/2023-08-26T11-41-25/repetition_0/fold_0
-#  - /dhc/home/robin.vandewater/projects/yaib_logs_pooled_training/eicu_hirid_aumc/BinaryClassification/GRU/2023-08-25T22-24-02/repetition_0/fold_0
+  - path/to/pooled_model
 method: grid
 name: yaib_pooled_eval
 parameters:
   data_dir:
     values:
-#        - ../../data/mortality24/miiv_42045
-#        - ../../data/mortality24/hirid_2859
-#        - ../../data/mortality24/eicu_103382
-#        - ../../data/mortality24/aumc_535
-#      - ../../data/mortality24/miiv
-#      - ../../data/mortality24/hirid
-#      - ../../data/mortality24/eicu
-#      - ../../data/mortality24/aumc
-#      - ../../data/kf/miiv
-#      - ../../data/kf/hirid
-#      - ../../data/kf/eicu
-#      - ../../data/kf/aumc
-#      - ../../data/los/miiv
-#      - ../../data/los/hirid
-#      - ../../data/los/eicu
-      - ../../data/los/aumc
+      - ../data/mortality24/miiv
+      - ../data/mortality24/hirid
+      - ../data/mortality24/eicu
+      - ../data/mortality24/aumc
+      - ../data/aki/miiv
+      - ../data/aki/hirid
+      - ../data/aki/eicu
+      - ../data/aki/aumc
+      - ../data/sepsis/miiv
+      - ../data/sepsis/hirid
+      - ../data/sepsis/eicu
+      - ../data/sepsis/aumc
+      - ../data/los/miiv
+      - ../data/los/hirid
+      - ../data/los/eicu
+      - ../data/los/aumc
+      - ../data/kf/miiv
+      - ../data/kf/hirid
+      - ../data/kf/eicu
+      - ../data/kf/aumc
   model:
     values:
-#      - ElasticNet
-#      - LGBMRegressor
-#      - GRU
-#      - LSTM
-#      - TCN
+      - GRU
+      - LSTM
+      - TCN
       - Transformer
   seed:
     values:

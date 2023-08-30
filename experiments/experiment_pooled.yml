@@ -1,17 +1,14 @@
-# This experiment trains models with progressively more samples to see how the performance changes
+# This experiment trains pooled models with pooled data. Note that you have to replace BinaryClassification with Regression for the appropriate dataset.
 command:
   - ${env}
   - ${program}
-#  - --samples
-#  - 0
   - -d
   - ../data/
   - -t
-#  - BinaryClassification
-  - Regression
+  - BinaryClassification
+  #  - Regression
   - --log-dir
-#  - ../../data/pooled_mortality24_10000
-  - ../yaib_logs_pooled_los
+  - ../yaib_logs_pooled
   - --tune
   - --wandb-sweep
   - --hp-checkpoint
@@ -21,29 +18,37 @@ command:
 method: grid
 name: yaib_pooled_benchmark
 parameters:
-#  samples:
-#    values:
-#      - 30000
   data_dir:
     values:
-#      - ../../data/kf/pooled_datasets_6000/hirid_eicu_miiv
-#      - ../../data/kf/pooled_datasets_6000/aumc_hirid_eicu
-#      - ../../data/kf/pooled_datasets_6000/aumc_eicu_miiv
-#      - ../../data/kf/pooled_datasets_6000/aumc_hirid_miiv
-#      - ../../data/kf/pooled_datasets_6000/aumc_hirid_eicu_miiv
-      - ../../data/los/aumc_hirid_eicu_10000
-      - ../../data/los/hirid_eicu_miiv_10000
-      - ../../data/los/aumc_eicu_miiv_10000
-      - ../../data/los/aumc_hirid_miiv_10000
-      - ../../data/los/aumc_hirid_eicu_miiv_10000
-#      - ../../data/pooled_mortality24_10000/eicu_aumc_miiv
-#      - ../../data/pooled_mortality24_10000/aumc_hirid_miiv
-#      - ../../data/pooled_mortality24_10000/eicu_hirid_miiv
-#      - ../../data/pooled_mortality24_10000/eicu_hirid_aumc
-#      - ../../data/pooled_mortality24_10000/aumc_hirid_eicu_miiv
+      - ../data/mortality24/aumc_hirid_eicu_10000
+      - ../data/mortality24/hirid_eicu_miiv_10000
+      - ../data/mortality24/aumc_eicu_miiv_10000
+      - ../data/mortality24/aumc_hirid_miiv_10000
+      - ../data/mortality24/aumc_hirid_eicu_miiv_10000
+      - ../data/aki/aumc_hirid_eicu_10000
+      - ../data/aki/hirid_eicu_miiv_10000
+      - ../data/aki/aumc_eicu_miiv_10000
+      - ../data/aki/aumc_hirid_miiv_10000
+      - ../data/aki/aumc_hirid_eicu_miiv_10000
+      - ../data/sepsis/aumc_hirid_eicu_10000
+      - ../data/sepsis/hirid_eicu_miiv_10000
+      - ../data/sepsis/aumc_eicu_miiv_10000
+      - ../data/sepsis/aumc_hirid_miiv_10000
+      - ../data/sepsis/aumc_hirid_eicu_miiv_10000
+      - ../data/kf/aumc_hirid_eicu_10000
+      - ../data/kf/hirid_eicu_miiv_10000
+      - ../data/kf/aumc_eicu_miiv_10000
+      - ../data/kf/aumc_hirid_miiv_10000
+      - ../data/kf/aumc_hirid_eicu_miiv_10000
+      - ../data/los/aumc_hirid_eicu_10000
+      - ../data/los/hirid_eicu_miiv_10000
+      - ../data/los/aumc_eicu_miiv_10000
+      - ../data/los/aumc_hirid_miiv_10000
+      - ../data/los/aumc_hirid_eicu_miiv_10000
+
   model:
     values:
-#      - GRU
+      #      - GRU
       - Transformer
   seed:
     values:
