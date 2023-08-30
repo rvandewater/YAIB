@@ -1,3 +1,4 @@
+import copy
 import logging
 import gin
 import json
@@ -7,31 +8,31 @@ import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 
-from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
+from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit, train_test_split
 
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
 
-
 @gin.configurable("preprocess")
 def preprocess_data(
-    data_dir: Path,
-    file_names: dict[str] = gin.REQUIRED,
-    preprocessor: Preprocessor = DefaultClassificationPreprocessor,
-    use_static: bool = True,
-    vars: dict[str] = gin.REQUIRED,
-    seed: int = 42,
-    debug: bool = False,
-    cv_repetitions: int = 5,
-    repetition_index: int = 0,
-    cv_folds: int = 5,
-    train_size: int = None,
-    load_cache: bool = False,
-    generate_cache: bool = False,
-    fold_index: int = 0,
-    pretrained_imputation_model: str = None,
-    runmode: RunMode = RunMode.classification,
+        data_dir: Path,
+        file_names: dict[str] = gin.REQUIRED,
+        preprocessor: Preprocessor = DefaultClassificationPreprocessor,
+        use_static: bool = True,
+        vars: dict[str] = gin.REQUIRED,
+        seed: int = 42,
+        debug: bool = False,
+        cv_repetitions: int = 5,
+        repetition_index: int = 0,
+        cv_folds: int = 5,
+        train_size: int = None,
+        load_cache: bool = False,
+        generate_cache: bool = False,
+        fold_index: int = 0,
+        pretrained_imputation_model: str = None,
+        full_train: bool = False,
+        runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -87,21 +88,23 @@ def preprocess_data(
     # Read parquet files into pandas dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
-
     # Generate the splits
     logging.info("Generating splits.")
-    data = make_single_split(
-        data,
-        vars,
-        cv_repetitions,
-        repetition_index,
-        cv_folds,
-        fold_index,
-        train_size=train_size,
-        seed=seed,
-        debug=debug,
-        runmode=runmode,
-    )
+    if not full_train:
+        data = make_single_split(
+            data,
+            vars,
+            cv_repetitions,
+            repetition_index,
+            cv_folds,
+            fold_index,
+            train_size=train_size,
+            seed=seed,
+            debug=debug,
+            runmode=runmode,
+        )
+    else:
+        data = make_train_val(data, vars, train_size=0.8, seed=seed, debug=debug, runmode=runmode)
 
     # Apply preprocessing
     data = preprocessor.apply(data, vars)
@@ -116,18 +119,77 @@ def preprocess_data(
 
     return data
 
+def make_train_val(
+        data: dict[pd.DataFrame],
+        vars: dict[str],
+        train_size=0.8,
+        seed: int = 42,
+        debug: bool = False,
+        runmode: RunMode = RunMode.classification,
+) -> dict[dict[pd.DataFrame]]:
+    """Randomly split the data into training and validation sets for fitting a full model.
+
+    Args:
+        data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
+        vars: Contains the names of columns in the data.
+        train_size: Fixed size of train split (including validation data).
+        seed: Random seed.
+        debug: Load less data if true.
+    Returns:
+        Input data divided into 'train', 'val', and 'test'.
+    """
+    # ID variable
+    id = vars[Var.group]
+
+    # Get stay IDs from outcome segment
+    stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
+
+    if debug:
+        # Only use 1% of the data
+        stays = stays.sample(frac=0.01, random_state=seed)
+
+    # If there are labels, and the task is classification, use stratified k-fold
+    if Var.label in vars and runmode is RunMode.classification:
+        # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
+        labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+        if train_size:
+            train_val = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
+        train, val = list(train_val.split(stays, labels))[0]
+    else:
+        # If there are no labels, use random split
+        train_val = ShuffleSplit(train_size=train_size, random_state=seed)
+        train, val = list(train_val.split(stays))[0]
+
+
+    split = {
+        Split.train: stays.iloc[train],
+        Split.val: stays.iloc[val]
+    }
+
+    data_split = {}
+
+    for fold in split.keys():  # Loop through splits (train / val / test)
+        # Loop through segments (DYNAMIC / STATIC / OUTCOME)
+        # set sort to true to make sure that IDs are reordered after scrambling earlier
+        data_split[fold] = {
+            data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
+        }
+    # Maintain compatibility with test split
+    data_split[Split.test] = copy.deepcopy(data_split[Split.val])
+    return data_split
+
 
 def make_single_split(
-    data: dict[pd.DataFrame],
-    vars: dict[str],
-    cv_repetitions: int,
-    repetition_index: int,
-    cv_folds: int,
-    fold_index: int,
-    train_size: int = None,
-    seed: int = 42,
-    debug: bool = False,
-    runmode: RunMode = RunMode.classification,
+        data: dict[pd.DataFrame],
+        vars: dict[str],
+        cv_repetitions: int,
+        repetition_index: int,
+        cv_folds: int,
+        fold_index: int,
+        train_size: int = None,
+        seed: int = 42,
+        debug: bool = False,
+        runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 

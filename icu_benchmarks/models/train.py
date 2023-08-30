@@ -48,6 +48,7 @@ def train_common(
     verbose=False,
     ram_cache=False,
     pl_model=True,
+    train_only=False,
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
@@ -114,10 +115,11 @@ def train_common(
 
     data_shape = next(iter(train_loader))[0].shape
 
-    model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
 
     if load_weights:
         model = load_model(model, source_dir, pl_model=pl_model)
+    else:
+        model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
 
     model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
@@ -157,7 +159,10 @@ def train_common(
             model.fit(train_dataset, val_dataset)
             model.save_model(log_dir, "last")
             logging.info("Training complete.")
-
+    if train_only:
+        logging.info("Finished training full model.")
+        save_config_file(log_dir)
+        return 0
     test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"])
     test_dataset = assure_minimum_length(test_dataset)
     logging.info(f"Testing on {test_dataset.name}  with {len(test_dataset)} samples.")
