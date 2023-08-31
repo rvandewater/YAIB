@@ -8,35 +8,39 @@ import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 
-from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit, train_test_split
+from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
 
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
 
+
 @gin.configurable("preprocess")
 def preprocess_data(
-        data_dir: Path,
-        file_names: dict[str] = gin.REQUIRED,
-        preprocessor: Preprocessor = DefaultClassificationPreprocessor,
-        use_static: bool = True,
-        vars: dict[str] = gin.REQUIRED,
-        seed: int = 42,
-        debug: bool = False,
-        cv_repetitions: int = 5,
-        repetition_index: int = 0,
-        cv_folds: int = 5,
-        train_size: int = None,
-        load_cache: bool = False,
-        generate_cache: bool = False,
-        fold_index: int = 0,
-        pretrained_imputation_model: str = None,
-        full_train: bool = False,
-        runmode: RunMode = RunMode.classification,
+    data_dir: Path,
+    file_names: dict[str] = gin.REQUIRED,
+    preprocessor: Preprocessor = DefaultClassificationPreprocessor,
+    use_static: bool = True,
+    vars: dict[str] = gin.REQUIRED,
+    seed: int = 42,
+    debug: bool = False,
+    cv_repetitions: int = 5,
+    repetition_index: int = 0,
+    cv_folds: int = 5,
+    train_size: int = None,
+    load_cache: bool = False,
+    generate_cache: bool = False,
+    fold_index: int = 0,
+    pretrained_imputation_model: str = None,
+    full_train: bool = False,
+    runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
+        use_static: Whether to use static features (for DL models).
+        full_train: Whether to use all data for training/validation.
+        runmode: Run mode. Can be one of the values of RunMode
         preprocessor: Define the preprocessor.
         data_dir: Path to the directory holding the data.
         file_names: Contains the parquet file names in data_dir.
@@ -104,6 +108,7 @@ def preprocess_data(
             runmode=runmode,
         )
     else:
+        # If full train is set, we use all data for training/validation
         data = make_train_val(data, vars, train_size=0.8, seed=seed, debug=debug, runmode=runmode)
 
     # Apply preprocessing
@@ -119,13 +124,14 @@ def preprocess_data(
 
     return data
 
+
 def make_train_val(
-        data: dict[pd.DataFrame],
-        vars: dict[str],
-        train_size=0.8,
-        seed: int = 42,
-        debug: bool = False,
-        runmode: RunMode = RunMode.classification,
+    data: dict[pd.DataFrame],
+    vars: dict[str],
+    train_size=0.8,
+    seed: int = 42,
+    debug: bool = False,
+    runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training and validation sets for fitting a full model.
 
@@ -160,11 +166,7 @@ def make_train_val(
         train_val = ShuffleSplit(train_size=train_size, random_state=seed)
         train, val = list(train_val.split(stays))[0]
 
-
-    split = {
-        Split.train: stays.iloc[train],
-        Split.val: stays.iloc[val]
-    }
+    split = {Split.train: stays.iloc[train], Split.val: stays.iloc[val]}
 
     data_split = {}
 
@@ -180,16 +182,16 @@ def make_train_val(
 
 
 def make_single_split(
-        data: dict[pd.DataFrame],
-        vars: dict[str],
-        cv_repetitions: int,
-        repetition_index: int,
-        cv_folds: int,
-        fold_index: int,
-        train_size: int = None,
-        seed: int = 42,
-        debug: bool = False,
-        runmode: RunMode = RunMode.classification,
+    data: dict[pd.DataFrame],
+    vars: dict[str],
+    cv_repetitions: int,
+    repetition_index: int,
+    cv_folds: int,
+    fold_index: int,
+    train_size: int = None,
+    seed: int = 42,
+    debug: bool = False,
+    runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
@@ -211,12 +213,14 @@ def make_single_split(
     # ID variable
     id = vars[Var.group]
 
+    if debug:
+        # Only use 1% of the data
+        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
+        data[Segment.outcome] = data[Segment.outcome].sample(frac=0.01, random_state=seed)
     # Get stay IDs from outcome segment
     stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
 
-    if debug:
-        # Only use 1% of the data
-        stays = stays.sample(frac=0.01, random_state=seed)
+
 
     # If there are labels, and the task is classification, use stratified k-fold
     if Var.label in vars and runmode is RunMode.classification:

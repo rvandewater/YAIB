@@ -162,7 +162,6 @@ def name_datasets(train="default", val="default", test="default"):
     gin.bind_parameter("train_common.dataset_names", {"train": train, "val": val, "test": test})
 
 
-
 def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
     """Logs a full line of a given character with a message centered.
 

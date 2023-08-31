@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
-
 import gin
 import logging
 import sys
 from pathlib import Path
-
 import torch.cuda
-
 from icu_benchmarks.wandb_utils import update_wandb_config, apply_wandb_sweep, set_wandb_experiment_name
 from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters
 from scripts.plotting.utils import plot_aggregated_results
@@ -33,7 +30,6 @@ def get_mode(mode: gin.REQUIRED):
 
 
 def main(my_args=tuple(sys.argv[1:])):
-
     args, _ = build_parser().parse_known_args(my_args)
     if args.wandb_sweep:
         args = apply_wandb_sweep(args)
@@ -56,7 +52,6 @@ def main(my_args=tuple(sys.argv[1:])):
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
     # Set arguments for wandb sweep
-
 
     # Set experiment name
     if name is None:
@@ -123,7 +118,7 @@ def main(my_args=tuple(sys.argv[1:])):
         name_datasets(args.name, args.name, args.name)
         hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
-            Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
+                Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]
@@ -173,7 +168,7 @@ def main(my_args=tuple(sys.argv[1:])):
         pretrained_imputation_model=pretrained_imputation_model,
         cpu=args.cpu,
         wandb=args.wandb_sweep,
-        full_train=args.full_train
+        full_train=args.full_train,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)

@@ -83,6 +83,9 @@ def execute_repeated_cv(
 
     for repetition in range(cv_repetitions_to_train):
         for fold_index in range(cv_folds_to_train):
+            repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
+            repetition_fold_dir.mkdir(parents=True, exist_ok=True)
+
             start_time = datetime.now()
             data = preprocess_data(
                 data_dir,
@@ -100,8 +103,6 @@ def execute_repeated_cv(
                 full_train=full_train
             )
 
-            repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
-            repetition_fold_dir.mkdir(parents=True, exist_ok=True)
             preprocess_time = datetime.now() - start_time
             start_time = datetime.now()
             agg_loss += train_common(
