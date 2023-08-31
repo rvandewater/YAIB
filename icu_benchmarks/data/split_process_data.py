@@ -220,8 +220,6 @@ def make_single_split(
     # Get stay IDs from outcome segment
     stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
 
-
-
     # If there are labels, and the task is classification, use stratified k-fold
     if Var.label in vars and runmode is RunMode.classification:
         # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)

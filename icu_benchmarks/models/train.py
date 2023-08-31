@@ -115,7 +115,6 @@ def train_common(
 
     data_shape = next(iter(train_loader))[0].shape
 
-
     if load_weights:
         model = load_model(model, source_dir, pl_model=pl_model)
     else:
