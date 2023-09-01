@@ -69,8 +69,8 @@ def set_wandb_experiment_name(args, mode):
         run_name += f"_source_{args.source_name}"
     elif args.samples:
         run_name += f"_train_size_{args.samples}_samples"
-    elif args.full_train:
-        run_name += "_full_training"
+    elif args.complete_train:
+        run_name += "_complete_training"
 
     if wandb_running():
         wandb.config.update({"run-name": run_name})

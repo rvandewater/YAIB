@@ -32,14 +32,14 @@ def preprocess_data(
     generate_cache: bool = False,
     fold_index: int = 0,
     pretrained_imputation_model: str = None,
-    full_train: bool = False,
+    complete_train: bool = False,
     runmode: RunMode = RunMode.classification,
 ) -> dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
         use_static: Whether to use static features (for DL models).
-        full_train: Whether to use all data for training/validation.
+        complete_train: Whether to use all data for training/validation.
         runmode: Run mode. Can be one of the values of RunMode
         preprocessor: Define the preprocessor.
         data_dir: Path to the directory holding the data.
@@ -94,7 +94,7 @@ def preprocess_data(
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
     # Generate the splits
     logging.info("Generating splits.")
-    if not full_train:
+    if not complete_train:
         data = make_single_split(
             data,
             vars,

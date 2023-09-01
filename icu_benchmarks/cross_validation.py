@@ -37,13 +37,13 @@ def execute_repeated_cv(
     cpu: bool = False,
     verbose: bool = False,
     wandb: bool = False,
-    full_train: bool = False
+    complete_train: bool = False
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
     Args:
 
-        full_train: Use the full data for training instead of held out test splits.
+        complete_train: Use the full data for training instead of held out test splits.
         wandb: Use wandb for logging.
         data_dir: Path to the data directory.
         log_dir: Path to the log directory.
@@ -74,7 +74,7 @@ def execute_repeated_cv(
         cv_folds_to_train = cv_folds
     agg_loss = 0
     seed_everything(seed, reproducible)
-    if full_train:
+    if complete_train:
         logging.info("Will train full model without cross validation.")
         cv_repetitions_to_train = 1
         cv_folds_to_train = 1
@@ -101,7 +101,7 @@ def execute_repeated_cv(
                 fold_index=fold_index,
                 pretrained_imputation_model=pretrained_imputation_model,
                 runmode=mode,
-                full_train=full_train
+                complete_train=complete_train
             )
 
             preprocess_time = datetime.now() - start_time
@@ -118,7 +118,7 @@ def execute_repeated_cv(
                 cpu=cpu,
                 verbose=verbose,
                 use_wandb=wandb,
-                train_only=full_train
+                train_only=complete_train
             )
             train_time = datetime.now() - start_time
 
