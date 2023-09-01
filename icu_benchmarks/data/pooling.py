@@ -33,8 +33,6 @@ class PooledData:
             vars: Variables dictionary
             datasets: Which datasets to pool
             file_names: Which files to read from
-            samples: Amount of samples to pool
-            seed: Random seed
             shuffle: Whether to shuffle data
             stratify: Stratify data
             runmode: Which task runmode
