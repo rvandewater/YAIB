@@ -1,3 +1,4 @@
+# Finetuning setup for model
 command:
   - ${env}
   - ${program}
@@ -16,7 +17,7 @@ command:
   - -sn
   - eicu
   - --source-dir
-  - /dhc/home/robin.vandewater/projects/transfer_learning/gru_mortality/eicu
+  - path/to/model/to/finetune
 method: grid
 name: yaib_finetuning_benchmark
 parameters:

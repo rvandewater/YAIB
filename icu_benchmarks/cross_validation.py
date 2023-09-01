@@ -43,6 +43,7 @@ def execute_repeated_cv(
 
     Args:
 
+        full_train: Use the full data for training instead of held out test splits.
         wandb: Use wandb for logging.
         data_dir: Path to the data directory.
         log_dir: Path to the log directory.

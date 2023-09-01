@@ -6,13 +6,14 @@ command:
   - ../data/
   - -t
   - BinaryClassification
+  # Manually set for regression tasks
   #  - Regression
   - --log-dir
   - ../yaib_logs_pooled
   - --tune
   - --wandb-sweep
   - --hp-checkpoint
-  - test
+  - path/to/checkpoint
   - -gc
   - -lc
 method: grid

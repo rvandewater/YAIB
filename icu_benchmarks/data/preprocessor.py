@@ -57,6 +57,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
             generate_features: Generate features for dynamic data.
             scaling: Scaling of dynamic and static data.
             use_static_features: Use static features.
+            save_cache: Save recipe cache from this path.
+            load_cache: Load recipe cache from this path.
         Returns:
             Preprocessed data.
         """
