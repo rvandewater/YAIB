@@ -1,0 +1,50 @@
+# Finetuning setup for model
+command:
+  - ${env}
+  - ${program}
+  - -ft
+  - 0
+  - -d
+  - ../data/
+  - -t
+  - BinaryClassification
+  - --log-dir
+  - ../yaib_logs_finetune
+  - --tune
+  - --wandb-sweep
+  - -gc
+  - -lc
+  - -sn
+  - eicu
+  - --source-dir
+  - path/to/model/to/finetune
+method: grid
+name: yaib_finetuning_benchmark
+parameters:
+  fine_tune:
+    values:
+      - 100
+      - 500
+      - 1000
+      - 2000
+      - 4000
+      - 6000
+      - 8000
+      - 10000
+      - 12000
+  data_dir:
+    values:
+      - ../data/mortality24/miiv
+      - ../data/mortality24/hirid
+      - ../data/mortality24/eicu
+      - ../data/mortality24/aumc
+  model:
+    values:
+      - GRU
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks

@@ -1,5 +1,7 @@
 from argparse import Namespace
 import logging
+from pathlib import Path
+
 import wandb
 
 
@@ -49,12 +51,27 @@ def wandb_log(log_dict):
         wandb.log(log_dict)
 
 
-def set_wandb_run_name(run_name):
+def set_wandb_experiment_name(args, mode):
     """stores the run name in wandb config
 
     Args:
-        run_name (str): name of the current run
+        args (Namespace): parsed arguments
+        mode (RunMode): run mode
     """
+    if args.name is None:
+        data_dir = Path(args.data_dir)
+        args.name = data_dir.name
+    run_name = f"{mode}_{args.model}_{args.name}"
+
+    if args.fine_tune:
+        run_name += f"_source_{args.source_name}_fine-tune_{args.fine_tune}_samples"
+    elif args.eval:
+        run_name += f"_source_{args.source_name}"
+    elif args.samples:
+        run_name += f"_train_size_{args.samples}_samples"
+    elif args.complete_train:
+        run_name += "_complete_training"
+
     if wandb_running():
         wandb.config.update({"run-name": run_name})
         wandb.run.name = run_name

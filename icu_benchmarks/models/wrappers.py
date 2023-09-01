@@ -17,6 +17,7 @@ import numpy as np
 from ignite.exceptions import NotComputableError
 from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
+from joblib import dump
 from pytorch_lightning import LightningModule
 
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
@@ -119,9 +120,18 @@ class DLWrapper(BaseModule, ABC):
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer
-        self.scaler = None
         self.check_supported_runmode(run_mode)
         self.run_mode = run_mode
+        self.input_shape = input_shape
+        self.lr = lr
+        self.momentum = momentum
+        self.lr_scheduler = lr_scheduler
+        self.lr_factor = lr_factor
+        self.lr_steps = lr_steps
+        self.epochs = epochs
+        self.input_size = input_size
+        self.initialization_method = initialization_method
+        self.scaler = None
 
     def on_fit_start(self):
         self.metrics = {
@@ -133,11 +143,23 @@ class DLWrapper(BaseModule, ABC):
         }
         return super().on_fit_start()
 
+    def on_train_start(self):
+        self.metrics = {
+            step_name: {
+                metric_name: (metric() if isinstance(metric, type) else metric)
+                for metric_name, metric in self.set_metrics().items()
+            }
+            for step_name in ["train", "val", "test"]
+        }
+        return super().on_train_start()
+
     def finalize_step(self, step_prefix=""):
         try:
             self.log_dict(
                 {
-                    f"{step_prefix}/{name}": metric.compute()
+                    f"{step_prefix}/{name}": (
+                        np.float32(metric.compute()) if isinstance(metric.compute(), np.float64) else metric.compute()
+                    )
                     for name, metric in self.metrics[step_prefix].items()
                     if "_Curve" not in name
                 },
@@ -152,8 +174,13 @@ class DLWrapper(BaseModule, ABC):
             pass
 
     def configure_optimizers(self):
+        """Configure optimizers and learning rate schedulers."""
+
         if isinstance(self.optimizer, str):
-            optimizer = create_optimizer(self.optimizer, self, self.hparams.lr, self.hparams.momentum)
+            optimizer = create_optimizer(self.optimizer, self.lr, self.hparams.momentum)
+        elif isinstance(self.optimizer, Optimizer):
+            # Already set
+            optimizer = self.optimizer
         else:
             optimizer = self.optimizer(self.parameters())
 
@@ -162,7 +189,9 @@ class DLWrapper(BaseModule, ABC):
         scheduler = create_scheduler(
             self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
         )
-        return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        optimizers = {"optimizer": optimizer, "lr_scheduler": scheduler}
+        logging.info(f"Using: {optimizers}")
+        return optimizers
 
     def on_test_epoch_start(self) -> None:
         self.metrics = {
@@ -334,7 +363,7 @@ class MLWrapper(BaseModule, ABC):
     requires_backprop = False
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, *args, run_mode=RunMode.classification, loss=log_loss, patience=10, **kwargs):
+    def __init__(self, *args, run_mode=RunMode.classification, loss=log_loss, patience=10, mps=False, **kwargs):
         super().__init__()
         self.save_hyperparameters()
         self.scaler = None
@@ -342,6 +371,7 @@ class MLWrapper(BaseModule, ABC):
         self.run_mode = run_mode
         self.loss = loss
         self.patience = patience
+        self.mps = mps
 
     def set_metrics(self, labels):
         if self.run_mode == RunMode.classification:
@@ -413,9 +443,13 @@ class MLWrapper(BaseModule, ABC):
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
 
-        self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
+        if self.mps:
+            self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
+            self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
+        else:
+            self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
+            self.log_metrics(test_label, test_pred, "test")
         logging.debug(f"Test loss: {self.loss(test_label, test_pred)}")
-        self.log_metrics(test_label, test_pred, "test")
 
     def predict(self, features):
         if self.run_mode == RunMode.regression:
@@ -428,7 +462,11 @@ class MLWrapper(BaseModule, ABC):
 
         self.log_dict(
             {
+                # MPS dependent type casting
                 f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred))
+                if not self.mps
+                else metric(self.label_transform(label), self.output_transform(pred))
+                # Fore very metric
                 for name, metric in self.metrics.items()
                 # Filter out metrics that return a tuple (e.g. precision_recall_curve)
                 if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
@@ -445,10 +483,10 @@ class MLWrapper(BaseModule, ABC):
         del state["output_transform"]
         return state
 
-    def save_model(self, save_path, file_name, file_extension=".ckpt"):
+    def save_model(self, save_path, file_name, file_extension=".joblib"):
         path = save_path / (file_name + file_extension)
         try:
-            torch.save(self, path)
+            dump(self.model, path)
             logging.info(f"Model saved to {str(path.resolve())}.")
         except Exception as e:
             logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
@@ -476,7 +514,7 @@ class ImputationWrapper(DLWrapper):
         self,
         loss: nn.modules.loss._Loss = MSELoss(),
         optimizer: Union[str, Optimizer] = "adam",
-        runmode: RunMode = RunMode.imputation,
+        run_mode: RunMode = RunMode.imputation,
         lr: float = 0.002,
         momentum: float = 0.9,
         lr_scheduler: Optional[str] = None,
@@ -484,11 +522,25 @@ class ImputationWrapper(DLWrapper):
         lr_steps: Optional[List[int]] = None,
         input_size: Tensor = None,
         initialization_method: ImputationInit = ImputationInit.NORMAL,
+        epochs=100,
         **kwargs: str,
     ) -> None:
-        super().__init__()
-        self.check_supported_runmode(runmode)
-        self.run_mode = runmode
+        super().__init__(
+            loss=loss,
+            optimizer=optimizer,
+            run_mode=run_mode,
+            lr=lr,
+            momentum=momentum,
+            lr_scheduler=lr_scheduler,
+            lr_factor=lr_factor,
+            lr_steps=lr_steps,
+            epochs=epochs,
+            input_size=input_size,
+            initialization_method=initialization_method,
+            kwargs=kwargs,
+        )
+        self.check_supported_runmode(run_mode)
+        self.run_mode = run_mode
         self.save_hyperparameters(ignore=["loss", "optimizer"])
         self.loss = loss
         self.optimizer = optimizer

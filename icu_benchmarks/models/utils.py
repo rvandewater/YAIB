@@ -23,7 +23,7 @@ def save_config_file(log_dir):
         f.write(gin.operative_config_str())
 
 
-def create_optimizer(name: str, model: Module, lr: float, momentum: float) -> Optimizer:
+def create_optimizer(name: str, model: Module, lr: float, momentum: float = 0) -> Optimizer:
     """creates the specified optimizer with the given parameters
 
     Args:

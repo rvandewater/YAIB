@@ -1,3 +1,6 @@
+import copy
+import pickle
+
 import torch
 import logging
 
@@ -5,7 +8,16 @@ import gin
 import pandas as pd
 from recipys.recipe import Recipe
 from recipys.selector import all_numeric_predictors, all_outcomes, has_type, all_of
-from recipys.step import StepScale, StepImputeFill, StepSklearn, StepHistorical, Accumulator, StepImputeModel
+from recipys.step import (
+    StepScale,
+    StepImputeFastForwardFill,
+    StepImputeFastZeroFill,
+    StepSklearn,
+    StepHistorical,
+    Accumulator,
+    StepImputeModel,
+)
+
 from sklearn.impute import SimpleImputer, MissingIndicator
 from sklearn.preprocessing import LabelEncoder, FunctionTransformer, MinMaxScaler
 
@@ -17,7 +29,7 @@ import abc
 
 class Preprocessor:
     @abc.abstractmethod
-    def apply(self, data, vars):
+    def apply(self, data, vars, save_cache=False, load_cache=None):
         return data
 
     @abc.abstractmethod
@@ -32,12 +44,21 @@ class Preprocessor:
 
 @gin.configurable("base_classification_preprocessor")
 class DefaultClassificationPreprocessor(Preprocessor):
-    def __init__(self, generate_features: bool = True, scaling: bool = True, use_static_features: bool = True):
+    def __init__(
+        self,
+        generate_features: bool = True,
+        scaling: bool = True,
+        use_static_features: bool = True,
+        save_cache=None,
+        load_cache=None,
+    ):
         """
         Args:
             generate_features: Generate features for dynamic data.
             scaling: Scaling of dynamic and static data.
             use_static_features: Use static features.
+            save_cache: Save recipe cache from this path.
+            load_cache: Load recipe cache from this path.
         Returns:
             Preprocessed data.
         """
@@ -45,6 +66,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
         self.scaling = scaling
         self.use_static_features = use_static_features
         self.imputation_model = None
+        self.save_cache = save_cache
+        self.load_cache = load_cache
 
     def apply(self, data, vars) -> dict[dict[pd.DataFrame]]:
         """
@@ -55,6 +78,7 @@ class DefaultClassificationPreprocessor(Preprocessor):
             Preprocessed data.
         """
         logging.info("Preprocessing dynamic features.")
+
         data = self._process_dynamic(data, vars)
         if self.use_static_features:
             logging.info("Preprocessing static features.")
@@ -92,11 +116,11 @@ class DefaultClassificationPreprocessor(Preprocessor):
         if self.scaling:
             sta_rec.add_step(StepScale())
 
-        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), value=0))
+        sta_rec.add_step(StepImputeFastZeroFill(sel=all_numeric_predictors()))
         sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
         sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
 
-        data = apply_recipe_to_splits(sta_rec, data, Segment.static)
+        data = apply_recipe_to_splits(sta_rec, data, Segment.static, self.save_cache, self.load_cache)
 
         return data
 
@@ -122,11 +146,11 @@ class DefaultClassificationPreprocessor(Preprocessor):
         if self.imputation_model is not None:
             dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[Segment.dynamic])))
         dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars[Segment.dynamic]), in_place=False))
-        dyn_rec.add_step(StepImputeFill(method="ffill"))
-        dyn_rec.add_step(StepImputeFill(value=0))
+        dyn_rec.add_step(StepImputeFastForwardFill())
+        dyn_rec.add_step(StepImputeFastZeroFill())
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars[Segment.dynamic]))
-        data = apply_recipe_to_splits(dyn_rec, data, Segment.dynamic)
+        data = apply_recipe_to_splits(dyn_rec, data, Segment.dynamic, self.save_cache, self.load_cache)
         return data
 
     def _dynamic_feature_generation(self, data, dynamic_vars):
@@ -154,6 +178,8 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
         use_static_features: bool = True,
         outcome_max=None,
         outcome_min=None,
+        save_cache=None,
+        load_cache=None,
     ):
         """
         Args:
@@ -162,10 +188,12 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
             use_static_features: Use static features.
             max_range: Maximum value in outcome.
             min_range: Minimum value in outcome.
+            save_cache: Save recipe cache.
+            load_cache: Load recipe cache.
         Returns:
             Preprocessed data.
         """
-        super().__init__(generate_features, scaling, use_static_features)
+        super().__init__(generate_features, scaling, use_static_features, save_cache, load_cache)
         self.outcome_max = outcome_max
         self.outcome_min = outcome_min
 
@@ -236,7 +264,7 @@ class DefaultImputationPreprocessor(Preprocessor):
         dyn_rec = Recipe(data[Split.train][Segment.dynamic], [], vars[Segment.dynamic], vars["GROUP"], vars["SEQUENCE"])
         if self.scaling:
             dyn_rec.add_step(StepScale())
-        data = apply_recipe_to_splits(dyn_rec, data, Segment.dynamic)
+        data = apply_recipe_to_splits(dyn_rec, data, Segment.dynamic, self.save_cache, self.load_cache)
 
         data[Split.train][Segment.features] = (
             data[Split.train].pop(Segment.dynamic).loc[:, vars[Segment.dynamic] + [vars["GROUP"], vars["SEQUENCE"]]]
@@ -262,10 +290,14 @@ class DefaultImputationPreprocessor(Preprocessor):
 
 
 @staticmethod
-def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str) -> dict[dict[pd.DataFrame]]:
+def apply_recipe_to_splits(
+    recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str, save_cache=None, load_cache=None
+) -> dict[dict[pd.DataFrame]]:
     """Fits and transforms the training features, then transforms the validation and test features with the recipe.
 
     Args:
+        load_cache: Load recipe from cache, for e.g. transfer learning.
+        save_cache: Save recipe to cache, for e.g. transfer learning.
         recipe: Object containing info about the features and steps.
         data: Dict containing 'train', 'val', and 'test' and types of features per split.
         type: Whether to apply recipe to dynamic features, static features or outcomes.
@@ -273,7 +305,42 @@ def apply_recipe_to_splits(recipe: Recipe, data: dict[dict[pd.DataFrame]], type:
     Returns:
         Transformed features divided into 'train', 'val', and 'test'.
     """
-    data[Split.train][type] = recipe.prep()
+
+    if isinstance(load_cache, str):
+        # Load existing recipe
+        recipe = restore_recipe(load_cache)
+        data[Split.train][type] = recipe.bake(data[Split.train][type])
+    elif isinstance(save_cache, str):
+        # Save prepped recipe
+        data[Split.train][type] = recipe.prep()
+        cache_recipe(recipe, save_cache)
+    else:
+        # No saving or loading of existing cache
+        data[Split.train][type] = recipe.prep()
+
     data[Split.val][type] = recipe.bake(data[Split.val][type])
     data[Split.test][type] = recipe.bake(data[Split.test][type])
     return data
+
+
+def cache_recipe(recipe: Recipe, cache_file: str) -> None:
+    """Cache recipe to make it available for e.g. transfer learning."""
+    recipe_cache = copy.deepcopy(recipe)
+    recipe_cache.cache()
+    if not (cache_file / "..").exists():
+        (cache_file / "..").mkdir()
+    cache_file.touch()
+    with open(cache_file, "wb") as f:
+        pickle.dump(recipe_cache, f, pickle.HIGHEST_PROTOCOL)
+    logging.info(f"Cached recipe in {cache_file}.")
+
+
+def restore_recipe(cache_file: str) -> Recipe:
+    """Restore recipe from cache to use for e.g. transfer learning."""
+    if cache_file.exists():
+        with open(cache_file, "rb") as f:
+            logging.info(f"Loading cached recipe from {cache_file}.")
+            recipe = pickle.load(f)
+            return recipe
+    else:
+        raise FileNotFoundError(f"Cache file {cache_file} not found.")

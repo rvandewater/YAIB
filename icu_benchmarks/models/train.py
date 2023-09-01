@@ -6,9 +6,9 @@ import pandas as pd
 from joblib import load
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar, LearningRateMonitor
 from pathlib import Path
 from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
@@ -42,12 +42,14 @@ def train_common(
     patience=20,
     min_delta=1e-5,
     test_on: str = Split.test,
+    dataset_names=None,
     use_wandb: bool = False,
     cpu: bool = False,
     verbose=False,
     ram_cache=False,
     pl_model=True,
-    num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
+    train_only=False,
+    num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -65,7 +67,7 @@ def train_common(
         precision: Pytorch precision to be used for training. Can be 16 or 32.
         batch_size: Batch size to be used for training.
         epochs: Number of epochs to train for.
-        patience: Number of epochs to wait before early stopping.
+        patience: Number of epochs to wait for improvement before early stopping.
         min_delta: Minimum change in loss to be considered an improvement.
         test_on: If set to "test", evaluate the model on the test set. If set to "val", evaluate on the validation set.
         use_wandb: If set to true, log to wandb.
@@ -82,12 +84,16 @@ def train_common(
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
-    train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache)
-    val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache)
+    train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"])
+    val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
 
-    logging.debug(f"Training on {len(train_dataset)} samples and validating on {len(val_dataset)} samples.")
+    if not eval_only:
+        logging.info(
+            f"Training on {train_dataset.name} with {len(train_dataset)} samples and validating on {val_dataset.name} with"
+            f" {len(val_dataset)} samples."
+        )
     logging.info(f"Using {num_workers} workers for data loading.")
 
     train_loader = DataLoader(
@@ -109,40 +115,26 @@ def train_common(
 
     data_shape = next(iter(train_loader))[0].shape
 
-    model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
-    model.set_weight(weight, train_dataset)
     if load_weights:
-        if source_dir.exists():
-            if model.requires_backprop:
-                if (source_dir / "last.ckpt").exists():
-                    model_path = source_dir / "last.ckpt"
-                elif (source_dir / "model.ckpt").exists():
-                    model_path = source_dir / "model.ckpt"
-                elif (source_dir / "model-v1.ckpt").exists():
-                    model_path = source_dir / "model-v1.ckpt"
-                else:
-                    return Exception(f"No weights to load at path : {source_dir}")
-                if pl_model:
-                    model = model.load_from_checkpoint(model_path)
-                else:
-                    checkpoint = torch.load(model_path)
-                    model.load_state_dict(checkpoint)
-            else:
-                model = load(source_dir / "model.joblib")
-        else:
-            raise Exception(f"No weights to load at path : {source_dir}")
+        model = load_model(model, source_dir, pl_model=pl_model)
+    else:
+        model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
 
+    model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
-
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
+    if use_wandb:
+        loggers.append(WandbLogger(save_dir=log_dir))
     callbacks = [
-        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
+        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False, verbose=verbose),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
+        LearningRateMonitor(logging_interval="step"),
     ]
     if verbose:
         callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
     if precision == 16 or "16-mixed":
         torch.set_float32_matmul_precision("medium")
+
     trainer = Trainer(
         max_epochs=epochs if model.requires_backprop else 1,
         callbacks=callbacks,
@@ -153,7 +145,8 @@ def train_common(
         benchmark=not reproducible,
         enable_progress_bar=verbose,
         logger=loggers,
-        num_sanity_val_steps=0,
+        num_sanity_val_steps=-1,
+        log_every_n_steps=5,
     )
     if not eval_only:
         if model.requires_backprop:
@@ -165,9 +158,13 @@ def train_common(
             model.fit(train_dataset, val_dataset)
             model.save_model(log_dir, "last")
             logging.info("Training complete.")
-
-    test_dataset = dataset_class(data, split=test_on)
+    if train_only:
+        logging.info("Finished training full model.")
+        save_config_file(log_dir)
+        return 0
+    test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"])
     test_dataset = assure_minimum_length(test_dataset)
+    logging.info(f"Testing on {test_dataset.name}  with {len(test_dataset)} samples.")
     test_loader = (
         DataLoader(
             test_dataset,
@@ -185,3 +182,28 @@ def train_common(
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss
+
+
+def load_model(model, source_dir, pl_model=True):
+    if source_dir.exists():
+        if model.requires_backprop:
+            if (source_dir / "model.ckpt").exists():
+                model_path = source_dir / "model.ckpt"
+            elif (source_dir / "model-v1.ckpt").exists():
+                model_path = source_dir / "model-v1.ckpt"
+            elif (source_dir / "last.ckpt").exists():
+                model_path = source_dir / "last.ckpt"
+            else:
+                return Exception(f"No weights to load at path : {source_dir}")
+            if pl_model:
+                model = model.load_from_checkpoint(model_path)
+            else:
+                checkpoint = torch.load(model_path)
+                model.load_from_checkpoint(checkpoint)
+        else:
+            model_path = source_dir / "model.joblib"
+            model = load(model_path)
+    else:
+        raise Exception(f"No weights to load at path : {source_dir}")
+    logging.info(f"Loaded {type(model)} model from {model_path}")
+    return model

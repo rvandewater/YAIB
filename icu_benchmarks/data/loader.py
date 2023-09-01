@@ -26,6 +26,8 @@ class CommonDataset(Dataset):
         split: str = Split.train,
         vars: Dict[str, str] = gin.REQUIRED,
         grouping_segment: str = Segment.outcome,
+        mps: bool = False,
+        name: str = "",
     ):
         self.split = split
         self.vars = vars
@@ -37,11 +39,13 @@ class CommonDataset(Dataset):
         # calculate basic info for the data
         self.num_stays = self.grouping_df.index.unique().shape[0]
         self.maxlen = self.features_df.groupby([self.vars["GROUP"]]).size().max()
+        self.mps = mps
+        self.name = name
 
     def ram_cache(self, cache: bool = True):
         self._cached_dataset = None
         if cache:
-            logging.info("Caching dataset in ram.")
+            logging.info(f"Caching {self.split} dataset in ram.")
             self._cached_dataset = [self[i] for i in range(len(self))]
 
     def __len__(self) -> int:
@@ -150,7 +154,10 @@ class PredictionDataset(CommonDataset):
 
     def to_tensor(self):
         data, labels = self.get_data_and_labels()
-        return from_numpy(data), from_numpy(labels)
+        if self.mps:
+            return from_numpy(data).to(float32), from_numpy(labels).to(float32)
+        else:
+            return from_numpy(data), from_numpy(labels)
 
 
 @gin.configurable("ImputationDataset")

@@ -6,6 +6,7 @@ from sklearn.metrics import balanced_accuracy_score, mean_absolute_error
 from sklearn.calibration import calibration_curve
 from scipy.spatial.distance import jensenshannon
 from torchmetrics.classification import BinaryFairness
+
 """"
 This file contains custom metrics that can be added to YAIB.
 """
