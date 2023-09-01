@@ -89,7 +89,7 @@ class PooledData:
             data: Data to save
             datasets: Which datasets were pooled
             file_names: The file names to save to
-            samples:
+            samples: Amount of samples to save
         """
         save_folder = "_".join(datasets)
         save_folder += f"_{samples}"
