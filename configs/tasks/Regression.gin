@@ -8,7 +8,7 @@ include "configs/tasks/common/PredictionTaskVariables.gin"
 include "configs/tasks/common/CrossValidation.gin"
 
 # MODE SETTINGS
-Run.mode = "RegressionTFT"
+Run.mode = "Regression"
 NUM_CLASSES = 1
 HORIZON = 24
 train_common.weight = "balanced"

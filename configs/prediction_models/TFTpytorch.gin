@@ -12,13 +12,13 @@ optimizer/hyperparameter.weight_decay = 1e-6
 
 # Encoder params
 model/hyperparameter.class_to_tune = @TFTpytorch
-model/hyperparameter.hidden = 128
+model/hyperparameter.hidden = (16,32,64)
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.dropout = (0.0, 0.4)
 model/hyperparameter.dropout_att = (0.0, 0.4)
-model/hyperparameter.n_heads =4
+model/hyperparameter.n_heads =(1,2,4)
 model/hyperparameter.lr = (1e-5, 3e-4)
 PredictionDatasetTFTpytorch.max_encoder_length = 24
-PredictionDatasetTFTpytorch.max_prediction_length = 12
+PredictionDatasetTFTpytorch.max_prediction_length = 24
 
 

@@ -228,7 +228,8 @@ class PredictionDatasetTFT(PredictionDataset):
                 [tensors[5], np.ones((np.shape(tensors[5])[0], self.maxlen - np.shape(tensors[5])[1])) * pad_value], axis=1
             )
 
-            tensors[6] = np.concatenate([tensors[6], np.ones(self.maxlen - np.shape(tensors[6])[0]) * pad_value], axis=0)
+            tensors[6] = np.concatenate([tensors[6], np.ones(
+                self.maxlen - np.shape(tensors[6])[0]) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
         tensors[7] = np.concatenate(
             [tensors[7], np.ones((np.shape(tensors[7])[0], self.maxlen - np.shape(tensors[7])[1])) * stay_id], axis=1
@@ -417,9 +418,9 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
             time_idx="time_idx",
             target="label",
             group_ids=["stay_id"],
-            min_encoder_length=max_encoder_length // 2,
+            min_encoder_length=max_encoder_length,
             max_encoder_length=max_encoder_length,
-            min_prediction_length=2,
+            min_prediction_length=max_prediction_length,
             max_prediction_length=max_prediction_length,
             static_categoricals=[],
             static_reals=["height", "weight", "age", "sex"],

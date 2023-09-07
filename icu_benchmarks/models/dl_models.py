@@ -371,7 +371,7 @@ class TFT(DLPredictionWrapper):
         )  # embeddings for all variables
 
         self.static_encoder = StaticCovariateEncoder(num_static_vars, hidden, dropout)  # encoding for static variables
-        self.TFTpart2 = TFTBack(
+        self.TFTpart = TFTBack(
             encoder_length,
             num_historic_vars,
             hidden,
@@ -410,7 +410,7 @@ class TFT(DLPredictionWrapper):
         if t_known_inp is not None:
             future_inputs = t_known_inp[:, self.encoder_length :]
 
-        o = self.TFTpart2(historical_inputs, cs, ch, cc, ce, future_inputs.to(historical_inputs.device))
+        o = self.TFTpart(historical_inputs, cs, ch, cc, ce, future_inputs.to(historical_inputs.device))
         pred = self.logit(o)
         return pred
 

@@ -38,7 +38,7 @@ def train_common(
     optimizer: type = Adam,
     precision=32,
     batch_size=64,
-    epochs=1000,
+    epochs=100,
     patience=20,
     min_delta=1e-5,
     test_on: str = Split.test,
@@ -96,10 +96,10 @@ def train_common(
     logging.info(f"Using {num_workers} workers for data loading.")
     if model.__name__ == "TFTpytorch":
         train_loader = train_dataset.to_dataloader(
-            train=True, batch_size=batch_size, num_workers=0, pin_memory=False, drop_last=True
+            train=True, batch_size=batch_size, num_workers=0, pin_memory=False, drop_last=True, batch_sampler="synchronized"
         )
         val_loader = val_dataset.to_dataloader(
-            train=False, batch_size=batch_size, num_workers=0, pin_memory=False, drop_last=True
+            train=False, batch_size=batch_size, num_workers=0, pin_memory=False, drop_last=True, batch_sampler="synchronized"
         )
         test_loader = test_dataset.to_dataloader(
             train=False,
@@ -108,6 +108,7 @@ def train_common(
             pin_memory=False,
             drop_last=True,
             shuffle=False,
+            batch_sampler="synchronized"
         )
         model = model(train_dataset, optimizer=optimizer, epochs=epochs, run_mode=mode)
 
@@ -127,6 +128,21 @@ def train_common(
             num_workers=num_workers,
             pin_memory=True,
             drop_last=True,
+        )
+        test_dataset = dataset_class(data, split=test_on)
+        test_dataset = assure_minimum_length(test_dataset)
+
+        test_loader = (
+            DataLoader(
+                test_dataset,
+                batch_size=min(batch_size * 4, len(test_dataset)),
+                shuffle=False,
+                num_workers=num_workers,
+                pin_memory=True,
+                drop_last=True,
+            )
+            if model.needs_training
+            else DataLoader([test_dataset.to_tensor()], batch_size=1)
         )
 
         if isinstance(next(iter(train_loader))[0], OrderedDict):
@@ -182,21 +198,7 @@ def train_common(
         logging.info("Training model.")
         trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
         logging.info("Training complete.")
-    test_dataset = dataset_class(data, split=test_on)
-    test_dataset = assure_minimum_length(test_dataset)
 
-    test_loader = (
-        DataLoader(
-            test_dataset,
-            batch_size=min(batch_size * 4, len(test_dataset)),
-            shuffle=False,
-            num_workers=num_workers,
-            pin_memory=True,
-            drop_last=True,
-        )
-        if model.needs_training
-        else DataLoader([test_dataset.to_tensor()], batch_size=1)
-    )
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss

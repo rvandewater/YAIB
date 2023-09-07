@@ -743,8 +743,8 @@ class InterpretableMultiHeadAttention(nn.Module):
 
 class TFTBack(nn.Module):
     """
-    Big part of TFT architecture consists of static enrichment followed by mutli-head self-attention then position wise feed forward
-    followed by a gate and a dense layer
+    Big part of TFT architecture consists of static enrichment followed by mutli-head self-attention then 
+    position wise feed forward followed by a gate and a dense layer
     GRNs-->multi-head attention-->GRNs-->GLU-->Linear-->output
     """
 
@@ -803,7 +803,7 @@ class TFTBack(nn.Module):
         # Temporal self attention
         x, attn_prob = self.attention(enriched)
 
-        # Don't compute hictorical quantiles
+        # Don't compute historical quantiles
         x = x[:, self.encoder_length :, :]
         temporal_features = temporal_features[:, self.encoder_length :, :]
         enriched = enriched[:, self.encoder_length :, :]

@@ -27,13 +27,14 @@ parameters:
       - data/YAIB_Preprint/kf/aumc
   model:
     values:
-      - ElasticNet
-      - LGBMRegressor
-      - GRU
-      - LSTM
-      - TCN
-      - Transformer
-      - TFT
+     # - ElasticNet
+     # - LGBMRegressor
+     # - GRU
+     # - LSTM
+     # - TCN
+     # - Transformer
+     # - TFT
+      - TFTpytorch
       
   seed:
     values:

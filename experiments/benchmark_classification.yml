@@ -17,18 +17,18 @@ name: yaib_classification_benchmark
 parameters:
   data_dir:
     values:
-      - data/YAIB_Preprint/aki/miiv
-      #- data/YAIB_Preprint/aki/hirid
-      #- data/YAIB_Preprint/aki/eicu
-      #- data/YAIB_Preprint/aki/aumc
-      - data/YAIB_Preprint/morality24/miiv
-      - data/YAIB_Preprint/morality24/miiv
-      - data/YAIB_Preprint/morality24/miiv
-      - data/YAIB_Preprint/morality24/miiv
-      #- data/YAIB_Preprint/sepsis/miiv
-      #- data/YAIB_Preprint/sepsis/hirid
-      #- data/YAIB_Preprint/sepsis/eicu
-      #- data/YAIB_Preprint/sepsis/aumc
+    #  - data/YAIB_Preprint/aki/miiv
+    #  - data/YAIB_Preprint/aki/hirid
+    #  - data/YAIB_Preprint/aki/eicu
+    #  - data/YAIB_Preprint/aki/aumc
+    #  - data/YAIB_Preprint/mortality24/miiv
+    #  - data/YAIB_Preprint/mortality24/hirid
+    #  - data/YAIB_Preprint/mortality24/eicu
+    #  - data/YAIB_Preprint/mortality24/aumc
+      - data/YAIB_Preprint/sepsis/miiv
+      - data/YAIB_Preprint/sepsis/hirid
+      - data/YAIB_Preprint/sepsis/eicu
+      - data/YAIB_Preprint/sepsis/aumc
   model:
     values:
     #  - LogisticRegression
@@ -37,7 +37,8 @@ parameters:
     #  - LSTM
     #  - TCN
     #  - Transformer
-      - TFT
+    #  - TFT
+       - TFTpytorch
       
   seed:
     values:
