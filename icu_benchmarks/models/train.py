@@ -9,14 +9,21 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar
 from pathlib import Path
-from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset, PredictionDatasetTFT, PredictionDatasetTFTpytorch
+from icu_benchmarks.data.loader import (
+    PredictionDataset,
+    ImputationDataset,
+    PredictionDatasetTFT,
+    PredictionDatasetTFTpytorch,
+)
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 from collections import OrderedDict
 
 
-cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+cpu_core_count = (
+    len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+)
 
 
 def assure_minimum_length(dataset):
@@ -46,7 +53,11 @@ def train_common(
     cpu: bool = False,
     verbose=True,
     ram_cache=False,
-    num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 4 * int(torch.cuda.is_available()), 32),
+    num_workers: int = min(
+        cpu_core_count,
+        torch.cuda.device_count() * 4 * int(torch.cuda.is_available()),
+        32,
+    ),
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -80,26 +91,46 @@ def train_common(
         else (
             PredictionDatasetTFT
             if model.__name__ == "TFT"
-            else (PredictionDatasetTFTpytorch if model.__name__ == "TFTpytorch" else PredictionDataset)
+            else (
+                PredictionDatasetTFTpytorch
+                if model.__name__ == "TFTpytorch"
+                else PredictionDataset
+            )
         )
     )
 
     logging.info(f"Logging to directory: {log_dir}.")
-    save_config_file(log_dir)  # We save the operative config before and also after training
+    save_config_file(
+        log_dir
+    )  # We save the operative config before and also after training
 
     train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache)
     val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache)
-    train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
+    train_dataset, val_dataset = assure_minimum_length(
+        train_dataset
+    ), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
     test_dataset = dataset_class(data, split=test_on)
-    logging.debug(f"Training on {len(train_dataset)} samples and validating on {len(val_dataset)} samples.")
+    logging.debug(
+        f"Training on {len(train_dataset)} samples and validating on {len(val_dataset)} samples."
+    )
     logging.info(f"Using {num_workers} workers for data loading.")
     if model.__name__ == "TFTpytorch":
         train_loader = train_dataset.to_dataloader(
-            train=True, batch_size=batch_size, num_workers=0, pin_memory=False, drop_last=True, batch_sampler="synchronized"
+            train=True,
+            batch_size=batch_size,
+            num_workers=0,
+            pin_memory=False,
+            drop_last=True,
+            batch_sampler="synchronized",
         )
         val_loader = val_dataset.to_dataloader(
-            train=False, batch_size=batch_size, num_workers=0, pin_memory=False, drop_last=True, batch_sampler="synchronized"
+            train=False,
+            batch_size=batch_size,
+            num_workers=0,
+            pin_memory=False,
+            drop_last=True,
+            batch_sampler="synchronized",
         )
         test_loader = test_dataset.to_dataloader(
             train=False,
@@ -108,7 +139,7 @@ def train_common(
             pin_memory=False,
             drop_last=True,
             shuffle=False,
-            batch_sampler="synchronized"
+            batch_sampler="synchronized",
         )
         model = model(train_dataset, optimizer=optimizer, epochs=epochs, run_mode=mode)
 
@@ -151,13 +182,15 @@ def train_common(
         else:
             data_shape = next(iter(train_loader))[0].shape
 
-            model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+            model = model(
+                optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode
+            )
 
     model.set_weight(weight, train_dataset)
     if load_weights:
         if source_dir.exists():
             # if not model.needs_training:
-            checkpoint = torch.load(source_dir / "model.ckpt")
+            checkpoint = torch.load(source_dir / "model-v1.ckpt")
             # else:
             model = model.load_state_dict(checkpoint["state_dict"])
         else:
@@ -168,7 +201,9 @@ def train_common(
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
 
     callbacks = [
-        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False),
+        EarlyStopping(
+            monitor="val/loss", min_delta=min_delta, patience=patience, strict=False
+        ),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
     ]
     if verbose:
@@ -199,6 +234,8 @@ def train_common(
         trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
         logging.info("Training complete.")
 
-    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
+    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][
+        "test/loss"
+    ]
     save_config_file(log_dir)
     return test_loss
