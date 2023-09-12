@@ -190,7 +190,7 @@ def train_common(
                 pin_memory=True,
                 drop_last=True,
             )
-            if model.needs_training
+            if model.requires_backprop
             else DataLoader([test_dataset.to_tensor()], batch_size=1)
         )
 
