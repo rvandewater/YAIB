@@ -1,0 +1,46 @@
+# This experiment trains models with progressively more samples to see how the performance changes
+command:
+  - ${env}
+  - ${program}
+  - --samples
+  - 0
+  - -d
+  - ../data/
+  - -t
+  - BinaryClassification
+  - --log-dir
+  - ../yaib_logs_small_set_training
+  - --tune
+  - --wandb-sweep
+  - --source-dir
+  - /dhc/home/robin.vandewater/projects/transfer_learning/gru_mortality/hirid
+method: grid
+name: yaib_samples_benchmark
+parameters:
+  samples:
+    values:
+      - 100
+      - 500
+      - 1000
+      - 2000
+      - 4000
+      - 6000
+      - 8000
+      - 10000
+      - 12000
+  data_dir:
+    values:
+      - ../../data/mortality24/miiv
+      - ../../data/mortality24/hirid
+      - ../../data/mortality24/eicu
+      - ../../data/mortality24/aumc
+  model:
+    values:
+      - GRU
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks

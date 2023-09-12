@@ -29,6 +29,8 @@ class CommonDataset(Dataset):
         split: str = Split.train,
         vars: Dict[str, str] = gin.REQUIRED,
         grouping_segment: str = Segment.outcome,
+        mps: bool = False,
+        name: str = "",
     ):
         self.split = split
         self.vars = vars
@@ -43,11 +45,13 @@ class CommonDataset(Dataset):
         # calculate basic info for the data
         self.num_stays = self.grouping_df.index.unique().shape[0]
         self.maxlen = self.features_df.groupby([self.vars["GROUP"]]).size().max()
+        self.mps = mps
+        self.name = name
 
     def ram_cache(self, cache: bool = True):
         self._cached_dataset = None
         if cache:
-            logging.info("Caching dataset in ram.")
+            logging.info(f"Caching {self.split} dataset in ram.")
             self._cached_dataset = [self[i] for i in range(len(self))]
 
     def __len__(self) -> int:
@@ -101,20 +105,25 @@ class PredictionDataset(CommonDataset):
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id].to_numpy()
-        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
+        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(
+            dtype=float
+        )
 
         if len(labels) == 1:
             # only one label per stay, align with window
-            labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
+            labels = np.concatenate(
+                [np.empty(window.shape[0] - 1) * np.nan, labels], axis=0
+            )
 
         length_diff = self.maxlen - window.shape[0]
-
         pad_mask = np.ones(window.shape[0])
 
         # Padding the array to fulfill size requirement
         if length_diff > 0:
             # window shorter than the longest window in dataset, pad to same length
-            window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
+            window = np.concatenate(
+                [window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0
+            )
             labels = np.concatenate([labels, np.ones(length_diff) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
 
@@ -157,93 +166,10 @@ class PredictionDataset(CommonDataset):
 
     def to_tensor(self):
         data, labels = self.get_data_and_labels()
-        return from_numpy(data).to(float32), from_numpy(labels).to(float32)
-
-
-@gin.configurable("PredictionDatasetTFT")
-class PredictionDatasetTFT(PredictionDataset):
-    """Subclass of prediction dataset for TFT as we need to define if variables are cont,static,known or observed.
-    We also need to feed the model the variables in a specific order
-
-    Args:
-        ram_cache (bool, optional): Whether the complete dataset should be stored in ram. Defaults to True.
-    """
-
-    def __init__(self, *args, ram_cache: bool = True, **kwargs):
-        super().__init__(*args, ram_cache=True, **kwargs)
-
-    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
-        """Function to sample from the data split of choice. Used for TFT.
-        The data needs to be given to the model in the following order 
-        [static categorical,static contious,known catergorical,known continous, observed categorical, observed continous,target ,id]
-
-        Args:
-            idx: A specific row index to sample.
-
-        Returns:
-            A sample from the data, consisting of data, labels and padding mask.
-        """
-        if self._cached_dataset is not None:
-            return self._cached_dataset[idx]
-
-        pad_value = 0.0
-        stay_id = self.outcome_df.index.unique()[idx]
-
-        # We need to be sure that tensors are returned in the correct order to be processed correclty by tft
-        tensors = [[] for _ in range(8)]
-        for var in self.features_df.columns:
-            if var == "sex":
-                tensors[0].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
-            elif var == "age" or var == "height" or var == "weight":
-                tensors[1].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
-            elif "MissingIndicator" in var:
-                tensors[4].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
-            else:
-                tensors[5].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
-
-        tensors[6].extend(self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float))
-        tensors[7].append(np.asarray([stay_id]))
-        window_shape0 = np.shape(tensors[0])[1]
-
-        if len(tensors[6]) == 1:
-            # only one label per stay, align with window
-            tensors[6] = np.concatenate([np.empty(window_shape0 - 1) * np.nan, tensors[6]], axis=0)
-
-        length_diff = self.maxlen - window_shape0
-        pad_mask = np.ones(window_shape0)
-        # Padding the array to fulfill size requirement
-
-        if length_diff > 0:
-            # window shorter than the longest window in dataset, pad to same length
-            tensors[0] = np.concatenate(
-                [tensors[0], np.ones((np.shape(tensors[0])[0], self.maxlen - np.shape(tensors[0])[1])) * pad_value], axis=1
-            )
-            tensors[1] = np.concatenate(
-                [tensors[1], np.ones((np.shape(tensors[1])[0], self.maxlen - np.shape(tensors[1])[1])) * pad_value], axis=1
-            )
-            tensors[4] = np.concatenate(
-                [tensors[4], np.ones((np.shape(tensors[4])[0], self.maxlen - np.shape(tensors[4])[1])) * pad_value], axis=1
-            )
-            tensors[5] = np.concatenate(
-                [tensors[5], np.ones((np.shape(tensors[5])[0], self.maxlen - np.shape(tensors[5])[1])) * pad_value], axis=1
-            )
-
-            tensors[6] = np.concatenate([tensors[6], np.ones(
-                self.maxlen - np.shape(tensors[6])[0]) * pad_value], axis=0)
-            pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
-        tensors[7] = np.concatenate(
-            [tensors[7], np.ones((np.shape(tensors[7])[0], self.maxlen - np.shape(tensors[7])[1])) * stay_id], axis=1
-        )  # should be done regardless of length_diff
-        not_labeled = np.argwhere(np.isnan(tensors[6]))
-        if len(not_labeled) > 0:
-            tensors[6][not_labeled] = -1
-            pad_mask[not_labeled] = 0
-        tensors[6] = [tensors[6]]
-        pad_mask = pad_mask.astype(bool)
-
-        tensors = (from_numpy(np.array(tensor)).to(float32) for tensor in tensors)
-        tensors = [stack((x,), dim=-1) if x.numel() > 0 else empty(0) for x in tensors]
-        return OrderedDict(zip(Features.FEAT_NAMES, tensors)), from_numpy(pad_mask)
+        if self.mps:
+            return from_numpy(data).to(float32), from_numpy(labels).to(float32)
+        else:
+            return from_numpy(data), from_numpy(labels)
 
 
 @gin.configurable("ImputationDataset")
@@ -275,8 +201,12 @@ class ImputationDataset(CommonDataset):
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion
         )
-        self.amputation_mask = (self.amputation_mask + self.features_df.isna().values).bool()
-        self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars[Segment.dynamic])
+        self.amputation_mask = (
+            self.amputation_mask + self.features_df.isna().values
+        ).bool()
+        self.amputation_mask = DataFrame(
+            self.amputation_mask, columns=self.vars[Segment.dynamic]
+        )
         self.amputation_mask[self.vars["GROUP"]] = self.features_df.index
         self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
 
@@ -301,9 +231,15 @@ class ImputationDataset(CommonDataset):
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
-        window_missingness_mask = self.target_missingness_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
-        amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
-        amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
+        window_missingness_mask = self.target_missingness_mask.loc[
+            stay_id:stay_id, self.vars[Segment.dynamic]
+        ]
+        amputated_window = self.amputated_values.loc[
+            stay_id:stay_id, self.vars[Segment.dynamic]
+        ]
+        amputation_mask = self.amputation_mask.loc[
+            stay_id:stay_id, self.vars[Segment.dynamic]
+        ]
 
         return (
             from_numpy(amputated_window.values).to(float32),
@@ -399,15 +335,19 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         max_encoder_length: int,
         *args,
         ram_cache: bool = False,
-        **kwargs
+        **kwargs,
     ):
-        data[split]["FEATURES"]["time_idx"] = ((data[split]["FEATURES"]["time"] / pd.Timedelta(seconds=3600))).astype(
+        data[split]["FEATURES"]["time_idx"] = (
+            (data[split]["FEATURES"]["time"] / pd.Timedelta(seconds=3600))
+        ).astype(
             int
         )  # create an incremental column indicating the time step(required by constructor)
         data = data.get(split)  # get split
         labels = data["OUTCOME"]
         features = data["FEATURES"]
-        self.data = pd.merge(labels, features, on=["stay_id", "time"])  # combine labels and features
+        self.data = pd.merge(
+            labels, features, on=["stay_id", "time"]
+        )  # combine labels and features
         self.split = split
         self.args = args
         self.ram_cache = ram_cache

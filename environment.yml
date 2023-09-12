@@ -23,12 +23,13 @@ dependencies:
   - tensorboard=2.12.2
   - tqdm=4.64.1
   - pytorch-lightning=2.0.3
+  - torchmetrics=1.0.3
   - wandb=0.15.4
   - pip=23.1
   - einops=0.6.1
   - hydra-core=1.3
   - pip:
-      - recipies==0.1.2
+      - recipies==0.1.3
       # Fixed version because of NumPy incompatibility and stale development status.
       - scikit-optimize-fix==0.9.1
       - hydra-submitit-launcher==1.2.0

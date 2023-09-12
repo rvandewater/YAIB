@@ -15,8 +15,7 @@ import gin
 class KNNImputation(ImputationWrapper):
     """Imputation using Scikit-Learn K-Nearest Neighbour."""
 
-    needs_training = False
-    needs_fit = True
+    requires_backprop = False
 
     def __init__(self, *args, n_neighbors=2, **kwargs) -> None:
         super().__init__(*args, n_neighbors=n_neighbors, **kwargs)
@@ -38,8 +37,7 @@ class KNNImputation(ImputationWrapper):
 class MICEImputation(ImputationWrapper):
     """Imputation using Scikit-Learn MICE."""
 
-    needs_training = False
-    needs_fit = True
+    requires_backprop = False
 
     def __init__(self, *args, max_iter=100, verbose=2, imputation_order="random", random_state=0, **kwargs) -> None:
         super().__init__(
@@ -69,8 +67,7 @@ class MICEImputation(ImputationWrapper):
 class MeanImputation(ImputationWrapper):
     """Mean imputation using Scikit-Learn SimpleImputer."""
 
-    needs_training = False
-    needs_fit = True
+    requires_backprop = False
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -90,8 +87,9 @@ class MeanImputation(ImputationWrapper):
 
 @gin.configurable("Median")
 class MedianImputation(ImputationWrapper):
-    needs_training = False
-    needs_fit = True
+    """Median imputation using Scikit-Learn SimpleImputer."""
+
+    requires_backprop = False
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -113,8 +111,7 @@ class MedianImputation(ImputationWrapper):
 class ZeroImputation(ImputationWrapper):
     """Zero imputation using Scikit-Learn SimpleImputer."""
 
-    needs_training = False
-    needs_fit = True
+    requires_backprop = False
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -136,8 +133,7 @@ class ZeroImputation(ImputationWrapper):
 class MostFrequentImputation(ImputationWrapper):
     """Most frequent imputation using Scikit-Learn SimpleImputer."""
 
-    needs_training = False
-    needs_fit = True
+    requires_backprop = False
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -159,8 +155,7 @@ def wrap_hyperimpute_model(methodName: str, configName: str) -> Type:
     class HyperImputeImputation(ImputationWrapper):
         """Imputation using HyperImpute package."""
 
-        needs_training = False
-        needs_fit = True
+        requires_backprop = False
 
         def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
@@ -198,8 +193,7 @@ HyperImputation = wrap_hyperimpute_model("hyperimpute", "HyperImpute")
 class BRITSImputation(ImputationWrapper):
     """Bidirectional Recurrent Imputation for Time Series (BRITS) imputation using PyPots package."""
 
-    needs_training = False
-    needs_fit = True
+    requires_backprop = False
 
     def __init__(self, *args, input_size, epochs=1, rnn_hidden_size=64, batch_size=256, **kwargs) -> None:
         super().__init__(
@@ -234,8 +228,7 @@ class BRITSImputation(ImputationWrapper):
 class SAITSImputation(ImputationWrapper):
     """Self-Attention based Imputation for Time Series (SAITS) imputation using PyPots package."""
 
-    needs_training = False
-    needs_fit = True
+    requires_backprop = False
 
     def __init__(self, *args, input_size, epochs, n_layers, d_model, d_inner, n_head, d_k, d_v, dropout, **kwargs) -> None:
         super().__init__(
@@ -284,8 +277,8 @@ class SAITSImputation(ImputationWrapper):
 class AttentionImputation(ImputationWrapper):
     """Attention based Imputation (Transformer) imputation using PyPots package."""
 
-    needs_training = False
-    needs_fit = True
+    # Handled within the library
+    requires_backprop = False
 
     def __init__(self, *args, input_size, epochs, n_layers, d_model, d_inner, n_head, d_k, d_v, dropout, **kwargs) -> None:
         super().__init__(

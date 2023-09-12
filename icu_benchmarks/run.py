@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
-
 import gin
 import logging
 import sys
 from pathlib import Path
-import importlib.util
-
 import torch.cuda
 
 from icu_benchmarks.wandb_utils import (
@@ -24,6 +21,8 @@ from icu_benchmarks.run_utils import (
     log_full_line,
     load_pretrained_imputation_model,
     setup_logging,
+    import_preprocessor,
+    name_datasets,
 )
 from icu_benchmarks.contants import RunMode
 
@@ -37,11 +36,9 @@ def get_mode(mode: gin.REQUIRED):
 
 def main(my_args=tuple(sys.argv[1:])):
     args, _ = build_parser().parse_known_args(my_args)
-
-    # Set arguments for wandb sweep
     if args.wandb_sweep:
         args = apply_wandb_sweep(args)
-
+        set_wandb_experiment_name(args, "run")
     # Initialize loggers
     log_format = "%(asctime)s - %(levelname)s - %(name)s : %(message)s"
     date_format = "%Y-%m-%d %H:%M:%S"
@@ -49,33 +46,29 @@ def main(my_args=tuple(sys.argv[1:])):
     setup_logging(date_format, log_format, verbose)
 
     # Load weights if in evaluation mode
-
     load_weights = args.command == "evaluate"
     data_dir = Path(args.data_dir)
-
-    # Get arguments
     name = args.name
     task = args.task
     model = args.model
-
-    reproducible = args.reproducible if args.command != "evaluate" else False
+    reproducible = args.reproducible
 
     # Set experiment name
     if name is None:
         name = data_dir.name
     logging.info(f"Running experiment {name}.")
-
-    # Load task config
-    gin.parse_config_file(f"configs/tasks/{task}.gin")
-
-    mode = get_mode()
-
-    if args.wandb_sweep:
-        run_name = f"{mode}_{model}_{name}"
-        set_wandb_run_name(run_name)
-
     logging.info(f"Task mode: {mode}.")
-    experiment = args.experiment
+
+    # Set train size to fine tune size if fine tune is set, else use custom train size
+    train_size = (
+        args.fine_tune
+        if args.fine_tune is not None
+        else args.samples
+        if args.samples is not None
+        else None
+    )
+    # Whether to load weights from a previous run
+    load_weights = evaluate or args.fine_tune is not None
 
     pretrained_imputation_model = load_pretrained_imputation_model(
         args.pretrained_imputation
@@ -89,7 +82,7 @@ def main(my_args=tuple(sys.argv[1:])):
             else "None"
         }
     )
-    source_dir = None
+
     log_dir_name = args.log_dir / name
     log_dir = (
         (log_dir_name / experiment)
@@ -100,6 +93,9 @@ def main(my_args=tuple(sys.argv[1:])):
             / model
         )
     )
+    log_full_line(f"Logging to {log_dir}.", logging.INFO)
+
+    # Check cuda availability
     if torch.cuda.is_available():
         for name in range(0, torch.cuda.device_count()):
             log_full_line(
@@ -111,8 +107,6 @@ def main(my_args=tuple(sys.argv[1:])):
             "No GPUs available: please check your device and Torch,Cuda installation if unintended.",
             level=logging.WARNING,
         )
-
-    log_full_line(f"Logging to {log_dir}.", logging.INFO)
 
     if args.preprocessor:
         # Import custom supplied preprocessor
@@ -132,15 +126,35 @@ def main(my_args=tuple(sys.argv[1:])):
                 f"Could not import custom preprocessor from {args.preprocessor}: {e}"
             )
 
+    # Load pretrained model in evaluate mode or when finetuning
     if load_weights:
-        # Evaluate
-        log_dir /= f"from_{args.source_name}"
+        if args.source_dir is None:
+            raise ValueError(
+                "Please specify a source directory when evaluating or fine-tuning."
+            )
+        log_dir /= f"_from_{args.source_name}"
+        name_datasets(args.source_name, args.source_name, args.name)
+        if args.fine_tune:
+            log_dir /= f"fine_tune_{args.fine_tune}"
+            name_datasets(args.name, args.name, args.name)
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
+        logging.info(
+            f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config."
+        )
         gin.parse_config_file(source_dir / "train_config.gin")
+    elif (
+        args.samples and args.source_dir is not None
+    ):  # Train model with limited samples and bind existing config
+        logging.info("Binding train gin-config. Note: this might override your config.")
+        gin.parse_config_file(args.source_dir / "train_config.gin")
+        log_dir /= f"samples_{args.fine_tune}"
+        name_datasets(args.name, args.name, args.name)
+        run_dir = create_run_dir(log_dir)
     else:
-        # Train
-        checkpoint = log_dir / args.checkpoint if args.checkpoint else None
+        # Normal train and evaluate
+        name_datasets(args.name, args.name, args.name)
+        hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
             Path("configs")
             / (
@@ -166,20 +180,29 @@ def main(my_args=tuple(sys.argv[1:])):
             run_dir,
             args.seed,
             run_mode=mode,
-            checkpoint=checkpoint,
+            checkpoint=hp_checkpoint,
             debug=args.debug,
             generate_cache=args.generate_cache,
             load_cache=args.load_cache,
-            verbose=args.verbose,
+            verbose=verbose,
         )
 
     log_full_line(f"Logging to {run_dir.resolve()}", level=logging.INFO)
-    log_full_line("STARTING TRAINING", level=logging.INFO, char="=", num_newlines=3)
+    if evaluate:
+        mode_string = "STARTING EVALUATION"
+    elif args.fine_tune:
+        mode_string = "STARTING FINE TUNING"
+    else:
+        mode_string = "STARTING TRAINING"
+    log_full_line(mode_string, level=logging.INFO, char="=", num_newlines=3)
+
     start_time = datetime.now()
     execute_repeated_cv(
         data_dir,
         run_dir,
         args.seed,
+        eval_only=evaluate,
+        train_size=train_size,
         load_weights=load_weights,
         source_dir=source_dir,
         reproducible=reproducible,
@@ -191,6 +214,7 @@ def main(my_args=tuple(sys.argv[1:])):
         pretrained_imputation_model=pretrained_imputation_model,
         cpu=args.cpu,
         wandb=args.wandb_sweep,
+        complete_train=args.complete_train,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)

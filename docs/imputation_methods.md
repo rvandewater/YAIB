@@ -7,28 +7,29 @@ To add another imputation model, you have to create a class that inherits from `
 from icu_benchmarks.models.wrappers import ImputationWrapper
 import gin
 
+
 @gin.configurable("newmethod")
 class New_Method(ImputationWrapper):
+    # adjust this accordingly
+    # if true, the method is trained iteratively (like a deep learning model). 
+    # If false it receives the complete training data to perform a fit on
+    requires_backprop = False  
 
-  # adjust this accordingly
-  needs_training = False # if true, the method is trained iteratively (like a deep learning model)
-  needs_fit = True # if true, it receives the complete training data to perform a fit on
+    def __init__(self, *args, model_arg1, model_arg2, **kwargs):
+        super().__init__(*args, **kwargs)
+        # define your new model here
+        self.model = ...
 
-  def __init__(self, *args, model_arg1, model_arg2, **kwargs):
-    super().__init__(*args, **kwargs)
-    # define your new model here
-    self.model = ...
-  
-  # the following method has to be implemented for all methods
-  def forward(self, amputated_values, amputation_mask):
-    imputated_values = amputated_values
-    ...
-    return imputated_values
-  
-  # implement this, if needs_fit is true, otherwise you can leave it out.
-  # this method receives the complete input training data to perform a fit on.
-  def fit(self, train_data):
-    ...
+    # the following method has to be implemented for all methods
+    def forward(self, amputated_values, amputation_mask):
+        imputated_values = amputated_values
+        ...
+        return imputated_values
+
+    # implement this, if needs_fit is true, otherwise you can leave it out.
+    # this method receives the complete input training data to perform a fit on.
+    def fit(self, train_data):
+        ...
 ```
 
 You also need to create a gin configuration file in the `configs/imputation` directory, 

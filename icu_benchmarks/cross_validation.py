@@ -19,6 +19,8 @@ def execute_repeated_cv(
     data_dir: Path,
     log_dir: Path,
     seed: int,
+    eval_only: bool = False,
+    train_size: int = None,
     load_weights: bool = False,
     source_dir: Path = None,
     cv_repetitions: int = 1,
@@ -35,14 +37,19 @@ def execute_repeated_cv(
     cpu: bool = False,
     verbose: bool = False,
     wandb: bool = False,
+    complete_train: bool = False
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
     Args:
 
+        complete_train: Use the full data for training instead of held out test splits.
+        wandb: Use wandb for logging.
         data_dir: Path to the data directory.
         log_dir: Path to the log directory.
         seed: Random seed.
+        eval_only: Whether to only evaluate the model.
+        train_size: Fixed size of train split (including validation data).
         load_weights: Whether to load weights from source_dir.
         source_dir: Path to the source directory.
         cv_folds: Number of folds for cross validation.
@@ -66,10 +73,20 @@ def execute_repeated_cv(
     if not cv_folds_to_train:
         cv_folds_to_train = cv_folds
     agg_loss = 0
-
     seed_everything(seed, reproducible)
+    if complete_train:
+        logging.info("Will train full model without cross validation.")
+        cv_repetitions_to_train = 1
+        cv_folds_to_train = 1
+
+    else:
+        logging.info(f"Starting nested CV with {cv_repetitions_to_train} repetitions of {cv_folds_to_train} folds.")
+
     for repetition in range(cv_repetitions_to_train):
         for fold_index in range(cv_folds_to_train):
+            repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
+            repetition_fold_dir.mkdir(parents=True, exist_ok=True)
+
             start_time = datetime.now()
             data = preprocess_data(
                 data_dir,
@@ -79,19 +96,20 @@ def execute_repeated_cv(
                 generate_cache=generate_cache,
                 cv_repetitions=cv_repetitions,
                 repetition_index=repetition,
+                train_size=train_size,
                 cv_folds=cv_folds,
                 fold_index=fold_index,
                 pretrained_imputation_model=pretrained_imputation_model,
                 runmode=mode,
+                complete_train=complete_train
             )
 
-            repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
-            repetition_fold_dir.mkdir(parents=True, exist_ok=True)
             preprocess_time = datetime.now() - start_time
             start_time = datetime.now()
             agg_loss += train_common(
                 data,
                 log_dir=repetition_fold_dir,
+                eval_only=eval_only,
                 load_weights=load_weights,
                 source_dir=source_dir,
                 reproducible=reproducible,
@@ -100,12 +118,13 @@ def execute_repeated_cv(
                 cpu=cpu,
                 verbose=verbose,
                 use_wandb=wandb,
+                train_only=complete_train
             )
 
             train_time = datetime.now() - start_time
 
             log_full_line(
-                f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| TRAINING DURATION {train_time}",
+                f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| PROCEDURE DURATION {train_time}",
                 level=logging.INFO,
             )
             durations = {"preprocessing_duration": preprocess_time, "train_duration": train_time}
