@@ -5,11 +5,10 @@ import logging
 import sys
 from pathlib import Path
 import torch.cuda
-
 from icu_benchmarks.wandb_utils import (
     update_wandb_config,
     apply_wandb_sweep,
-    set_wandb_run_name,
+    set_wandb_experiment_name,
 )
 from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters
 from scripts.plotting.utils import plot_aggregated_results
@@ -44,14 +43,19 @@ def main(my_args=tuple(sys.argv[1:])):
     date_format = "%Y-%m-%d %H:%M:%S"
     verbose = args.verbose
     setup_logging(date_format, log_format, verbose)
-
-    # Load weights if in evaluation mode
-    load_weights = args.command == "evaluate"
+    # Get arguments
     data_dir = Path(args.data_dir)
     name = args.name
     task = args.task
     model = args.model
     reproducible = args.reproducible
+    evaluate = args.eval
+    experiment = args.experiment
+    source_dir = args.source_dir
+    # Load task config
+    gin.parse_config_file(f"configs/tasks/{task}.gin")
+    mode = get_mode()
+    # Set arguments for wandb sweep
 
     # Set experiment name
     if name is None:
@@ -73,7 +77,6 @@ def main(my_args=tuple(sys.argv[1:])):
     pretrained_imputation_model = load_pretrained_imputation_model(
         args.pretrained_imputation
     )
-
     # Log imputation model to wandb
     update_wandb_config(
         {
@@ -109,22 +112,7 @@ def main(my_args=tuple(sys.argv[1:])):
         )
 
     if args.preprocessor:
-        # Import custom supplied preprocessor
-        log_full_line(
-            f"Importing custom preprocessor from {args.preprocessor}.", logging.INFO
-        )
-        try:
-            spec = importlib.util.spec_from_file_location(
-                "CustomPreprocessor", args.preprocessor
-            )
-            module = importlib.util.module_from_spec(spec)
-            sys.modules["preprocessor"] = module
-            spec.loader.exec_module(module)
-            gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
-        except Exception as e:
-            logging.error(
-                f"Could not import custom preprocessor from {args.preprocessor}: {e}"
-            )
+        import_preprocessor(args.preprocessor)
 
     # Load pretrained model in evaluate mode or when finetuning
     if load_weights:
