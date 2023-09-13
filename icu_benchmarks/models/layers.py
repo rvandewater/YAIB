@@ -743,7 +743,7 @@ class InterpretableMultiHeadAttention(nn.Module):
 
 class TFTBack(nn.Module):
     """
-    Big part of TFT architecture consists of static enrichment followed by mutli-head self-attention then 
+    Big part of TFT architecture consists of static enrichment followed by mutli-head self-attention then
     position wise feed forward followed by a gate and a dense layer
     GRNs-->multi-head attention-->GRNs-->GLU-->Linear-->output
     """

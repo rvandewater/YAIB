@@ -16,16 +16,17 @@ class PooledDataset:
 
 
 class PooledData:
-    def __init__(self,
-                 data_dir,
-                 vars,
-                 datasets,
-                 file_names,
-                 shuffle=False,
-                 stratify=None,
-                 runmode=RunMode.classification,
-                 save_test=True,
-                 ):
+    def __init__(
+        self,
+        data_dir,
+        vars,
+        datasets,
+        file_names,
+        shuffle=False,
+        stratify=None,
+        runmode=RunMode.classification,
+        save_test=True,
+    ):
         """
         Generate pooled data from existing datasets.
         Args:
@@ -48,10 +49,10 @@ class PooledData:
         self.save_test = save_test
 
     def generate(
-            self,
-            datasets,
-            samples=10000,
-            seed=42,
+        self,
+        datasets,
+        samples=10000,
+        seed=42,
     ):
         """
         Generate pooled data from existing datasets.
@@ -65,8 +66,8 @@ class PooledData:
             if folder.is_dir():
                 if folder.name in datasets:
                     data[folder.name] = {
-                        f: pq.read_table(folder / self.file_names[f]).to_pandas(self_destruct=True) for f in
-                        self.file_names.keys()
+                        f: pq.read_table(folder / self.file_names[f]).to_pandas(self_destruct=True)
+                        for f in self.file_names.keys()
                     }
         data = self._pool_datasets(
             datasets=data,
@@ -101,15 +102,15 @@ class PooledData:
         logging.info(f"Saved pooled data at {save_dir}")
 
     def _pool_datasets(
-            self,
-            datasets={},
-            samples=10000,
-            vars=[],
-            seed=42,
-            shuffle=True,
-            runmode=RunMode.classification,
-            data_dir=Path("data"),
-            save_test=True,
+        self,
+        datasets={},
+        samples=10000,
+        vars=[],
+        seed=42,
+        shuffle=True,
+        runmode=RunMode.classification,
+        data_dir=Path("data"),
+        save_test=True,
     ):
         """
         Pool datasets into a single dataset.
@@ -144,8 +145,9 @@ class PooledData:
                 # If we have more outcomes than stays, check max label value per stay id
                 labels = outcome.groupby(id).max()[vars[Var.label]].reset_index(drop=True)
                 # if pd.Series(outcome[id].unique()) is outcome[id]):
-                selected_stays = train_test_split(stays, stratify=labels, shuffle=shuffle, random_state=seed,
-                                                  train_size=samples)
+                selected_stays = train_test_split(
+                    stays, stratify=labels, shuffle=shuffle, random_state=seed, train_size=samples
+                )
             else:
                 selected_stays = train_test_split(stays, shuffle=shuffle, random_state=seed, train_size=samples)
             # Select only stays that are in the selected_stays

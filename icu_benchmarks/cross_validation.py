@@ -37,7 +37,7 @@ def execute_repeated_cv(
     cpu: bool = False,
     verbose: bool = False,
     wandb: bool = False,
-    complete_train: bool = False
+    complete_train: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -101,7 +101,7 @@ def execute_repeated_cv(
                 fold_index=fold_index,
                 pretrained_imputation_model=pretrained_imputation_model,
                 runmode=mode,
-                complete_train=complete_train
+                complete_train=complete_train,
             )
 
             preprocess_time = datetime.now() - start_time
@@ -118,7 +118,7 @@ def execute_repeated_cv(
                 cpu=cpu,
                 verbose=verbose,
                 use_wandb=wandb,
-                train_only=complete_train
+                train_only=complete_train,
             )
 
             train_time = datetime.now() - start_time
