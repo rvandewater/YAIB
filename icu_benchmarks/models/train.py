@@ -126,7 +126,8 @@ def train_common(
         train_dataset
     ), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
-
+    test_dataset = dataset_class(data, split=test_on)
+    test_dataset = assure_minimum_length(test_dataset)
     if not eval_only:
         logging.info(
             f"Training on {train_dataset.name} with {len(train_dataset)} samples and validating on {val_dataset.name} with"
@@ -137,7 +138,7 @@ def train_common(
         train_loader = train_dataset.to_dataloader(
             train=True,
             batch_size=batch_size,
-            num_workers=0,
+            num_workers=num_workers,
             pin_memory=False,
             drop_last=True,
             batch_sampler="synchronized",
@@ -145,7 +146,7 @@ def train_common(
         val_loader = val_dataset.to_dataloader(
             train=False,
             batch_size=batch_size,
-            num_workers=0,
+            num_workers=num_workers,
             pin_memory=False,
             drop_last=True,
             batch_sampler="synchronized",
@@ -153,7 +154,7 @@ def train_common(
         test_loader = test_dataset.to_dataloader(
             train=False,
             batch_size=min(batch_size * 4, len(test_dataset)),
-            num_workers=0,
+            num_workers=num_workers,
             pin_memory=False,
             drop_last=True,
             shuffle=False,
@@ -178,8 +179,6 @@ def train_common(
             pin_memory=True,
             drop_last=True,
         )
-        test_dataset = dataset_class(data, split=test_on)
-        test_dataset = assure_minimum_length(test_dataset)
 
         test_loader = (
             DataLoader(
@@ -199,13 +198,12 @@ def train_common(
 
         else:
             data_shape = next(iter(train_loader))[0].shape
+            model = model(
+                optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode
+            )
 
     if load_weights:
         model = load_model(model, source_dir, pl_model=pl_model)
-    else:
-        model = model(
-            optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode
-        )
 
     model.set_weight(weight, train_dataset)
 
