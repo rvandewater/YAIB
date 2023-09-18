@@ -112,7 +112,7 @@ def train_common(
     val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
-    test_dataset = dataset_class(data, split=test_on)
+    test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"])
     test_dataset = assure_minimum_length(test_dataset)
     if not eval_only:
         logging.info(
@@ -238,21 +238,6 @@ def train_common(
         logging.info("Finished training full model.")
         save_config_file(log_dir)
         return 0
-    test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"])
-    test_dataset = assure_minimum_length(test_dataset)
-    logging.info(f"Testing on {test_dataset.name}  with {len(test_dataset)} samples.")
-    test_loader = (
-        DataLoader(
-            test_dataset,
-            batch_size=min(batch_size * 4, len(test_dataset)),
-            shuffle=False,
-            num_workers=num_workers,
-            pin_memory=True,
-            drop_last=True,
-        )
-        if model.requires_backprop
-        else DataLoader([test_dataset.to_tensor()], batch_size=1)
-    )
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
