@@ -408,7 +408,7 @@ class TFT(DLPredictionWrapper):
         historical_inputs = cat(_historical_inputs, dim=-2)
         future_inputs = Tensor()
         if t_known_inp is not None:
-            future_inputs = t_known_inp[:, self.encoder_length :]
+            future_inputs = t_known_inp[:, self.encoder_length:]
 
         o = self.TFTpart(historical_inputs, cs, ch, cc, ce, future_inputs.to(historical_inputs.device))
         pred = self.logit(o)
@@ -423,14 +423,14 @@ class TFTpytorch(DLPredictionWrapper):
 
     supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, dataset, hidden, dropout, n_heads, dropout_att, lr, optimizer, num_classes, *args, **kwargs):
-        super().__init__(lr=lr, optimizer=optimizer, *args, **kwargs)
+    def __init__(self, dataset, hidden, dropout, n_heads, dropout_att, optimizer, num_classes, *args, **kwargs):
+        super().__init__(optimizer=optimizer, *args, **kwargs)
         self.model = TemporalFusionTransformer.from_dataset(
             dataset=dataset,
             hidden_size=hidden,
             dropout=dropout,
             attention_head_size=n_heads,
-            learning_rate=lr,
+
             optimizer=optimizer,
             loss=QuantileLoss(),
             hidden_continuous_size=hidden,
