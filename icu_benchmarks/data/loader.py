@@ -186,7 +186,8 @@ class PredictionDatasetTFT(PredictionDataset):
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice. Used for TFT.
         The data needs to be given to the model in the following order
-        [static categorical,static contious,known catergorical,known continous, observed categorical, observed continous,target ,id]
+        [static categorical,static contious,known catergorical,known continous,
+          observed categorical, observed continous,target ,id]
         Args:
             idx: A specific row index to sample.
         Returns:
