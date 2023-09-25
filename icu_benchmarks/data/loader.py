@@ -465,6 +465,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         max_encoder_length: int,
         *args,
         ram_cache: bool = False,
+        name: str = "",
         **kwargs,
     ):
         data[split]["FEATURES"]["time_idx"] = (
@@ -475,6 +476,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         data = data.get(split)  # get split
         labels = data["OUTCOME"]
         features = data["FEATURES"]
+        self.name = name
         self.data = pd.merge(
             labels, features, on=["stay_id", "time"]
         )  # combine labels and features
