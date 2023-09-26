@@ -1,6 +1,7 @@
 import os
 import gin
 import torch
+import pickle
 import logging
 import pandas as pd
 from joblib import load
@@ -25,9 +26,11 @@ from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 from collections import OrderedDict
+from captum.attr import IntegratedGradients
 
-
-cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+cpu_core_count = (
+    len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+)
 
 
 def assure_minimum_length(dataset):
@@ -66,6 +69,7 @@ def train_common(
         torch.cuda.device_count() * 8 * int(torch.cuda.is_available()),
         32,
     ),
+    explain: bool = False,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -93,6 +97,8 @@ def train_common(
         pl_model: Loading a pytorch lightning model.
         num_workers: Number of workers to use for data loading.
     """
+    with open("data.pkl", "wb") as fp:
+        pickle.dump(data, fp)
     logging.info(f"Training model: {model.__name__}.")
     # choose dataset_class based on the model
     dataset_class = (
@@ -101,16 +107,28 @@ def train_common(
         else (
             PredictionDatasetTFT
             if model.__name__ == "TFT"
-            else (PredictionDatasetTFTpytorch if model.__name__ == "TFTpytorch" else PredictionDataset)
+            else (
+                PredictionDatasetTFTpytorch
+                if (model.__name__ == "TFTpytorch")
+                else PredictionDataset
+            )
         )
     )
 
     logging.info(f"Logging to directory: {log_dir}.")
-    save_config_file(log_dir)  # We save the operative config before and also after training
+    save_config_file(
+        log_dir
+    )  # We save the operative config before and also after training
 
-    train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"])
-    val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
-    train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
+    train_dataset = dataset_class(
+        data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"]
+    )
+    val_dataset = dataset_class(
+        data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"]
+    )
+    train_dataset, val_dataset = assure_minimum_length(
+        train_dataset
+    ), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
     test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"])
     test_dataset = assure_minimum_length(test_dataset)
@@ -119,7 +137,9 @@ def train_common(
             f"Training on {train_dataset.name} with {len(train_dataset)} samples and validating on {val_dataset.name} with"
             f" {len(val_dataset)} samples."
         )
+
     logging.info(f"Using {num_workers} workers for data loading.")
+
     if model.__name__ == "TFTpytorch":
         train_loader = train_dataset.to_dataloader(
             train=True,
@@ -127,7 +147,6 @@ def train_common(
             num_workers=num_workers,
             pin_memory=False,
             drop_last=True,
-            batch_sampler="synchronized",
         )
         val_loader = val_dataset.to_dataloader(
             train=False,
@@ -135,7 +154,6 @@ def train_common(
             num_workers=num_workers,
             pin_memory=False,
             drop_last=True,
-            batch_sampler="synchronized",
         )
         test_loader = test_dataset.to_dataloader(
             train=False,
@@ -144,7 +162,6 @@ def train_common(
             pin_memory=False,
             drop_last=True,
             shuffle=False,
-            batch_sampler="synchronized",
         )
         model = model(train_dataset, optimizer=optimizer, epochs=epochs, run_mode=mode)
 
@@ -184,11 +201,16 @@ def train_common(
 
         else:
             data_shape = next(iter(train_loader))[0].shape
-            model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+            model = model(
+                optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode
+            )
 
     if load_weights:
         model = load_model(model, source_dir, pl_model=pl_model)
-
+    logging.info(
+        f"train_dataloader with {len(train_loader)} samples and validating on loader with"
+        f" {len(val_loader)} samples."
+    )
     model.set_weight(weight, train_dataset)
 
     model.set_trained_columns(train_dataset.get_feature_names())
@@ -223,11 +245,14 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
+        check_val_every_n_epoch=1,
     )
     if not eval_only:
         if model.requires_backprop:
             logging.info("Training DL model.")
-            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+            trainer.fit(
+                model, train_dataloaders=train_loader, val_dataloaders=val_loader
+            )
             logging.info("Training complete.")
         else:
             logging.info("Training ML model.")
@@ -238,9 +263,22 @@ def train_common(
         logging.info("Finished training full model.")
         save_config_file(log_dir)
         return 0
-
+    if explain:
+        test = next(iter(test_loader))
+        test[0] = test[0].to(model.device)
+        pred = model(test[0])
+        ig = IntegratedGradients(model)
+        # Reformat attributions.
+        test[0].requires_grad_()
+        print(pred.shape)
+        print(test[0].shape)
+        attr, delta = ig.attribute(test[0], target=0, return_convergence_delta=True)
+        attr = attr.detach().numpy()
+        print(attr)
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
+    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][
+        "test/loss"
+    ]
     save_config_file(log_dir)
     return test_loss
 
