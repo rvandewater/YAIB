@@ -172,19 +172,20 @@ class PredictionDataset(CommonDataset):
             return from_numpy(data), from_numpy(labels)
 
 
+"""
 @gin.configurable("PredictionDatasetTFT")
 class PredictionDatasetTFT(PredictionDataset):
-    """Subclass of prediction dataset for TFT as we need to define if variables are cont,static,known or observed.
+    Subclass of prediction dataset for TFT as we need to define if variables are cont,static,known or observed.
     We also need to feed the model the variables in a specific order
     Args:
         ram_cache (bool, optional): Whether the complete dataset should be stored in ram. Defaults to True.
-    """
+    
 
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
         super().__init__(*args, ram_cache=True, **kwargs)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
-        """Function to sample from the data split of choice. Used for TFT.
+        Function to sample from the data split of choice. Used for TFT.
         The data needs to be given to the model in the following order
         [static categorical,static contious,known catergorical,known continous,
           observed categorical, observed continous,target ,id]
@@ -192,7 +193,7 @@ class PredictionDatasetTFT(PredictionDataset):
             idx: A specific row index to sample.
         Returns:
             A sample from the data, consisting of data, labels and padding mask.
-        """
+        
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
 
@@ -300,6 +301,7 @@ class PredictionDatasetTFT(PredictionDataset):
         tensors = (from_numpy(np.array(tensor)).to(float32) for tensor in tensors)
         tensors = [stack((x,), dim=-1) if x.numel() > 0 else empty(0) for x in tensors]
         return OrderedDict(zip(Features.FEAT_NAMES, tensors)), from_numpy(pad_mask)
+"""
 
 
 @gin.configurable("ImputationDataset")
@@ -461,11 +463,11 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         self,
         data: dict,
         split: str,
-        max_prediction_length: int,
-        max_encoder_length: int,
         *args,
         ram_cache: bool = False,
         name: str = "",
+        max_prediction_length: int = 24,
+        max_encoder_length: int = 24,
         **kwargs,
     ):
         data[split]["FEATURES"]["time_idx"] = (
@@ -480,6 +482,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         self.data = pd.merge(
             labels, features, on=["stay_id", "time"]
         )  # combine labels and features
+        # self.data["sex"].replace([0, 1], ["Female", "Male"], inplace=True)
         self.split = split
         self.args = args
         self.ram_cache = ram_cache
@@ -495,10 +498,10 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
             min_prediction_length=max_prediction_length,
             max_prediction_length=max_prediction_length,
             static_categoricals=[],
-            static_reals=["height", "weight", "age", "sex"],
-            time_varying_known_categoricals=[],
-            time_varying_known_reals=[],
-            time_varying_unknown_categoricals=[],
+            static_reals=["height", "weight", "age", "stay_id", "sex"],
+            # time_varying_known_categoricals=[],
+            time_varying_known_reals=["time_idx"],
+            # time_varying_unknown_categoricals=[],
             time_varying_unknown_reals=[
                 "alb",
                 "alp",
@@ -596,6 +599,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
                 "MissingIndicator_46",
                 "MissingIndicator_47",
                 "MissingIndicator_48",
+                "label",
             ],
             add_relative_time_idx=True,
             add_target_scales=True,

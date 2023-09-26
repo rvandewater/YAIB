@@ -52,7 +52,8 @@ def main(my_args=tuple(sys.argv[1:])):
     evaluate = args.eval
     experiment = args.experiment
     source_dir = args.source_dir
-    explain = True if args.explain else False
+    explain = args.explain
+    pytorch_forecasting = args.pytorch_forecasting
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
@@ -205,6 +206,7 @@ def main(my_args=tuple(sys.argv[1:])):
         wandb=args.wandb_sweep,
         complete_train=args.complete_train,
         explain=explain,
+        pytorch_forecasting=pytorch_forecasting,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)

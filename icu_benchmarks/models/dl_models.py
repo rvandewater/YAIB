@@ -15,7 +15,7 @@ from icu_benchmarks.models.layers import (
 from typing import Dict
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 from torch import Tensor, cat, FloatTensor
-from pytorch_forecasting import TemporalFusionTransformer
+from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork
 
 from pytorch_forecasting.metrics import QuantileLoss
 
@@ -28,7 +28,12 @@ class RNNet(DLPredictionWrapper):
 
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
         super().__init__(
-            input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
+            input_size=input_size,
+            hidden_dim=hidden_dim,
+            layer_dim=layer_dim,
+            num_classes=num_classes,
+            *args,
+            **kwargs,
         )
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
@@ -54,7 +59,12 @@ class LSTMNet(DLPredictionWrapper):
 
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
         super().__init__(
-            input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
+            input_size=input_size,
+            hidden_dim=hidden_dim,
+            layer_dim=layer_dim,
+            num_classes=num_classes,
+            *args,
+            **kwargs,
         )
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
@@ -81,7 +91,12 @@ class GRUNet(DLPredictionWrapper):
 
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
         super().__init__(
-            input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
+            input_size=input_size,
+            hidden_dim=hidden_dim,
+            layer_dim=layer_dim,
+            num_classes=num_classes,
+            *args,
+            **kwargs,
         )
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
@@ -136,7 +151,9 @@ class Transformer(DLPredictionWrapper):
             **kwargs,
         )
         hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
-        self.input_embedding = nn.Linear(input_size[2], hidden)  # This acts as a time-distributed layer by defaults
+        self.input_embedding = nn.Linear(
+            input_size[2], hidden
+        )  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
         else:
@@ -207,7 +224,9 @@ class LocalTransformer(DLPredictionWrapper):
         )
 
         hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
-        self.input_embedding = nn.Linear(input_size[2], hidden)  # This acts as a time-distributed layer by defaults
+        self.input_embedding = nn.Linear(
+            input_size[2], hidden
+        )  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
         else:
@@ -248,7 +267,17 @@ class TemporalConvNet(DLPredictionWrapper):
 
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, input_size, num_channels, num_classes, *args, max_seq_length=0, kernel_size=2, dropout=0.0, **kwargs):
+    def __init__(
+        self,
+        input_size,
+        num_channels,
+        num_classes,
+        *args,
+        max_seq_length=0,
+        kernel_size=2,
+        dropout=0.0,
+        **kwargs,
+    ):
         super().__init__(
             input_size=input_size,
             num_channels=num_channels,
@@ -263,9 +292,13 @@ class TemporalConvNet(DLPredictionWrapper):
 
         # We compute automatically the depth based on the desired seq_length.
         if isinstance(num_channels, Integral) and max_seq_length:
-            num_channels = [num_channels] * int(np.ceil(np.log(max_seq_length / 2) / np.log(kernel_size)))
+            num_channels = [num_channels] * int(
+                np.ceil(np.log(max_seq_length / 2) / np.log(kernel_size))
+            )
         elif isinstance(num_channels, Integral) and not max_seq_length:
-            raise Exception("a maximum sequence length needs to be provided if num_channels is int")
+            raise Exception(
+                "a maximum sequence length needs to be provided if num_channels is int"
+            )
 
         num_levels = len(num_channels)
         for i in range(num_levels):
@@ -295,6 +328,7 @@ class TemporalConvNet(DLPredictionWrapper):
         return pred
 
 
+'''
 @gin.configurable
 class TFT(DLPredictionWrapper):
     """
@@ -316,7 +350,9 @@ class TFT(DLPredictionWrapper):
         quantiles=[0.1, 0.5, 0.9],  # quantiles to produce
         static_categorical_inp_size=[2],  # number of catergories
         temporal_known_categorical_inp_size=[],
-        temporal_observed_categorical_inp_size=[48],  # number of categorical observed variables
+        temporal_observed_categorical_inp_size=[
+            48
+        ],  # number of categorical observed variables
         static_continuous_inp_size=3,  # number of static coutinous variables
         temporal_known_continuous_inp_size=0,
         temporal_observed_continuous_inp_size=48,
@@ -325,7 +361,10 @@ class TFT(DLPredictionWrapper):
     ):
         # derived variables
         num_static_vars = len(static_categorical_inp_size) + static_continuous_inp_size
-        num_future_vars = len(temporal_known_categorical_inp_size) + temporal_known_continuous_inp_size
+        num_future_vars = (
+            len(temporal_known_categorical_inp_size)
+            + temporal_known_continuous_inp_size
+        )
         num_historic_vars = sum(
             [
                 num_future_vars,
@@ -370,7 +409,9 @@ class TFT(DLPredictionWrapper):
             hidden,
         )  # embeddings for all variables
 
-        self.static_encoder = StaticCovariateEncoder(num_static_vars, hidden, dropout)  # encoding for static variables
+        self.static_encoder = StaticCovariateEncoder(
+            num_static_vars, hidden, dropout
+        )  # encoding for static variables
         self.TFTpart = TFTBack(
             encoder_length,
             num_historic_vars,
@@ -408,11 +449,19 @@ class TFT(DLPredictionWrapper):
         historical_inputs = cat(_historical_inputs, dim=-2)
         future_inputs = Tensor()
         if t_known_inp is not None:
-            future_inputs = t_known_inp[:, self.encoder_length:]
+            future_inputs = t_known_inp[:, self.encoder_length :]
 
-        o = self.TFTpart(historical_inputs, cs, ch, cc, ce, future_inputs.to(historical_inputs.device))
+        o = self.TFTpart(
+            historical_inputs,
+            cs,
+            ch,
+            cc,
+            ce,
+            future_inputs.to(historical_inputs.device),
+        )
         pred = self.logit(o)
         return pred
+'''
 
 
 @gin.configurable
@@ -423,14 +472,25 @@ class TFTpytorch(DLPredictionWrapper):
 
     supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, dataset, hidden, dropout, n_heads, dropout_att, optimizer, num_classes, *args, **kwargs):
-        super().__init__(optimizer=optimizer, *args, **kwargs)
+    def __init__(
+        self,
+        dataset,
+        hidden,
+        dropout,
+        n_heads,
+        dropout_att,
+        optimizer,
+        num_classes,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(optimizer=optimizer, pytorch_forecasting=True, *args, **kwargs)
+
         self.model = TemporalFusionTransformer.from_dataset(
             dataset=dataset,
             hidden_size=hidden,
             dropout=dropout,
             attention_head_size=n_heads,
-
             optimizer=optimizer,
             loss=QuantileLoss(),
             hidden_continuous_size=hidden,

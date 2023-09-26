@@ -151,6 +151,12 @@ def build_parser() -> ArgumentParser:
         action=BOA,
         help="Provide explaintations for predictions.",
     )
+    parser.add_argument(
+        "--pytorch-forecasting",
+        default=False,
+        action=BOA,
+        help="use pytorch forecasting library ",
+    )
     return parser
 
 
