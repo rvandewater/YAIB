@@ -38,6 +38,7 @@ def execute_repeated_cv(
     verbose: bool = False,
     wandb: bool = False,
     complete_train: bool = False,
+    explain: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -80,11 +81,15 @@ def execute_repeated_cv(
         cv_folds_to_train = 1
 
     else:
-        logging.info(f"Starting nested CV with {cv_repetitions_to_train} repetitions of {cv_folds_to_train} folds.")
+        logging.info(
+            f"Starting nested CV with {cv_repetitions_to_train} repetitions of {cv_folds_to_train} folds."
+        )
 
     for repetition in range(cv_repetitions_to_train):
         for fold_index in range(cv_folds_to_train):
-            repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
+            repetition_fold_dir = (
+                log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
+            )
             repetition_fold_dir.mkdir(parents=True, exist_ok=True)
 
             start_time = datetime.now()
@@ -119,6 +124,7 @@ def execute_repeated_cv(
                 verbose=verbose,
                 use_wandb=wandb,
                 train_only=complete_train,
+                explain=explain,
             )
 
             train_time = datetime.now() - start_time
@@ -127,7 +133,10 @@ def execute_repeated_cv(
                 f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| PROCEDURE DURATION {train_time}",
                 level=logging.INFO,
             )
-            durations = {"preprocessing_duration": preprocess_time, "train_duration": train_time}
+            durations = {
+                "preprocessing_duration": preprocess_time,
+                "train_duration": train_time,
+            }
 
             with open(repetition_fold_dir / "durations.json", "w") as f:
                 json.dump(durations, f, cls=JsonResultLoggingEncoder)
@@ -135,6 +144,11 @@ def execute_repeated_cv(
                 wandb_log({"Iteration": repetition * cv_folds_to_train + fold_index})
             if repetition * cv_folds_to_train + fold_index > 1:
                 aggregate_results(log_dir)
-        log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
+        log_full_line(
+            f"FINISHED CV REPETITION {repetition}",
+            level=logging.INFO,
+            char="=",
+            num_newlines=3,
+        )
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)
