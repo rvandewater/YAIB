@@ -520,20 +520,31 @@ class TFTpytorch(DLPredictionWrapper):
         )
         self.model.plot_prediction_actual_by_variable(predictions_vs_actuals)
         return predictions_vs_actuals
-    
-    def interpertations(self,dataloader):
-        raw_predictions = self.model.predict(dataloader, return_x=True mode="raw")
-        interpretation = self.model.interpret_output(raw_predictions.output, reduction="sum")
+
+    def interpertations(self, dataloader):
+        raw_predictions = self.model.predict(dataloader, return_x=True, mode="raw")
+        interpretation = self.model.interpret_output(
+            raw_predictions.output, reduction="sum"
+        )
         self.model.plot_interpretation(interpretation)
         return interpretation
-    def partial_depenecdy(self,dataloader,variable):
+
+    def partial_depenecdy(self, dataloader, variable):
         dependency = self.model.predict_dependency(
-        dataloader.dataset, variable, np.linspace(0, 30, 30), show_progress_bar=True, mode="dataframe"
+            dataloader.dataset,
+            variable,
+            np.linspace(0, 30, 30),
+            show_progress_bar=True,
+            mode="dataframe",
         )
         # plotting median and 25% and 75% percentile
         agg_dependency = dependency.groupby(variable).normalized_prediction.agg(
-            median="median", q25=lambda x: x.quantile(0.25), q75=lambda x: x.quantile(0.75)
+            median="median",
+            q25=lambda x: x.quantile(0.25),
+            q75=lambda x: x.quantile(0.75),
         )
         ax = agg_dependency.plot(y="median")
-        ax.fill_between(agg_dependency.index, agg_dependency.q25, agg_dependency.q75, alpha=0.3)
+        ax.fill_between(
+            agg_dependency.index, agg_dependency.q25, agg_dependency.q75, alpha=0.3
+        )
         return dependency
