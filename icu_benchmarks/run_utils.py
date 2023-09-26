@@ -23,35 +23,134 @@ def build_parser() -> ArgumentParser:
     Returns:
         The configured ArgumentParser.
     """
-    parser = ArgumentParser(description="Framework for benchmarking ML/DL models on ICU data")
+    parser = ArgumentParser(
+        description="Framework for benchmarking ML/DL models on ICU data"
+    )
 
-    parser.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
-    parser.add_argument("-t", "--task", default="BinaryClassification", required=True, help="Name of the task gin.")
+    parser.add_argument(
+        "-d",
+        "--data-dir",
+        required=True,
+        type=Path,
+        help="Path to the parquet data directory.",
+    )
+    parser.add_argument(
+        "-t",
+        "--task",
+        default="BinaryClassification",
+        required=True,
+        help="Name of the task gin.",
+    )
     parser.add_argument("-n", "--name", help="Name of the (target) dataset.")
-    parser.add_argument("-tn", "--task-name", help="Name of the task, used for naming experiments.")
-    parser.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
+    parser.add_argument(
+        "-tn", "--task-name", help="Name of the task, used for naming experiments."
+    )
+    parser.add_argument(
+        "-m", "--model", default="LGBMClassifier", help="Name of the model gin."
+    )
     parser.add_argument("-e", "--experiment", help="Name of the experiment gin.")
-    parser.add_argument("-l", "--log-dir", default=Path("../yaib_logs/"), type=Path, help="Log directory for model weights.")
-    parser.add_argument("-s", "--seed", default=1234, type=int, help="Random seed for processing, tuning and training.")
-    parser.add_argument("-v", "--verbose", default=False, action=BOA, help="Set to log verbosly. Disable for clean logs.")
+    parser.add_argument(
+        "-l",
+        "--log-dir",
+        default=Path("../yaib_logs/"),
+        type=Path,
+        help="Log directory for model weights.",
+    )
+    parser.add_argument(
+        "-s",
+        "--seed",
+        default=1234,
+        type=int,
+        help="Random seed for processing, tuning and training.",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        default=False,
+        action=BOA,
+        help="Set to log verbosly. Disable for clean logs.",
+    )
     parser.add_argument("--cpu", default=False, action=BOA, help="Set to use CPU.")
-    parser.add_argument("-db", "--debug", default=False, action=BOA, help="Set to load less data.")
-    parser.add_argument("--reproducible", default=True, action=BOA, help="Make torch reproducible.")
-    parser.add_argument("-lc", "--load_cache", default=False, action=BOA, help="Set to load generated data cache.")
-    parser.add_argument("-gc", "--generate_cache", default=False, action=BOA, help="Set to generate data cache.")
-    parser.add_argument("-p", "--preprocessor", type=Path, help="Load custom preprocessor from file.")
+    parser.add_argument(
+        "-db", "--debug", default=False, action=BOA, help="Set to load less data."
+    )
+    parser.add_argument(
+        "--reproducible", default=True, action=BOA, help="Make torch reproducible."
+    )
+    parser.add_argument(
+        "-lc",
+        "--load_cache",
+        default=False,
+        action=BOA,
+        help="Set to load generated data cache.",
+    )
+    parser.add_argument(
+        "-gc",
+        "--generate_cache",
+        default=False,
+        action=BOA,
+        help="Set to generate data cache.",
+    )
+    parser.add_argument(
+        "-p", "--preprocessor", type=Path, help="Load custom preprocessor from file."
+    )
     parser.add_argument("-pl", "--plot", action=BOA, help="Generate common plots.")
-    parser.add_argument("-wd", "--wandb-sweep", action="store_true", help="Activates wandb hyper parameter sweep.")
-    parser.add_argument("-imp", "--pretrained-imputation", type=str, help="Path to pretrained imputation model.")
-    parser.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
-    parser.add_argument("--tune", default=False, action=BOA, help="Find best hyperparameters.")
-    parser.add_argument("--hp-checkpoint", type=Path, help="Use previous hyperparameter checkpoint.")
-    parser.add_argument("--eval", default=False, action=BOA, help="Only evaluate model, skip training.")
-    parser.add_argument("--complete-train", default=False, action=BOA, help="Use all data to train model, skip testing.")
-    parser.add_argument("-ft", "--fine-tune", default=None, type=int, help="Finetune model with amount of train data.")
-    parser.add_argument("-sn", "--source-name", type=Path, help="Name of the source dataset.")
-    parser.add_argument("--source-dir", type=Path, help="Directory containing gin and model weights.")
-    parser.add_argument("-sa", "--samples", type=int, default=None, help="Number of samples to use for evaluation.")
+    parser.add_argument(
+        "-wd",
+        "--wandb-sweep",
+        action="store_true",
+        help="Activates wandb hyper parameter sweep.",
+    )
+    parser.add_argument(
+        "-imp",
+        "--pretrained-imputation",
+        type=str,
+        help="Path to pretrained imputation model.",
+    )
+    parser.add_argument(
+        "-hp", "--hyperparams", nargs="+", help="Hyperparameters for model."
+    )
+    parser.add_argument(
+        "--tune", default=False, action=BOA, help="Find best hyperparameters."
+    )
+    parser.add_argument(
+        "--hp-checkpoint", type=Path, help="Use previous hyperparameter checkpoint."
+    )
+    parser.add_argument(
+        "--eval", default=False, action=BOA, help="Only evaluate model, skip training."
+    )
+    parser.add_argument(
+        "--complete-train",
+        default=False,
+        action=BOA,
+        help="Use all data to train model, skip testing.",
+    )
+    parser.add_argument(
+        "-ft",
+        "--fine-tune",
+        default=None,
+        type=int,
+        help="Finetune model with amount of train data.",
+    )
+    parser.add_argument(
+        "-sn", "--source-name", type=Path, help="Name of the source dataset."
+    )
+    parser.add_argument(
+        "--source-dir", type=Path, help="Directory containing gin and model weights."
+    )
+    parser.add_argument(
+        "-sa",
+        "--samples",
+        type=int,
+        default=None,
+        help="Number of samples to use for evaluation.",
+    )
+    parser.add_argument(
+        "--explain",
+        default=False,
+        action=BOA,
+        help="Provide explaintations for predictions.",
+    )
     return parser
 
 
@@ -80,15 +179,21 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
 
 def import_preprocessor(preprocessor_path: str):
     # Import custom supplied preprocessor
-    log_full_line(f"Importing custom preprocessor from {preprocessor_path}.", logging.INFO)
+    log_full_line(
+        f"Importing custom preprocessor from {preprocessor_path}.", logging.INFO
+    )
     try:
-        spec = importlib.util.spec_from_file_location("CustomPreprocessor", preprocessor_path)
+        spec = importlib.util.spec_from_file_location(
+            "CustomPreprocessor", preprocessor_path
+        )
         module = importlib.util.module_from_spec(spec)
         sys.modules["preprocessor"] = module
         spec.loader.exec_module(module)
         gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
     except Exception as e:
-        logging.error(f"Could not import custom preprocessor from {preprocessor_path}: {e}")
+        logging.error(
+            f"Could not import custom preprocessor from {preprocessor_path}: {e}"
+        )
 
 
 def aggregate_results(log_dir: Path, execution_time: timedelta = None):
@@ -132,10 +237,14 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
 
     # Calculate the population standard deviation over aggregated results over folds/iterations
     # Divide by sqrt(n) to get standard deviation.
-    std_scores = {metric: (pstdev(list) / sqrt(len(list))) for metric, list in list_scores.items()}
+    std_scores = {
+        metric: (pstdev(list) / sqrt(len(list))) for metric, list in list_scores.items()
+    }
 
     confidence_interval = {
-        metric: (stats.t.interval(0.95, len(list) - 1, loc=mean(list), scale=stats.sem(list)))
+        metric: (
+            stats.t.interval(0.95, len(list) - 1, loc=mean(list), scale=stats.sem(list))
+        )
         for metric, list in list_scores.items()
     }
 
@@ -143,7 +252,9 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
         "avg": averaged_scores,
         "std": std_scores,
         "CI_0.95": confidence_interval,
-        "execution_time": execution_time.total_seconds() if execution_time is not None else 0.0,
+        "execution_time": execution_time.total_seconds()
+        if execution_time is not None
+        else 0.0,
     }
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
@@ -159,10 +270,14 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
 
 def name_datasets(train="default", val="default", test="default"):
     """Names the datasets for logging (optional)."""
-    gin.bind_parameter("train_common.dataset_names", {"train": train, "val": val, "test": test})
+    gin.bind_parameter(
+        "train_common.dataset_names", {"train": train, "val": val, "test": test}
+    )
 
 
-def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
+def log_full_line(
+    msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0
+):
     """Logs a full line of a given character with a message centered.
 
     Args:
@@ -175,7 +290,12 @@ def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newl
     reserved_chars = len(logging.getLevelName(level)) + 28
     logging.log(
         level,
-        "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars),
+        "{0:{char}^{width}}{1}".format(
+            msg,
+            "\n" * num_newlines,
+            char=char,
+            width=terminal_size.columns - reserved_chars,
+        ),
     )
 
 
@@ -185,24 +305,43 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
     Args:
         use_pretrained_imputation: Path to the pretrained imputation model.
     """
-    if use_pretrained_imputation is not None and not Path(use_pretrained_imputation).exists():
+    if (
+        use_pretrained_imputation is not None
+        and not Path(use_pretrained_imputation).exists()
+    ):
         logging.warning("The specified pretrained imputation model does not exist.")
         use_pretrained_imputation = None
 
     if use_pretrained_imputation is not None:
-        logging.info("Using pretrained imputation from" + str(use_pretrained_imputation))
-        pretrained_imputation_model_checkpoint = torch.load(use_pretrained_imputation, map_location=torch.device("cpu"))
+        logging.info(
+            "Using pretrained imputation from" + str(use_pretrained_imputation)
+        )
+        pretrained_imputation_model_checkpoint = torch.load(
+            use_pretrained_imputation, map_location=torch.device("cpu")
+        )
         if isinstance(pretrained_imputation_model_checkpoint, dict):
             imputation_model_class = pretrained_imputation_model_checkpoint["class"]
-            pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
-            pretrained_imputation_model.set_trained_columns(pretrained_imputation_model_checkpoint["trained_columns"])
-            pretrained_imputation_model.load_state_dict(pretrained_imputation_model_checkpoint["state_dict"])
+            pretrained_imputation_model = imputation_model_class(
+                **pretrained_imputation_model_checkpoint["hyper_parameters"]
+            )
+            pretrained_imputation_model.set_trained_columns(
+                pretrained_imputation_model_checkpoint["trained_columns"]
+            )
+            pretrained_imputation_model.load_state_dict(
+                pretrained_imputation_model_checkpoint["state_dict"]
+            )
         else:
             pretrained_imputation_model = pretrained_imputation_model_checkpoint
-        pretrained_imputation_model = pretrained_imputation_model.to("cuda" if torch.cuda.is_available() else "cpu")
+        pretrained_imputation_model = pretrained_imputation_model.to(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
         try:
-            logging.info(f"imputation model device: {next(pretrained_imputation_model.parameters()).device}")
-            pretrained_imputation_model.device = next(pretrained_imputation_model.parameters()).device
+            logging.info(
+                f"imputation model device: {next(pretrained_imputation_model.parameters()).device}"
+            )
+            pretrained_imputation_model.device = next(
+                pretrained_imputation_model.parameters()
+            ).device
         except Exception as e:
             logging.debug(f"Could not set device of imputation model: {e}")
     else:
@@ -223,7 +362,9 @@ def setup_logging(date_format, log_format, verbose):
     logging.basicConfig(format=log_format, datefmt=date_format)
     loggers = ["pytorch_lightning", "lightning_fabric"]
     for logger in loggers:
-        logging.getLogger(logger).handlers[0].setFormatter(logging.Formatter(log_format, datefmt=date_format))
+        logging.getLogger(logger).handlers[0].setFormatter(
+            logging.Formatter(log_format, datefmt=date_format)
+        )
 
     if not verbose:
         logging.getLogger().setLevel(logging.INFO)
