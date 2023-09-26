@@ -19,7 +19,6 @@ from pathlib import Path
 from icu_benchmarks.data.loader import (
     PredictionDataset,
     ImputationDataset,
-    PredictionDatasetTFT,
     PredictionDatasetTFTpytorch,
 )
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
@@ -70,6 +69,7 @@ def train_common(
         32,
     ),
     explain: bool = False,
+    pytorch_forecasting: bool = False,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -97,21 +97,13 @@ def train_common(
         pl_model: Loading a pytorch lightning model.
         num_workers: Number of workers to use for data loading.
     """
-    with open("data.pkl", "wb") as fp:
-        pickle.dump(data, fp)
     logging.info(f"Training model: {model.__name__}.")
     # choose dataset_class based on the model
     dataset_class = (
         ImputationDataset
         if mode == RunMode.imputation
         else (
-            PredictionDatasetTFT
-            if model.__name__ == "TFT"
-            else (
-                PredictionDatasetTFTpytorch
-                if (model.__name__ == "TFTpytorch")
-                else PredictionDataset
-            )
+            PredictionDatasetTFTpytorch if (pytorch_forecasting) else PredictionDataset
         )
     )
 
@@ -140,7 +132,7 @@ def train_common(
 
     logging.info(f"Using {num_workers} workers for data loading.")
 
-    if model.__name__ == "TFTpytorch":
+    if pytorch_forecasting:
         train_loader = train_dataset.to_dataloader(
             train=True,
             batch_size=batch_size,
@@ -163,7 +155,15 @@ def train_common(
             drop_last=True,
             shuffle=False,
         )
-        model = model(train_dataset, optimizer=optimizer, epochs=epochs, run_mode=mode)
+        if load_weights:
+            model = load_model(
+                model, source_dir, pl_model=pl_model, train_dataset=train_dataset
+            )
+
+        else:
+            model = model(
+                train_dataset, optimizer=optimizer, epochs=epochs, run_mode=mode
+            )
 
     else:
         train_loader = DataLoader(
@@ -195,24 +195,20 @@ def train_common(
             if model.requires_backprop
             else DataLoader([test_dataset.to_tensor()], batch_size=1)
         )
-
+        """
         if isinstance(next(iter(train_loader))[0], OrderedDict):
             model = model(optimizer=optimizer, epochs=epochs, run_mode=mode)
+        """
 
+        data_shape = next(iter(train_loader))[0].shape
+        if load_weights:
+            model = load_model(model, source_dir, pl_model=pl_model)
         else:
-            data_shape = next(iter(train_loader))[0].shape
             model = model(
                 optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode
             )
 
-    if load_weights:
-        model = load_model(model, source_dir, pl_model=pl_model)
-    logging.info(
-        f"train_dataloader with {len(train_loader)} samples and validating on loader with"
-        f" {len(val_loader)} samples."
-    )
     model.set_weight(weight, train_dataset)
-
     model.set_trained_columns(train_dataset.get_feature_names())
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
     if use_wandb:
@@ -263,18 +259,29 @@ def train_common(
         logging.info("Finished training full model.")
         save_config_file(log_dir)
         return 0
+
     if explain:
+        # actual_vs_predictions = model.actual_vs_predictions_plot(test_loader)
+        # print("1", actual_vs_predictions)
+        interperations = model.interpertations(test_loader, log_dir)
+        print("2", interperations)
+        pd = model.predict_dependency(test_loader, "age", log_dir)
+        print("3", pd)
+        """
         test = next(iter(test_loader))
-        test[0] = test[0].to(model.device)
+
+        for key, value in test[0].items():
+            test[0][key] = test[0][key].to(model.device)
+
         pred = model(test[0])
+
         ig = IntegratedGradients(model)
         # Reformat attributions.
-        test[0].requires_grad_()
-        print(pred.shape)
-        print(test[0].shape)
+
         attr, delta = ig.attribute(test[0], target=0, return_convergence_delta=True)
         attr = attr.detach().numpy()
         print(attr)
+        """
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][
         "test/loss"
@@ -283,7 +290,7 @@ def train_common(
     return test_loss
 
 
-def load_model(model, source_dir, pl_model=True):
+def load_model(model, source_dir, pl_model=True, train_dataset=None):
     if source_dir.exists():
         if model.requires_backprop:
             if (source_dir / "model.ckpt").exists():
@@ -295,7 +302,13 @@ def load_model(model, source_dir, pl_model=True):
             else:
                 return Exception(f"No weights to load at path : {source_dir}")
             if pl_model:
-                model = model.load_from_checkpoint(model_path)
+                if train_dataset is not None:
+                    model = model.load_from_checkpoint(
+                        model_path, dataset=train_dataset
+                    )
+
+                else:
+                    model = model.load_from_checkpoint(model_path)
             else:
                 checkpoint = torch.load(model_path)
                 model.load_from_checkpoint(checkpoint)

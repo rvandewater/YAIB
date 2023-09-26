@@ -12,12 +12,12 @@ from icu_benchmarks.models.layers import (
     StaticCovariateEncoder,
     TFTBack,
 )
-from typing import Dict
+import matplotlib.pyplot as plt
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 from torch import Tensor, cat, FloatTensor
 from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork
-
 from pytorch_forecasting.metrics import QuantileLoss
+import matplotlib.pyplot as plt
 
 
 @gin.configurable
@@ -521,15 +521,18 @@ class TFTpytorch(DLPredictionWrapper):
         self.model.plot_prediction_actual_by_variable(predictions_vs_actuals)
         return predictions_vs_actuals
 
-    def interpertations(self, dataloader):
+    def interpertations(self, dataloader, log_dir):
         raw_predictions = self.model.predict(dataloader, return_x=True, mode="raw")
         interpretation = self.model.interpret_output(
             raw_predictions.output, reduction="sum"
         )
-        self.model.plot_interpretation(interpretation)
+        figs = self.model.plot_interpretation(interpretation)
+        for key, fig in figs.items():
+            fig.savefig(log_dir / f"interpretation_{key}.png", bbox_inches="tight")
+
         return interpretation
 
-    def partial_depenecdy(self, dataloader, variable):
+    def predict_dependency(self, dataloader, variable, log_dir):
         dependency = self.model.predict_dependency(
             dataloader.dataset,
             variable,
@@ -547,4 +550,5 @@ class TFTpytorch(DLPredictionWrapper):
         ax.fill_between(
             agg_dependency.index, agg_dependency.q25, agg_dependency.q75, alpha=0.3
         )
+        plt.savefig(log_dir / "dependecy.png", bbox_inches="tight")
         return dependency
