@@ -2,6 +2,7 @@ import gin
 from numbers import Integral
 import numpy as np
 import torch.nn as nn
+from typing import Dict
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.models.layers import (
     TransformerBlock,
@@ -508,10 +509,33 @@ class TFTpytorch(DLPredictionWrapper):
             weight = FloatTensor(dataset.get_balance())
         self.loss_weights = weight
 
+    def forward(
+        self,
+        tuple_x: tuple,
+    ) -> Dict[str, Tensor]:
+        x_dict = {
+            "encoder_cat": tuple_x[0],
+            "encoder_cont": tuple_x[1],
+            "encoder_target": tuple_x[2],
+            "encoder_lengths": tuple_x[3],
+            "decoder_cat": tuple_x[4],
+            "decoder_cont": tuple_x[5],
+            "decoder_target": tuple_x[6],
+            "decoder_lengths": tuple_x[7],
+            "decoder_time_idx": tuple_x[8],
+            "groups": tuple_x[9],
+            "target_scale": tuple_x[10],
+        }
+        out = self.model(x_dict)
+        pred = self.logit(out["prediction"])
+        return pred
+
+    """
     def forward(self, x):
         out = self.model(x)
         pred = self.logit(out["prediction"])
         return pred
+    """
 
     def actual_vs_predictions_plot(self, dataloader):
         predictions = self.model.predict(dataloader, return_x=True)

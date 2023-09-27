@@ -343,7 +343,20 @@ class DLPredictionWrapper(DLWrapper):
             if (
                 self.pytorch_forecasting
             ):  # check if the data loader is the one for the pytorch forecasring implementation
-                data, labels = element[0], element[1][0]
+                dic, labels = element[0], element[1][0]
+                data = (
+                    dic["encoder_cat"],
+                    dic["encoder_cont"],
+                    dic["encoder_target"],
+                    dic["encoder_lengths"],
+                    dic["decoder_cat"],
+                    dic["decoder_cont"],
+                    dic["decoder_target"],
+                    dic["decoder_lengths"],
+                    dic["decoder_time_idx"],
+                    dic["groups"],
+                    dic["target_scale"],
+                )
                 mask = torch.ones_like(labels).bool()
             else:
                 data, labels = element[0], (element[1]).to(self.device)
@@ -369,7 +382,6 @@ class DLPredictionWrapper(DLWrapper):
             raise Exception(
                 "Loader should return either (data, label) or (data, label, mask)"
             )
-
         out = self(data)
 
         # If aux_loss is present, it is returned as a tuple
