@@ -414,7 +414,8 @@ def calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T):
     Beta_tilde = Beta + 0
     for t in range(1, diffusion_time_steps):
         Alpha_bar[t] *= Alpha_bar[t - 1]  # \bar{\alpha}_t = \prod_{s=1}^t \alpha_s
-        Beta_tilde[t] *= (1 - Alpha_bar[t - 1]) / (1 - Alpha_bar[t])  # \tilde{\beta}_t = \beta_t * (1-\bar{\alpha}_{t-1})
+        # \tilde{\beta}_t = \beta_t * (1-\bar{\alpha}_{t-1})
+        Beta_tilde[t] *= (1 - Alpha_bar[t - 1]) / (1 - Alpha_bar[t])
         # / (1-\bar{\alpha}_t)
     Sigma = torch.sqrt(Beta_tilde)  # \sigma_t^2  = \tilde{\beta}_t
 

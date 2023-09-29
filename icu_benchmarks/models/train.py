@@ -27,9 +27,7 @@ from icu_benchmarks.data.constants import DataSplit as Split
 from collections import OrderedDict
 from captum.attr import IntegratedGradients
 
-cpu_core_count = (
-    len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
-)
+cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 
 
 def assure_minimum_length(dataset):
@@ -102,25 +100,15 @@ def train_common(
     dataset_class = (
         ImputationDataset
         if mode == RunMode.imputation
-        else (
-            PredictionDatasetTFTpytorch if (pytorch_forecasting) else PredictionDataset
-        )
+        else (PredictionDatasetTFTpytorch if (pytorch_forecasting) else PredictionDataset)
     )
 
     logging.info(f"Logging to directory: {log_dir}.")
-    save_config_file(
-        log_dir
-    )  # We save the operative config before and also after training
+    save_config_file(log_dir)  # We save the operative config before and also after training
 
-    train_dataset = dataset_class(
-        data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"]
-    )
-    val_dataset = dataset_class(
-        data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"]
-    )
-    train_dataset, val_dataset = assure_minimum_length(
-        train_dataset
-    ), assure_minimum_length(val_dataset)
+    train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"])
+    val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
+    train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
     test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"])
     test_dataset = assure_minimum_length(test_dataset)
@@ -156,14 +144,10 @@ def train_common(
             shuffle=False,
         )
         if load_weights:
-            model = load_model(
-                model, source_dir, pl_model=pl_model, train_dataset=train_dataset
-            )
+            model = load_model(model, source_dir, pl_model=pl_model, train_dataset=train_dataset)
 
         else:
-            model = model(
-                train_dataset, optimizer=optimizer, epochs=epochs, run_mode=mode
-            )
+            model = model(train_dataset, optimizer=optimizer, epochs=epochs, run_mode=mode)
 
     else:
         train_loader = DataLoader(
@@ -204,9 +188,7 @@ def train_common(
         if load_weights:
             model = load_model(model, source_dir, pl_model=pl_model)
         else:
-            model = model(
-                optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode
-            )
+            model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
 
     model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
@@ -246,9 +228,7 @@ def train_common(
     if not eval_only:
         if model.requires_backprop:
             logging.info("Training DL model.")
-            trainer.fit(
-                model, train_dataloaders=train_loader, val_dataloaders=val_loader
-            )
+            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
             logging.info("Training complete.")
         else:
             logging.info("Training ML model.")
@@ -283,9 +263,7 @@ def train_common(
         print(attr)
         """
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][
-        "test/loss"
-    ]
+    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss
 
@@ -303,9 +281,7 @@ def load_model(model, source_dir, pl_model=True, train_dataset=None):
                 return Exception(f"No weights to load at path : {source_dir}")
             if pl_model:
                 if train_dataset is not None:
-                    model = model.load_from_checkpoint(
-                        model_path, dataset=train_dataset
-                    )
+                    model = model.load_from_checkpoint(model_path, dataset=train_dataset)
 
                 else:
                     model = model.load_from_checkpoint(model_path)

@@ -3,15 +3,13 @@ from pandas import DataFrame
 import pandas as pd
 import gin
 import numpy as np
-from torch import Tensor, cat, from_numpy, float32, empty, stack
+from torch import Tensor, cat, from_numpy, float32
 from torch.utils.data import Dataset
 import logging
 from typing import Dict, Tuple
 from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
 from .constants import DataSplit as Split
-from .constants import FeatType as Features
-from collections import OrderedDict
 from pytorch_forecasting import TimeSeriesDataSet
 
 
@@ -105,15 +103,11 @@ class PredictionDataset(CommonDataset):
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id].to_numpy()
-        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(
-            dtype=float
-        )
+        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
 
         if len(labels) == 1:
             # only one label per stay, align with window
-            labels = np.concatenate(
-                [np.empty(window.shape[0] - 1) * np.nan, labels], axis=0
-            )
+            labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
 
         length_diff = self.maxlen - window.shape[0]
         pad_mask = np.ones(window.shape[0])
@@ -121,9 +115,7 @@ class PredictionDataset(CommonDataset):
         # Padding the array to fulfill size requirement
         if length_diff > 0:
             # window shorter than the longest window in dataset, pad to same length
-            window = np.concatenate(
-                [window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0
-            )
+            window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
             labels = np.concatenate([labels, np.ones(length_diff) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
 
@@ -179,7 +171,7 @@ class PredictionDatasetTFT(PredictionDataset):
     We also need to feed the model the variables in a specific order
     Args:
         ram_cache (bool, optional): Whether the complete dataset should be stored in ram. Defaults to True.
-    
+
 
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
         super().__init__(*args, ram_cache=True, **kwargs)
@@ -193,7 +185,7 @@ class PredictionDatasetTFT(PredictionDataset):
             idx: A specific row index to sample.
         Returns:
             A sample from the data, consisting of data, labels and padding mask.
-        
+
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
 
@@ -333,12 +325,8 @@ class ImputationDataset(CommonDataset):
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion
         )
-        self.amputation_mask = (
-            self.amputation_mask + self.features_df.isna().values
-        ).bool()
-        self.amputation_mask = DataFrame(
-            self.amputation_mask, columns=self.vars[Segment.dynamic]
-        )
+        self.amputation_mask = (self.amputation_mask + self.features_df.isna().values).bool()
+        self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars[Segment.dynamic])
         self.amputation_mask[self.vars["GROUP"]] = self.features_df.index
         self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
 
@@ -363,15 +351,9 @@ class ImputationDataset(CommonDataset):
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
-        window_missingness_mask = self.target_missingness_mask.loc[
-            stay_id:stay_id, self.vars[Segment.dynamic]
-        ]
-        amputated_window = self.amputated_values.loc[
-            stay_id:stay_id, self.vars[Segment.dynamic]
-        ]
-        amputation_mask = self.amputation_mask.loc[
-            stay_id:stay_id, self.vars[Segment.dynamic]
-        ]
+        window_missingness_mask = self.target_missingness_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
+        amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
+        amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
 
         return (
             from_numpy(amputated_window.values).to(float32),
@@ -470,18 +452,14 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         max_encoder_length: int = 24,
         **kwargs,
     ):
-        data[split]["FEATURES"]["time_idx"] = (
-            (data[split]["FEATURES"]["time"] / pd.Timedelta(seconds=3600))
-        ).astype(
+        data[split]["FEATURES"]["time_idx"] = ((data[split]["FEATURES"]["time"] / pd.Timedelta(seconds=3600))).astype(
             int
         )  # create an incremental column indicating the time step(required by constructor)
         data = data.get(split)  # get split
         labels = data["OUTCOME"]
         features = data["FEATURES"]
         self.name = name
-        self.data = pd.merge(
-            labels, features, on=["stay_id", "time"]
-        )  # combine labels and features
+        self.data = pd.merge(labels, features, on=["stay_id", "time"])  # combine labels and features
         # self.data["sex"].replace([0, 1], ["Female", "Male"], inplace=True)
         self.split = split
         self.args = args
