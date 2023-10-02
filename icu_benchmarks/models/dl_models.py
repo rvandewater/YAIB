@@ -13,7 +13,7 @@ from icu_benchmarks.models.layers import (
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 from torch import Tensor, FloatTensor
-from pytorch_forecasting import TemporalFusionTransformer  # , RecurrentNetwork
+from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork
 from pytorch_forecasting.metrics import QuantileLoss
 import matplotlib.pyplot as plt
 
@@ -149,7 +149,9 @@ class Transformer(DLPredictionWrapper):
             **kwargs,
         )
         hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
-        self.input_embedding = nn.Linear(input_size[2], hidden)  # This acts as a time-distributed layer by defaults
+        self.input_embedding = nn.Linear(
+            input_size[2], hidden
+        )  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
         else:
@@ -220,7 +222,9 @@ class LocalTransformer(DLPredictionWrapper):
         )
 
         hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
-        self.input_embedding = nn.Linear(input_size[2], hidden)  # This acts as a time-distributed layer by defaults
+        self.input_embedding = nn.Linear(
+            input_size[2], hidden
+        )  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
         else:
@@ -286,9 +290,13 @@ class TemporalConvNet(DLPredictionWrapper):
 
         # We compute automatically the depth based on the desired seq_length.
         if isinstance(num_channels, Integral) and max_seq_length:
-            num_channels = [num_channels] * int(np.ceil(np.log(max_seq_length / 2) / np.log(kernel_size)))
+            num_channels = [num_channels] * int(
+                np.ceil(np.log(max_seq_length / 2) / np.log(kernel_size))
+            )
         elif isinstance(num_channels, Integral) and not max_seq_length:
-            raise Exception("a maximum sequence length needs to be provided if num_channels is int")
+            raise Exception(
+                "a maximum sequence length needs to be provided if num_channels is int"
+            )
 
         num_levels = len(num_channels)
         for i in range(num_levels):
@@ -529,13 +537,17 @@ class TFTpytorch(DLPredictionWrapper):
 
     def actual_vs_predictions_plot(self, dataloader):
         predictions = self.model.predict(dataloader, return_x=True)
-        predictions_vs_actuals = self.model.calculate_prediction_actual_by_variable(predictions.x, predictions.output)
+        predictions_vs_actuals = self.model.calculate_prediction_actual_by_variable(
+            predictions.x, predictions.output
+        )
         self.model.plot_prediction_actual_by_variable(predictions_vs_actuals)
         return predictions_vs_actuals
 
     def interpertations(self, dataloader, log_dir):
         raw_predictions = self.model.predict(dataloader, return_x=True, mode="raw")
-        interpretation = self.model.interpret_output(raw_predictions.output, reduction="sum")
+        interpretation = self.model.interpret_output(
+            raw_predictions.output, reduction="sum"
+        )
         figs = self.model.plot_interpretation(interpretation)
         for key, fig in figs.items():
             fig.savefig(log_dir / f"interpretation_{key}.png", bbox_inches="tight")
@@ -557,6 +569,73 @@ class TFTpytorch(DLPredictionWrapper):
             q75=lambda x: x.quantile(0.75),
         )
         ax = agg_dependency.plot(y="median")
-        ax.fill_between(agg_dependency.index, agg_dependency.q25, agg_dependency.q75, alpha=0.3)
+        ax.fill_between(
+            agg_dependency.index, agg_dependency.q25, agg_dependency.q75, alpha=0.3
+        )
         plt.savefig(log_dir / "dependecy.png", bbox_inches="tight")
         return dependency
+
+
+@gin.configurable
+class RNNpytorch(DLPredictionWrapper):
+    """
+    Implementation of RNN from pytorch forecasting
+    """
+
+    supported_run_modes = [RunMode.classification, RunMode.regression]
+
+    def __init__(
+        self,
+        dataset,
+        hidden,
+        dropout,
+        optimizer,
+        num_classes,
+        cell_type,
+        rnn_layers,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(optimizer=optimizer, pytorch_forecasting=True, *args, **kwargs)
+
+        self.model = RecurrentNetwork.from_dataset(
+            cell_type=cell_type,
+            rnn_layers=rnn_layers,
+            dataset=dataset,
+            hidden_size=hidden,
+            dropout=dropout,
+            optimizer=optimizer,
+        )
+
+        self.logit = nn.Linear(7, num_classes)
+
+    def set_weight(self, weight, dataset):
+        """
+        Set the weight for the loss function
+        """
+        if isinstance(weight, list):
+            weight = FloatTensor(weight)
+        elif weight == "balanced":
+            weight = FloatTensor(dataset.get_balance())
+        self.loss_weights = weight
+
+    def forward(
+        self,
+        tuple_x: tuple,
+    ) -> Dict[str, Tensor]:
+        x_dict = {
+            "encoder_cat": tuple_x[0],
+            "encoder_cont": tuple_x[1],
+            "encoder_target": tuple_x[2],
+            "encoder_lengths": tuple_x[3],
+            "decoder_cat": tuple_x[4],
+            "decoder_cont": tuple_x[5],
+            "decoder_target": tuple_x[6],
+            "decoder_lengths": tuple_x[7],
+            "decoder_time_idx": tuple_x[8],
+            "groups": tuple_x[9],
+            "target_scale": tuple_x[10],
+        }
+        out = self.model(x_dict)
+        pred = self.logit(out["prediction"])
+        return pred
