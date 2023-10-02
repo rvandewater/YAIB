@@ -340,6 +340,8 @@ class DLPredictionWrapper(DLWrapper):
             if self.pytorch_forecasting:
                 # check if the data loader is the one for the pytorch forecasring implementation
                 dic, labels = element[0], element[1][0]
+                if isinstance(labels, list):
+                    labels = labels[-1]
                 data = (
                     dic["encoder_cat"],
                     dic["encoder_cont"],
@@ -353,8 +355,7 @@ class DLPredictionWrapper(DLWrapper):
                     dic["groups"],
                     dic["target_scale"],
                 )
-                if isinstance(labels, list):
-                    labels = labels[0]
+
                 mask = torch.ones_like(labels).bool()
             else:
                 data, labels = element[0], (element[1]).to(self.device)
