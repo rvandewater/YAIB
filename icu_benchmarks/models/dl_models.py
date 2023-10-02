@@ -637,5 +637,8 @@ class RNNpytorch(DLPredictionWrapper):
             "target_scale": tuple_x[10],
         }
         out = self.model(x_dict)
-        pred = self.logit(out["prediction"])
+        print(out)
+        print(out["prediction"][-1].shape)
+
+        pred = self.logit(out["prediction"][-1])
         return pred

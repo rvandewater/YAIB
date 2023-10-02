@@ -20,7 +20,9 @@ from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
 
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
-gin.config.external_configurable(nn.functional.cross_entropy, module="torch.nn.functional")
+gin.config.external_configurable(
+    nn.functional.cross_entropy, module="torch.nn.functional"
+)
 gin.config.external_configurable(nn.functional.mse_loss, module="torch.nn.functional")
 
 gin.config.external_configurable(mean_squared_error, module="sklearn.metrics")
@@ -85,7 +87,9 @@ class BaseModule(LightningModule):
 
     def check_supported_runmode(self, runmode: RunMode):
         if runmode not in self._supported_run_modes:
-            raise ValueError(f"Runmode {runmode} not supported for {self.__class__.__name__}")
+            raise ValueError(
+                f"Runmode {runmode} not supported for {self.__class__.__name__}"
+            )
         return True
 
 
@@ -158,7 +162,9 @@ class DLWrapper(BaseModule, ABC):
             self.log_dict(
                 {
                     f"{step_prefix}/{name}": (
-                        np.float32(metric.compute()) if isinstance(metric.compute(), np.float64) else metric.compute()
+                        np.float32(metric.compute())
+                        if isinstance(metric.compute(), np.float64)
+                        else metric.compute()
                     )
                     for name, metric in self.metrics[step_prefix].items()
                     if "_Curve" not in name
@@ -199,7 +205,10 @@ class DLWrapper(BaseModule, ABC):
 
     def on_test_epoch_start(self) -> None:
         self.metrics = {
-            step_name: {metric_name: metric() for metric_name, metric in self.set_metrics().items()}
+            step_name: {
+                metric_name: metric()
+                for metric_name, metric in self.set_metrics().items()
+            }
             for step_name in ["train", "val", "test"]
         }
         return super().on_test_epoch_start()
@@ -328,7 +337,8 @@ class DLPredictionWrapper(DLWrapper):
                 isinstance(element[1], list)
             ):
             """
-            if self.pytorch_forecasting:  # check if the data loader is the one for the pytorch forecasring implementation
+            if self.pytorch_forecasting:
+                # check if the data loader is the one for the pytorch forecasring implementation
                 dic, labels = element[0], element[1][0]
                 data = (
                     dic["encoder_cat"],
@@ -343,6 +353,8 @@ class DLPredictionWrapper(DLWrapper):
                     dic["groups"],
                     dic["target_scale"],
                 )
+                if isinstance(labels, list):
+                    labels = labels[0]
                 mask = torch.ones_like(labels).bool()
             else:
                 data, labels = element[0], (element[1]).to(self.device)
@@ -365,7 +377,9 @@ class DLPredictionWrapper(DLWrapper):
             else:
                 data = data.float().to(self.device)
         else:
-            raise Exception("Loader should return either (data, label) or (data, label, mask)")
+            raise Exception(
+                "Loader should return either (data, label) or (data, label, mask)"
+            )
         out = self(data)
 
         # If aux_loss is present, it is returned as a tuple
@@ -374,20 +388,31 @@ class DLPredictionWrapper(DLWrapper):
         else:
             aux_loss = 0
         # Get prediction and target
-        prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
+        prediction = (
+            torch.masked_select(out, mask.unsqueeze(-1))
+            .reshape(-1, out.shape[-1])
+            .to(self.device)
+        )
 
         target = torch.masked_select(labels, mask).to(self.device)
 
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
-            loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
+            loss = (
+                self.loss(
+                    prediction, target.long(), weight=self.loss_weights.to(self.device)
+                )
+                + aux_loss
+            )
             # Returns torch.long because negative log likelihood loss
         elif self.run_mode == RunMode.regression:
             # Regression task
 
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss
         else:
-            raise ValueError(f"Run mode {self.run_mode} not yet supported. Please implement it.")
+            raise ValueError(
+                f"Run mode {self.run_mode} not yet supported. Please implement it."
+            )
         transformed_output = self.output_transform((prediction, target))
 
         for key, value in self.metrics[step_prefix].items():
@@ -404,7 +429,9 @@ class DLPredictionWrapper(DLWrapper):
                     value.update(transformed_output[0], transformed_output[1])
             else:
                 value.update(transformed_output)
-        self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(
+            f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True
+        )
         return loss
 
 
@@ -451,9 +478,15 @@ class MLWrapper(BaseModule, ABC):
 
         # Regression
         else:
-            if self.scaler is not None:  # We invert transform the labels and predictions if they were scaled.
-                self.output_transform = lambda x: self.scaler.inverse_transform(x.reshape(-1, 1))
-                self.label_transform = lambda x: self.scaler.inverse_transform(x.reshape(-1, 1))
+            if (
+                self.scaler is not None
+            ):  # We invert transform the labels and predictions if they were scaled.
+                self.output_transform = lambda x: self.scaler.inverse_transform(
+                    x.reshape(-1, 1)
+                )
+                self.label_transform = lambda x: self.scaler.inverse_transform(
+                    x.reshape(-1, 1)
+                )
             else:
                 self.output_transform = lambda x: x
                 self.label_transform = lambda x: x
@@ -488,7 +521,9 @@ class MLWrapper(BaseModule, ABC):
 
     def validation_step(self, val_dataset, _):
         val_rep, val_label = val_dataset.get_data_and_labels()
-        val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
+        val_rep, val_label = torch.from_numpy(val_rep).to(
+            self.device
+        ), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(val_label)
 
         val_pred = self.predict(val_rep)
@@ -531,7 +566,9 @@ class MLWrapper(BaseModule, ABC):
         self.log_dict(
             {
                 # MPS dependent type casting
-                f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred))
+                f"{metric_type}/{name}": metric(
+                    self.label_transform(label), self.output_transform(pred)
+                )
                 if not self.mps
                 else metric(self.label_transform(label), self.output_transform(pred))
                 # Fore very metric
@@ -569,7 +606,9 @@ class MLWrapper(BaseModule, ABC):
         # Get passed keyword arguments
         arguments = locals()["kwargs"]
         # Get valid hyperparameters
-        hyperparams = {key: value for key, value in arguments.items() if key in possible_hps}
+        hyperparams = {
+            key: value for key, value in arguments.items() if key in possible_hps
+        }
         logging.debug(f"Creating model with: {hyperparams}.")
         return model(**hyperparams)
 
@@ -622,7 +661,9 @@ class ImputationWrapper(DLWrapper):
     def init_weights(self, init_type="normal", gain=0.02):
         def init_func(m):
             classname = m.__class__.__name__
-            if hasattr(m, "weight") and (classname.find("Conv") != -1 or classname.find("Linear") != -1):
+            if hasattr(m, "weight") and (
+                classname.find("Conv") != -1 or classname.find("Linear") != -1
+            ):
                 if init_type == ImputationInit.NORMAL:
                     nn.init.normal_(m.weight.data, 0.0, gain)
                 elif init_type == ImputationInit.XAVIER:
@@ -632,7 +673,9 @@ class ImputationWrapper(DLWrapper):
                 elif init_type == ImputationInit.ORTHOGONAL:
                     nn.init.orthogonal_(m.weight.data, gain=gain)
                 else:
-                    raise NotImplementedError(f"Initialization method {init_type} is not implemented")
+                    raise NotImplementedError(
+                        f"Initialization method {init_type} is not implemented"
+                    )
                 if hasattr(m, "bias") and m.bias is not None:
                     nn.init.constant_(m.bias.data, 0.0)
             elif classname.find("BatchNorm2d") != -1:
