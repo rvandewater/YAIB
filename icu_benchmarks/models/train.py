@@ -150,7 +150,7 @@ def train_common(
         )
         test_loader = test_dataset.to_dataloader(
             train=False,
-            batch_size=min(batch_size * 4, len(test_dataset)),
+            batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=False,
             drop_last=True,
@@ -238,7 +238,7 @@ def train_common(
         max_epochs=epochs if model.requires_backprop else 1,
         callbacks=callbacks,
         precision=precision,
-        accelerator="cpu",
+        accelerator="auto" if not cpu else "cpu",
         devices=max(torch.cuda.device_count(), 1),
         deterministic="warn" if reproducible else False,
         benchmark=not reproducible,
