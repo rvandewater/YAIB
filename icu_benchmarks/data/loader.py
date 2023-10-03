@@ -535,10 +535,13 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
             "MissingIndicator_46",
             "MissingIndicator_47",
             "MissingIndicator_48",
+            "label",
         ]
 
         # Convert multiple columns from boolean to float
-        self.data[boolean_columns] = self.data[boolean_columns].astype(float)
+        self.data[boolean_columns] = self.data[boolean_columns].astype(
+            float
+        )  # changing boolean to floats to allow input to models
         self.split = split
         self.args = args
         self.ram_cache = ram_cache
@@ -572,8 +575,10 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         Returns:
             Weights for each label.
         """
-
-        counts = self.data["target"][0].unique(return_counts=True)
+        if len(self.data["target"]) == 1:
+            counts = self.data["target"][0].unique(return_counts=True)
+        else:
+            counts = self.data["target"][-1].unique(return_counts=True)
 
         return list((1 / counts[1]) * counts[1].sum() / counts[0].shape[0])
 
