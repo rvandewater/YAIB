@@ -98,6 +98,8 @@ def train_common(
         num_workers: Number of workers to use for data loading.
     """
     logging.info(f"Training model: {model.__name__}.")
+    with open("data.pkl", "wb") as f:
+        pickle.dump(data, f)
     # choose dataset_class based on the model
     dataset_class = (
         ImputationDataset
@@ -161,7 +163,11 @@ def train_common(
 
         else:
             model = model(
-                train_dataset, optimizer=optimizer, epochs=epochs, run_mode=mode
+                train_dataset,
+                optimizer=optimizer,
+                epochs=epochs,
+                run_mode=mode,
+                batch_size=batch_size,  # check why validation set is needed here
             )
 
     else:
@@ -241,6 +247,8 @@ def train_common(
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
         check_val_every_n_epoch=1,
+        gradient_clip_val=0.5,
+        gradient_clip_algorithm="value",
     )
     if not eval_only:
         if model.requires_backprop:

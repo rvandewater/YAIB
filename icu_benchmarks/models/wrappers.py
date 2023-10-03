@@ -270,6 +270,7 @@ class DLPredictionWrapper(DLWrapper):
             weight = FloatTensor(weight).to(self.device)
         elif weight == "balanced":
             weight = FloatTensor(dataset.get_balance()).to(self.device)
+
         self.loss_weights = weight
 
     def set_metrics(self, *args):
@@ -340,6 +341,7 @@ class DLPredictionWrapper(DLWrapper):
             if self.pytorch_forecasting:
                 # check if the data loader is the one for the pytorch forecasring implementation
                 dic, labels = element[0], element[1][0]
+
                 if isinstance(labels, list):
                     labels = labels[-1]
                 data = (
@@ -394,9 +396,7 @@ class DLPredictionWrapper(DLWrapper):
             .reshape(-1, out.shape[-1])
             .to(self.device)
         )
-
         target = torch.masked_select(labels, mask).to(self.device)
-
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
             loss = (
@@ -408,7 +408,6 @@ class DLPredictionWrapper(DLWrapper):
             # Returns torch.long because negative log likelihood loss
         elif self.run_mode == RunMode.regression:
             # Regression task
-
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss
         else:
             raise ValueError(

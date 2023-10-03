@@ -12,7 +12,7 @@ from icu_benchmarks.models.layers import (
 )
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
-from torch import Tensor, FloatTensor
+from torch import Tensor, FloatTensor, isnan, isfinite
 from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork
 from pytorch_forecasting.metrics import QuantileLoss
 import matplotlib.pyplot as plt
@@ -497,16 +497,6 @@ class TFTpytorch(DLPredictionWrapper):
 
         self.logit = nn.Linear(7, num_classes)
 
-    def set_weight(self, weight, dataset):
-        """
-        Set the weight for the loss function
-        """
-        if isinstance(weight, list):
-            weight = FloatTensor(weight)
-        elif weight == "balanced":
-            weight = FloatTensor(dataset.get_balance())
-        self.loss_weights = weight
-
     def forward(
         self,
         tuple_x: tuple,
@@ -593,6 +583,7 @@ class RNNpytorch(DLPredictionWrapper):
         num_classes,
         cell_type,
         rnn_layers,
+        batch_size,
         *args,
         **kwargs,
     ):
@@ -607,17 +598,7 @@ class RNNpytorch(DLPredictionWrapper):
             optimizer=optimizer,
         )
 
-        self.logit = nn.Linear(7, num_classes)
-
-    def set_weight(self, weight, dataset):
-        """
-        Set the weight for the loss function
-        """
-        if isinstance(weight, list):
-            weight = FloatTensor(weight)
-        elif weight == "balanced":
-            weight = FloatTensor(dataset.get_balance())
-        self.loss_weights = weight
+        self.logit = nn.Linear(batch_size * 24, num_classes)
 
     def forward(
         self,
@@ -637,8 +618,14 @@ class RNNpytorch(DLPredictionWrapper):
             "target_scale": tuple_x[10],
         }
         out = self.model(x_dict)
-        print(out)
-        print(out["prediction"][-1].shape)
+        out = out["prediction"][-1].reshape(1, -1)
+        nan_count = isnan(out).sum().item()
 
-        pred = self.logit(out["prediction"][-1])
+        # Count the number of non-NaN (finite) values in the tensor
+        non_nan_count = isfinite(out).sum().item()
+
+        print("Number of NaN values in the tensor:", nan_count)
+        print("Number of non-NaN values in the tensor:", non_nan_count)
+        pred = self.logit(out)
+
         return pred
