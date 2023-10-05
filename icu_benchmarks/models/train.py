@@ -158,7 +158,7 @@ def train_common(
         )
         if load_weights:
             model = load_model(
-                model, source_dir, pl_model=pl_model, train_dataset=train_dataset
+                model, source_dir, pl_model=pl_model, train_dataset=train_dataset, optimizer=optimizer
             )
 
         else:
@@ -247,8 +247,6 @@ def train_common(
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
         check_val_every_n_epoch=1,
-        gradient_clip_val=0.5,
-        gradient_clip_algorithm="value",
     )
     if not eval_only:
         if model.requires_backprop:
@@ -272,8 +270,8 @@ def train_common(
         # print("1", actual_vs_predictions)
         interperations = model.interpertations(test_loader, log_dir)
         print("2", interperations)
-        pd = model.predict_dependency(test_loader, "age", log_dir)
-        print("3", pd)
+        # pd = model.predict_dependency(test_loader, "age", log_dir)
+        # print("3", pd)
         """
         test = next(iter(test_loader))
 
@@ -297,7 +295,7 @@ def train_common(
     return test_loss
 
 
-def load_model(model, source_dir, pl_model=True, train_dataset=None):
+def load_model(model, source_dir, pl_model=True, train_dataset=None, optimizer=None):
     if source_dir.exists():
         if model.requires_backprop:
             if (source_dir / "model.ckpt").exists():
@@ -311,7 +309,7 @@ def load_model(model, source_dir, pl_model=True, train_dataset=None):
             if pl_model:
                 if train_dataset is not None:
                     model = model.load_from_checkpoint(
-                        model_path, dataset=train_dataset
+                        model_path, dataset=train_dataset, optimizer=optimizer
                     )
 
                 else:
