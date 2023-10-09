@@ -98,8 +98,7 @@ def train_common(
         num_workers: Number of workers to use for data loading.
     """
     logging.info(f"Training model: {model.__name__}.")
-    with open("data.pkl", "wb") as f:
-        pickle.dump(data, f)
+
     # choose dataset_class based on the model
     dataset_class = (
         ImputationDataset

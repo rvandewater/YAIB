@@ -464,6 +464,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         time_varying_unknown_reals: List[str],
         target: Union[str, List[str]],
         time_varying_known_reals: List[str],
+        time_varying_unknown_categoricals: List[str],
         *args,
         ram_cache: bool = False,
         add_relative_time_idx: bool = False,
@@ -486,6 +487,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         )  # combine labels and features
         # self.data["sex"].replace([0, 1], ["Female", "Male"], inplace=True)
         # List of column names to convert from boolean to float
+
         boolean_columns = [
             "MissingIndicator_1",
             "MissingIndicator_2",
@@ -540,8 +542,9 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
 
         # Convert multiple columns from boolean to float
         self.data[boolean_columns] = self.data[boolean_columns].astype(
-            float
+            str
         )  # changing boolean to floats to allow input to models
+
         self.split = split
         self.args = args
         self.ram_cache = ram_cache
@@ -561,7 +564,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
             static_reals=["height", "weight", "age", "sex"],
             time_varying_known_categoricals=[],
             time_varying_known_reals=time_varying_known_reals,
-            time_varying_unknown_categoricals=[],
+            time_varying_unknown_categoricals=time_varying_unknown_categoricals,
             time_varying_unknown_reals=time_varying_unknown_reals,
             add_relative_time_idx=add_relative_time_idx,
             add_target_scales=True,
