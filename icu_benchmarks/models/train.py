@@ -246,7 +246,6 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
-        check_val_every_n_epoch=1,
     )
     if not eval_only:
         if model.requires_backprop:

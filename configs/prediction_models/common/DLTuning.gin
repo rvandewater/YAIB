@@ -2,4 +2,4 @@
 tune_hyperparameters.scopes = ["model", "optimizer"]
 tune_hyperparameters.n_initial_points = 5
 tune_hyperparameters.n_calls = 30
-tune_hyperparameters.folds_to_tune_on = 1
+tune_hyperparameters.folds_to_tune_on = 2

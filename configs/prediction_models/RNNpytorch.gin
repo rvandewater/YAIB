@@ -11,13 +11,16 @@ optimizer/hyperparameter.weight_decay = 1e-6
 
 
 # Model params
+
 model/hyperparameter.class_to_tune = @RNNpytorch
-model/hyperparameter.hidden = (32, 256, "log-uniform", 2)
+model/hyperparameter.hidden = (32, 128, "log-uniform", 2)
 model/hyperparameter.rnn_layers=(1, 3)
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.cell_type='LSTM'
 model/hyperparameter.dropout = (0.0, 0.4)
 model/hyperparameter.lr_scheduler = "exponential"
+
+
 # Dataset params
 PredictionDatasetTFTpytorch.max_encoder_length = 24
 PredictionDatasetTFTpytorch.max_prediction_length = 24

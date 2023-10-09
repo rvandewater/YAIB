@@ -18,6 +18,8 @@ model/hyperparameter.dropout = (0.0, 0.4)
 model/hyperparameter.dropout_att = (0.0, 0.4)
 model/hyperparameter.n_heads =(1,2,4)
 model/hyperparameter.lr_scheduler = "exponential"
+
+
 # Dataset params
 PredictionDatasetTFTpytorch.max_encoder_length = 24
 PredictionDatasetTFTpytorch.max_prediction_length = 24

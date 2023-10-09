@@ -619,13 +619,7 @@ class RNNpytorch(DLPredictionWrapper):
         }
         out = self.model(x_dict)
         out = out["prediction"][-1].reshape(1, -1)
-        nan_count = isnan(out).sum().item()
 
-        # Count the number of non-NaN (finite) values in the tensor
-        non_nan_count = isfinite(out).sum().item()
-
-        print("Number of NaN values in the tensor:", nan_count)
-        print("Number of non-NaN values in the tensor:", non_nan_count)
         pred = self.logit(out)
 
         return pred
