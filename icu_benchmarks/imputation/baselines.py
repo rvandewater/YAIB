@@ -7,7 +7,7 @@ from sklearn.linear_model import LinearRegression
 from typing import Type
 
 from icu_benchmarks.models.wrappers import ImputationWrapper
-from pypots.imputation import BRITS, SAITS, Transformer
+from pypots.imputation import BRITS, SAITS, Transformer, USGAN, MRNN,  LOCF, GPVAE
 import gin
 
 
@@ -188,7 +188,33 @@ MiracleImputation = wrap_hyperimpute_model("miracle", "Miracle")
 MiwaeImputation = wrap_hyperimpute_model("miwae", "Miwae")
 HyperImputation = wrap_hyperimpute_model("hyperimpute", "HyperImpute")
 
+@gin.configurable("LOCF")
+class LOCFImputation(ImputationWrapper):
+    """Last Observation Carried Forward (LOCF) imputation."""
 
+    requires_backprop = False
+    def __init__(self, *args, **kwargs) -> None:
+        self.imputer = LOCF()
+        super().__init__(*args, **kwargs)
+
+    def fit(self, train_dataset, val_dataset):
+        pass
+
+    def forward(self, amputated_values, amputation_mask):
+        debatched_values = amputated_values.to(self.imputer.device).squeeze()
+        self.imputer.model = self.imputer.model.to(self.imputer.device)
+        output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
+
+        output = output.reshape(amputated_values.shape)
+        return output
+
+@gin.configurable("GPVAE")
+class GPVAEImputation(ImputationWrapper):
+    """Gaussian Process Variational Autoencoder (GPVAE) imputation."""
+
+    def __init__(self):
+        self.imputer = GPVAE()
+        super().__init__(*args, **kwargs)
 @gin.configurable("BRITS")
 class BRITSImputation(ImputationWrapper):
     """Bidirectional Recurrent Imputation for Time Series (BRITS) imputation using PyPots package."""
