@@ -565,6 +565,35 @@ class TFTpytorch(DLPredictionWrapper):
         plt.savefig(log_dir / "dependecy.png", bbox_inches="tight")
         return dependency
 
+    def forward_captum(
+        self,
+        encoder_cat: Tensor,
+        encoder_cont: Tensor,
+        encoder_target: Tensor,
+        encoder_lengths: Tensor,
+        decoder_cat: Tensor,
+        decoder_cont: Tensor,
+        decoder_target: Tensor,
+        decoder_lengths: Tensor,
+        decoder_time_idx: Tensor,
+        groups: Tensor,
+        target_scale: Tensor,
+    ):
+        tuple_x = (
+            encoder_cat.float().requires_grad_(),
+            encoder_cont.requires_grad_(),
+            encoder_target.requires_grad_(),
+            encoder_lengths.float().requires_grad_(),
+            decoder_cat.float().requires_grad_(),
+            decoder_cont.requires_grad_(),
+            decoder_target.requires_grad_(),
+            decoder_lengths.float().requires_grad_(),
+            decoder_time_idx.float().requires_grad_(),
+            groups.float().requires_grad_(),
+            target_scale.requires_grad_(),
+        )
+        return self.forward(tuple_x)
+
 
 @gin.configurable
 class RNNpytorch(DLPredictionWrapper):
