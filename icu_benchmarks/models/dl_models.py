@@ -12,7 +12,7 @@ from icu_benchmarks.models.layers import (
 )
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
-from torch import Tensor, FloatTensor, isnan, isfinite
+from torch import Tensor, FloatTensor, zeros_like
 from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork
 from pytorch_forecasting.metrics import QuantileLoss
 import matplotlib.pyplot as plt
@@ -580,19 +580,95 @@ class TFTpytorch(DLPredictionWrapper):
         target_scale: Tensor,
     ):
         tuple_x = (
-            encoder_cat.float().requires_grad_(),
-            encoder_cont.requires_grad_(),
-            encoder_target.requires_grad_(),
-            encoder_lengths.float().requires_grad_(),
-            decoder_cat.float().requires_grad_(),
-            decoder_cont.requires_grad_(),
-            decoder_target.requires_grad_(),
-            decoder_lengths.float().requires_grad_(),
-            decoder_time_idx.float().requires_grad_(),
-            groups.float().requires_grad_(),
-            target_scale.requires_grad_(),
+            encoder_cat,
+            encoder_cont,
+            encoder_target,
+            encoder_lengths,
+            decoder_cat,
+            decoder_cont,
+            decoder_target,
+            decoder_lengths,
+            decoder_time_idx,
+            groups,
+            target_scale,
         )
+
         return self.forward(tuple_x)
+
+    def explantation_captum(self, test_loader, log_dir, method):
+        # Initialize lists to store attribution values for all instances
+        all_attrs = []
+
+        # Loop through the test_loader to compute attributions for all instances
+        for batch in test_loader:
+            for key, value in batch[0].items():
+                batch[0][key] = batch[0][key].to(self.device)
+
+            data = (
+                batch[0]["encoder_cat"].float().requires_grad_(),
+                batch[0]["encoder_cont"].requires_grad_(),
+                batch[0]["encoder_target"].requires_grad_(),
+                batch[0]["encoder_lengths"].float().requires_grad_(),
+                batch[0]["decoder_cat"].float().requires_grad_(),
+                batch[0]["decoder_cont"].requires_grad_(),
+                batch[0]["decoder_target"].requires_grad_(),
+                batch[0]["decoder_lengths"].float().requires_grad_(),
+                batch[0]["decoder_time_idx"].float().requires_grad_(),
+                batch[0]["groups"].float().requires_grad_(),
+                batch[0]["target_scale"].requires_grad_(),
+            )
+            baselines = (
+                zeros_like(data[0]),  # encoder_cat, set to zero
+                zeros_like(data[1]),  # encoder_cont, set to zero
+                zeros_like(data[2]),  # encoder_target, set to zero
+                data[3],  # encoder_lengths, leave unchanged
+                zeros_like(data[4]),  # decoder_cat, set to zero
+                zeros_like(data[5]),  # decoder_cont, set to zero
+                zeros_like(data[6]),  # decoder_target, set to zero
+                data[7],  # decoder_lengths, leave unchanged
+                zeros_like(data[8]),  # decoder_time_idx, set to zero
+                data[9],  # groups, leave unchanged
+                data[10],  # target_scale, leave unchanged
+            )
+
+            explantation = method(self.forward_captum, self.model.multihead_attn)
+            # Reformat attributions.
+            attr, delta = explantation.attribute(
+                data, target=0, return_convergence_delta=True, baselines=baselines
+            )
+
+            # Convert attributions to numpy array and append to the list
+            all_attrs.append(attr.detach().numpy())
+
+        # Concatenate attribution values for all instances along the batch dimension
+        all_attrs = np.concatenate(all_attrs, axis=0)
+
+        # Compute mean along the batch dimension
+        means = all_attrs.mean(axis=(0, 2))
+        # Normalize the means values to range [0, 1]
+        normalized_means = (means - means.min()) / (means.max() - means.min())
+
+        # Create x values (assuming you want a simple sequential x-axis)
+        x_values = np.arange(1, 25)  # Assuming you have 24 values
+
+        # Plotting the normalized means
+        plt.figure(figsize=(8, 6))
+        plt.plot(
+            x_values,
+            normalized_means,
+            marker="o",
+            color="skyblue",
+            linestyle="-",
+            linewidth=2,
+            markersize=8,
+        )
+        plt.xlabel("Feature Index")
+        plt.ylabel("Normalized Means")
+        plt.title("Normalized Means of Attribution Values")
+        plt.xticks(x_values)  # Set x-ticks to match the number of features
+        plt.tight_layout()
+        plt.savefig(log_dir / "attribution_plot.png", bbox_inches="tight")
+        return means
 
 
 @gin.configurable

@@ -25,7 +25,7 @@ from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 from collections import OrderedDict
-from captum.attr import IntegratedGradients, Saliency
+from captum.attr import IntegratedGradients, Saliency, LayerIntegratedGradients
 
 
 cpu_core_count = (
@@ -150,7 +150,7 @@ def train_common(
         )
         test_loader = test_dataset.to_dataloader(
             train=False,
-            batch_size=1,
+            batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=False,
             drop_last=True,
@@ -269,39 +269,13 @@ def train_common(
         return 0
 
     if explain:
-        # actual_vs_predictions = model.actual_vs_predictions_plot(test_loader)
-        # print("1", actual_vs_predictions)
-        # interperations = model.interpertations(test_loader, log_dir)
-        # print("2", interperations)
-        # pd = model.predict_dependency(test_loader, "age", log_dir)
-        # print("3", pd)
+        interperations = model.interpertations(test_loader, log_dir)
+        print("attention", interperations)
 
-        test = next(iter(test_loader))
-
-        for key, value in test[0].items():
-            test[0][key] = test[0][key].to(model.device)
-        data = (
-            test[0]["encoder_cat"],
-            test[0]["encoder_cont"],
-            test[0]["encoder_target"],
-            test[0]["encoder_lengths"],
-            test[0]["decoder_cat"],
-            test[0]["decoder_cont"],
-            test[0]["decoder_target"],
-            test[0]["decoder_lengths"],
-            test[0]["decoder_time_idx"],
-            test[0]["groups"],
-            test[0]["target_scale"],
+        explanintations = model.explantation_captum(
+            test_loader, log_dir, LayerIntegratedGradients
         )
-        # pred = model(data)
-        saliency = Saliency(model.forward_captum)
-        attr = saliency.attribute(data, target=0)
-        # ig = IntegratedGradients(model.forward_captum)
-        # Reformat attributions.
-
-        # attr, delta = ig.attribute(data, target=0, return_convergence_delta=True)
-        attr = attr.detach().numpy()
-        print(attr)
+        print("IG", explanintations)
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][
