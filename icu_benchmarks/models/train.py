@@ -242,7 +242,7 @@ def train_common(
         max_epochs=epochs if model.requires_backprop else 1,
         callbacks=callbacks,
         precision=precision,
-        accelerator="cpu",
+        accelerator="auto" if not cpu else "cpu",
         devices=max(torch.cuda.device_count(), 1),
         deterministic="warn" if reproducible else False,
         benchmark=not reproducible,
