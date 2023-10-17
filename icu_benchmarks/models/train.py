@@ -25,7 +25,7 @@ from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 from collections import OrderedDict
-from captum.attr import IntegratedGradients, Saliency, LayerIntegratedGradients
+from captum.attr import IntegratedGradients, LayerLRP
 
 
 cpu_core_count = (
@@ -269,13 +269,13 @@ def train_common(
         return 0
 
     if explain:
-        interperations = model.interpertations(test_loader, log_dir)
-        print("attention", interperations)
 
         explanintations = model.explantation_captum(
-            test_loader, log_dir, LayerIntegratedGradients
-        )
+            test_loader, log_dir, IntegratedGradients, target=(0, 1))
+
         print("IG", explanintations)
+        interperations = model.interpertations(test_loader, log_dir)
+        print("attention", interperations)
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][

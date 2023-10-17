@@ -516,6 +516,7 @@ class TFTpytorch(DLPredictionWrapper):
         }
         out = self.model(x_dict)
         pred = self.logit(out["prediction"])
+
         return pred
 
     """
@@ -595,7 +596,7 @@ class TFTpytorch(DLPredictionWrapper):
 
         return self.forward(tuple_x)
 
-    def explantation_captum(self, test_loader, log_dir, method):
+    def explantation_captum(self, test_loader, log_dir, method, target):
         # Initialize lists to store attribution values for all instances
         all_attrs = []
 
@@ -607,40 +608,40 @@ class TFTpytorch(DLPredictionWrapper):
             data = (
                 batch[0]["encoder_cat"].float().requires_grad_(),
                 batch[0]["encoder_cont"].requires_grad_(),
-                batch[0]["encoder_target"].requires_grad_(),
+                batch[0]["encoder_target"].float().requires_grad_(),
                 batch[0]["encoder_lengths"].float().requires_grad_(),
                 batch[0]["decoder_cat"].float().requires_grad_(),
                 batch[0]["decoder_cont"].requires_grad_(),
-                batch[0]["decoder_target"].requires_grad_(),
+                batch[0]["decoder_target"].float().requires_grad_(),
                 batch[0]["decoder_lengths"].float().requires_grad_(),
                 batch[0]["decoder_time_idx"].float().requires_grad_(),
                 batch[0]["groups"].float().requires_grad_(),
                 batch[0]["target_scale"].requires_grad_(),
             )
+
             baselines = (
-                zeros_like(data[0]),  # encoder_cat, set to zero
-                zeros_like(data[1]),  # encoder_cont, set to zero
-                zeros_like(data[2]),  # encoder_target, set to zero
-                data[3],  # encoder_lengths, leave unchanged
-                zeros_like(data[4]),  # decoder_cat, set to zero
-                zeros_like(data[5]),  # decoder_cont, set to zero
-                zeros_like(data[6]),  # decoder_target, set to zero
-                data[7],  # decoder_lengths, leave unchanged
-                zeros_like(data[8]),  # decoder_time_idx, set to zero
-                data[9],  # groups, leave unchanged
-                data[10],  # target_scale, leave unchanged
+                zeros_like(data[0]).to(self.device),  # encoder_cat, set to zero
+                zeros_like(data[1]).to(self.device),  # encoder_cont, set to zero
+                zeros_like(data[2]).to(self.device),  # encoder_target, set to zero
+                data[3].to(self.device),  # encoder_lengths, leave unchanged
+                zeros_like(data[4]).to(self.device),  # decoder_cat, set to zero
+                zeros_like(data[5]).to(self.device),  # decoder_cont, set to zero
+                zeros_like(data[6]).to(self.device),  # decoder_target, set to zero
+                data[7].to(self.device),  # decoder_lengths, leave unchanged
+                zeros_like(data[8]).to(self.device),  # decoder_time_idx, set to zero
+                data[9].to(self.device),  # groups, leave unchanged
+                data[10].to(self.device),  # target_scale, leave unchanged
             )
 
-            explantation = method(self.forward_captum, self.model.multihead_attn)
+            explantation = method(self.forward_captum)
             # Reformat attributions.
             attr, delta = explantation.attribute(
-                data, target=0, return_convergence_delta=True, baselines=baselines
+                data, target=target, return_convergence_delta=True, baselines=baselines, n_steps=20
             )
-
             # Convert attributions to numpy array and append to the list
-            all_attrs.append(attr.detach().numpy())
+            all_attrs.append(attr[0].cpu().detach().numpy())
 
-        # Concatenate attribution values for all instances along the batch dimension
+        # Concatenate a‚ttribution values for all instances along the batch dimension
         all_attrs = np.concatenate(all_attrs, axis=0)
 
         # Compute mean along the batch dimension
@@ -662,9 +663,9 @@ class TFTpytorch(DLPredictionWrapper):
             linewidth=2,
             markersize=8,
         )
-        plt.xlabel("Feature Index")
-        plt.ylabel("Normalized Means")
-        plt.title("Normalized Means of Attribution Values")
+        plt.xlabel("Time Step")
+        plt.ylabel("Normalized Attribution")
+        plt.title("Attribution Values")
         plt.xticks(x_values)  # Set x-ticks to match the number of features
         plt.tight_layout()
         plt.savefig(log_dir / "attribution_plot.png", bbox_inches="tight")

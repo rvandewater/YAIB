@@ -591,10 +591,9 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
                 "MissingIndicator_48",
             ]
 
-        # Convert multiple columns from boolean to float
-        self.data[boolean_columns] = self.data[boolean_columns].astype(
-            str
-        )  # changing boolean to floats to allow input to models
+       # self.data[boolean_columns] = self.data[boolean_columns].astype(
+       #     float
+       # )
 
         self.split = split
         self.args = args
