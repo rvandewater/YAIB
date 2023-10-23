@@ -1,0 +1,35 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/miiv"
+  - "-t"
+  - "DatasetImputation"
+  - "-c"
+  - "--wandb-sweep"
+  - "--wandb"
+method: bayes
+metric:
+  name: avg.jsd
+  goal: minimize
+name: gpvae hyperparameter sweep
+parameters:
+  model:
+    values: ["GP-VAE"] # DiffWave not working yet
+  ImputationDataset.mask_method:
+    values: ["MCAR"]
+  seed:
+    values: [1111]
+  data_dir:
+    values: ["../data/hirid"]
+  execute_repeated_cv.cv_repetitions:
+    values: [2]
+  execute_repeated_cv.cv_folds:
+    values: [2]
+  GPVAE.encoder_sizes:
+    values: [(128,128), (256,256), (512,512)]
+  GPVAE.decoder_sizes:
+    values: [ (128,128), (256,256), (512,512) ]
+

@@ -1,0 +1,25 @@
+program: icu-benchmarks
+command:
+  - ${env}
+  - ${program}
+  - "train"
+  - "-d"
+  - "../data/miiv"
+  - "-t"
+  - "DatasetImputation"
+  - "-c"
+  - "--wandb-sweep"
+  - "--wandb"
+method: grid
+parameters:
+  model:
+    values: ["BRNN", "Attention", "CSDI", "SAITS", "GP-VAE"]
+    #["NP", "CSDI", "Mean", "Median", "Zero", "MostFrequent", "KNN", "MICE", "GAIN", "BRITS", "SAITS", "Attention", "MissForest", "MLP", "BRNN", "RNN", "Simple_Diffusion"]
+  ImputationDataset.mask_method:
+    values: ["MCAR", "MAR", "MNAR"]
+  seed:
+    values: [2222]
+  ImputationDataset.mask_proportion:
+    values: [0.3, 0.5, 0.7]
+  data_dir:
+    values: ["../data/miiv", "../data/eicu", "../data/hirid"]
