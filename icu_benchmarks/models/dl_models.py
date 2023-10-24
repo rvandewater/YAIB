@@ -643,6 +643,8 @@ class TFTpytorch(DLPredictionWrapper):
 
         # Concatenate a‚ttribution values for all instances along the batch dimension
         all_attrs = np.concatenate(all_attrs, axis=0)
+        print(all_attrs.shape)
+        means_feature = all_attrs.mean(axis=(0, 1))
 
         # Compute mean along the batch dimension
         means = all_attrs.mean(axis=(0, 2))
@@ -650,10 +652,27 @@ class TFTpytorch(DLPredictionWrapper):
         normalized_means = (means - means.min()) / (means.max() - means.min())
 
         # Create x values (assuming you want a simple sequential x-axis)
-        x_values = np.arange(1, 25)  # Assuming you have 24 values
-
-        # Plotting the normalized means
+        # Assuming you have 24 values
+        x_values = np.arange(1, 57)
+        # Plotting the featrue means
         plt.figure(figsize=(8, 6))
+        plt.plot(
+            x_values,
+            means_feature,
+            marker="o",
+            color="skyblue",
+            linestyle="-",
+            linewidth=2,
+            markersize=8,
+        )
+        plt.xlabel("Time Step")
+        plt.ylabel("Normalized Attribution")
+        plt.title("Attribution Values")
+        plt.xticks(x_values)  # Set x-ticks to match the number of features
+        plt.tight_layout()
+        plt.savefig(log_dir / "attribution_features_plot.png", bbox_inches="tight")
+        plt.figure(figsize=(8, 6))
+        x_values = np.arange(1, 25)
         plt.plot(
             x_values,
             normalized_means,
@@ -727,5 +746,5 @@ class RNNpytorch(DLPredictionWrapper):
         out = out["prediction"][-1].reshape(1, -1)
 
         pred = self.logit(out)
-
+        print(pred)
         return pred
