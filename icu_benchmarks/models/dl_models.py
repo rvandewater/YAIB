@@ -13,7 +13,7 @@ from icu_benchmarks.models.layers import (
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 from torch import Tensor, FloatTensor, zeros_like
-from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork
+from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork, DeepAR
 from pytorch_forecasting.metrics import QuantileLoss
 import matplotlib.pyplot as plt
 
@@ -743,6 +743,66 @@ class RNNpytorch(DLPredictionWrapper):
             "target_scale": tuple_x[10],
         }
         out = self.model(x_dict)
+        out = out["prediction"][-1].reshape(1, -1)
+
+        pred = self.logit(out)
+        print(pred)
+        return pred
+
+
+@gin.configurable
+class DeepARpytorch(DLPredictionWrapper):
+    """
+    Implementation of RNN from pytorch forecasting
+    """
+
+    supported_run_modes = [RunMode.classification, RunMode.regression]
+
+    def __init__(
+        self,
+        dataset,
+        hidden,
+        dropout,
+        optimizer,
+        num_classes,
+        cell_type,
+        rnn_layers,
+        batch_size,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(optimizer=optimizer, pytorch_forecasting=True, *args, **kwargs)
+
+        self.model = DeepAR.from_dataset(
+            cell_type=cell_type,
+            rnn_layers=rnn_layers,
+            dataset=dataset,
+            hidden_size=hidden,
+            dropout=dropout,
+            optimizer=optimizer,
+        )
+
+        self.logit = nn.Linear(batch_size * 24*4, num_classes)
+
+    def forward(
+        self,
+        tuple_x: tuple,
+    ) -> Dict[str, Tensor]:
+        x_dict = {
+            "encoder_cat": tuple_x[0],
+            "encoder_cont": tuple_x[1],
+            "encoder_target": tuple_x[2],
+            "encoder_lengths": tuple_x[3],
+            "decoder_cat": tuple_x[4],
+            "decoder_cont": tuple_x[5],
+            "decoder_target": tuple_x[6],
+            "decoder_lengths": tuple_x[7],
+            "decoder_time_idx": tuple_x[8],
+            "groups": tuple_x[9],
+            "target_scale": tuple_x[10],
+        }
+        out = self.model(x_dict)
+        print(out["prediction"])
         out = out["prediction"][-1].reshape(1, -1)
 
         pred = self.logit(out)

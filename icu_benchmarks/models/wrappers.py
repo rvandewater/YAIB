@@ -397,8 +397,7 @@ class DLPredictionWrapper(DLWrapper):
             .to(self.device)
         )
         target = torch.masked_select(labels, mask).to(self.device)
-        print('target', target)
-        print('pred', prediction)
+
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
             loss = (

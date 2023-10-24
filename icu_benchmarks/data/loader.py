@@ -591,9 +591,9 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
                 "MissingIndicator_48",
             ]
 
-       # self.data[boolean_columns] = self.data[boolean_columns].astype(
-       #     float
-       # )
+        self.data[boolean_columns] = self.data[boolean_columns].astype(
+            float
+        )
 
         self.split = split
         self.args = args
