@@ -71,6 +71,7 @@ def train_common(
     ),
     explain: bool = False,
     pytorch_forecasting: bool = False,
+    XAI_metric: bool = False,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -276,6 +277,8 @@ def train_common(
         print("IG", explanintations)
         interperations = model.interpertations(test_loader, log_dir)
         print("attention", interperations)
+        if XAI_metric:
+
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][

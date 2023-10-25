@@ -40,6 +40,7 @@ def execute_repeated_cv(
     complete_train: bool = False,
     explain: bool = False,
     pytorch_forecasting: bool = False,
+    XAI_metric: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -127,6 +128,7 @@ def execute_repeated_cv(
                 train_only=complete_train,
                 explain=explain,
                 pytorch_forecasting=pytorch_forecasting,
+                XAI_metric=XAI_metric,
             )
 
             train_time = datetime.now() - start_time

@@ -54,6 +54,7 @@ def main(my_args=tuple(sys.argv[1:])):
     source_dir = args.source_dir
     explain = args.explain
     pytorch_forecasting = args.pytorch_forecasting
+    XAI_metric = args.XAI_metric
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
@@ -209,6 +210,7 @@ def main(my_args=tuple(sys.argv[1:])):
         complete_train=args.complete_train,
         explain=explain,
         pytorch_forecasting=pytorch_forecasting,
+        XAI_metric=XAI_metric,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
