@@ -516,7 +516,6 @@ class TFTpytorch(DLPredictionWrapper):
         }
         out = self.model(x_dict)
         pred = self.logit(out["prediction"])
-
         return pred
 
     """
@@ -723,7 +722,7 @@ class RNNpytorch(DLPredictionWrapper):
             optimizer=optimizer,
         )
 
-        self.logit = nn.Linear(batch_size * 24, num_classes)
+        self.logit = nn.Linear(1, num_classes)
 
     def forward(
         self,
@@ -743,10 +742,11 @@ class RNNpytorch(DLPredictionWrapper):
             "target_scale": tuple_x[10],
         }
         out = self.model(x_dict)
-        out = out["prediction"][-1].reshape(1, -1)
 
-        pred = self.logit(out)
-        print(pred)
+        # out = out["prediction"].reshape(1, -1)
+
+        pred = self.logit(out["prediction"])
+
         return pred
 
 
@@ -782,7 +782,7 @@ class DeepARpytorch(DLPredictionWrapper):
             optimizer=optimizer,
         )
 
-        self.logit = nn.Linear(batch_size * 24*4, num_classes)
+        self.logit = nn.Linear(4, num_classes)
 
     def forward(
         self,
@@ -802,9 +802,7 @@ class DeepARpytorch(DLPredictionWrapper):
             "target_scale": tuple_x[10],
         }
         out = self.model(x_dict)
-        print(out["prediction"])
-        out = out["prediction"][-1].reshape(1, -1)
+        out = out["prediction"][0]
 
         pred = self.logit(out)
-        print(pred)
         return pred

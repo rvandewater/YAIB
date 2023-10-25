@@ -465,14 +465,17 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         target: Union[str, List[str]],
         time_varying_known_reals: List[str],
         time_varying_unknown_categoricals: List[str],
+        lagged_variables: List[str],
         *args,
         ram_cache: bool = False,
         add_relative_time_idx: bool = False,
         name: str = "",
         max_prediction_length: int = 24,
         max_encoder_length: int = 24,
+
         **kwargs,
     ):
+
         data[split]["FEATURES"]["time_idx"] = (
             (data[split]["FEATURES"]["time"] / pd.Timedelta(seconds=3600))
         ).astype(
@@ -487,113 +490,17 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         )  # combine labels and features
         # self.data["sex"].replace([0, 1], ["Female", "Male"], inplace=True)
         # List of column names to convert from boolean to float
-        if self.data["label"].dtype == "bool":
-            boolean_columns = [
-                "MissingIndicator_1",
-                "MissingIndicator_2",
-                "MissingIndicator_3",
-                "MissingIndicator_4",
-                "MissingIndicator_5",
-                "MissingIndicator_6",
-                "MissingIndicator_7",
-                "MissingIndicator_8",
-                "MissingIndicator_9",
-                "MissingIndicator_10",
-                "MissingIndicator_11",
-                "MissingIndicator_12",
-                "MissingIndicator_13",
-                "MissingIndicator_14",
-                "MissingIndicator_15",
-                "MissingIndicator_16",
-                "MissingIndicator_17",
-                "MissingIndicator_18",
-                "MissingIndicator_19",
-                "MissingIndicator_20",
-                "MissingIndicator_21",
-                "MissingIndicator_22",
-                "MissingIndicator_23",
-                "MissingIndicator_24",
-                "MissingIndicator_25",
-                "MissingIndicator_26",
-                "MissingIndicator_27",
-                "MissingIndicator_28",
-                "MissingIndicator_29",
-                "MissingIndicator_30",
-                "MissingIndicator_31",
-                "MissingIndicator_32",
-                "MissingIndicator_33",
-                "MissingIndicator_34",
-                "MissingIndicator_35",
-                "MissingIndicator_36",
-                "MissingIndicator_37",
-                "MissingIndicator_38",
-                "MissingIndicator_39",
-                "MissingIndicator_40",
-                "MissingIndicator_41",
-                "MissingIndicator_42",
-                "MissingIndicator_43",
-                "MissingIndicator_44",
-                "MissingIndicator_45",
-                "MissingIndicator_46",
-                "MissingIndicator_47",
-                "MissingIndicator_48",
-                "label",
-            ]
-        else:
-            boolean_columns = [
-                "MissingIndicator_1",
-                "MissingIndicator_2",
-                "MissingIndicator_3",
-                "MissingIndicator_4",
-                "MissingIndicator_5",
-                "MissingIndicator_6",
-                "MissingIndicator_7",
-                "MissingIndicator_8",
-                "MissingIndicator_9",
-                "MissingIndicator_10",
-                "MissingIndicator_11",
-                "MissingIndicator_12",
-                "MissingIndicator_13",
-                "MissingIndicator_14",
-                "MissingIndicator_15",
-                "MissingIndicator_16",
-                "MissingIndicator_17",
-                "MissingIndicator_18",
-                "MissingIndicator_19",
-                "MissingIndicator_20",
-                "MissingIndicator_21",
-                "MissingIndicator_22",
-                "MissingIndicator_23",
-                "MissingIndicator_24",
-                "MissingIndicator_25",
-                "MissingIndicator_26",
-                "MissingIndicator_27",
-                "MissingIndicator_28",
-                "MissingIndicator_29",
-                "MissingIndicator_30",
-                "MissingIndicator_31",
-                "MissingIndicator_32",
-                "MissingIndicator_33",
-                "MissingIndicator_34",
-                "MissingIndicator_35",
-                "MissingIndicator_36",
-                "MissingIndicator_37",
-                "MissingIndicator_38",
-                "MissingIndicator_39",
-                "MissingIndicator_40",
-                "MissingIndicator_41",
-                "MissingIndicator_42",
-                "MissingIndicator_43",
-                "MissingIndicator_44",
-                "MissingIndicator_45",
-                "MissingIndicator_46",
-                "MissingIndicator_47",
-                "MissingIndicator_48",
-            ]
-
-        self.data[boolean_columns] = self.data[boolean_columns].astype(
-            float
-        )
+        if (len(lagged_variables) > 0):
+            if self.data["label"].dtype == "bool":
+                self.data["label"] = self.data["label"].astype(
+                    float
+                )
+            columns_to_lag = lagged_variables
+            grouped = self.data.sort_values("time_idx").groupby("stay_id")
+            for lag in range(max_encoder_length, max_encoder_length+max_prediction_length + 1):
+                for column in columns_to_lag:
+                    # Create a new column with lagged values
+                    self.data[f"{column}_lag_{lag}"] = grouped[column].shift(lag, fill_value=0)
 
         self.split = split
         self.args = args

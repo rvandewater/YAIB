@@ -76,4 +76,4 @@ PredictionDatasetTFTpytorch.time_varying_unknown_reals=["alb",
                 "urine",
                 "wbc",
                 "label",]
-                
+PredictionDatasetTFTpytorch.lagged_variables=[]
