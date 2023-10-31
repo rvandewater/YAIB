@@ -272,14 +272,14 @@ def train_common(
 
     if explain:
         attributions_IG = model.explantation_captum(
-            test_loader, log_dir, IntegratedGradients, target=(0, 1)
+            test_loader, log_dir, IntegratedGradients
         )
 
         # print("IG", attributions_IG)
         # Attention_weights = model.interpertations(test_loader, log_dir)
         # print("attention", Attention_weights)
         if XAI_metric:
-            scores = model.faithfulness_correlation(test_loader, attributions_IG)
+            scores = model.Faithfulness_Correlation(test_loader, attributions_IG)
             print('Attributions faithfulness correlation', scores)
             # scores = model.faithfulness_correlation(test_loader, Attention_weights["attention"])
             print('Attention faithfulness correlation', scores)

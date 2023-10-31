@@ -18,7 +18,7 @@ from joblib import dump
 from pytorch_lightning import LightningModule
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
-
+import matplotlib.pyplot as plt
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(
     nn.functional.cross_entropy, module="torch.nn.functional"
@@ -559,7 +559,101 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         )
         return loss
 
-    def faithfulness_correlation(self, test_loader, attribution, nr_runs=100, pertrub=None, subset_size=4):
+    def explantation_captum(self, test_loader, log_dir, method):
+        # Initialize lists to store attribution values for all instances
+        all_attrs = []
+
+        # Loop through the test_loader to compute attributions for all instances
+        for batch in test_loader:
+            for key, value in batch[0].items():
+                batch[0][key] = batch[0][key].to(self.device)
+            x = batch[0]
+            data = (
+                x["encoder_cat"].float().requires_grad_(),
+                x["encoder_cont"].requires_grad_(),
+                x["encoder_target"].float().requires_grad_(),
+                x["encoder_lengths"].float().requires_grad_(),
+                x["decoder_cat"].float().requires_grad_(),
+                x["decoder_cont"].requires_grad_(),
+                x["decoder_target"].float().requires_grad_(),
+                x["decoder_lengths"].float().requires_grad_(),
+                x["decoder_time_idx"].float().requires_grad_(),
+                x["groups"].float().requires_grad_(),
+                x["target_scale"].requires_grad_(),
+            )
+            target = self(data)
+            print(target.shape)
+            baselines = (
+                torch.zeros_like(data[0]).to(self.device),  # encoder_cat, set to zero
+                torch.zeros_like(data[1]).to(self.device),  # encoder_cont, set to zero
+                torch.zeros_like(data[2]).to(self.device),  # encoder_target, set to zero
+                data[3].to(self.device),  # encoder_lengths, leave unchanged
+                torch.zeros_like(data[4]).to(self.device),  # decoder_cat, set to zero
+                torch.zeros_like(data[5]).to(self.device),  # decoder_cont, set to zero
+                torch.zeros_like(data[6]).to(self.device),  # decoder_target, set to zero
+                data[7].to(self.device),  # decoder_lengths, leave unchanged
+                torch.zeros_like(data[8]).to(self.device),  # decoder_time_idx, set to zero
+                data[9].to(self.device),  # groups, leave unchanged
+                data[10].to(self.device),  # target_scale, leave unchanged
+            )
+
+            explantation = method(self.forward_captum)
+            # Reformat attributions.
+            attr, delta = explantation.attribute(
+                data, target=target, return_convergence_delta=True, baselines=baselines, n_steps=20
+            )
+            # Convert attributions to numpy array and append to the list
+            all_attrs.append(attr[0].cpu().detach().numpy())
+
+        # Concatenate a‚ttribution values for all instances along the batch dimension
+        all_attrs = np.concatenate(all_attrs, axis=0)
+        means_feature = all_attrs.mean(axis=(0, 1))
+
+        # Compute mean along the batch dimension
+        means = all_attrs.mean(axis=(0, 2))
+        # Normalize the means values to range [0, 1]
+        normalized_means = (means - means.min()) / (means.max() - means.min())
+
+        # Create x values (assuming you want a simple sequential x-axis)
+        # Assuming you have 24 values
+        x_values = np.arange(1, 57)
+        # Plotting the featrue means
+        plt.figure(figsize=(8, 6))
+        plt.plot(
+            x_values,
+            means_feature,
+            marker="o",
+            color="skyblue",
+            linestyle="-",
+            linewidth=2,
+            markersize=8,
+        )
+        plt.xlabel("Time Step")
+        plt.ylabel("Normalized Attribution")
+        plt.title("Attribution Values")
+        plt.xticks(x_values)  # Set x-ticks to match the number of features
+        plt.tight_layout()
+        plt.savefig(log_dir / "attribution_features_plot.png", bbox_inches="tight")
+        plt.figure(figsize=(8, 6))
+        x_values = np.arange(1, 25)
+        plt.plot(
+            x_values,
+            normalized_means,
+            marker="o",
+            color="skyblue",
+            linestyle="-",
+            linewidth=2,
+            markersize=8,
+        )
+        plt.xlabel("Time Step")
+        plt.ylabel("Normalized Attribution")
+        plt.title("Attribution Values")
+        plt.xticks(x_values)  # Set x-ticks to match the number of features
+        plt.tight_layout()
+        plt.savefig(log_dir / "attribution_plot.png", bbox_inches="tight")
+        return means
+
+    def Faithfulness_Correlation(self, test_loader, attribution, nr_runs=100, pertrub=None, subset_size=4):
         """
     Implementation of faithfulness correlation by Bhatt et al., 2020.
 
@@ -635,21 +729,94 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
                 # Predict on perturbed input x.
                 y_pred_perturb = self(data).detach().cpu().numpy()
-                print(y_pred - y_pred_perturb)
-                break
+
                 pred_deltas.append((y_pred - y_pred_perturb).mean(axis=(0, 2)))
 
                 # Sum attributions of the random subset.
 
                 att_sums.append(np.sum(attribution[a_ix]))
-            print(pred_deltas, att_sums)
             correlation_matrix = np.corrcoef(pred_deltas, att_sums, rowvar=False)
 
             # Get the correlation coefficient from the correlation matrix
             pearson_correlation = correlation_matrix[0, 1]
             similarities.append(pearson_correlation)
-        print(similarities)
         return np.nanmean(similarities)
+
+    def Data_Randomization(self, test_loader, attribution, explain_method, nr_runs=100, similarity=None):
+        """
+        Implementation of the Random Logit Metric by Sixt et al., 2020.
+
+        The Random Logit Metric computes the distance between the original explanation and a reference explanation of
+        a randomly chosen non-target class.
+        This code is adapted from the quantus libray to suit our use case
+
+        References:
+            1) Leon Sixt et al.: "When Explanations Lie: Why Many Modified BP
+            Attributions Fail." ICML (2020): 9046-9057.
+            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+
+        """
+        a_perturbed = []
+        for batch in test_loader:
+
+            for key, value in batch[0].items():
+
+                batch[0][key] = batch[0][key].to(self.device)
+            x = batch[0]
+            y = batch[1][0]
+            data = (
+                x["encoder_cat"],
+                x["encoder_cont"],
+                x["encoder_target"],
+                x["encoder_lengths"],
+                x["decoder_cat"],
+                x["decoder_cont"],
+                x["decoder_target"],
+                x["decoder_lengths"],
+                x["decoder_time_idx"],
+                x["groups"],
+                x["target_scale"],
+            )
+            y_off = np.array(
+                [
+                    np.random.choice(
+                        [y_ for y_ in list(np.arange(0, self.num_classes)) if y_ != y]
+                    )
+                ]
+            )
+            baselines = (
+                torch.zeros_like(data[0]).to(self.device),  # encoder_cat, set to zero
+                torch.zeros_like(data[1]).to(self.device),  # encoder_cont, set to zero
+                torch.zeros_like(data[2]).to(self.device),  # encoder_target, set to zero
+                data[3].to(self.device),  # encoder_lengths, leave unchanged
+                torch.zeros_like(data[4]).to(self.device),  # decoder_cat, set to zero
+                torch.zeros_like(data[5]).to(self.device),  # decoder_cont, set to zero
+                torch.zeros_like(data[6]).to(self.device),  # decoder_target, set to zero
+                data[7].to(self.device),  # decoder_lengths, leave unchanged
+                torch.zeros_like(data[8]).to(self.device),  # decoder_time_idx, set to zero
+                data[9].to(self.device),  # groups, leave unchanged
+                data[10].to(self.device),  # target_scale, leave unchanged
+            )
+
+            explantation = explain_method(self.forward_captum)
+            # Reformat attributions.
+            attr, delta = explantation.attribute(
+                data, target=y_off, return_convergence_delta=True, baselines=baselines, n_steps=20
+            )
+            # Convert attributions to numpy array and append to the list
+            a_perturbed.append(attr[0].cpu().detach().numpy())
+        a_perturbed = np.concatenate(a_perturbed, axis=0)
+        a_perturbed = a_perturbed.mean(axis=(0, 1))
+
+        # Compute mean along the batch dimension
+        a_perturbed = a_perturbed.mean(axis=(0, 2))
+        # Normalize the means values to range [0, 1]
+        normalized_a_perturbed = (a_perturbed - a_perturbed.min()) / (a_perturbed.max() - a_perturbed.min())
+        correlation_matrix = np.corrcoef(normalized_a_perturbed, attribution, rowvar=False)
+
+        # Get the correlation coefficient from the correlation matrix
+        pearson_correlation = correlation_matrix[0, 1]
+        return pearson_correlation
 
 
 @gin.configurable("MLWrapper")
