@@ -333,40 +333,14 @@ class DLPredictionWrapper(DLWrapper):
                 data[key] = value
          """
         if len(element) == 2:
-            """
-            if (isinstance(element[1], tuple)) or (
-                isinstance(element[1], list)
-            ):
-            """
-            if self.pytorch_forecasting:
-                # check if the data loader is the one for the pytorch forecasring implementation
-                dic, labels = element[0], element[1][0]
 
-                if isinstance(labels, list):
-                    labels = labels[-1]
-                data = (
-                    dic["encoder_cat"],
-                    dic["encoder_cont"],
-                    dic["encoder_target"],
-                    dic["encoder_lengths"],
-                    dic["decoder_cat"],
-                    dic["decoder_cont"],
-                    dic["decoder_target"],
-                    dic["decoder_lengths"],
-                    dic["decoder_time_idx"],
-                    dic["groups"],
-                    dic["target_scale"],
-                )
-
-                mask = torch.ones_like(labels).bool()
+            data, labels = element[0], (element[1]).to(self.device)
+            if isinstance(data, list):
+                for i in range(len(data)):
+                    data[i] = data[i].float().to(self.device)
             else:
-                data, labels = element[0], (element[1]).to(self.device)
-                if isinstance(data, list):
-                    for i in range(len(data)):
-                        data[i] = data[i].float().to(self.device)
-                else:
-                    data = data.float().to(self.device)
-                mask = torch.ones_like(labels).bool()
+                data = data.float().to(self.device)
+            mask = torch.ones_like(labels).bool()
 
         elif len(element) == 3:
             data, labels, mask = (
