@@ -12,7 +12,7 @@ from icu_benchmarks.models.layers import (
 )
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
-from torch import Tensor, FloatTensor, zeros_like, ones_like, randn_like
+from torch import Tensor, FloatTensor, zeros_like, ones_like, randn_like, from_numpy
 from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork, DeepAR
 from pytorch_forecasting.metrics import QuantileLoss
 import matplotlib.pyplot as plt
@@ -704,10 +704,12 @@ class TFTpytorch(DLPredictionWrapper):
     or average of set). Thereafter, Pearson’s correlation coefficient between the predicted logits of each modified
     test point and the average explanation attribution for only the subset of features is calculated. Results is
     average over multiple runs and several test samples.
+    This code is adapted from the quantus libray to suit our use case
 
     References:
         1) Umang Bhatt et al.: "Evaluating and aggregating feature-based model
         explanations." IJCAI (2020): 3016-3022.
+        2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
     """
         if pertrub == None:
             pertrub = "baseline"
@@ -738,25 +740,27 @@ class TFTpytorch(DLPredictionWrapper):
             for i_ix in range(nr_runs):
                 # Randomly mask by subset size.
                 a_ix = np.random.choice(x["encoder_cont"].shape[1], subset_size, replace=False)
-                print(a_ix)
-                print(x["encoder_cont"][:, a_ix, :])
+
+                # Move a_ix_tensor to the same device as mask
 
                 if pertrub == "Noise":
+                    # add normal noise to input
                     noise = randn_like(x["encoder_cont"])
+
                     x["encoder_cont"][:, a_ix, :] += noise[:, a_ix, :]
                 elif pertrub == "baseline":
                     # Create a mask tensor with zeros at specified time steps and ones everywhere else
-                    mask = ones_like(x["encoder_cont"])
-                    print("Shape of mask:", mask.shape, mask.device)
-                    print("Shape of a_ix:", a_ix.shape, a_ix.device)
+                    # pytorch bug need to change to cpu for next step and then revert
+                    mask = ones_like(x["encoder_cont"]).cpu()
 
                     mask[:, a_ix, :] = 0
+                    mask = mask.to(x["encoder_cont"].device)
+
                     x["encoder_cont"] = x["encoder_cont"] * mask
 
                 # Predict on perturbed input x.
-                print(x["encoder_cont"][:, a_ix, :])
                 y_pred_perturb = self(data).detach().cpu().numpy()
-                pred_deltas.append((y_pred - y_pred_perturb).mean(axis=1))
+                pred_deltas.append((y_pred - y_pred_perturb).mean(axis=(0, 2)))
 
                 # Sum attributions of the random subset.
                 att_sums.append(np.sum(attribution[a_ix]))
@@ -767,7 +771,7 @@ class TFTpytorch(DLPredictionWrapper):
             # Get the correlation coefficient from the correlation matrix
             pearson_correlation = correlation_matrix[0, 1]
             similarities.append(pearson_correlation)
-        return similarities.mean()
+        return np.mean(similarities)
 
 
 @gin.configurable
