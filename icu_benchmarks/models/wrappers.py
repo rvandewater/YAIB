@@ -19,6 +19,7 @@ from pytorch_lightning import LightningModule
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
 import matplotlib.pyplot as plt
+from icu_benchmarks.models.similarity_func import correlation_spearman,distance_euclidean
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(
     nn.functional.cross_entropy, module="torch.nn.functional"
@@ -627,7 +628,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         plt.savefig(log_dir / "attribution_plot.png", bbox_inches="tight")
         return means
 
-    def Faithfulness_Correlation(self, test_loader, attribution, nr_runs=100, pertrub=None, subset_size=4):
+    def Faithfulness_Correlation(self, test_loader, attribution,similarity_func=None nr_runs=100, pertrub=None, subset_size=4):
         """
     Implementation of faithfulness correlation by Bhatt et al., 2020.
 
@@ -654,6 +655,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         if torch.is_tensor(attribution):
             # Convert the tensor to a NumPy array
             example_numpy_array = attribution.cpu().detach().numpy()
+        if similarity_func== None:
+            similarity_func=correlation_spearman
         if pertrub == None:
             pertrub = "baseline"
         similarities = []
@@ -709,11 +712,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 # Sum attributions of the random subset.
 
                 att_sums.append(np.sum(attribution[a_ix]))
-            correlation_matrix = np.corrcoef(pred_deltas, att_sums, rowvar=False)
-
-            # Get the correlation coefficient from the correlation matrix
-            pearson_correlation = correlation_matrix[0, 1]
-            similarities.append(pearson_correlation)
+            
+            similarities.append(similarity_func(pred_deltas,att_sums))
         return np.nanmean(similarities)
 
     def Data_Randomization(self, test_loader, attribution, explain_method, nr_runs=100, similarity=None):
@@ -731,6 +731,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
         """
         a_perturbed = []
+        if similarity_func== None:
+            similarity_func=distance_euclidean
         for batch in test_loader:
 
             for key, value in batch[0].items():
@@ -786,11 +788,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         a_perturbed = a_perturbed.mean(axis=(0, 2))
         # Normalize the means values to range [0, 1]
         normalized_a_perturbed = (a_perturbed - a_perturbed.min()) / (a_perturbed.max() - a_perturbed.min())
-        correlation_matrix = np.corrcoef(normalized_a_perturbed, attribution, rowvar=False)
-
-        # Get the correlation coefficient from the correlation matrix
-        pearson_correlation = correlation_matrix[0, 1]
-        return pearson_correlation
+        
+        return similarity_func(normalized_a_perturbed,attribution)
 
 
 @gin.configurable("MLWrapper")
