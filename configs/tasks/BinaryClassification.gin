@@ -16,7 +16,7 @@ train_common.ram_cache = True
 
 # DEEP LEARNING
 DLPredictionWrapper.loss = @cross_entropy
-
+DLPredictionPytorchForecastingWrapper.loss= @cross_entropy
 # SELECTING PREPROCESSOR
 preprocess.preprocessor = @base_classification_preprocessor
 preprocess.vars = %vars

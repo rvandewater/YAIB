@@ -16,6 +16,7 @@ train_common.ram_cache = True
 
 # LOSS FUNCTION
 DLPredictionWrapper.loss = @mse_loss
+DLPredictionPytorchForecastingWrapper.loss = @mse_loss
 MLWrapper.loss = @mean_squared_error
 
 # SELECTING PREPROCESSOR
