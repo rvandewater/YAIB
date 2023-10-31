@@ -272,75 +272,18 @@ def train_common(
 
     if explain:
         explanintations = model.explantation_captum(
-            test_loader, log_dir, IntegratedGradients, target=0
+            test_loader, log_dir, IntegratedGradients, target=(0, 1)
         )
 
         print("IG", explanintations)
         interperations = model.interpertations(test_loader, log_dir)
         print("attention", interperations)
     if XAI_metric:
-        batch = next(iter(test_loader))
-        model = model.cpu()
-        for key, value in batch[0].items():
-            batch[0][key] = batch[0][key].to(model.device)
-
-        data = (
-            batch[0]["encoder_cat"].float().requires_grad_(),
-            batch[0]["encoder_cont"].requires_grad_(),
-            batch[0]["encoder_target"].float().requires_grad_(),
-            batch[0]["encoder_lengths"].float().requires_grad_(),
-            batch[0]["decoder_cat"].float().requires_grad_(),
-            batch[0]["decoder_cont"].requires_grad_(),
-            batch[0]["decoder_target"].float().requires_grad_(),
-            batch[0]["decoder_lengths"].float().requires_grad_(),
-            batch[0]["decoder_time_idx"].float().requires_grad_(),
-            batch[0]["groups"].float().requires_grad_(),
-            batch[0]["target_scale"].requires_grad_(),
+        explanintations = model.explantation_captum(
+            test_loader, log_dir, IntegratedGradients, target=(0, 1)
         )
-
-        baselines = (
-            torch.zeros_like(data[0]).to(model.device),  # encoder_cat, set to zero
-            torch.zeros_like(data[1]).to(model.device),  # encoder_cont, set to zero
-            torch.zeros_like(data[2]).to(model.device),  # encoder_target, set to zero
-            data[3].to(model.device),  # encoder_lengths, leave unchanged
-            torch.zeros_like(data[4]).to(model.device),  # decoder_cat, set to zero
-            torch.zeros_like(data[5]).to(model.device),  # decoder_cont, set to zero
-            torch.zeros_like(data[6]).to(model.device),  # decoder_target, set to zero
-            data[7].to(model.device),  # decoder_lengths, leave unchanged
-            torch.zeros_like(data[8]).to(model.device),  # decoder_time_idx, set to zero
-            data[9].to(model.device),  # groups, leave unchanged
-            data[10].to(model.device),  # target_scale, leave unchanged
-        )
-
-        explantation = IntegratedGradients(model.forward_captum)
-        # Reformat attributions.
-        attr, delta = explantation.attribute(
-            data,
-            target=0,
-            return_convergence_delta=True,
-            baselines=baselines,
-            n_steps=20,
-        )
-        a_batch_IG = attr.detach().numpy()
-
-        x_batch, y_batch = batch[0], batch[1][0]
-        for key, value in x_batch.items():
-            x_batch[key] = x_batch[key].cpu().numpy()
-        y_batch = y_batch.cpu().numpy()
-        metric = quantus.FaithfulnessCorrelation()
-        scores = metric(
-            model=model,
-            x_batch=x_batch,
-            y_batch=y_batch,
-            a_batch=a_batch_IG,
-            device=model.device,
-            explain_func=quantus.explain,
-            explain_func_kwargs={
-                "method": "IntegratedGradients",
-                "baselines": baselines,
-                "n_steps": 20,
-            },
-        )
+        scores = model.faithfulness_correlation(test_loader, explanintations)
+        print(scores)
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][

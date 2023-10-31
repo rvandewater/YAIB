@@ -12,7 +12,7 @@ from icu_benchmarks.models.layers import (
 )
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
-from torch import Tensor, FloatTensor, zeros_like
+from torch import Tensor, FloatTensor, zeros_like, ones_like, randn_like
 from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork, DeepAR
 from pytorch_forecasting.metrics import QuantileLoss
 import matplotlib.pyplot as plt
@@ -603,19 +603,19 @@ class TFTpytorch(DLPredictionWrapper):
         for batch in test_loader:
             for key, value in batch[0].items():
                 batch[0][key] = batch[0][key].to(self.device)
-
+            x = batch[0]
             data = (
-                batch[0]["encoder_cat"].float().requires_grad_(),
-                batch[0]["encoder_cont"].requires_grad_(),
-                batch[0]["encoder_target"].float().requires_grad_(),
-                batch[0]["encoder_lengths"].float().requires_grad_(),
-                batch[0]["decoder_cat"].float().requires_grad_(),
-                batch[0]["decoder_cont"].requires_grad_(),
-                batch[0]["decoder_target"].float().requires_grad_(),
-                batch[0]["decoder_lengths"].float().requires_grad_(),
-                batch[0]["decoder_time_idx"].float().requires_grad_(),
-                batch[0]["groups"].float().requires_grad_(),
-                batch[0]["target_scale"].requires_grad_(),
+                x["encoder_cat"].float().requires_grad_(),
+                x["encoder_cont"].requires_grad_(),
+                x["encoder_target"].float().requires_grad_(),
+                x["encoder_lengths"].float().requires_grad_(),
+                x["decoder_cat"].float().requires_grad_(),
+                x["decoder_cont"].requires_grad_(),
+                x["decoder_target"].float().requires_grad_(),
+                x["decoder_lengths"].float().requires_grad_(),
+                x["decoder_time_idx"].float().requires_grad_(),
+                x["groups"].float().requires_grad_(),
+                x["target_scale"].requires_grad_(),
             )
 
             baselines = (
@@ -642,7 +642,6 @@ class TFTpytorch(DLPredictionWrapper):
 
         # Concatenate a‚ttribution values for all instances along the batch dimension
         all_attrs = np.concatenate(all_attrs, axis=0)
-        print(all_attrs.shape)
         means_feature = all_attrs.mean(axis=(0, 1))
 
         # Compute mean along the batch dimension
@@ -688,6 +687,87 @@ class TFTpytorch(DLPredictionWrapper):
         plt.tight_layout()
         plt.savefig(log_dir / "attribution_plot.png", bbox_inches="tight")
         return means
+
+    def faithfulness_correlation(self, test_loader, attribution, nr_runs=100, pertrub=None, subset_size=4):
+        """
+    Implementation of faithfulness correlation by Bhatt et al., 2020.
+
+    The Faithfulness Correlation metric intend to capture an explanation's relative faithfulness
+    (or 'fidelity') with respect to the model behaviour.
+
+    Faithfulness correlation scores shows to what extent the predicted logits of each modified test point and
+    the average explanation attribution for only the subset of features are (linearly) correlated, taking the
+    average over multiple runs and test samples. The metric returns one float per input-attribution pair that
+    ranges between -1 and 1, where higher scores are better.
+
+    For each test sample, |S| features are randomly selected and replace them with baseline values (zero baseline
+    or average of set). Thereafter, Pearson’s correlation coefficient between the predicted logits of each modified
+    test point and the average explanation attribution for only the subset of features is calculated. Results is
+    average over multiple runs and several test samples.
+
+    References:
+        1) Umang Bhatt et al.: "Evaluating and aggregating feature-based model
+        explanations." IJCAI (2020): 3016-3022.
+    """
+        if pertrub == None:
+            pertrub = "baseline"
+        similarities = []
+        for batch in test_loader:
+
+            for key, value in batch[0].items():
+
+                batch[0][key] = batch[0][key].to(self.device)
+            x = batch[0]
+            data = (
+                x["encoder_cat"],
+                x["encoder_cont"],
+                x["encoder_target"],
+                x["encoder_lengths"],
+                x["decoder_cat"],
+                x["decoder_cont"],
+                x["decoder_target"],
+                x["decoder_lengths"],
+                x["decoder_time_idx"],
+                x["groups"],
+                x["target_scale"],
+            )
+
+            y_pred = self(data).detach().cpu().numpy()
+            pred_deltas = []
+            att_sums = []
+            for i_ix in range(nr_runs):
+                # Randomly mask by subset size.
+                a_ix = np.random.choice(x["encoder_cont"].shape[1], subset_size, replace=False)
+                print(a_ix)
+                print(x["encoder_cont"][:, a_ix, :])
+
+                if pertrub == "Noise":
+                    noise = randn_like(x["encoder_cont"])
+                    x["encoder_cont"][:, a_ix, :] += noise[:, a_ix, :]
+                elif pertrub == "baseline":
+                    # Create a mask tensor with zeros at specified time steps and ones everywhere else
+                    mask = ones_like(x["encoder_cont"])
+                    print("Shape of mask:", mask.shape, mask.device)
+                    print("Shape of a_ix:", a_ix.shape, a_ix.device)
+
+                    mask[:, a_ix, :] = 0
+                    x["encoder_cont"] = x["encoder_cont"] * mask
+
+                # Predict on perturbed input x.
+                print(x["encoder_cont"][:, a_ix, :])
+                y_pred_perturb = self(data).detach().cpu().numpy()
+                pred_deltas.append((y_pred - y_pred_perturb).mean(axis=1))
+
+                # Sum attributions of the random subset.
+                att_sums.append(np.sum(attribution[a_ix]))
+            print(np.asarray(pred_deltas).shape)
+            print(np.asarray(att_sums).shape)
+            correlation_matrix = np.corrcoef(pred_deltas, att_sums, rowvar=False)
+
+            # Get the correlation coefficient from the correlation matrix
+            pearson_correlation = correlation_matrix[0, 1]
+            similarities.append(pearson_correlation)
+        return similarities.mean()
 
 
 @gin.configurable
