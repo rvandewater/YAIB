@@ -438,6 +438,220 @@ class DLPredictionWrapper(DLWrapper):
         return loss
 
 
+@gin.configurable("DLPredictionPytorchForecastingWrapper")
+class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
+    """Interface for Deep Learning models."""
+
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
+
+    def __init__(
+        self,
+        loss=CrossEntropyLoss(),
+        optimizer=torch.optim.Adam,
+        run_mode: RunMode = RunMode.classification,
+        input_shape=None,
+        lr: float = 0.002,
+        momentum: float = 0.9,
+        lr_scheduler: Optional[str] = None,
+        lr_factor: float = 0.99,
+        lr_steps: Optional[List[int]] = None,
+        epochs: int = 100,
+        input_size: Tensor = None,
+        initialization_method: str = "normal",
+        pytorch_forecasting: bool = False,
+        **kwargs,
+    ):
+        super().__init__(
+            loss=loss,
+            optimizer=optimizer,
+            run_mode=run_mode,
+            input_shape=input_shape,
+            lr=lr,
+            momentum=momentum,
+            lr_scheduler=lr_scheduler,
+            lr_factor=lr_factor,
+            lr_steps=lr_steps,
+            epochs=epochs,
+            input_size=input_size,
+            initialization_method=initialization_method,
+            kwargs=kwargs,
+        )
+
+    def step_fn(self, element, step_prefix=""):
+        """Perform a step in the DL prediction model training loop.
+
+        Args:
+            element (object):
+            step_prefix (str): Step type, by default: test, train, val.
+        """
+
+        dic, labels = element[0], element[1][0]
+
+        if isinstance(labels, list):
+            labels = labels[-1]
+        data = (
+            dic["encoder_cat"],
+            dic["encoder_cont"],
+            dic["encoder_target"],
+            dic["encoder_lengths"],
+            dic["decoder_cat"],
+            dic["decoder_cont"],
+            dic["decoder_target"],
+            dic["decoder_lengths"],
+            dic["decoder_time_idx"],
+            dic["groups"],
+            dic["target_scale"],
+        )
+
+        mask = torch.ones_like(labels).bool()
+
+        out = self(data)
+
+        # If aux_loss is present, it is returned as a tuple
+        if len(out) == 2 and isinstance(out, tuple):
+            out, aux_loss = out
+        else:
+            aux_loss = 0
+        # Get prediction and target
+
+        prediction = (
+            torch.masked_select(out, mask.unsqueeze(-1))
+            .reshape(-1, out.shape[-1])
+            .to(self.device)
+        )
+
+        target = torch.masked_select(labels, mask).to(self.device)
+
+        if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
+            # Classification task
+            loss = (
+                self.loss(
+                    prediction, target.long(), weight=self.loss_weights.to(self.device)
+                )
+                + aux_loss
+            )
+            # Returns torch.long because negative log likelihood loss
+        elif self.run_mode == RunMode.regression:
+            # Regression task
+            loss = self.loss(prediction[:, 0], target.float()) + aux_loss
+        else:
+            raise ValueError(
+                f"Run mode {self.run_mode} not yet supported. Please implement it."
+            )
+        transformed_output = self.output_transform((prediction, target))
+
+        for key, value in self.metrics[step_prefix].items():
+            if isinstance(value, torchmetrics.Metric):
+                if key == "Binary_Fairness":
+                    feature_names = key.feature_helper(self.trainer)
+                    value.update(
+                        transformed_output[0],
+                        transformed_output[1],
+                        data,
+                        feature_names,
+                    )
+                else:
+                    value.update(transformed_output[0], transformed_output[1])
+            else:
+                value.update(transformed_output)
+        self.log(
+            f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True
+        )
+        return loss
+
+    def faithfulness_correlation(self, test_loader, attribution, nr_runs=100, pertrub=None, subset_size=4):
+        """
+    Implementation of faithfulness correlation by Bhatt et al., 2020.
+
+    The Faithfulness Correlation metric intend to capture an explanation's relative faithfulness
+    (or 'fidelity') with respect to the model behaviour.
+
+    Faithfulness correlation scores shows to what extent the predicted logits of each modified test point and
+    the average explanation attribution for only the subset of features are (linearly) correlated, taking the
+    average over multiple runs and test samples. The metric returns one float per input-attribution pair that
+    ranges between -1 and 1, where higher scores are better.
+
+    For each test sample, |S| features are randomly selected and replace them with baseline values (zero baseline
+    or average of set). Thereafter, Pearson’s correlation coefficient between the predicted logits of each modified
+    test point and the average explanation attribution for only the subset of features is calculated. Results is
+    average over multiple runs and several test samples.
+    This code is adapted from the quantus libray to suit our use case
+
+    References:
+        1) Umang Bhatt et al.: "Evaluating and aggregating feature-based model
+        explanations." IJCAI (2020): 3016-3022.
+        2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+    """
+
+        if torch.is_tensor(attribution):
+            # Convert the tensor to a NumPy array
+            example_numpy_array = attribution.cpu().detach().numpy()
+        if pertrub == None:
+            pertrub = "baseline"
+        similarities = []
+        for batch in test_loader:
+
+            for key, value in batch[0].items():
+
+                batch[0][key] = batch[0][key].to(self.device)
+            x = batch[0]
+            data = (
+                x["encoder_cat"],
+                x["encoder_cont"],
+                x["encoder_target"],
+                x["encoder_lengths"],
+                x["decoder_cat"],
+                x["decoder_cont"],
+                x["decoder_target"],
+                x["decoder_lengths"],
+                x["decoder_time_idx"],
+                x["groups"],
+                x["target_scale"],
+            )
+
+            y_pred = self(data).detach().cpu().numpy()
+            pred_deltas = []
+            att_sums = []
+            for i_ix in range(nr_runs):
+                # Randomly mask by subset size.
+                a_ix = np.random.choice(x["encoder_cont"].shape[1], subset_size, replace=False)
+
+                # Move a_ix_tensor to the same device as mask
+
+                if pertrub == "Noise":
+                    # add normal noise to input
+                    noise = torch.randn_like(x["encoder_cont"])
+
+                    x["encoder_cont"][:, a_ix, :] += noise[:, a_ix, :]
+                elif pertrub == "baseline":
+                    # Create a mask tensor with zeros at specified time steps and ones everywhere else
+                    # pytorch bug need to change to cpu for next step and then revert
+                    mask = torch.ones_like(x["encoder_cont"]).cpu()
+
+                    mask[:, a_ix, :] = 0
+                    mask = mask.to(x["encoder_cont"].device)
+
+                    x["encoder_cont"] = x["encoder_cont"] * mask
+
+                # Predict on perturbed input x.
+                y_pred_perturb = self(data).detach().cpu().numpy()
+                print(y_pred - y_pred_perturb)
+                break
+                pred_deltas.append((y_pred - y_pred_perturb).mean(axis=(0, 2)))
+
+                # Sum attributions of the random subset.
+
+                att_sums.append(np.sum(attribution[a_ix]))
+            print(pred_deltas, att_sums)
+            correlation_matrix = np.corrcoef(pred_deltas, att_sums, rowvar=False)
+
+            # Get the correlation coefficient from the correlation matrix
+            pearson_correlation = correlation_matrix[0, 1]
+            similarities.append(pearson_correlation)
+        print(similarities)
+        return np.nanmean(similarities)
+
+
 @gin.configurable("MLWrapper")
 class MLWrapper(BaseModule, ABC):
     """Interface for prediction with traditional Scikit-learn-like Machine Learning models."""

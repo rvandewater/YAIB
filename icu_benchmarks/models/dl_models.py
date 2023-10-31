@@ -11,8 +11,8 @@ from icu_benchmarks.models.layers import (
     PositionalEncoding,
 )
 import matplotlib.pyplot as plt
-from icu_benchmarks.models.wrappers import DLPredictionWrapper
-from torch import Tensor, FloatTensor, zeros_like, ones_like, randn_like, from_numpy
+from icu_benchmarks.models.wrappers import DLPredictionWrapper, DLPredictionPytorchForecastingWrapper
+from torch import Tensor, FloatTensor, zeros_like, ones_like, randn_like, is_tensor
 from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork, DeepAR
 from pytorch_forecasting.metrics import QuantileLoss
 import matplotlib.pyplot as plt
@@ -464,7 +464,7 @@ class TFT(DLPredictionWrapper):
 
 
 @gin.configurable
-class TFTpytorch(DLPredictionWrapper):
+class TFTpytorch(DLPredictionPytorchForecastingWrapper):
     """
     Implementation of https://arxiv.org/abs/1912.09363 from pytorch forecasting
     """
@@ -534,6 +534,7 @@ class TFTpytorch(DLPredictionWrapper):
         return predictions_vs_actuals
 
     def interpertations(self, dataloader, log_dir):
+
         raw_predictions = self.model.predict(dataloader, return_x=True, mode="raw")
         interpretation = self.model.interpret_output(
             raw_predictions.output, reduction="sum"
@@ -541,6 +542,8 @@ class TFTpytorch(DLPredictionWrapper):
         figs = self.model.plot_interpretation(interpretation)
         for key, fig in figs.items():
             fig.savefig(log_dir / f"interpretation_{key}.png", bbox_inches="tight")
+
+        self.model = self.model.to(self.device)
 
         return interpretation
 
@@ -688,94 +691,9 @@ class TFTpytorch(DLPredictionWrapper):
         plt.savefig(log_dir / "attribution_plot.png", bbox_inches="tight")
         return means
 
-    def faithfulness_correlation(self, test_loader, attribution, nr_runs=100, pertrub=None, subset_size=4):
-        """
-    Implementation of faithfulness correlation by Bhatt et al., 2020.
-
-    The Faithfulness Correlation metric intend to capture an explanation's relative faithfulness
-    (or 'fidelity') with respect to the model behaviour.
-
-    Faithfulness correlation scores shows to what extent the predicted logits of each modified test point and
-    the average explanation attribution for only the subset of features are (linearly) correlated, taking the
-    average over multiple runs and test samples. The metric returns one float per input-attribution pair that
-    ranges between -1 and 1, where higher scores are better.
-
-    For each test sample, |S| features are randomly selected and replace them with baseline values (zero baseline
-    or average of set). Thereafter, Pearson’s correlation coefficient between the predicted logits of each modified
-    test point and the average explanation attribution for only the subset of features is calculated. Results is
-    average over multiple runs and several test samples.
-    This code is adapted from the quantus libray to suit our use case
-
-    References:
-        1) Umang Bhatt et al.: "Evaluating and aggregating feature-based model
-        explanations." IJCAI (2020): 3016-3022.
-        2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
-    """
-        if pertrub == None:
-            pertrub = "baseline"
-        similarities = []
-        for batch in test_loader:
-
-            for key, value in batch[0].items():
-
-                batch[0][key] = batch[0][key].to(self.device)
-            x = batch[0]
-            data = (
-                x["encoder_cat"],
-                x["encoder_cont"],
-                x["encoder_target"],
-                x["encoder_lengths"],
-                x["decoder_cat"],
-                x["decoder_cont"],
-                x["decoder_target"],
-                x["decoder_lengths"],
-                x["decoder_time_idx"],
-                x["groups"],
-                x["target_scale"],
-            )
-
-            y_pred = self(data).detach().cpu().numpy()
-            pred_deltas = []
-            att_sums = []
-            for i_ix in range(nr_runs):
-                # Randomly mask by subset size.
-                a_ix = np.random.choice(x["encoder_cont"].shape[1], subset_size, replace=False)
-
-                # Move a_ix_tensor to the same device as mask
-
-                if pertrub == "Noise":
-                    # add normal noise to input
-                    noise = randn_like(x["encoder_cont"])
-
-                    x["encoder_cont"][:, a_ix, :] += noise[:, a_ix, :]
-                elif pertrub == "baseline":
-                    # Create a mask tensor with zeros at specified time steps and ones everywhere else
-                    # pytorch bug need to change to cpu for next step and then revert
-                    mask = ones_like(x["encoder_cont"]).cpu()
-
-                    mask[:, a_ix, :] = 0
-                    mask = mask.to(x["encoder_cont"].device)
-
-                    x["encoder_cont"] = x["encoder_cont"] * mask
-
-                # Predict on perturbed input x.
-                y_pred_perturb = self(data).detach().cpu().numpy()
-                pred_deltas.append((y_pred - y_pred_perturb).mean(axis=(0, 2)))
-
-                # Sum attributions of the random subset.
-                att_sums.append(np.sum(attribution[a_ix]))
-            print(np.asarray(pred_deltas).shape)
-            print(np.asarray(att_sums).shape)
-            correlation_matrix = np.corrcoef(pred_deltas, att_sums, rowvar=False)
-
-            # Get the correlation coefficient from the correlation matrix
-            pearson_correlation = correlation_matrix[0, 1]
-            similarities.append(pearson_correlation)
-        return np.mean(similarities)
-
 
 @gin.configurable
-class RNNpytorch(DLPredictionWrapper):
+class RNNpytorch(DLPredictionPytorchForecastingWrapper):
     """
     Implementation of RNN from pytorch forecasting
     """
@@ -835,7 +753,7 @@ class RNNpytorch(DLPredictionWrapper):
 
 
 @gin.configurable
-class DeepARpytorch(DLPredictionWrapper):
+class DeepARpytorch(DLPredictionPytorchForecastingWrapper):
     """
     Implementation of RNN from pytorch forecasting
     """

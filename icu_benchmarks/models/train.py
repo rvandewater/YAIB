@@ -271,19 +271,18 @@ def train_common(
         return 0
 
     if explain:
-        explanintations = model.explantation_captum(
+        attributions_IG = model.explantation_captum(
             test_loader, log_dir, IntegratedGradients, target=(0, 1)
         )
 
-        print("IG", explanintations)
-        interperations = model.interpertations(test_loader, log_dir)
-        print("attention", interperations)
-    if XAI_metric:
-        explanintations = model.explantation_captum(
-            test_loader, log_dir, IntegratedGradients, target=(0, 1)
-        )
-        scores = model.faithfulness_correlation(test_loader, explanintations)
-        print(scores)
+        # print("IG", attributions_IG)
+        # Attention_weights = model.interpertations(test_loader, log_dir)
+        # print("attention", Attention_weights)
+        if XAI_metric:
+            scores = model.faithfulness_correlation(test_loader, attributions_IG)
+            print('Attributions faithfulness correlation', scores)
+            # scores = model.faithfulness_correlation(test_loader, Attention_weights["attention"])
+            print('Attention faithfulness correlation', scores)
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][
