@@ -572,14 +572,19 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             explantation = method(self.forward_captum)
             # Reformat attributions.
-            attr, delta = explantation.attribute(
-                data, target=(0, 1), return_convergence_delta=True, baselines=baselines, n_steps=35
-            )
-            # Convert attributions to numpy array and append to the list
-            all_attrs.append(attr[0].cpu().detach().numpy())
-
+            attr_all_timesteps = []
+            for time_step in range(0, 24):
+                attr, delta = explantation.attribute(
+                    data, target=(time_step, 1), return_convergence_delta=True, baselines=baselines, n_steps=35
+                )
+                # Convert attributions to numpy array and append to the list
+                attr_all_timesteps.append(attr[0].cpu().detach().numpy())
+            print(np.shape((attr_all_timesteps)))
+            all_attrs.append(np.mean(attr_all_timesteps, axis=0))
+            print(np.shape(all_attrs))
         # Concatenate a‚ttribution values for all instances along the batch dimension
         all_attrs = np.mean(all_attrs, axis=0)
+        print(np.shape(all_attrs))
         means_feature = all_attrs.mean(axis=(0, 1))
 
         # Compute mean along the batch dimension
