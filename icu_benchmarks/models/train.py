@@ -275,14 +275,19 @@ def train_common(
             test_loader, log_dir, IntegratedGradients
         )
 
-        # print("IG", attributions_IG)
-        # Attention_weights = model.interpertations(test_loader, log_dir)
-        # print("attention", Attention_weights)
+        print("IG", attributions_IG)
+        Attention_weights = model.interpertations(test_loader, log_dir)
+        print("attention", Attention_weights)
         if XAI_metric:
-            scores = model.Faithfulness_Correlation(test_loader, attributions_IG)
-            print('Attributions faithfulness correlation', scores)
+            scores1 = model.Faithfulness_Correlation(test_loader, attributions_IG)
+            print('Attributions faithfulness correlation', scores1)
+            scores2 = model.Faithfulness_Correlation(test_loader, Attention_weights["attention"])
+            print('Attention faithfulness correlation', scores2)
             # scores = model.faithfulness_correlation(test_loader, Attention_weights["attention"])
-            print('Attention faithfulness correlation', scores)
+
+            scores_2 = model.Data_Randomization(
+                test_loader, attributions_IG, IntegratedGradients)
+            print('Distance Data randmoization score', scores_2)
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][

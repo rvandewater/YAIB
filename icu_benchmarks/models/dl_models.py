@@ -494,7 +494,7 @@ class TFTpytorch(DLPredictionPytorchForecastingWrapper):
             loss=QuantileLoss(),
             hidden_continuous_size=hidden,
         )
-
+        self.num_classes = num_classes
         self.logit = nn.Linear(7, num_classes)
 
     def forward(
@@ -533,15 +533,16 @@ class TFTpytorch(DLPredictionPytorchForecastingWrapper):
         self.model.plot_prediction_actual_by_variable(predictions_vs_actuals)
         return predictions_vs_actuals
 
-    def interpertations(self, dataloader, log_dir):
+    def interpertations(self, dataloader, log_dir='.', plot=False):
 
         raw_predictions = self.model.predict(dataloader, return_x=True, mode="raw")
         interpretation = self.model.interpret_output(
             raw_predictions.output, reduction="sum"
         )
-        figs = self.model.plot_interpretation(interpretation)
-        for key, fig in figs.items():
-            fig.savefig(log_dir / f"interpretation_{key}.png", bbox_inches="tight")
+        if (plot):
+            figs = self.model.plot_interpretation(interpretation)
+            for key, fig in figs.items():
+                fig.savefig(log_dir / f"interpretation_{key}.png", bbox_inches="tight")
 
         self.model = self.model.to(self.device)
 
@@ -630,7 +631,7 @@ class RNNpytorch(DLPredictionPytorchForecastingWrapper):
             dropout=dropout,
             optimizer=optimizer,
         )
-
+        self.num_classes = num_classes
         self.logit = nn.Linear(1, num_classes)
 
     def forward(
@@ -690,7 +691,7 @@ class DeepARpytorch(DLPredictionPytorchForecastingWrapper):
             dropout=dropout,
             optimizer=optimizer,
         )
-
+        self.num_classes = num_classes
         self.logit = nn.Linear(4, num_classes)
 
     def forward(

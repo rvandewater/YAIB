@@ -19,7 +19,7 @@ from pytorch_lightning import LightningModule
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
 import matplotlib.pyplot as plt
-from icu_benchmarks.models.similarity_func import correlation_spearman,distance_euclidean
+from icu_benchmarks.models.similarity_func import correlation_spearman, distance_euclidean
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(
     nn.functional.cross_entropy, module="torch.nn.functional"
@@ -534,7 +534,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         )
         return loss
 
-    def explantation_captum(self, test_loader, log_dir, method):
+    def explantation_captum(self, test_loader, method, log_dir='.', plot=False):
         # Initialize lists to store attribution values for all instances
         all_attrs = []
 
@@ -556,8 +556,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 x["groups"].float().requires_grad_(),
                 x["target_scale"].requires_grad_(),
             )
-            target = self(data)
-            print(target.shape)
             baselines = (
                 torch.zeros_like(data[0]).to(self.device),  # encoder_cat, set to zero
                 torch.zeros_like(data[1]).to(self.device),  # encoder_cont, set to zero
@@ -575,60 +573,60 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             explantation = method(self.forward_captum)
             # Reformat attributions.
             attr, delta = explantation.attribute(
-                data, target=target, return_convergence_delta=True, baselines=baselines, n_steps=20
+                data, target=(0, 1), return_convergence_delta=True, baselines=baselines, n_steps=35
             )
             # Convert attributions to numpy array and append to the list
             all_attrs.append(attr[0].cpu().detach().numpy())
 
         # Concatenate a‚ttribution values for all instances along the batch dimension
-        all_attrs = np.concatenate(all_attrs, axis=0)
+        all_attrs = np.mean(all_attrs, axis=0)
         means_feature = all_attrs.mean(axis=(0, 1))
 
         # Compute mean along the batch dimension
         means = all_attrs.mean(axis=(0, 2))
         # Normalize the means values to range [0, 1]
         normalized_means = (means - means.min()) / (means.max() - means.min())
-
-        # Create x values (assuming you want a simple sequential x-axis)
-        # Assuming you have 24 values
-        x_values = np.arange(1, 57)
-        # Plotting the featrue means
-        plt.figure(figsize=(8, 6))
-        plt.plot(
-            x_values,
-            means_feature,
-            marker="o",
-            color="skyblue",
-            linestyle="-",
-            linewidth=2,
-            markersize=8,
-        )
-        plt.xlabel("Time Step")
-        plt.ylabel("Normalized Attribution")
-        plt.title("Attribution Values")
-        plt.xticks(x_values)  # Set x-ticks to match the number of features
-        plt.tight_layout()
-        plt.savefig(log_dir / "attribution_features_plot.png", bbox_inches="tight")
-        plt.figure(figsize=(8, 6))
-        x_values = np.arange(1, 25)
-        plt.plot(
-            x_values,
-            normalized_means,
-            marker="o",
-            color="skyblue",
-            linestyle="-",
-            linewidth=2,
-            markersize=8,
-        )
-        plt.xlabel("Time Step")
-        plt.ylabel("Normalized Attribution")
-        plt.title("Attribution Values")
-        plt.xticks(x_values)  # Set x-ticks to match the number of features
-        plt.tight_layout()
-        plt.savefig(log_dir / "attribution_plot.png", bbox_inches="tight")
+        if plot:
+            # Create x values (assuming you want a simple sequential x-axis)
+            # Assuming you have 24 values
+            x_values = np.arange(1, 57)
+            # Plotting the featrue means
+            plt.figure(figsize=(8, 6))
+            plt.plot(
+                x_values,
+                means_feature,
+                marker="o",
+                color="skyblue",
+                linestyle="-",
+                linewidth=2,
+                markersize=8,
+            )
+            plt.xlabel("Time Step")
+            plt.ylabel("Normalized Attribution")
+            plt.title("Attribution Values")
+            plt.xticks(x_values)  # Set x-ticks to match the number of features
+            plt.tight_layout()
+            plt.savefig(log_dir / "attribution_features_plot.png", bbox_inches="tight")
+            plt.figure(figsize=(8, 6))
+            x_values = np.arange(1, 25)
+            plt.plot(
+                x_values,
+                normalized_means,
+                marker="o",
+                color="skyblue",
+                linestyle="-",
+                linewidth=2,
+                markersize=8,
+            )
+            plt.xlabel("Time Step")
+            plt.ylabel("Normalized Attribution")
+            plt.title("Attribution Values")
+            plt.xticks(x_values)  # Set x-ticks to match the number of features
+            plt.tight_layout()
+            plt.savefig(log_dir / "attribution_plot.png", bbox_inches="tight")
         return means
 
-    def Faithfulness_Correlation(self, test_loader, attribution,similarity_func=None nr_runs=100, pertrub=None, subset_size=4):
+    def Faithfulness_Correlation(self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=4):
         """
     Implementation of faithfulness correlation by Bhatt et al., 2020.
 
@@ -654,10 +652,10 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
         if torch.is_tensor(attribution):
             # Convert the tensor to a NumPy array
-            example_numpy_array = attribution.cpu().detach().numpy()
-        if similarity_func== None:
-            similarity_func=correlation_spearman
-        if pertrub == None:
+            attribution = attribution.cpu().detach().numpy()
+        if similarity_func is None:
+            similarity_func = correlation_spearman
+        if pertrub is None:
             pertrub = "baseline"
         similarities = []
         for batch in test_loader:
@@ -679,7 +677,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 x["groups"],
                 x["target_scale"],
             )
-
             y_pred = self(data).detach().cpu().numpy()
             pred_deltas = []
             att_sums = []
@@ -701,9 +698,20 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
                     mask[:, a_ix, :] = 0
                     mask = mask.to(x["encoder_cont"].device)
-
                     x["encoder_cont"] = x["encoder_cont"] * mask
-
+                data = (
+                    x["encoder_cat"],
+                    x["encoder_cont"],
+                    x["encoder_target"],
+                    x["encoder_lengths"],
+                    x["decoder_cat"],
+                    x["decoder_cont"],
+                    x["decoder_target"],
+                    x["decoder_lengths"],
+                    x["decoder_time_idx"],
+                    x["groups"],
+                    x["target_scale"],
+                )
                 # Predict on perturbed input x.
                 y_pred_perturb = self(data).detach().cpu().numpy()
 
@@ -712,11 +720,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 # Sum attributions of the random subset.
 
                 att_sums.append(np.sum(attribution[a_ix]))
-            
-            similarities.append(similarity_func(pred_deltas,att_sums))
+
+            similarities.append(similarity_func(pred_deltas, att_sums))
         return np.nanmean(similarities)
 
-    def Data_Randomization(self, test_loader, attribution, explain_method, nr_runs=100, similarity=None):
+    def Data_Randomization(self, test_loader, attribution, explain_method, similarity_func=None):
         """
         Implementation of the Random Logit Metric by Sixt et al., 2020.
 
@@ -731,65 +739,64 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
         """
         a_perturbed = []
-        if similarity_func== None:
-            similarity_func=distance_euclidean
-        for batch in test_loader:
+        if similarity_func is None:
+            similarity_func = distance_euclidean
+        if (explain_method == 'attention'):
+            Attention_weights = self.interpertations(test_loader)
 
-            for key, value in batch[0].items():
+        else:
+            for batch in test_loader:
 
-                batch[0][key] = batch[0][key].to(self.device)
-            x = batch[0]
-            y = batch[1][0]
-            data = (
-                x["encoder_cat"],
-                x["encoder_cont"],
-                x["encoder_target"],
-                x["encoder_lengths"],
-                x["decoder_cat"],
-                x["decoder_cont"],
-                x["decoder_target"],
-                x["decoder_lengths"],
-                x["decoder_time_idx"],
-                x["groups"],
-                x["target_scale"],
-            )
-            y_off = np.array(
-                [
-                    np.random.choice(
-                        [y_ for y_ in list(np.arange(0, self.num_classes)) if y_ != y]
-                    )
-                ]
-            )
-            baselines = (
-                torch.zeros_like(data[0]).to(self.device),  # encoder_cat, set to zero
-                torch.zeros_like(data[1]).to(self.device),  # encoder_cont, set to zero
-                torch.zeros_like(data[2]).to(self.device),  # encoder_target, set to zero
-                data[3].to(self.device),  # encoder_lengths, leave unchanged
-                torch.zeros_like(data[4]).to(self.device),  # decoder_cat, set to zero
-                torch.zeros_like(data[5]).to(self.device),  # decoder_cont, set to zero
-                torch.zeros_like(data[6]).to(self.device),  # decoder_target, set to zero
-                data[7].to(self.device),  # decoder_lengths, leave unchanged
-                torch.zeros_like(data[8]).to(self.device),  # decoder_time_idx, set to zero
-                data[9].to(self.device),  # groups, leave unchanged
-                data[10].to(self.device),  # target_scale, leave unchanged
-            )
+                for key, value in batch[0].items():
 
-            explantation = explain_method(self.forward_captum)
-            # Reformat attributions.
-            attr, delta = explantation.attribute(
-                data, target=y_off, return_convergence_delta=True, baselines=baselines, n_steps=20
-            )
-            # Convert attributions to numpy array and append to the list
-            a_perturbed.append(attr[0].cpu().detach().numpy())
-        a_perturbed = np.concatenate(a_perturbed, axis=0)
-        a_perturbed = a_perturbed.mean(axis=(0, 1))
+                    batch[0][key] = batch[0][key].to(self.device)
+                x = batch[0]
+                y = batch[1][0]
+                data = (
+                    x["encoder_cat"],
+                    x["encoder_cont"],
+                    x["encoder_target"],
+                    x["encoder_lengths"],
+                    x["decoder_cat"],
+                    x["decoder_cont"],
+                    x["decoder_target"],
+                    x["decoder_lengths"],
+                    x["decoder_time_idx"],
+                    x["groups"],
+                    x["target_scale"],
+                )
 
-        # Compute mean along the batch dimension
-        a_perturbed = a_perturbed.mean(axis=(0, 2))
-        # Normalize the means values to range [0, 1]
-        normalized_a_perturbed = (a_perturbed - a_perturbed.min()) / (a_perturbed.max() - a_perturbed.min())
-        
-        return similarity_func(normalized_a_perturbed,attribution)
+                y_off = np.random.randint(low=0, high=self.num_classes, size=y.shape)
+
+                baselines = (
+                    torch.zeros_like(data[0]).to(self.device),  # encoder_cat, set to zero
+                    torch.zeros_like(data[1]).to(self.device),  # encoder_cont, set to zero
+                    torch.zeros_like(data[2]).to(self.device),  # encoder_target, set to zero
+                    data[3].to(self.device),  # encoder_lengths, leave unchanged
+                    torch.zeros_like(data[4]).to(self.device),  # decoder_cat, set to zero
+                    torch.zeros_like(data[5]).to(self.device),  # decoder_cont, set to zero
+                    torch.zeros_like(data[6]).to(self.device),  # decoder_target, set to zero
+                    data[7].to(self.device),  # decoder_lengths, leave unchanged
+                    torch.zeros_like(data[8]).to(self.device),  # decoder_time_idx, set to zero
+                    data[9].to(self.device),  # groups, leave unchanged
+                    data[10].to(self.device),  # target_scale, leave unchanged
+                )
+                self.train()
+                explantation = explain_method(self.forward_captum)
+                # Reformat attributions.
+                attr, delta = explantation.attribute(
+                    data, target=(1, 1), return_convergence_delta=True, baselines=baselines, n_steps=35
+                )
+                # Convert attributions to numpy array and append to the list
+                a_perturbed.append(attr[0].cpu().detach().numpy())
+
+            a_perturbed = np.mean(a_perturbed, axis=(0, 1, 3))
+
+            # Normalize the means values to range [0, 1]
+            normalized_a_perturbed = (a_perturbed - a_perturbed.min()) / (a_perturbed.max() - a_perturbed.min())
+            score = similarity_func(normalized_a_perturbed, attribution)
+
+        return score
 
 
 @gin.configurable("MLWrapper")
