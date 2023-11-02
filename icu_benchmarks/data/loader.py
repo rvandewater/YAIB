@@ -487,9 +487,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         self.name = name
         self.data = pd.merge(
             labels, features, on=["stay_id", "time"]
-        )  # combine labels and features
-        # self.data["sex"].replace([0, 1], ["Female", "Male"], inplace=True)
-        # List of column names to convert from boolean to float
+        )
         if (len(lagged_variables) > 0):
             if self.data["label"].dtype == "bool":
                 self.data["label"] = self.data["label"].astype(
@@ -544,3 +542,10 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
 
     def get_feature_names(self):
         return self.column_names
+
+    def randomize_labels(self, num_classes=None, min=None, max=None):
+        if num_classes is None:
+            random_target = np.random.uniform(min, max, size=len(self.data['target'][0]))
+        else:
+            random_target = np.random.randint(num_classes, size=len(self.data['target'][0]))
+        self.data['target'][0] = Tensor(random_target)

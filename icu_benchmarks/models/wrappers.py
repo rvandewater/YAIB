@@ -579,12 +579,9 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 )
                 # Convert attributions to numpy array and append to the list
                 attr_all_timesteps.append(attr[0].cpu().detach().numpy())
-            print(np.shape((attr_all_timesteps)))
             all_attrs.append(np.mean(attr_all_timesteps, axis=0))
-            print(np.shape(all_attrs))
         # Concatenate a‚ttribution values for all instances along the batch dimension
         all_attrs = np.mean(all_attrs, axis=0)
-        print(np.shape(all_attrs))
         means_feature = all_attrs.mean(axis=(0, 1))
 
         # Compute mean along the batch dimension
@@ -729,7 +726,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             similarities.append(similarity_func(pred_deltas, att_sums))
         return np.nanmean(similarities)
 
-    def Data_Randomization(self, test_loader, attribution, explain_method, similarity_func=None):
+    def Data_Randomization(self, test_loader, attribution, explain_method, similarity_func=None, test_dataset=None):
         """
         Implementation of the Random Logit Metric by Sixt et al., 2020.
 
@@ -746,9 +743,16 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         a_perturbed = []
         if similarity_func is None:
             similarity_func = distance_euclidean
-        if (explain_method == 'attention'):
-            Attention_weights = self.interpertations(test_loader)
+        if (explain_method == 'Attention'):
+            for batch in test_loader:
+                print(batch[1][0])
 
+            test_dataset.randomize_labels(num_classes=self.num_classes)
+            for batch in test_loader:
+                print(batch[1][0])  # generate random labels
+            Attention_weights = self.interpertations(test_loader)  # test_loader works by reference
+
+            score = similarity_func(Attention_weights["attention"].cpu().numpy(), attribution.cpu().numpy())
         else:
             for batch in test_loader:
 
@@ -789,11 +793,14 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 self.train()
                 explantation = explain_method(self.forward_captum)
                 # Reformat attributions.
-                attr, delta = explantation.attribute(
-                    data, target=(1, 1), return_convergence_delta=True, baselines=baselines, n_steps=35
-                )
-                # Convert attributions to numpy array and append to the list
-                a_perturbed.append(attr[0].cpu().detach().numpy())
+                attr_all_timesteps = []
+                for time_step in range(0, 24):
+                    attr, delta = explantation.attribute(
+                        data, target=(time_step, 1), return_convergence_delta=True, baselines=baselines, n_steps=35
+                    )
+                    # Convert attributions to numpy array and append to the list
+                    attr_all_timesteps.append(attr[0].cpu().detach().numpy())
+                a_perturbed.append(np.mean(attr_all_timesteps, axis=0))
 
             a_perturbed = np.mean(a_perturbed, axis=(0, 1, 3))
 

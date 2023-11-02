@@ -271,25 +271,25 @@ def train_common(
         return 0
 
     if explain:
-        attributions_IG = model.explantation_captum(
-            test_loader=test_loader,
-            method=IntegratedGradients, log_dir=log_dir, plot=True
-        )
+       # attributions_IG = model.explantation_captum(
+       #     test_loader=test_loader,
+       #     method=IntegratedGradients, log_dir=log_dir, plot=True
+       # )
 
-        print("IG", attributions_IG)
+       # print("IG", attributions_IG)
         Attention_weights = model.interpertations(test_loader, log_dir, plot=True)
         print("attention", Attention_weights)
         if XAI_metric:
-            scores1 = model.Faithfulness_Correlation(test_loader, attributions_IG)
-            print('Attributions faithfulness correlation', scores1)
-            scores2 = model.Faithfulness_Correlation(test_loader, Attention_weights["attention"])
-            print('Attention faithfulness correlation', scores2)
-            scores_1 = model.Data_Randomization(
-                test_loader, attributions_IG, IntegratedGradients)
-            """
-            scores_2 = model.Data_Randomization(
-                test_loader, attributions_IG, Attention_weights["attention"])"""
-            print('Distance Data randmoization score', scores_1)
+            #    F_attribution = model.Faithfulness_Correlation(test_loader, attributions_IG)
+         #   print('Attributions faithfulness correlation', F_attribution)
+            F_attention = model.Faithfulness_Correlation(test_loader, Attention_weights["attention"])
+            print('Attention faithfulness correlation', F_attention)
+         #   R_attribution = model.Data_Randomization(
+          #      test_loader, attributions_IG, IntegratedGradients)
+          #  print('Distance Data randmoization score attribution', R_attribution)
+            R_attention = model.Data_Randomization(
+                test_loader, Attention_weights["attention"], "Attention", test_dataset=test_dataset)
+            print('Distance Data randmoization score attention', R_attention)
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][
