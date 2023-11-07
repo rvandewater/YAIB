@@ -147,7 +147,7 @@ def build_parser() -> ArgumentParser:
     )
 
     parser.add_argument(
-        "-random_model",
+        "--random_model",
         default=Path("."),
         type=Path,
         help="Log directory for model weights that is trained on random labels",

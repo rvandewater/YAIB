@@ -75,7 +75,7 @@ def train_common(
     pytorch_forecasting: bool = False,
     XAI_metric: bool = False,
     random_labels: bool = False,
-    random_model_dir: str =None
+    random_model_dir: str = None
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -259,6 +259,9 @@ def train_common(
     if not eval_only:
         if model.requires_backprop:
             logging.info("Training DL model.")
+            print(next(train_loader)[1][0])
+            print(next(val_loader)[1][0])
+            print(next(test_loader)[1][0])
             trainer.fit(
                 model, train_dataloaders=train_loader, val_dataloaders=val_loader
             )
@@ -293,13 +296,22 @@ def train_common(
             # print('Attributions faithfulness correlation', F_attribution)
             # F_attention = model.Faithfulness_Correlation(test_loader, Attention_weights["attention"], pertrub='Noise')
             # print('Attention faithfulness correlation', F_attention)
-            
-            #R_attribution = model.Data_Randomization(
-            #    test_loader, attributions_IG, IntegratedGradients)
-            #print('Distance Data randmoization score attribution', R_attribution)
-            # R_attention = model.Data_Randomization(
-            #    test_loader, Attention_weights["attention"], "Attention", test_dataset=test_dataset)
-            # print('Distance Data randmoization score attention', R_attention)
+            print(random_model_dir)
+            path = Path(random_model_dir)
+            print(path)
+            random_model = load_model(
+                model,
+                source_dir=path,
+                pl_model=pl_model,
+                train_dataset=train_dataset,
+                optimizer=optimizer,
+            )
+            R_attribution = model.Data_Randomization(
+                test_loader, attributions_IG, IntegratedGradients, random_model)
+            print('Distance Data randmoization score attribution', R_attribution)
+           # R_attention = model.Data_Randomization(
+           #     test_loader, Attention_weights["attention"], "Attention", test_dataset=test_dataset)
+           # print('Distance Data randmoization score attention', R_attention)
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][
