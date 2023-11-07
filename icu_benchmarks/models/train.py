@@ -6,6 +6,7 @@ import logging
 import pandas as pd
 from joblib import load
 from torch.optim import Adam
+import numpy as np
 import quantus
 from torch.utils.data import DataLoader
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
@@ -54,7 +55,7 @@ def train_common(
     optimizer: type = Adam,
     precision=32,
     batch_size=64,
-    epochs=100,
+    epochs=1000,
     patience=20,
     min_delta=1e-5,
     test_on: str = Split.test,
@@ -73,6 +74,8 @@ def train_common(
     explain: bool = False,
     pytorch_forecasting: bool = False,
     XAI_metric: bool = False,
+    random_labels: bool = False,
+    random_model_dir: str =None
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -173,8 +176,12 @@ def train_common(
                 optimizer=optimizer,
                 epochs=epochs,
                 run_mode=mode,
-                batch_size=batch_size,  # check why validation set is needed here
+                batch_size=batch_size,
             )
+        if random_labels:
+            train_dataset.randomize_labels(num_classes=model.num_classes)
+            val_dataset.randomize_labels(num_classes=model.num_classes)
+            test_dataset.randomize_labels(num_classes=model.num_classes)
 
     else:
         train_loader = DataLoader(
@@ -206,10 +213,6 @@ def train_common(
             if model.requires_backprop
             else DataLoader([test_dataset.to_tensor()], batch_size=1)
         )
-        """
-        if isinstance(next(iter(train_loader))[0], OrderedDict):
-            model = model(optimizer=optimizer, epochs=epochs, run_mode=mode)
-        """
 
         data_shape = next(iter(train_loader))[0].shape
         if load_weights:
@@ -271,25 +274,32 @@ def train_common(
         return 0
 
     if explain:
-       # attributions_IG = model.explantation_captum(
-       #     test_loader=test_loader,
-       #     method=IntegratedGradients, log_dir=log_dir, plot=True
-       # )
+        attributions_IG = model.explantation_captum(
+            test_loader=test_loader,
+            method=IntegratedGradients, log_dir=log_dir, plot=True
+        )
 
-       # print("IG", attributions_IG)
-        Attention_weights = model.interpertations(test_loader, log_dir, plot=True)
-        print("attention", Attention_weights)
+        print("IG", attributions_IG)
+        # Attention_weights = model.interpertations(test_loader, log_dir, plot=True)
+        # print("attention", Attention_weights)
         if XAI_metric:
-            #    F_attribution = model.Faithfulness_Correlation(test_loader, attributions_IG)
-         #   print('Attributions faithfulness correlation', F_attribution)
-            F_attention = model.Faithfulness_Correlation(test_loader, Attention_weights["attention"])
-            print('Attention faithfulness correlation', F_attention)
-         #   R_attribution = model.Data_Randomization(
-          #      test_loader, attributions_IG, IntegratedGradients)
-          #  print('Distance Data randmoization score attribution', R_attribution)
-            R_attention = model.Data_Randomization(
-                test_loader, Attention_weights["attention"], "Attention", test_dataset=test_dataset)
-            print('Distance Data randmoization score attention', R_attention)
+            # ra2 = np.random.randint(low=0, high=101, size=24)
+            # random_attributions = np.random.normal(size=24)
+            # F_baseline = model.Faithfulness_Correlation(test_loader, random_attributions, pertrub='Noise')
+            # F_baseline2 = model.Faithfulness_Correlation(test_loader, random_attributions, pertrub='Noise')
+            # print('Random noraml faithfulness correlation', F_baseline)
+            # print('random unifrom ', F_baseline2)
+            # F_attribution = model.Faithfulness_Correlation(test_loader, attributions_IG, pertrub='Noise')
+            # print('Attributions faithfulness correlation', F_attribution)
+            # F_attention = model.Faithfulness_Correlation(test_loader, Attention_weights["attention"], pertrub='Noise')
+            # print('Attention faithfulness correlation', F_attention)
+            
+            #R_attribution = model.Data_Randomization(
+            #    test_loader, attributions_IG, IntegratedGradients)
+            #print('Distance Data randmoization score attribution', R_attribution)
+            # R_attention = model.Data_Randomization(
+            #    test_loader, Attention_weights["attention"], "Attention", test_dataset=test_dataset)
+            # print('Distance Data randmoization score attention', R_attention)
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][

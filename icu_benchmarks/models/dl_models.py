@@ -149,9 +149,7 @@ class Transformer(DLPredictionWrapper):
             **kwargs,
         )
         hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
-        self.input_embedding = nn.Linear(
-            input_size[2], hidden
-        )  # This acts as a time-distributed layer by defaults
+        self.input_embedding = nn.Linear(input_size[2], hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
         else:
@@ -222,9 +220,7 @@ class LocalTransformer(DLPredictionWrapper):
         )
 
         hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
-        self.input_embedding = nn.Linear(
-            input_size[2], hidden
-        )  # This acts as a time-distributed layer by defaults
+        self.input_embedding = nn.Linear(input_size[2], hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
         else:
@@ -290,13 +286,9 @@ class TemporalConvNet(DLPredictionWrapper):
 
         # We compute automatically the depth based on the desired seq_length.
         if isinstance(num_channels, Integral) and max_seq_length:
-            num_channels = [num_channels] * int(
-                np.ceil(np.log(max_seq_length / 2) / np.log(kernel_size))
-            )
+            num_channels = [num_channels] * int(np.ceil(np.log(max_seq_length / 2) / np.log(kernel_size)))
         elif isinstance(num_channels, Integral) and not max_seq_length:
-            raise Exception(
-                "a maximum sequence length needs to be provided if num_channels is int"
-            )
+            raise Exception("a maximum sequence length needs to be provided if num_channels is int")
 
         num_levels = len(num_channels)
         for i in range(num_levels):
@@ -527,19 +519,14 @@ class TFTpytorch(DLPredictionPytorchForecastingWrapper):
 
     def actual_vs_predictions_plot(self, dataloader):
         predictions = self.model.predict(dataloader, return_x=True)
-        predictions_vs_actuals = self.model.calculate_prediction_actual_by_variable(
-            predictions.x, predictions.output
-        )
+        predictions_vs_actuals = self.model.calculate_prediction_actual_by_variable(predictions.x, predictions.output)
         self.model.plot_prediction_actual_by_variable(predictions_vs_actuals)
         return predictions_vs_actuals
 
-    def interpertations(self, dataloader, log_dir='.', plot=False):
-
+    def interpertations(self, dataloader, log_dir=".", plot=False):
         raw_predictions = self.model.predict(dataloader, return_x=True, mode="raw")
-        interpretation = self.model.interpret_output(
-            raw_predictions.output, reduction="sum"
-        )
-        if (plot):
+        interpretation = self.model.interpret_output(raw_predictions.output, reduction="sum")
+        if plot:
             figs = self.model.plot_interpretation(interpretation)
             for key, fig in figs.items():
                 fig.savefig(log_dir / f"interpretation_{key}.png", bbox_inches="tight")
@@ -563,9 +550,7 @@ class TFTpytorch(DLPredictionPytorchForecastingWrapper):
             q75=lambda x: x.quantile(0.75),
         )
         ax = agg_dependency.plot(y="median")
-        ax.fill_between(
-            agg_dependency.index, agg_dependency.q25, agg_dependency.q75, alpha=0.3
-        )
+        ax.fill_between(agg_dependency.index, agg_dependency.q25, agg_dependency.q75, alpha=0.3)
         plt.savefig(log_dir / "dependecy.png", bbox_inches="tight")
         return dependency
 

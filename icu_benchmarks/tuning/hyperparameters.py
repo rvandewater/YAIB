@@ -37,6 +37,7 @@ def choose_and_bind_hyperparameters(
     verbose: bool = False,
     wandb: bool = False,
     pytorch_forecasting: bool = False,
+    random_labels: bool = False,
 ):
     """Choose hyperparameters to tune and bind them to gin.
 
@@ -68,9 +69,7 @@ def choose_and_bind_hyperparameters(
         return
 
     # Collect hyperparameters.
-    hyperparams_bounds, hyperparams_names = collect_bound_hyperparameters(
-        hyperparams, scopes
-    )
+    hyperparams_bounds, hyperparams_names = collect_bound_hyperparameters(hyperparams, scopes)
 
     if do_tune and not hyperparams_bounds:
         logging.info("No hyperparameters to tune, skipping tuning.")
@@ -81,16 +80,12 @@ def choose_and_bind_hyperparameters(
     if checkpoint:
         checkpoint_path = checkpoint / checkpoint_file
         if not checkpoint_path.exists():
-            logging.warning(
-                f"Hyperparameter checkpoint {checkpoint_path} does not exist."
-            )
+            logging.warning(f"Hyperparameter checkpoint {checkpoint_path} does not exist.")
             logging.info("Attempting to find latest checkpoint file.")
             checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
         # Check if we found a checkpoint file
         if checkpoint_path:
-            n_calls, configuration, evaluation = load_checkpoint(
-                checkpoint_path, n_calls
-            )
+            n_calls, configuration, evaluation = load_checkpoint(checkpoint_path, n_calls)
             # Check if we surpassed maximum tuning iterations
             if n_calls <= 0:
                 logging.log(
@@ -98,9 +93,7 @@ def choose_and_bind_hyperparameters(
                     "No more hyperparameter tuning iterations left, skipping tuning.",
                 )
                 logging.info("Training with these hyperparameters:")
-                bind_gin_params(
-                    hyperparams_names, configuration[np.argmin(evaluation)]
-                )  # bind best hyperparameters
+                bind_gin_params(hyperparams_names, configuration[np.argmin(evaluation)])  # bind best hyperparameters
                 return
         else:
             logging.warning("No checkpoint file found, starting from scratch.")
@@ -125,6 +118,7 @@ def choose_and_bind_hyperparameters(
                 verbose=verbose,
                 wandb=wandb,
                 pytorch_forecasting=pytorch_forecasting,
+                random_labels=random_labels
             )
 
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
@@ -139,9 +133,7 @@ def choose_and_bind_hyperparameters(
             table_cells = [len(res.x_iters)] + res.x_iters[-1] + [res.func_vals[-1]]
             highlight = res.x_iters[-1] == res.x  # highlight if best so far
             log_table_row(header, TUNE)
-            log_table_row(
-                table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight
-            )
+            log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
             wandb_log({"hp-iteration": len(res.x_iters)})
 
     if do_tune:
@@ -156,9 +148,7 @@ def choose_and_bind_hyperparameters(
         logging.log(TUNE, "Hyperparameter tuning disabled")
         if configuration:
             # We have loaded a checkpoint, use the best hyperparameters.
-            logging.info(
-                "Training with the best hyperparameters from loaded checkpoint:"
-            )
+            logging.info("Training with the best hyperparameters from loaded checkpoint:")
             bind_gin_params(hyperparams_names, configuration[np.argmin(evaluation)])
         else:
             logging.log(TUNE, "Choosing hyperparameters randomly from bounds.")

@@ -20,10 +20,9 @@ from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.similarity_func import correlation_spearman, distance_euclidean
+
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
-gin.config.external_configurable(
-    nn.functional.cross_entropy, module="torch.nn.functional"
-)
+gin.config.external_configurable(nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(nn.functional.mse_loss, module="torch.nn.functional")
 
 gin.config.external_configurable(mean_squared_error, module="sklearn.metrics")
@@ -88,9 +87,7 @@ class BaseModule(LightningModule):
 
     def check_supported_runmode(self, runmode: RunMode):
         if runmode not in self._supported_run_modes:
-            raise ValueError(
-                f"Runmode {runmode} not supported for {self.__class__.__name__}"
-            )
+            raise ValueError(f"Runmode {runmode} not supported for {self.__class__.__name__}")
         return True
 
 
@@ -163,9 +160,7 @@ class DLWrapper(BaseModule, ABC):
             self.log_dict(
                 {
                     f"{step_prefix}/{name}": (
-                        np.float32(metric.compute())
-                        if isinstance(metric.compute(), np.float64)
-                        else metric.compute()
+                        np.float32(metric.compute()) if isinstance(metric.compute(), np.float64) else metric.compute()
                     )
                     for name, metric in self.metrics[step_prefix].items()
                     if "_Curve" not in name
@@ -206,10 +201,7 @@ class DLWrapper(BaseModule, ABC):
 
     def on_test_epoch_start(self) -> None:
         self.metrics = {
-            step_name: {
-                metric_name: metric()
-                for metric_name, metric in self.set_metrics().items()
-            }
+            step_name: {metric_name: metric() for metric_name, metric in self.set_metrics().items()}
             for step_name in ["train", "val", "test"]
         }
         return super().on_test_epoch_start()
@@ -334,7 +326,6 @@ class DLPredictionWrapper(DLWrapper):
                 data[key] = value
          """
         if len(element) == 2:
-
             data, labels = element[0], (element[1]).to(self.device)
             if isinstance(data, list):
                 for i in range(len(data)):
@@ -355,9 +346,7 @@ class DLPredictionWrapper(DLWrapper):
             else:
                 data = data.float().to(self.device)
         else:
-            raise Exception(
-                "Loader should return either (data, label) or (data, label, mask)"
-            )
+            raise Exception("Loader should return either (data, label) or (data, label, mask)")
         out = self(data)
 
         # If aux_loss is present, it is returned as a tuple
@@ -367,30 +356,19 @@ class DLPredictionWrapper(DLWrapper):
             aux_loss = 0
         # Get prediction and target
 
-        prediction = (
-            torch.masked_select(out, mask.unsqueeze(-1))
-            .reshape(-1, out.shape[-1])
-            .to(self.device)
-        )
+        prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
 
         target = torch.masked_select(labels, mask).to(self.device)
 
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
-            loss = (
-                self.loss(
-                    prediction, target.long(), weight=self.loss_weights.to(self.device)
-                )
-                + aux_loss
-            )
+            loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
             # Returns torch.long because negative log likelihood loss
         elif self.run_mode == RunMode.regression:
             # Regression task
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss
         else:
-            raise ValueError(
-                f"Run mode {self.run_mode} not yet supported. Please implement it."
-            )
+            raise ValueError(f"Run mode {self.run_mode} not yet supported. Please implement it.")
         transformed_output = self.output_transform((prediction, target))
 
         for key, value in self.metrics[step_prefix].items():
@@ -407,9 +385,7 @@ class DLPredictionWrapper(DLWrapper):
                     value.update(transformed_output[0], transformed_output[1])
             else:
                 value.update(transformed_output)
-        self.log(
-            f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True
-        )
+        self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
         return loss
 
 
@@ -489,30 +465,19 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             aux_loss = 0
         # Get prediction and target
 
-        prediction = (
-            torch.masked_select(out, mask.unsqueeze(-1))
-            .reshape(-1, out.shape[-1])
-            .to(self.device)
-        )
+        prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
 
         target = torch.masked_select(labels, mask).to(self.device)
 
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
-            loss = (
-                self.loss(
-                    prediction, target.long(), weight=self.loss_weights.to(self.device)
-                )
-                + aux_loss
-            )
+            loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
             # Returns torch.long because negative log likelihood loss
         elif self.run_mode == RunMode.regression:
             # Regression task
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss
         else:
-            raise ValueError(
-                f"Run mode {self.run_mode} not yet supported. Please implement it."
-            )
+            raise ValueError(f"Run mode {self.run_mode} not yet supported. Please implement it.")
         transformed_output = self.output_transform((prediction, target))
 
         for key, value in self.metrics[step_prefix].items():
@@ -529,12 +494,10 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                     value.update(transformed_output[0], transformed_output[1])
             else:
                 value.update(transformed_output)
-        self.log(
-            f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True
-        )
+        self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
         return loss
 
-    def explantation_captum(self, test_loader, method, log_dir='.', plot=False):
+    def explantation_captum(self, test_loader, method, log_dir=".", plot=False):
         # Initialize lists to store attribution values for all instances
         all_attrs = []
 
@@ -587,7 +550,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         # Compute mean along the batch dimension
         means = all_attrs.mean(axis=(0, 2))
         # Normalize the means values to range [0, 1]
-        normalized_means = (means - means.min()) / (means.max() - means.min())
+        # normalized_means = (means - means.min()) / (means.max() - means.min())
         if plot:
             # Create x values (assuming you want a simple sequential x-axis)
             # Assuming you have 24 values
@@ -604,7 +567,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 markersize=8,
             )
             plt.xlabel("Time Step")
-            plt.ylabel("Normalized Attribution")
+            plt.ylabel(" Attribution")
             plt.title("Attribution Values")
             plt.xticks(x_values)  # Set x-ticks to match the number of features
             plt.tight_layout()
@@ -613,7 +576,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             x_values = np.arange(1, 25)
             plt.plot(
                 x_values,
-                normalized_means,
+                means,
                 marker="o",
                 color="skyblue",
                 linestyle="-",
@@ -628,29 +591,31 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             plt.savefig(log_dir / "attribution_plot.png", bbox_inches="tight")
         return means
 
-    def Faithfulness_Correlation(self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=4):
+    def Faithfulness_Correlation(
+        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=2
+    ):
         """
-    Implementation of faithfulness correlation by Bhatt et al., 2020.
+        Implementation of faithfulness correlation by Bhatt et al., 2020.
 
-    The Faithfulness Correlation metric intend to capture an explanation's relative faithfulness
-    (or 'fidelity') with respect to the model behaviour.
+        The Faithfulness Correlation metric intend to capture an explanation's relative faithfulness
+        (or 'fidelity') with respect to the model behaviour.
 
-    Faithfulness correlation scores shows to what extent the predicted logits of each modified test point and
-    the average explanation attribution for only the subset of features are (linearly) correlated, taking the
-    average over multiple runs and test samples. The metric returns one float per input-attribution pair that
-    ranges between -1 and 1, where higher scores are better.
+        Faithfulness correlation scores shows to what extent the predicted logits of each modified test point and
+        the average explanation attribution for only the subset of features are (linearly) correlated, taking the
+        average over multiple runs and test samples. The metric returns one float per input-attribution pair that
+        ranges between -1 and 1, where higher scores are better.
 
-    For each test sample, |S| features are randomly selected and replace them with baseline values (zero baseline
-    or average of set). Thereafter, Pearson’s correlation coefficient between the predicted logits of each modified
-    test point and the average explanation attribution for only the subset of features is calculated. Results is
-    average over multiple runs and several test samples.
-    This code is adapted from the quantus libray to suit our use case
+        For each test sample, |S| features are randomly selected and replace them with baseline values (zero baseline
+        or average of set). Thereafter, Pearson’s correlation coefficient between the predicted logits of each modified
+        test point and the average explanation attribution for only the subset of features is calculated. Results is
+        average over multiple runs and several test samples.
+        This code is adapted from the quantus libray to suit our use case
 
-    References:
-        1) Umang Bhatt et al.: "Evaluating and aggregating feature-based model
-        explanations." IJCAI (2020): 3016-3022.
-        2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
-    """
+        References:
+            1) Umang Bhatt et al.: "Evaluating and aggregating feature-based model
+            explanations." IJCAI (2020): 3016-3022.
+            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+        """
 
         if torch.is_tensor(attribution):
             # Convert the tensor to a NumPy array
@@ -661,9 +626,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             pertrub = "baseline"
         similarities = []
         for batch in test_loader:
-
             for key, value in batch[0].items():
-
                 batch[0][key] = batch[0][key].to(self.device)
             x = batch[0]
             data = (
@@ -726,7 +689,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             similarities.append(similarity_func(pred_deltas, att_sums))
         return np.nanmean(similarities)
 
-    def Data_Randomization(self, test_loader, attribution, explain_method, similarity_func=None, test_dataset=None):
+    def Data_Randomization(self, test_loader, attribution, explain_method, random_model, similarity_func=None, test_dataset=None):
         """
         Implementation of the Random Logit Metric by Sixt et al., 2020.
 
@@ -743,22 +706,15 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         a_perturbed = []
         if similarity_func is None:
             similarity_func = distance_euclidean
-        if (explain_method == 'Attention'):
-            for batch in test_loader:
-                print(batch[1][0])
+        if explain_method == "Attention":
 
-            test_dataset.randomize_labels(num_classes=self.num_classes)
-            for batch in test_loader:
-                print(batch[1][0])  # generate random labels
-            Attention_weights = self.interpertations(test_loader)  # test_loader works by reference
+            Attention_weights = random_model.interpertations(test_loader)  # test_loader works by reference
 
             score = similarity_func(Attention_weights["attention"].cpu().numpy(), attribution.cpu().numpy())
         else:
             for batch in test_loader:
-
                 for key, value in batch[0].items():
-
-                    batch[0][key] = batch[0][key].to(self.device)
+                    batch[0][key] = batch[0][key].to(random_model.device)
                 x = batch[0]
                 y = batch[1][0]
                 data = (
@@ -775,23 +731,21 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                     x["target_scale"],
                 )
 
-                y_off = np.random.randint(low=0, high=self.num_classes, size=y.shape)
-
                 baselines = (
-                    torch.zeros_like(data[0]).to(self.device),  # encoder_cat, set to zero
-                    torch.zeros_like(data[1]).to(self.device),  # encoder_cont, set to zero
-                    torch.zeros_like(data[2]).to(self.device),  # encoder_target, set to zero
-                    data[3].to(self.device),  # encoder_lengths, leave unchanged
-                    torch.zeros_like(data[4]).to(self.device),  # decoder_cat, set to zero
-                    torch.zeros_like(data[5]).to(self.device),  # decoder_cont, set to zero
-                    torch.zeros_like(data[6]).to(self.device),  # decoder_target, set to zero
-                    data[7].to(self.device),  # decoder_lengths, leave unchanged
-                    torch.zeros_like(data[8]).to(self.device),  # decoder_time_idx, set to zero
-                    data[9].to(self.device),  # groups, leave unchanged
-                    data[10].to(self.device),  # target_scale, leave unchanged
+                    torch.zeros_like(data[0]).to(random_model.device),  # encoder_cat, set to zero
+                    torch.zeros_like(data[1]).to(random_model.device),  # encoder_cont, set to zero
+                    torch.zeros_like(data[2]).to(random_model.device),  # encoder_target, set to zero
+                    data[3].to(random_model.device),  # encoder_lengths, leave unchanged
+                    torch.zeros_like(data[4]).to(random_model.device),  # decoder_cat, set to zero
+                    torch.zeros_like(data[5]).to(random_model.device),  # decoder_cont, set to zero
+                    torch.zeros_like(data[6]).to(random_model.device),  # decoder_target, set to zero
+                    data[7].to(random_model.device),  # decoder_lengths, leave unchanged
+                    torch.zeros_like(data[8]).to(random_model.device),  # decoder_time_idx, set to zero
+                    data[9].to(random_model.device),  # groups, leave unchanged
+                    data[10].to(random_model.device),  # target_scale, leave unchanged
                 )
-                self.train()
-                explantation = explain_method(self.forward_captum)
+
+                explantation = explain_method(random_model.forward_captum)
                 # Reformat attributions.
                 attr_all_timesteps = []
                 for time_step in range(0, 24):
@@ -805,8 +759,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             a_perturbed = np.mean(a_perturbed, axis=(0, 1, 3))
 
             # Normalize the means values to range [0, 1]
-            normalized_a_perturbed = (a_perturbed - a_perturbed.min()) / (a_perturbed.max() - a_perturbed.min())
-            score = similarity_func(normalized_a_perturbed, attribution)
+            # normalized_a_perturbed = (a_perturbed - a_perturbed.min()) / (a_perturbed.max() - a_perturbed.min())
+            score = similarity_func(a_perturbed, attribution)
 
         return score
 
@@ -854,15 +808,9 @@ class MLWrapper(BaseModule, ABC):
 
         # Regression
         else:
-            if (
-                self.scaler is not None
-            ):  # We invert transform the labels and predictions if they were scaled.
-                self.output_transform = lambda x: self.scaler.inverse_transform(
-                    x.reshape(-1, 1)
-                )
-                self.label_transform = lambda x: self.scaler.inverse_transform(
-                    x.reshape(-1, 1)
-                )
+            if self.scaler is not None:  # We invert transform the labels and predictions if they were scaled.
+                self.output_transform = lambda x: self.scaler.inverse_transform(x.reshape(-1, 1))
+                self.label_transform = lambda x: self.scaler.inverse_transform(x.reshape(-1, 1))
             else:
                 self.output_transform = lambda x: x
                 self.label_transform = lambda x: x
@@ -897,9 +845,7 @@ class MLWrapper(BaseModule, ABC):
 
     def validation_step(self, val_dataset, _):
         val_rep, val_label = val_dataset.get_data_and_labels()
-        val_rep, val_label = torch.from_numpy(val_rep).to(
-            self.device
-        ), torch.from_numpy(val_label).to(self.device)
+        val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(val_label)
 
         val_pred = self.predict(val_rep)
@@ -942,9 +888,7 @@ class MLWrapper(BaseModule, ABC):
         self.log_dict(
             {
                 # MPS dependent type casting
-                f"{metric_type}/{name}": metric(
-                    self.label_transform(label), self.output_transform(pred)
-                )
+                f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred))
                 if not self.mps
                 else metric(self.label_transform(label), self.output_transform(pred))
                 # Fore very metric
@@ -982,9 +926,7 @@ class MLWrapper(BaseModule, ABC):
         # Get passed keyword arguments
         arguments = locals()["kwargs"]
         # Get valid hyperparameters
-        hyperparams = {
-            key: value for key, value in arguments.items() if key in possible_hps
-        }
+        hyperparams = {key: value for key, value in arguments.items() if key in possible_hps}
         logging.debug(f"Creating model with: {hyperparams}.")
         return model(**hyperparams)
 
@@ -1037,9 +979,7 @@ class ImputationWrapper(DLWrapper):
     def init_weights(self, init_type="normal", gain=0.02):
         def init_func(m):
             classname = m.__class__.__name__
-            if hasattr(m, "weight") and (
-                classname.find("Conv") != -1 or classname.find("Linear") != -1
-            ):
+            if hasattr(m, "weight") and (classname.find("Conv") != -1 or classname.find("Linear") != -1):
                 if init_type == ImputationInit.NORMAL:
                     nn.init.normal_(m.weight.data, 0.0, gain)
                 elif init_type == ImputationInit.XAVIER:
@@ -1049,9 +989,7 @@ class ImputationWrapper(DLWrapper):
                 elif init_type == ImputationInit.ORTHOGONAL:
                     nn.init.orthogonal_(m.weight.data, gain=gain)
                 else:
-                    raise NotImplementedError(
-                        f"Initialization method {init_type} is not implemented"
-                    )
+                    raise NotImplementedError(f"Initialization method {init_type} is not implemented")
                 if hasattr(m, "bias") and m.bias is not None:
                     nn.init.constant_(m.bias.data, 0.0)
             elif classname.find("BatchNorm2d") != -1:
