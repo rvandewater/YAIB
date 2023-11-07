@@ -27,7 +27,7 @@ from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 from collections import OrderedDict
-from captum.attr import IntegratedGradients, LayerLRP
+from captum.attr import IntegratedGradients, ShapleyValueSampling
 
 
 cpu_core_count = (
@@ -259,9 +259,9 @@ def train_common(
     if not eval_only:
         if model.requires_backprop:
             logging.info("Training DL model.")
-            print(next(train_loader)[1][0])
-            print(next(val_loader)[1][0])
-            print(next(test_loader)[1][0])
+            print(next(iter(train_loader))[1][0])
+            print(next(iter(val_loader))[1][0])
+            print(next(iter(test_loader))[1][0])
             trainer.fit(
                 model, train_dataloaders=train_loader, val_dataloaders=val_loader
             )
@@ -277,41 +277,47 @@ def train_common(
         return 0
 
     if explain:
+        #
+        attributions_SHAP = model.explantation_captum(
+            test_loader=test_loader,
+            method=ShapleyValueSampling, log_dir=log_dir, plot=True
+        )
+        print("shap", attributions_SHAP)
         attributions_IG = model.explantation_captum(
             test_loader=test_loader,
-            method=IntegratedGradients, log_dir=log_dir, plot=True
+            method=IntegratedGradients, log_dir=log_dir, plot=True, n_steps=35, return_convergence_delta=True,
         )
 
-        print("IG", attributions_IG)
-        # Attention_weights = model.interpertations(test_loader, log_dir, plot=True)
-        # print("attention", Attention_weights)
+        """
+        Attention_weights = model.interpertations(test_loader, log_dir, plot=True)
+        print("attention", Attention_weights)
         if XAI_metric:
-            # ra2 = np.random.randint(low=0, high=101, size=24)
-            # random_attributions = np.random.normal(size=24)
-            # F_baseline = model.Faithfulness_Correlation(test_loader, random_attributions, pertrub='Noise')
-            # F_baseline2 = model.Faithfulness_Correlation(test_loader, random_attributions, pertrub='Noise')
-            # print('Random noraml faithfulness correlation', F_baseline)
-            # print('random unifrom ', F_baseline2)
-            # F_attribution = model.Faithfulness_Correlation(test_loader, attributions_IG, pertrub='Noise')
-            # print('Attributions faithfulness correlation', F_attribution)
-            # F_attention = model.Faithfulness_Correlation(test_loader, Attention_weights["attention"], pertrub='Noise')
-            # print('Attention faithfulness correlation', F_attention)
-            print(random_model_dir)
-            path = Path(random_model_dir)
-            print(path)
-            random_model = load_model(
-                model,
-                source_dir=path,
-                pl_model=pl_model,
-                train_dataset=train_dataset,
-                optimizer=optimizer,
-            )
-            R_attribution = model.Data_Randomization(
-                test_loader, attributions_IG, IntegratedGradients, random_model)
-            print('Distance Data randmoization score attribution', R_attribution)
-           # R_attention = model.Data_Randomization(
-           #     test_loader, Attention_weights["attention"], "Attention", test_dataset=test_dataset)
-           # print('Distance Data randmoization score attention', R_attention)
+            ra2 = np.random.randint(low=0, high=101, size=24)
+            random_attributions = np.random.normal(size=24)
+            F_baseline = model.Faithfulness_Correlation(test_loader, random_attributions, pertrub='Noise')
+            F_baseline2 = model.Faithfulness_Correlation(test_loader, random_attributions, pertrub='Noise')
+            print('Random noraml faithfulness correlation', F_baseline)
+            print('random unifrom ', F_baseline2)
+            F_attribution = model.Faithfulness_Correlation(test_loader, attributions_IG, pertrub='Noise')
+            print('Attributions faithfulness correlation', F_attribution)
+            F_attention = model.Faithfulness_Correlation(test_loader, Attention_weights["attention"], pertrub='Noise')
+            print('Attention faithfulness correlation', F_attention)
+            """
+        # path = Path(random_model_dir)
+
+        # random_model = load_model(
+        #    model,
+        #    source_dir=path,
+        #    pl_model=pl_model,
+        #    train_dataset=train_dataset,
+        #    optimizer=optimizer,
+        # )
+        # R_attribution = model.Data_Randomization(
+        #    test_loader, attributions_IG, IntegratedGradients, random_model)
+        # print('Distance Data randmoization score attribution', R_attribution)
+        # R_attention = model.Data_Randomization(
+        #     test_loader, Attention_weights["attention"], "Attention", test_dataset=test_dataset)
+        # print('Distance Data randmoization score attention', R_attention)
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][

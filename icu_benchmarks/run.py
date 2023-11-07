@@ -81,7 +81,6 @@ def main(my_args=tuple(sys.argv[1:])):
             else "None"
         }
     )
-    print(args.random_model)
     random_model_dir = args.random_model
     log_dir_name = args.log_dir / name
     log_dir = (

@@ -497,7 +497,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
         return loss
 
-    def explantation_captum(self, test_loader, method, log_dir=".", plot=False):
+    def explantation_captum(self, test_loader, method, log_dir=".", plot=False, **kwargs):
         # Initialize lists to store attribution values for all instances
         all_attrs = []
 
@@ -538,7 +538,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             attr_all_timesteps = []
             for time_step in range(0, 24):
                 attr, delta = explantation.attribute(
-                    data, target=(time_step, 1), return_convergence_delta=True, baselines=baselines, n_steps=35
+                    data, target=(time_step, 1),  baselines=baselines, **kwargs
                 )
                 # Convert attributions to numpy array and append to the list
                 attr_all_timesteps.append(attr[0].cpu().detach().numpy())
@@ -592,7 +592,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         return means
 
     def Faithfulness_Correlation(
-        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=2
+        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=6
     ):
         """
         Implementation of faithfulness correlation by Bhatt et al., 2020.
