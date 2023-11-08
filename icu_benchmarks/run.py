@@ -191,7 +191,8 @@ def main(my_args=tuple(sys.argv[1:])):
         explain=explain,
         pytorch_forecasting=pytorch_forecasting,
         XAI_metric=XAI_metric,
-        random_model_dir=random_model_dir
+        random_model_dir=random_model_dir,
+        random_labels=random_labels,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)

@@ -537,7 +537,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             # Reformat attributions.
             attr_all_timesteps = []
             for time_step in range(0, 24):
-                attr, delta = explantation.attribute(
+                attr = explantation.attribute(
                     data, target=(time_step, 1),  baselines=baselines, **kwargs
                 )
                 # Convert attributions to numpy array and append to the list
@@ -546,9 +546,10 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         # Concatenate a‚ttribution values for all instances along the batch dimension
         all_attrs = np.mean(all_attrs, axis=0)
         means_feature = all_attrs.mean(axis=(0, 1))
-
+        self.log('Attribution Featues', means_feature)
         # Compute mean along the batch dimension
         means = all_attrs.mean(axis=(0, 2))
+        self.log('Attribution Time steps', means)
         # Normalize the means values to range [0, 1]
         # normalized_means = (means - means.min()) / (means.max() - means.min())
         if plot:
@@ -687,7 +688,9 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 att_sums.append(np.sum(attribution[a_ix]))
 
             similarities.append(similarity_func(pred_deltas, att_sums))
-        return np.nanmean(similarities)
+            score = np.nanmean(similarities)
+            self.log('Faithfulness correlation', score)
+        return score
 
     def Data_Randomization(self, test_loader, attribution, explain_method, random_model, similarity_func=None, test_dataset=None):
         """
@@ -762,7 +765,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             # Normalize the means values to range [0, 1]
             # normalized_a_perturbed = (a_perturbed - a_perturbed.min()) / (a_perturbed.max() - a_perturbed.min())
             score = similarity_func(a_perturbed, attribution)
-
+            self.log('data_randomization', score)
         return score
 
 
