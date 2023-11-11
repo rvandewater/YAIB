@@ -641,7 +641,8 @@ class RNNpytorch(DLPredictionPytorchForecastingWrapper):
         # out = out["prediction"].reshape(1, -1)
 
         pred = self.logit(out["prediction"])
-        print(pred)
+        # print(pred
+
         return pred
 
 

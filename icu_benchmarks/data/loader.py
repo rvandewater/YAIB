@@ -501,6 +501,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
             add_target_scales=True,
             add_encoder_length=True,
             predict_mode=True,
+            target_normalizer=None,
         )
 
     def get_balance(self) -> list:

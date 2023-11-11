@@ -156,23 +156,27 @@ class DLWrapper(BaseModule, ABC):
         return super().on_train_start()
 
     def finalize_step(self, step_prefix=""):
+
         try:
-            self.log_dict(
-                {
-                    f"{step_prefix}/{name}": (
-                        np.float32(metric.compute()) if isinstance(metric.compute(), np.float64) else metric.compute()
-                    )
-                    for name, metric in self.metrics[step_prefix].items()
-                    if "_Curve" not in name
-                },
-                sync_dist=True,
-            )
+            for name, metric in self.metrics[step_prefix].items():
+                try:
+                    value = np.float32(metric.compute()) if isinstance(
+                        metric.compute(), np.float64) else metric.compute()
+                    self.log_dict({f"{step_prefix}/{name}": value}, sync_dist=True)
+
+                except (NotComputableError, ValueError) as e:
+                    if step_prefix not in self._metrics_warning_printed:
+                        self._metrics_warning_printed.add(step_prefix)
+                        logging.warning(f"Metric for {step_prefix}/{name} not computable: {e}")
+
             for metric in self.metrics[step_prefix].values():
                 metric.reset()
-        except (NotComputableError, ValueError):
+        except (NotComputableError, ValueError) as e:
             if step_prefix not in self._metrics_warning_printed:
                 self._metrics_warning_printed.add(step_prefix)
                 logging.warning(f"Metrics for {step_prefix} not computable")
+                print(e)
+
             pass
 
     def configure_optimizers(self):
@@ -284,9 +288,11 @@ class DLPredictionWrapper(DLWrapper):
         # Output transform is not applied for contrib metrics, so we do our own.
         if self.run_mode == RunMode.classification:
             # Binary classification
+
             if self.logit.out_features == 2:
                 self.output_transform = softmax_binary_output_transform
-                metrics = DLMetrics.BINARY_CLASSIFICATION
+                metrics = DLMetrics.BINARY_CLASSIFICATION_TORCHMETRICS
+
             else:
                 # Multiclass classification
                 self.output_transform = softmax_multi_output_transform
@@ -483,15 +489,15 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         for key, value in self.metrics[step_prefix].items():
             if isinstance(value, torchmetrics.Metric):
                 if key == "Binary_Fairness":
-                    feature_names = key.feature_helper(self.trainer)
+                    feature_names = self.metrics[step_prefix][key].feature_helper(self.trainer, step_prefix)
                     value.update(
                         transformed_output[0],
-                        transformed_output[1],
+                        transformed_output[1].int(),
                         data,
                         feature_names,
                     )
                 else:
-                    value.update(transformed_output[0], transformed_output[1])
+                    value.update(transformed_output[0], transformed_output[1].int())
             else:
                 value.update(transformed_output)
         self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
@@ -538,18 +544,20 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             attr_all_timesteps = []
             for time_step in range(0, 24):
                 attr = explantation.attribute(
-                    data, target=(time_step, 1),  baselines=baselines, **kwargs
+                    data, target=(time_step),  baselines=baselines, **kwargs
                 )
                 # Convert attributions to numpy array and append to the list
                 attr_all_timesteps.append(attr[0].cpu().detach().numpy())
             all_attrs.append(np.mean(attr_all_timesteps, axis=0))
         # Concatenate a‚ttribution values for all instances along the batch dimension
+        print(np.shape(all_attrs))
         all_attrs = np.mean(all_attrs, axis=0)
-        means_feature = all_attrs.mean(axis=(0, 1))
-        self.log('Attribution Featues', means_feature)
+        print(np.shape(all_attrs))
+        means_feature = all_attrs.mean(axis=(1))
+        # self.log('Attribution Featues', means_feature)
         # Compute mean along the batch dimension
-        means = all_attrs.mean(axis=(0, 2))
-        self.log('Attribution Time steps', means)
+        means = all_attrs.mean(axis=(0))
+       # self.log('Attribution Time steps', means)
         # Normalize the means values to range [0, 1]
         # normalized_means = (means - means.min()) / (means.max() - means.min())
         if plot:
@@ -689,7 +697,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             similarities.append(similarity_func(pred_deltas, att_sums))
             score = np.nanmean(similarities)
-            self.log('Faithfulness correlation', score)
         return score
 
     def Data_Randomization(self, test_loader, attribution, explain_method, random_model, similarity_func=None, test_dataset=None):
@@ -706,13 +713,12 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
 
         """
-        print(random_model)
         a_perturbed = []
         if similarity_func is None:
             similarity_func = distance_euclidean
         if explain_method == "Attention":
 
-            Attention_weights = random_model.interpertations(test_loader)  # test_loader works by reference
+            Attention_weights = random_model.interpertations(test_loader)
 
             score = similarity_func(Attention_weights["attention"].cpu().numpy(), attribution.cpu().numpy())
         else:
@@ -765,7 +771,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             # Normalize the means values to range [0, 1]
             # normalized_a_perturbed = (a_perturbed - a_perturbed.min()) / (a_perturbed.max() - a_perturbed.min())
             score = similarity_func(a_perturbed, attribution)
-            self.log('data_randomization', score)
         return score
 
 

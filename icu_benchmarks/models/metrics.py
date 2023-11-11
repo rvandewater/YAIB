@@ -1,35 +1,18 @@
 import torch
 from typing import Callable
 import numpy as np
-from ignite.metrics import EpochMetric
+from ignite.metrics import EpochMetric, Precision, Recall
 from sklearn.metrics import balanced_accuracy_score, mean_absolute_error
 from sklearn.calibration import calibration_curve
 from scipy.spatial.distance import jensenshannon
 import gin
 import torch.nn.functional as F
 
+
 """"
 This file contains metrics that are not available in ignite.metrics. Specifically, it adds transformation capabilities to some
 metrics.
 """
-
-
-class QuantileLossClass(torch.nn.Module):
-    def __init__(self, quantiles):
-        super().__init__()
-        self.register_buffer("q", torch.tensor(quantiles))
-
-    def forward(self, predictions, targets):
-        diff = predictions - targets
-        ql = (1 - self.q) * F.relu(diff) + self.q * F.relu(-diff)
-        losses = ql.view(-1, ql.shape[-1]).mean(0)
-        return losses
-
-
-@gin.configurable
-def Quantileloss(self, predictions, targets, quantiles=[0.1, 0.5, 0.9]):
-    loss = QuantileLossClass(quantiles=quantiles)
-    return loss(predictions, targets)
 
 
 def accuracy(output, target, topk=(1,)):
