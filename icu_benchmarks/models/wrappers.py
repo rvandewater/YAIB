@@ -509,9 +509,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
         # Loop through the test_loader to compute attributions for all instances
         for batch in test_loader:
+
             for key, value in batch[0].items():
                 batch[0][key] = batch[0][key].to(self.device)
             x = batch[0]
+
             data = (
                 x["encoder_cat"].float().requires_grad_(),
                 x["encoder_cont"].requires_grad_(),
@@ -542,28 +544,28 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             explantation = method(self.forward_captum)
             # Reformat attributions.
             attr_all_timesteps = []
-            for time_step in range(0, 24):
+            for time_step in range(23, 24):
                 attr = explantation.attribute(
                     data, target=(time_step),  baselines=baselines, **kwargs
                 )
                 # Convert attributions to numpy array and append to the list
+
                 attr_all_timesteps.append(attr[0].cpu().detach().numpy())
             all_attrs.append(np.mean(attr_all_timesteps, axis=0))
         # Concatenate a‚ttribution values for all instances along the batch dimension
-        print(np.shape(all_attrs))
         all_attrs = np.mean(all_attrs, axis=0)
-        print(np.shape(all_attrs))
-        means_feature = all_attrs.mean(axis=(1))
+
+        means_feature = all_attrs.mean(axis=(0))
         # self.log('Attribution Featues', means_feature)
         # Compute mean along the batch dimension
-        means = all_attrs.mean(axis=(0))
+        means = all_attrs.mean(axis=(1))
        # self.log('Attribution Time steps', means)
         # Normalize the means values to range [0, 1]
         # normalized_means = (means - means.min()) / (means.max() - means.min())
         if plot:
             # Create x values (assuming you want a simple sequential x-axis)
             # Assuming you have 24 values
-            x_values = np.arange(1, 57)
+            x_values = np.arange(1, 58)
             # Plotting the featrue means
             plt.figure(figsize=(8, 6))
             plt.plot(
@@ -601,7 +603,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         return means
 
     def Faithfulness_Correlation(
-        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=6
+        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=3
     ):
         """
         Implementation of faithfulness correlation by Bhatt et al., 2020.
@@ -688,13 +690,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 )
                 # Predict on perturbed input x.
                 y_pred_perturb = self(data).detach().cpu().numpy()
-
                 pred_deltas.append((y_pred - y_pred_perturb).mean(axis=(0, 2)))
 
                 # Sum attributions of the random subset.
 
                 att_sums.append(np.sum(attribution[a_ix]))
-
             similarities.append(similarity_func(pred_deltas, att_sums))
             score = np.nanmean(similarities)
         return score
