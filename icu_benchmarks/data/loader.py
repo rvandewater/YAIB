@@ -3,7 +3,7 @@ from pandas import DataFrame
 import pandas as pd
 import gin
 import numpy as np
-from torch import Tensor, cat, from_numpy, float32
+from torch import Tensor, cat, from_numpy, float32, min, max
 from torch.utils.data import Dataset
 import logging
 from typing import Dict, Tuple, Union
@@ -498,7 +498,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
             time_varying_unknown_categoricals=time_varying_unknown_categoricals,
             time_varying_unknown_reals=time_varying_unknown_reals,
             add_relative_time_idx=add_relative_time_idx,
-            add_target_scales=True,
+            # add_target_scales=True,
             add_encoder_length=True,
             predict_mode=True,
             target_normalizer=None,
@@ -521,8 +521,10 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
         return self.column_names
 
     def randomize_labels(self, num_classes=None, min=None, max=None):
-        if num_classes is None:
-            random_target = np.random.uniform(min, max, size=len(self.data["target"][0]))
+        if num_classes == 1:
+
+            random_target = np.random.uniform(self.data["target"][0].min(),
+                                              self.data["target"][0].max(), size=len(self.data["target"][0]))
         else:
             random_target = np.random.randint(num_classes, size=len(self.data["target"][0]))
         self.data["target"][0] = Tensor(random_target)

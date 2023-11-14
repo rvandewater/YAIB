@@ -283,23 +283,24 @@ def train_common(
         # print("shap", attributions_SHAP)
         attributions_IG = model.explantation_captum(
             test_loader=test_loader,
-            method=IntegratedGradients, log_dir=log_dir, plot=True, n_steps=35
+            method=IntegratedGradients, log_dir=log_dir, plot=True, n_steps=20
         )
+        print(test_dataset.reals)
 
         Attention_weights = model.interpertations(test_loader, log_dir, plot=True)
-       # print("attention", Attention_weights)
+        print("attention", Attention_weights)
         if XAI_metric:
 
             ra2 = np.random.randint(low=0, high=100, size=24)
             random_attributions = np.random.normal(size=24)
 
-            F_baseline = model.Faithfulness_Correlation(test_loader, random_attributions)
-            F_baseline2 = model.Faithfulness_Correlation(test_loader, random_attributions)
+            F_baseline = model.Faithfulness_Correlation(test_loader, random_attributions, pertrub='Noise')
+            F_baseline2 = model.Faithfulness_Correlation(test_loader, random_attributions, pertrub='Noise')
             print('Random noraml faithfulness correlation', F_baseline)
             print('random unifrom ', F_baseline2)
-            F_attribution = model.Faithfulness_Correlation(test_loader, attributions_IG)
+            F_attribution = model.Faithfulness_Correlation(test_loader, attributions_IG, pertrub='Noise')
             print('Attributions faithfulness correlation', F_attribution)
-            F_attention = model.Faithfulness_Correlation(test_loader, Attention_weights["attention"])
+            F_attention = model.Faithfulness_Correlation(test_loader, Attention_weights["attention"], pertrub='Noise')
             print('Attention faithfulness correlation', F_attention)
 
         # path = Path(random_model_dir)

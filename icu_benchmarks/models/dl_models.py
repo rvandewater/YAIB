@@ -636,14 +636,14 @@ class RNNpytorch(DLPredictionPytorchForecastingWrapper):
             "groups": tuple_x[9],
             "target_scale": tuple_x[10],
         }
+        if self.num_classes == 1:
+            x_dict['encoder_cont'][:, :, -1] = 0.0
+
         out = self.model(x_dict)
 
-        # out = out["prediction"].reshape(1, -1)
+        pred = self.logit(out["prediction"])
 
-        # pred = self.logit(out["prediction"])
-        # print(pred
-
-        return out["prediction"]
+        return pred
 
 
 @gin.configurable
@@ -697,6 +697,8 @@ class DeepARpytorch(DLPredictionPytorchForecastingWrapper):
             "groups": tuple_x[9],
             "target_scale": tuple_x[10],
         }
+        if self.num_classes == 1:
+            x_dict['encoder_cont'][:, :, -1] = 0.0
         out = self.model(x_dict)
         out = out["prediction"][0]
 

@@ -316,21 +316,7 @@ class DLPredictionWrapper(DLWrapper):
             element (object):
             step_prefix (str): Step type, by default: test, train, val.
         """
-        """
-        if isinstance(element[0], OrderedDict):  # check if the data loader is the one for the TFT nvidia implementation
-            data, mask = element[0], element[1].to(self.device)
 
-            for key, value in data.items():
-                value = value.float().to(self.device)
-
-                if value.shape[-1] == 1:
-                    value = value.squeeze(-1)
-                if value.dim() == 3:
-                    value = value.permute(0, 2, 1)
-                if key == "target":
-                    labels = value.squeeze()
-                data[key] = value
-         """
         if len(element) == 2:
             data, labels = element[0], (element[1]).to(self.device)
             if isinstance(data, list):
@@ -474,7 +460,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
 
         target = torch.masked_select(labels, mask).to(self.device)
-
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
             loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
@@ -544,7 +529,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             explantation = method(self.forward_captum)
             # Reformat attributions.
             attr_all_timesteps = []
-            for time_step in range(23, 24):
+            for time_step in range(0, 24):
                 attr = explantation.attribute(
                     data, target=(time_step),  baselines=baselines, **kwargs
                 )
@@ -564,7 +549,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         # normalized_means = (means - means.min()) / (means.max() - means.min())
         if plot:
             # Create x values (assuming you want a simple sequential x-axis)
-            # Assuming you have 24 values
+            # Assuming you have 57 variables
             x_values = np.arange(1, 58)
             # Plotting the featrue means
             plt.figure(figsize=(8, 6))
@@ -603,7 +588,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         return means
 
     def Faithfulness_Correlation(
-        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=3
+        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=6, features=False
     ):
         """
         Implementation of faithfulness correlation by Bhatt et al., 2020.

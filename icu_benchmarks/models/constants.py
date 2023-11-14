@@ -64,7 +64,7 @@ class DLMetrics:
 
     BINARY_CLASSIFICATION_TORCHMETRICS = {
         "AUC": AUROC(task="binary"),
-        "PR": TorchMetricsAveragePrecision(task="binary"),
+        # "PR": TorchMetricsAveragePrecision(task="binary"),
         # "PrecisionRecallCurve": TorchMetricsPrecisionRecallCurve(task="binary"),
         "Calibration_Error": CalibrationError(task="binary", n_bins=10),
         "F1": F1Score(task="binary", num_classes=2),
