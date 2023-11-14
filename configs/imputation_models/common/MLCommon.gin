@@ -1,0 +1,13 @@
+# Common settings for ML models
+
+# Imports to register the models
+import gin.torch.external_configurables
+import icu_benchmarks.models.wrappers
+import icu_benchmarks.models.ml_models
+import icu_benchmarks.models.utils
+
+# Patience for early stopping
+MLWrapper.patience = 10
+
+# Hyperparameter tuning settings
+include "configs/imputation_models/common/MLTuning.gin"

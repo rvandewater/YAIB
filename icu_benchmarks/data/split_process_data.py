@@ -147,8 +147,12 @@ def make_train_val(
     # ID variable
     id = vars[Var.group]
 
-    # Get stay IDs from outcome segment
-    stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
+    # Get stay IDs from outcome segment in case we have labels, otherwise from static segment
+    # stays = pd.Series(data[Segment.static][id].unique(), name=id)
+    if Var.label in vars:
+        stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
+    else:
+        stays = pd.Series(data[Segment.static][id].unique(), name=id)
 
     if debug:
         # Only use 1% of the data
@@ -162,7 +166,7 @@ def make_train_val(
             train_val = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
         train, val = list(train_val.split(stays, labels))[0]
     else:
-        # If there are no labels, use random split
+        # If there are no labels or regression, use random split
         train_val = ShuffleSplit(train_size=train_size, random_state=seed)
         train, val = list(train_val.split(stays))[0]
 
@@ -217,8 +221,12 @@ def make_single_split(
         # Only use 1% of the data
         logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
         data[Segment.outcome] = data[Segment.outcome].sample(frac=0.01, random_state=seed)
-    # Get stay IDs from outcome segment
-    stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
+
+    # Get stay IDs from outcome segment in case we have labels, otherwise from static segment
+    if Var.label in vars:
+        stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
+    else:
+        stays = pd.Series(data[Segment.static][id].unique(), name=id)
 
     # If there are labels, and the task is classification, use stratified k-fold
     if Var.label in vars and runmode is RunMode.classification:

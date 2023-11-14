@@ -102,7 +102,7 @@ class DLWrapper(BaseModule, ABC):
     def __init__(
         self,
         loss=CrossEntropyLoss(),
-        optimizer=Adam,
+        optimizer="Adam",
         run_mode: RunMode = RunMode.classification,
         input_shape=None,
         lr: float = 0.002,
@@ -175,14 +175,16 @@ class DLWrapper(BaseModule, ABC):
 
     def configure_optimizers(self):
         """Configure optimizers and learning rate schedulers."""
-
+        params = self.parameters()
         if isinstance(self.optimizer, str):
             optimizer = create_optimizer(self.optimizer, self.lr, self.hparams.momentum)
         elif isinstance(self.optimizer, Optimizer):
             # Already set
             optimizer = self.optimizer
+        elif inspect.isclass(self.optimizer):
+            optimizer = self.optimizer(params=self.parameters(), lr=self.lr)
         else:
-            optimizer = self.optimizer(self.parameters())
+            raise ValueError(f"Optimizer {self.optimizer} of type {type(self.optimizer)} not in supported format.")
 
         if self.hparams.lr_scheduler is None or self.hparams.lr_scheduler == "":
             return optimizer
@@ -218,7 +220,7 @@ class DLPredictionWrapper(DLWrapper):
     def __init__(
         self,
         loss=CrossEntropyLoss(),
-        optimizer=torch.optim.Adam,
+        optimizer="Adam",
         run_mode: RunMode = RunMode.classification,
         input_shape=None,
         lr: float = 0.002,

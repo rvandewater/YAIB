@@ -2,8 +2,7 @@ import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.dl_models
 import icu_benchmarks.models.utils
-import icu_benchmarks.data.preprocess
-import icu_benchmarks.imputation.csdi
+import icu_benchmarks.imputation.gpvae
 
 # Train params
 train_common.model = @GPVAE
@@ -18,10 +17,18 @@ train_common.use_wandb = True
 ImputationWrapper.optimizer = @Adam
 ImputationWrapper.lr_scheduler = "cosine"
 
+GPVAE.encoder_sizes=(128,128)
+GPVAE.decoder_sizes=(256,256)
+GPVAE.latent_size=32
+GPVAE.batch_size=64
+GPVAE.kernel="cauchy"
+
+
 # Optimizer params
 Adam.lr = 0.001
 Adam.weight_decay = 1e-6
 
-GPVAE.
+
+
 
 

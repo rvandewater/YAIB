@@ -239,6 +239,8 @@ class DefaultImputationPreprocessor(Preprocessor):
         scaling: bool = True,
         use_static_features: bool = True,
         filter_missing_values: bool = True,
+        save_cache=None,
+        load_cache=None,
     ):
         """Preprocesses data for imputation.
 
@@ -249,6 +251,9 @@ class DefaultImputationPreprocessor(Preprocessor):
         self.scaling = scaling
         self.use_static_features = use_static_features
         self.filter_missing_values = filter_missing_values
+        self.save_cache = save_cache
+        self.load_cache = load_cache
+
 
     def apply(self, data, vars):
         """

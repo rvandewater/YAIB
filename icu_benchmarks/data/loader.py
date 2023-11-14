@@ -11,7 +11,6 @@ from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
 from .constants import DataSplit as Split
 
-
 class CommonDataset(Dataset):
     """Common dataset: subclass of Torch Dataset that represents the data to learn on.
 
@@ -173,6 +172,7 @@ class ImputationDataset(CommonDataset):
         mask_method="MCAR",
         mask_observation_proportion=0.3,
         ram_cache: bool = True,
+        name: str = "",
     ):
         """
         Args:
@@ -181,11 +181,16 @@ class ImputationDataset(CommonDataset):
             vars (Dict[str, str], optional): contains names of columns in the data. Defaults to gin.REQUIRED.
             mask_proportion (float, optional): proportion to artificially mask for amputation. Defaults to 0.3.
             mask_method (str, optional): masking mechanism. Defaults to "MCAR".
-            mask_observation_proportion (float, optional): poportion of the observed data to be masked. Defaults to 0.3.
+            mask_observation_proportion (float, optional): proportion of the observed data to be masked. Defaults to 0.3.
             ram_cache (bool, optional): if the dataset should be completely stored in ram and not generated on the fly during
                 training. Defaults to True.
         """
         super().__init__(data, split, vars, grouping_segment=Segment.static)
+        self.features_df['new'] = self.features_df.groupby(self.vars["GROUP"]).cumcount()
+        self.features_df.reset_index(inplace=True)
+        self.features_df = self.features_df.set_index([self.vars["GROUP"], 'new']).unstack(fill_value=0)\
+            .stack(dropna=False).reset_index(self.vars["GROUP"]).set_index(self.vars["GROUP"])
+        # self.features_df = self.features_df.reindex(range(self.maxlen), fill_value=0)
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion
         )
@@ -193,12 +198,13 @@ class ImputationDataset(CommonDataset):
         self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars[Segment.dynamic])
         self.amputation_mask[self.vars["GROUP"]] = self.features_df.index
         self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
-
+        self.amputated_window = None
         self.target_missingness_mask = self.features_df.isna()
         self.features_df.fillna(0, inplace=True)
         self.ram_cache(ram_cache)
+        self.name = name
 
-    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, idx : int = None) -> Tuple[Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice.
 
         Used for deep learning implementations.
@@ -211,20 +217,49 @@ class ImputationDataset(CommonDataset):
         """
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
+
+        if idx is None:
+            return self.amputated_window
+        pad_value = 0.0
         stay_id = self.grouping_df.iloc[idx].name
+
+        # slice to make sure to always return a DF
+        window = self.features_df.loc[stay_id:stay_id].to_numpy()
+
+        # Difference with max length in dataset
+        length_diff = self.maxlen - window.shape[0]
+        pad_mask = np.ones(window.shape[0])
+
+        # Padding the array to fulfill size requirement
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
         window_missingness_mask = self.target_missingness_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
         amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
         amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
-
+        if length_diff > 0:
+            # window shorter than the longest window in dataset, pad to same length
+            window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
+            window_missingness_mask = np.concatenate([window_missingness_mask, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
+            amputated_window = np.concatenate([amputated_window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
+            amputation_mask = np.concatenate([amputation_mask, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
+        else:
+            window = window.values
+            window_missingness_mask = window_missingness_mask.values
+            amputated_window = amputated_window.values
+            amputation_mask = amputation_mask.values
+        # self.amputated_values = amputated_window
+        # self.amputation_mask = amputation_mask
+        pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
         return (
-            from_numpy(amputated_window.values).to(float32),
-            from_numpy(amputation_mask.values).to(float32),
-            from_numpy(window.values).to(float32),
-            from_numpy(window_missingness_mask.values).to(float32),
+            from_numpy(amputated_window).to(float32),
+            from_numpy(amputation_mask).to(float32),
+            from_numpy(window).to(float32),
+            from_numpy(window_missingness_mask).to(float32),
         )
+
+    def get_all_data_idx(self):
+        return self.grouping_df.index.unique()
 
 
 @gin.configurable("ImputationPredictionDataset")
@@ -244,6 +279,7 @@ class ImputationPredictionDataset(Dataset):
         grouping_column: str = "stay_id",
         select_columns: List[str] = None,
         ram_cache: bool = True,
+        name: str = "",
     ):
         self.dyn_df = data
 
@@ -263,6 +299,8 @@ class ImputationPredictionDataset(Dataset):
         if ram_cache:
             logging.info("Caching dataset in ram.")
             self._cached_dataset = [self[i] for i in range(len(self))]
+
+        self.name = name
 
     def __len__(self) -> int:
         """Returns number of stays in the data.

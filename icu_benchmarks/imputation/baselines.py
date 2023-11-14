@@ -9,7 +9,7 @@ from typing import Type
 from icu_benchmarks.models.wrappers import ImputationWrapper
 from pypots.imputation import BRITS, SAITS, Transformer, USGAN, MRNN,  LOCF, GPVAE
 import gin
-
+import numpy as np
 
 @gin.configurable("KNN")
 class KNNImputation(ImputationWrapper):
@@ -208,41 +208,6 @@ class LOCFImputation(ImputationWrapper):
         output = output.reshape(amputated_values.shape)
         return output
 
-@gin.configurable("GPVAE")
-class GPVAEImputation(ImputationWrapper):
-    """Gaussian Process Variational Autoencoder (GPVAE) imputation using PyPots pacakge."""
-    def __init__(self, input_size, epochs, encoder_sizes, decoder_sizes, kernel, latent_size, batch_size, *args, **kwargs):
-        super().__init__(
-            *args, input_size=input_size, epochs=epochs, batch_size=batch_size, **kwargs
-        )
-
-        self.imputer = GPVAE(
-        n_steps = input_size[1],
-        n_features = input_size[2],
-        encoder_sizes = encoder_sizes,
-        decoder_sizes = decoder_sizes,
-        latent_size = latent_size,
-        kernel = kernel,
-        batch_size = batch_size,
-        epochs = epochs,
-        )
-    def fit(self, train_dataset, val_dataset):
-        self.imputer.fit(
-            torch.Tensor(
-                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
-            )
-        )
-    def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to(self.imputer.device).squeeze()
-        self.imputer.model = self.imputer.model.to(self.imputer.device)
-        output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
-
-        output = output.reshape(amputated_values.shape)
-        return output
-
-
-
-
 @gin.configurable("BRITS")
 class BRITSImputation(ImputationWrapper):
     """Bidirectional Recurrent Imputation for Time Series (BRITS) imputation using PyPots package."""
@@ -304,7 +269,7 @@ class SAITSImputation(ImputationWrapper):
             n_layers=n_layers,
             d_model=d_model,
             d_inner=d_inner,
-            n_head=n_head,
+            n_heads=n_head,
             d_k=d_k,
             d_v=d_v,
             dropout=dropout,
@@ -312,11 +277,18 @@ class SAITSImputation(ImputationWrapper):
         )
 
     def fit(self, train_dataset, val_dataset):
+        # self.imputer.fit(
+        #     torch.Tensor(
+        #         train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
+        #     )
+        # )
+        # X should be array-like of shape [n_samples, sequence length (time steps), n_features],
+        # idxs = train_dataset.get_all_data_idx()
+        # val = train_dataset[[idxs]]
         self.imputer.fit(
-            torch.Tensor(
-                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
+            {"X": np.reshape(train_dataset.amputated_values.values, (-1, train_dataset.maxlen, train_dataset.features_df.shape[1]))}, #torch.Tensor(train_dataset.amputated_values.values)},
+            {"X": np.reshape(val_dataset.amputated_values.values, (-1, val_dataset.maxlen, val_dataset.features_df.shape[1]))},
             )
-        )
 
     def forward(self, amputated_values, amputation_mask):
         debatched_values = amputated_values.to(self.imputer.device).squeeze()

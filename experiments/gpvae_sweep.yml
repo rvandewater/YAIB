@@ -4,7 +4,7 @@ command:
   - ${program}
   - "train"
   - "-d"
-  - "../data/miiv"
+  - "../../data/base/miiv"
   - "-t"
   - "DatasetImputation"
   - "-c"
@@ -17,19 +17,25 @@ metric:
 name: gpvae hyperparameter sweep
 parameters:
   model:
-    values: ["GP-VAE"] # DiffWave not working yet
+    values: ["GPVAE"] # DiffWave not working yet
   ImputationDataset.mask_method:
     values: ["MCAR"]
   seed:
     values: [1111]
   data_dir:
-    values: ["../data/hirid"]
+    values: ["../../data/base/miiv"]
   execute_repeated_cv.cv_repetitions:
     values: [2]
   execute_repeated_cv.cv_folds:
     values: [2]
   GPVAE.encoder_sizes:
-    values: [(128,128), (256,256), (512,512)]
+    values:
+      - (128,128)
+      - (256,256)
+      - (512,512)
   GPVAE.decoder_sizes:
-    values: [ (128,128), (256,256), (512,512) ]
+    values:
+      - (128,128)
+      - (256,256)
+      - (512,512)
 
