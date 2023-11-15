@@ -20,7 +20,7 @@ from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.similarity_func import correlation_spearman, distance_euclidean
-
+import captum
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(nn.functional.mse_loss, module="torch.nn.functional")
@@ -513,15 +513,15 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 x["target_scale"].requires_grad_(),
             )
             baselines = (
-                torch.zeros_like(data[0]).to(self.device),  # encoder_cat, set to zero
-                torch.zeros_like(data[1]).to(self.device),  # encoder_cont, set to zero
-                torch.zeros_like(data[2]).to(self.device),  # encoder_target, set to zero
+                data[0].to(self.device),  # encoder_cat, set to random
+                torch.randn_like(data[1]).to(self.device),  # encoder_cont, set to random
+                torch.randn_like(data[2]).to(self.device),  # encoder_target, set to random
                 data[3].to(self.device),  # encoder_lengths, leave unchanged
-                torch.zeros_like(data[4]).to(self.device),  # decoder_cat, set to zero
-                torch.zeros_like(data[5]).to(self.device),  # decoder_cont, set to zero
-                torch.zeros_like(data[6]).to(self.device),  # decoder_target, set to zero
+                torch.randn_like(data[4]).to(self.device),  # decoder_cat, set to random
+                torch.randn_like(data[5]).to(self.device),  # decoder_cont, set to random
+                torch.randn_like(data[6]).to(self.device),  # decoder_target, set to random
                 data[7].to(self.device),  # decoder_lengths, leave unchanged
-                torch.zeros_like(data[8]).to(self.device),  # decoder_time_idx, set to zero
+                data[8].to(self.device),  # decoder_time_idx, unchanged
                 data[9].to(self.device),  # groups, leave unchanged
                 data[10].to(self.device),  # target_scale, leave unchanged
             )
@@ -529,10 +529,15 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             explantation = method(self.forward_captum)
             # Reformat attributions.
             attr_all_timesteps = []
-            for time_step in range(0, 24):
-                attr = explantation.attribute(
-                    data, target=(time_step),  baselines=baselines, **kwargs
-                )
+            for time_step in range(23, 24):
+                if method is not captum.attr.Saliency:
+                    attr = explantation.attribute(
+                        data, target=(time_step),  baselines=baselines, **kwargs
+                    )
+                else:
+                    attr = explantation.attribute(
+                        data, target=(time_step), **kwargs
+                    )
                 # Convert attributions to numpy array and append to the list
 
                 attr_all_timesteps.append(attr[0].cpu().detach().numpy())
@@ -588,7 +593,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         return means
 
     def Faithfulness_Correlation(
-        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=6, features=False
+        self, test_loader, attribution, similarity_func=None, nr_runs=2, pertrub=None, subset_size=6, features=False
     ):
         """
         Implementation of faithfulness correlation by Bhatt et al., 2020.

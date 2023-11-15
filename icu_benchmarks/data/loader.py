@@ -498,7 +498,7 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
             time_varying_unknown_categoricals=time_varying_unknown_categoricals,
             time_varying_unknown_reals=time_varying_unknown_reals,
             add_relative_time_idx=add_relative_time_idx,
-            # add_target_scales=True,
+            add_target_scales=True,
             add_encoder_length=True,
             predict_mode=True,
             target_normalizer=None,

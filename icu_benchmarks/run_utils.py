@@ -213,9 +213,14 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                     with open(fold_iter / "val_metrics.csv", "r") as f:
                         result = json.load(f)
                         aggregated[repetition.name][fold_iter.name].update(result)
+
                 # Add durations to metrics
                 if (fold_iter / "durations.json").is_file():
                     with open(fold_iter / "durations.json", "r") as f:
+                        result = json.load(f)
+                        aggregated[repetition.name][fold_iter.name].update(result)
+                if (fold_iter / "XAI_metrics.json").is_file():
+                    with open(fold_iter / "XAI_metrics.json", "r") as f:
                         result = json.load(f)
                         aggregated[repetition.name][fold_iter.name].update(result)
 
