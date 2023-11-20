@@ -22,7 +22,7 @@ from pathlib import Path
 from icu_benchmarks.data.loader import (
     PredictionDataset,
     ImputationDataset,
-    PredictionDatasetTFTpytorch,
+    PredictionDatasetpytorch,
 )
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
@@ -111,7 +111,7 @@ def train_common(
         ImputationDataset
         if mode == RunMode.imputation
         else (
-            PredictionDatasetTFTpytorch if (pytorch_forecasting) else PredictionDataset
+            PredictionDatasetpytorch if (pytorch_forecasting) else PredictionDataset
         )
     )
 
@@ -277,31 +277,37 @@ def train_common(
 
     if explain:
 
-        attributions_Saliency = model.explantation_captum(
-            test_loader=test_loader,
-            method=Saliency, log_dir=log_dir, plot=True
-        )
-        print("saliency", attributions_Saliency)
+        # attributions_Saliency = model.explantation_captum(
+        #    test_loader=test_loader,
+        #    method=Saliency, log_dir=log_dir, plot=True
+        # )
+
+        # print("saliency", attributions_Saliency)
+        """
         attributions_shap = model.explantation_captum(
             test_loader=test_loader,
             method=ShapleyValueSampling, log_dir=log_dir, plot=True, n_samples=10
         )
         print("shap", attributions_shap)
-        attributions_IG = model.explantation_captum(
-            test_loader=test_loader,
-            method=IntegratedGradients, log_dir=log_dir, plot=True, n_steps=20
-        )
-        print("IG", attributions_IG)
+        """
+       # attributions_IG = model.explantation_captum(
+       #     test_loader=test_loader,
+       #     method=IntegratedGradients, log_dir=log_dir, plot=True, n_steps=20
+       # )
+       # print("IG", attributions_IG)
         Interpertations = model.interpertations(test_loader, log_dir, plot=True)
         print("attention", Interpertations)
         attributions_dict = {
             "attributions_Saliency": attributions_Saliency.tolist(),
             "attributions_IG": attributions_IG.tolist(),
-            "attributions_shap": attributions_shap.tolist(),
+            # "attributions_shap": attributions_shap.tolist(),
             "attention_weights": Interpertations["attention"].tolist(),
             "static_variables": Interpertations["static_variables"].tolist(),
             "encoder_variables": Interpertations["encoder_variables"].tolist()
         }
+        variable_importance = np.concatenate((Interpertations["static_variables"].cpu().detach().numpy(),
+                                              Interpertations["encoder_variables"].cpu().detach().numpy()))
+        ind = np.argpartition(variable_importance, -5)[-5:]
 
         # Path to the JSON file in log_dir
         json_file_path = f"{log_dir}/Attributions.json"
@@ -310,26 +316,24 @@ def train_common(
         with open(json_file_path, 'w') as json_file:
             json.dump(attributions_dict, json_file)
         if XAI_metric:
-
             random_attributions = np.random.normal(size=24)
-
-            F_baseline = model.Faithfulness_Correlation(test_loader, random_attributions, pertrub='Noise')
+            F_baseline = model.Faithfulness_Correlation(test_loader, random_attributions, pertrub='Noise', ind=ind)
             print('Random normal faithfulness correlation', F_baseline)
-
             F_attribution = model.Faithfulness_Correlation(test_loader, attributions_IG, pertrub='Noise')
             print('Attributions faithfulness correlation', F_attribution)
-            F_attention = model.Faithfulness_Correlation(test_loader, Interpertations["attention"], pertrub='Noise')
+            F_attention = model.Faithfulness_Correlation(
+                test_loader, Interpertations["attention"], pertrub='Noise', ind=ind)
             print('Attention faithfulness correlation', F_attention)
             F_saliency = model.Faithfulness_Correlation(test_loader, attributions_Saliency, pertrub='Noise')
             print('Saliency faithfulness correlation', F_saliency)
-            F_shap = model.Faithfulness_Correlation(test_loader, attributions_shap, pertrub='Noise')
-            print('shap faithfulness correlation', F_shap)
+           # F_shap = model.Faithfulness_Correlation(test_loader, attributions_shap, pertrub='Noise')
+           # print('shap faithfulness correlation', F_shap)
             XAI_dict = {
                 "Faithfulness_correlation_normal_random": F_baseline,
                 "Faithfulness_correlation_IG": F_attribution,
                 "Faithfulness_correlation_attention": F_attention,
                 "Faithfulness_correlation_saliency": F_saliency,
-                "Faithfulness_correlation_shap": F_shap
+                #    "Faithfulness_correlation_shap": F_shap
             }
 
         # Path to the JSON file in log_dir

@@ -529,7 +529,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             explantation = method(self.forward_captum)
             # Reformat attributions.
             attr_all_timesteps = []
-            for time_step in range(23, 24):
+            for time_step in range(0, 24):
                 if method is not captum.attr.Saliency:
                     attr = explantation.attribute(
                         data, target=(time_step),  baselines=baselines, **kwargs
@@ -593,7 +593,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         return means
 
     def Faithfulness_Correlation(
-        self, test_loader, attribution, similarity_func=None, nr_runs=2, pertrub=None, subset_size=6, features=False
+        self, test_loader, attribution, similarity_func=None, nr_runs=2, pertrub=None, subset_size=3, ind=[]
     ):
         """
         Implementation of faithfulness correlation by Bhatt et al., 2020.
@@ -654,16 +654,24 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
                 if pertrub == "Noise":
                     # add normal noise to input
-                    noise = torch.randn_like(x["encoder_cont"])
 
-                    x["encoder_cont"][:, a_ix, :] += noise[:, a_ix, :]
+                    noise = torch.randn_like(x["encoder_cont"])
+                    if (len(ind) == 0):
+                        x["encoder_cont"][:, a_ix, :] += noise[:, a_ix, :]
+                    else:
+
+                        x["encoder_cont"][:, a_ix[:, None], ind] += noise[:, a_ix[:, None], ind]
+
                 elif pertrub == "baseline":
                     # Create a mask tensor with zeros at specified time steps and ones everywhere else
                     # pytorch bug need to change to cpu for next step and then revert
                     mask = torch.ones_like(x["encoder_cont"]).cpu()
-
-                    mask[:, a_ix, :] = 0
+                    if (len(ind) == 0):
+                        mask[:, a_ix, :] = 0
+                    else:
+                        mask[:, a_ix, ind] = 0
                     mask = mask.to(x["encoder_cont"].device)
+
                     x["encoder_cont"] = x["encoder_cont"] * mask
                 data = (
                     x["encoder_cat"],

@@ -22,7 +22,7 @@ model/hyperparameter.lr_scheduler = "exponential"
 
 # Dataset params
 PredictionDatasetTFTpytorch.max_encoder_length = 24
-PredictionDatasetTFTpytorch.max_prediction_length = 24
+PredictionDatasetTFTpytorch.max_prediction_length = 1
 PredictionDatasetTFTpytorch.target="label"
 PredictionDatasetTFTpytorch.time_varying_known_reals=["time_idx"]
 PredictionDatasetTFTpytorch.add_relative_time_idx=False

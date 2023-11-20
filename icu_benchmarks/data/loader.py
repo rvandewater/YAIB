@@ -429,8 +429,8 @@ class ImputationPredictionDataset(Dataset):
         return from_numpy(window.values).to(float32)
 
 
-@gin.configurable("PredictionDatasetTFTpytorch")
-class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
+@gin.configurable("PredictionDatasetpytorch")
+class PredictionDatasetpytorch(TimeSeriesDataSet):
     """Subclass of timeseries dataset works with pyotrch forecasting library .
 
     Args:
@@ -498,8 +498,8 @@ class PredictionDatasetTFTpytorch(TimeSeriesDataSet):
             time_varying_unknown_categoricals=time_varying_unknown_categoricals,
             time_varying_unknown_reals=time_varying_unknown_reals,
             add_relative_time_idx=add_relative_time_idx,
-            add_target_scales=True,
-            add_encoder_length=True,
+            # add_target_scales=True,
+            # add_encoder_length=True,
             predict_mode=True,
             target_normalizer=None,
         )
