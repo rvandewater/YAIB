@@ -21,13 +21,13 @@ model/hyperparameter.lr_scheduler = "exponential"
 
 
 # Dataset params
-PredictionDatasetTFTpytorch.max_encoder_length = 24
-PredictionDatasetTFTpytorch.max_prediction_length = 1
-PredictionDatasetTFTpytorch.target="label"
-PredictionDatasetTFTpytorch.time_varying_known_reals=["time_idx"]
-PredictionDatasetTFTpytorch.add_relative_time_idx=False
-PredictionDatasetTFTpytorch.time_varying_unknown_categoricals=[]
-PredictionDatasetTFTpytorch.time_varying_unknown_reals=["alb",
+PredictionDatasetpytorch.max_encoder_length = 24
+PredictionDatasetpytorch.max_prediction_length = 1
+PredictionDatasetpytorch.target="label"
+PredictionDatasetpytorch.time_varying_known_reals=["time_idx"]
+PredictionDatasetpytorch.add_relative_time_idx=False
+PredictionDatasetpytorch.time_varying_unknown_categoricals=[]
+PredictionDatasetpytorch.time_varying_unknown_reals=["alb",
                 "alp",
                 "alt",
                 "ast",
@@ -75,4 +75,4 @@ PredictionDatasetTFTpytorch.time_varying_unknown_reals=["alb",
                 "tnt",
                 "urine",
                 "wbc",]
-PredictionDatasetTFTpytorch.lagged_variables=[]
+PredictionDatasetpytorch.lagged_variables=[]
