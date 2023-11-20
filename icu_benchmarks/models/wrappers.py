@@ -528,39 +528,36 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             explantation = method(self.forward_captum)
             # Reformat attributions.
-            attr_all_timesteps = []
-            for time_step in range(0, 24):
-                if method is not captum.attr.Saliency:
-                    attr = explantation.attribute(
-                        data, target=(time_step),  baselines=baselines, **kwargs
-                    )
-                else:
-                    attr = explantation.attribute(
-                        data, target=(time_step), **kwargs
-                    )
+            # attr_all_timesteps = []
+            # for time_step in range(0, 24):
+            if method is not captum.attr.Saliency:
+                attr = explantation.attribute(
+                    data,  baselines=baselines, **kwargs
+                )
+            else:
+                attr = explantation.attribute(
+                    data,  **kwargs
+                )
                 # Convert attributions to numpy array and append to the list
-
-                attr_all_timesteps.append(attr[0].cpu().detach().numpy())
-            all_attrs.append(np.mean(attr_all_timesteps, axis=0))
+            all_attrs.append(attr[0].cpu().detach().numpy())
         # Concatenate a‚ttribution values for all instances along the batch dimension
-        all_attrs = np.mean(all_attrs, axis=0)
 
-        means_feature = all_attrs.mean(axis=(0))
-        # self.log('Attribution Featues', means_feature)
-        # Compute mean along the batch dimension
-        means = all_attrs.mean(axis=(1))
-       # self.log('Attribution Time steps', means)
-        # Normalize the means values to range [0, 1]
+        all_attrs = all_attrs.mean(axis=(0))
+
+        features_attrs = all_attrs.mean(axis=(0))
+
+        timestep_attrs = all_attrs.mean(axis=(1))
+
         # normalized_means = (means - means.min()) / (means.max() - means.min())
         if plot:
             # Create x values (assuming you want a simple sequential x-axis)
             # Assuming you have 57 variables
-            x_values = np.arange(1, 58)
+            x_values = np.arange(1, 54)
             # Plotting the featrue means
             plt.figure(figsize=(8, 6))
             plt.plot(
                 x_values,
-                means_feature,
+                features_attrs,
                 marker="o",
                 color="skyblue",
                 linestyle="-",
@@ -577,7 +574,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             x_values = np.arange(1, 25)
             plt.plot(
                 x_values,
-                means,
+                timestep_attrs,
                 marker="o",
                 color="skyblue",
                 linestyle="-",
@@ -590,10 +587,10 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             plt.xticks(x_values)  # Set x-ticks to match the number of features
             plt.tight_layout()
             plt.savefig(log_dir / "attribution_plot.png", bbox_inches="tight")
-        return means
+        return all_attrs, features_attrs, timestep_attrs
 
     def Faithfulness_Correlation(
-        self, test_loader, attribution, similarity_func=None, nr_runs=2, pertrub=None, subset_size=3, ind=[]
+        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=3, feature=False, time_step=True, feature_timestep=False
     ):
         """
         Implementation of faithfulness correlation by Bhatt et al., 2020.
@@ -656,20 +653,16 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                     # add normal noise to input
 
                     noise = torch.randn_like(x["encoder_cont"])
-                    if (len(ind) == 0):
-                        x["encoder_cont"][:, a_ix, :] += noise[:, a_ix, :]
-                    else:
 
-                        x["encoder_cont"][:, a_ix[:, None], ind] += noise[:, a_ix[:, None], ind]
+                    x["encoder_cont"][:, a_ix, :] += noise[:, a_ix, :]
 
                 elif pertrub == "baseline":
                     # Create a mask tensor with zeros at specified time steps and ones everywhere else
                     # pytorch bug need to change to cpu for next step and then revert
                     mask = torch.ones_like(x["encoder_cont"]).cpu()
-                    if (len(ind) == 0):
-                        mask[:, a_ix, :] = 0
-                    else:
-                        mask[:, a_ix, ind] = 0
+
+                    mask[:, a_ix, :] = 0
+
                     mask = mask.to(x["encoder_cont"].device)
 
                     x["encoder_cont"] = x["encoder_cont"] * mask
@@ -697,7 +690,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             score = np.nanmean(similarities)
         return score
 
-    def Data_Randomization(self, test_loader, attribution, explain_method, random_model, similarity_func=None, test_dataset=None):
+    def Data_Randomization(self, test_loader, attribution, explain_method, random_model, similarity_func=None, test_dataset=None, **kwargs):
         """
         Implementation of the Random Logit Metric by Sixt et al., 2020.
 
@@ -740,31 +733,33 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 )
 
                 baselines = (
-                    torch.zeros_like(data[0]).to(random_model.device),  # encoder_cat, set to zero
-                    torch.zeros_like(data[1]).to(random_model.device),  # encoder_cont, set to zero
-                    torch.zeros_like(data[2]).to(random_model.device),  # encoder_target, set to zero
-                    data[3].to(random_model.device),  # encoder_lengths, leave unchanged
-                    torch.zeros_like(data[4]).to(random_model.device),  # decoder_cat, set to zero
-                    torch.zeros_like(data[5]).to(random_model.device),  # decoder_cont, set to zero
-                    torch.zeros_like(data[6]).to(random_model.device),  # decoder_target, set to zero
-                    data[7].to(random_model.device),  # decoder_lengths, leave unchanged
-                    torch.zeros_like(data[8]).to(random_model.device),  # decoder_time_idx, set to zero
-                    data[9].to(random_model.device),  # groups, leave unchanged
-                    data[10].to(random_model.device),  # target_scale, leave unchanged
+                    data[0].to(self.device),  # encoder_cat, set to random
+                    torch.randn_like(data[1]).to(self.device),  # encoder_cont, set to random
+                    torch.randn_like(data[2]).to(self.device),  # encoder_target, set to random
+                    data[3].to(self.device),  # encoder_lengths, leave unchanged
+                    torch.randn_like(data[4]).to(self.device),  # decoder_cat, set to random
+                    torch.randn_like(data[5]).to(self.device),  # decoder_cont, set to random
+                    torch.randn_like(data[6]).to(self.device),  # decoder_target, set to random
+                    data[7].to(self.device),  # decoder_lengths, leave unchanged
+                    data[8].to(self.device),  # decoder_time_idx, unchanged
+                    data[9].to(self.device),  # groups, leave unchanged
+                    data[10].to(self.device),  # target_scale, leave unchanged
                 )
 
                 explantation = explain_method(random_model.forward_captum)
                 # Reformat attributions.
-                attr_all_timesteps = []
-                for time_step in range(0, 24):
-                    attr, delta = explantation.attribute(
-                        data, target=(time_step, 1), return_convergence_delta=True, baselines=baselines, n_steps=35
+                if explain_method is not captum.attr.Saliency:
+                    attr = explantation.attribute(
+                        data,  baselines=baselines, **kwargs
+                    )
+                else:
+                    attr = explantation.attribute(
+                        data,  **kwargs
                     )
                     # Convert attributions to numpy array and append to the list
-                    attr_all_timesteps.append(attr[0].cpu().detach().numpy())
-                a_perturbed.append(np.mean(attr_all_timesteps, axis=0))
+                a_perturbed.append(attr[0].cpu().detach().numpy())
 
-            a_perturbed = np.mean(a_perturbed, axis=(0, 1, 3))
+            a_perturbed = np.mean(a_perturbed, axis=(0))
 
             # Normalize the means values to range [0, 1]
             # normalized_a_perturbed = (a_perturbed - a_perturbed.min()) / (a_perturbed.max() - a_perturbed.min())
