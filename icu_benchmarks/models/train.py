@@ -278,47 +278,66 @@ def train_common(
     if explain:
         attributions_dict = {}
         Interpertations = model.interpertations(test_loader, log_dir, plot=True)
-        attributions_dict["attention_weights"]= Interpertations["attention"].tolist()
-        attributions_dict["static_variables"]= Interpertations["static_variables"].tolist()
-        attributions_dict["encoder_variables"]= Interpertations["encoder_variables"].tolist()
+        attributions_dict["attention_weights"] = Interpertations["attention"].tolist()
+        attributions_dict["static_variables"] = Interpertations["static_variables"].tolist()
+        attributions_dict["encoder_variables"] = Interpertations["encoder_variables"].tolist()
         print("attention", Interpertations)
+        model.train()
+        XAI_dict = {}
         if XAI_metric:
-            random_attributions = np.random.normal(size=24)
-            F_baseline = model.Faithfulness_Correlation(test_loader, random_attributions, pertrub='Noise')
-            print('Random normal faithfulness correlation', F_baseline)
+            XAI_dict = {}
+            # random attribution per timestep
+            random_attributions_ts = np.random.normal(size=24)
+            F_baseline_ts = model.Faithfulness_Correlation(
+                test_loader, random_attributions_ts, pertrub='Noise', subset_size=4, time_step=True, nr_runs=10)
+            print('Random normal faithfulness correlation for timesteps', F_baseline_ts)
+
             F_attention = model.Faithfulness_Correlation(
-                test_loader, Interpertations["attention"], pertrub='Noise')
+                test_loader, Interpertations["attention"], pertrub='Noise', subset_size=4, time_step=True, nr_runs=10)
             print('Attention faithfulness correlation', F_attention)
+            # random attribution per variable per timestep
+            random_attributions_v_ts = np.random.normal(size=[24, 53])
+            F_baseline_v_ts = model.Faithfulness_Correlation(
+                test_loader, random_attributions_v_ts, pertrub='Noise', feature_timestep=True, nr_runs=10, subset_size=[4, 9])
+            print('Random normal faithfulness correlation for variables per timesteps', F_baseline_v_ts)
+
+        XAI_dict["attention_faith"] = F_attention
+        XAI_dict["random_faith_timestep"] = random_attributions_ts
+        XAI_dict["random_faith_var_timestep"] = random_attributions_v_ts.tolist()
         methods = {
             "Saliency": Saliency,
-            "Lime": Lime,
+            #  "Lime": Lime,
             "IG": IntegratedGradients,
+
+
         }
-        for key,item in methods.items():
-            attribution=
-            attributions_Saliency = model.explantation_captum(
-                test_loader=test_loader,
-                method=Saliency, log_dir=log_dir, plot=True
-            )
+        for key, item in methods.items():
+            if key == "IG":
+                all_attrs, features_attrs, timestep_attrs = model.explantation_captum(
+                    test_loader=test_loader,
+                    method=item, log_dir=log_dir, plot=True, n_steps=20
+                )
+            else:
+                all_attrs, features_attrs, timestep_attrs = model.explantation_captum(
+                    test_loader=test_loader,
+                    method=item, log_dir=log_dir, plot=True
+                )
+            attributions_dict["{}_all".format(key)] = all_attrs.tolist()
+            attributions_dict["{}_timesteps".format(key)] = timestep_attrs.tolist()
+            attributions_dict["{}_features".format(key)] = features_attrs.tolist()
 
-            print("saliency", attributions_Saliency)
+            print("{}".format(key), all_attrs, features_attrs, timestep_attrs)
+            if XAI_metric:
+                faithfulness_timesteps = model.Faithfulness_Correlation(
+                    test_loader, timestep_attrs, pertrub='Noise', time_step=True, subset_size=4, nr_runs=10)
+                print('Attributions faithfulness timesteps correlation', faithfulness_timesteps)
+                XAI_dict["{}_faith_timesteps".format(key)] = faithfulness_timesteps.tolist()
+                random_attributions = np.random.normal(np.shape(all_attrs))
 
-            attributions_lime = model.explantation_captum(
-                test_loader=test_loader,
-                method=Lime, log_dir=log_dir, plot=True, n_samples=10
-            )
-            print("FA", attributions_lime)
-
-            attributions_IG = model.explantation_captum(
-                test_loader=test_loader,
-                method=IntegratedGradients, log_dir=log_dir, plot=True, n_steps=20
-            )
-            print("IG", attributions_IG)
-        
-        
-        # variable_importance = np.concatenate((Interpertations["static_variables"].cpu().detach().numpy(),
-        #                                      Interpertations["encoder_variables"].cpu().detach().numpy()))
-        # ind = np.argpartition(variable_importance, -5)[-5:]
+                faithfulness_timesteps_variable = model.Faithfulness_Correlation(
+                    test_loader, all_attrs, pertrub='Noise', feature_timestep=True, subset_size=[4, 9], nr_runs=10)
+                print('Attributions faithfulness variable per timestep correlation', faithfulness_timesteps_variable)
+                XAI_dict["{}_faith_variable_per_timestep".format(key)] = faithfulness_timesteps_variable.tolist()
 
         # Path to the JSON file in log_dir
         json_file_path = f"{log_dir}/Attributions.json"
@@ -326,22 +345,6 @@ def train_common(
         # Write the dictionary to a JSON file
         with open(json_file_path, 'w') as json_file:
             json.dump(attributions_dict, json_file)
-        if XAI_metric:
-            
-            F_attribution = model.Faithfulness_Correlation(test_loader, attributions_IG, pertrub='Noise')
-            print('Attributions faithfulness correlation', F_attribution)
-            
-            F_saliency = model.Faithfulness_Correlation(test_loader, attributions_Saliency, pertrub='Noise')
-            print('Saliency faithfulness correlation', F_saliency)
-            F_lime = model.Faithfulness_Correlation(test_loader, attributions_lime, pertrub='Noise')
-            print('shap faithfulness correlation', F_lime)
-            XAI_dict = {
-                "Faithfulness_correlation_normal_random": F_baseline,
-                "Faithfulness_correlation_IG": F_attribution,
-                "Faithfulness_correlation_attention": F_attention,
-                "Faithfulness_correlation_saliency": F_saliency,
-                "Faithfulness_correlation_shap": F_lime
-            }
 
         # Path to the JSON file in log_dir
         json_file_path = f"{log_dir}/XAI_metrics.json"

@@ -541,13 +541,15 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 # Convert attributions to numpy array and append to the list
             all_attrs.append(attr[0].cpu().detach().numpy())
         # Concatenate a‚ttribution values for all instances along the batch dimension
-
-        all_attrs = all_attrs.mean(axis=(0))
-
+        # print('b4', all_attrs)
+        # print('b4 shape', np.shape(all_attrs))
+        all_attrs = np.array(all_attrs).mean(axis=(0))
+        # print('after', all_attrs)
+        # print('after shape', np.shape(all_attrs))
         features_attrs = all_attrs.mean(axis=(0))
-
+        # print('feat shape ', np.shape(features_attrs))
         timestep_attrs = all_attrs.mean(axis=(1))
-
+        # print('timestep shape', np.shape(timestep_attrs))
         # normalized_means = (means - means.min()) / (means.max() - means.min())
         if plot:
             # Create x values (assuming you want a simple sequential x-axis)
@@ -590,7 +592,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         return all_attrs, features_attrs, timestep_attrs
 
     def Faithfulness_Correlation(
-        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=3, feature=False, time_step=True, feature_timestep=False
+        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=3, feature=False, time_step=False, feature_timestep=False
     ):
         """
         Implementation of faithfulness correlation by Bhatt et al., 2020.
@@ -643,29 +645,38 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             y_pred = self(data).detach().cpu().numpy()
             pred_deltas = []
             att_sums = []
+
+            def add_noise(x, indices, time_step, feature_timestep):
+                noise = torch.randn_like(x["encoder_cont"])
+                if time_step:
+                    x["encoder_cont"][:, indices, :] += noise[:, indices, :]
+                elif feature_timestep:
+
+                    x["encoder_cont"][:, indices[0], :][:, :, indices[1]] += noise[:, indices[0], :][:, :, indices[1]]
+
+            def apply_baseline(x, indices, time_step, feature_timestep):
+                mask = torch.ones_like(x["encoder_cont"]).cpu()
+                if time_step:
+                    mask[:, indices, :] = 0
+                elif feature_timestep:
+                    mask[:, indices[0], :][:, :, indices[1]] = 0
+                mask = mask.to(x["encoder_cont"].device)
+                x["encoder_cont"] *= mask
             for i_ix in range(nr_runs):
                 # Randomly mask by subset size.
-                a_ix = np.random.choice(x["encoder_cont"].shape[1], subset_size, replace=False)
 
-                # Move a_ix_tensor to the same device as mask
+                if time_step:
+                    a_ix = np.random.choice(24, subset_size, replace=False)
+                elif feature_timestep:
+                    timesteps_idx = np.random.choice(24, subset_size[0], replace=False)
+                    variables_idx = np.random.choice(53, subset_size[1], replace=False)
+                    a_ix = [timesteps_idx, variables_idx]
 
                 if pertrub == "Noise":
-                    # add normal noise to input
-
-                    noise = torch.randn_like(x["encoder_cont"])
-
-                    x["encoder_cont"][:, a_ix, :] += noise[:, a_ix, :]
-
+                    add_noise(x, a_ix, time_step, feature_timestep)
                 elif pertrub == "baseline":
-                    # Create a mask tensor with zeros at specified time steps and ones everywhere else
-                    # pytorch bug need to change to cpu for next step and then revert
-                    mask = torch.ones_like(x["encoder_cont"]).cpu()
+                    apply_baseline(x, a_ix, time_step, feature_timestep)
 
-                    mask[:, a_ix, :] = 0
-
-                    mask = mask.to(x["encoder_cont"].device)
-
-                    x["encoder_cont"] = x["encoder_cont"] * mask
                 data = (
                     x["encoder_cat"],
                     x["encoder_cont"],
@@ -681,13 +692,19 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 )
                 # Predict on perturbed input x.
                 y_pred_perturb = self(data).detach().cpu().numpy()
-                pred_deltas.append((y_pred - y_pred_perturb).mean(axis=(0, 2)))
+                pred_deltas.append((y_pred - y_pred_perturb).mean())
 
                 # Sum attributions of the random subset.
+                if time_step:
+                    att_sums.append(np.sum(attribution[a_ix]))
+                elif feature_timestep:
+                    row_indices = a_ix[0]
+                    col_indices = a_ix[1]
+                    att_sums.append(np.sum(attribution[np.ix_(row_indices, col_indices)]))
 
-                att_sums.append(np.sum(attribution[a_ix]))
             similarities.append(similarity_func(pred_deltas, att_sums))
-            score = np.nanmean(similarities)
+
+        score = np.nanmean(similarities)
         return score
 
     def Data_Randomization(self, test_loader, attribution, explain_method, random_model, similarity_func=None, test_dataset=None, **kwargs):
