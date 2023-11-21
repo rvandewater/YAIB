@@ -42,7 +42,7 @@ def execute_repeated_cv(
     pytorch_forecasting: bool = False,
     XAI_metric: bool = False,
     random_labels: bool = False,
-    random_model_dir: str = None
+    random_model_dir: str = None,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -107,7 +107,6 @@ def execute_repeated_cv(
                 pretrained_imputation_model=pretrained_imputation_model,
                 runmode=mode,
                 complete_train=complete_train,
-
             )
 
             preprocess_time = datetime.now() - start_time
@@ -129,7 +128,7 @@ def execute_repeated_cv(
                 pytorch_forecasting=pytorch_forecasting,
                 XAI_metric=XAI_metric,
                 random_labels=random_labels,
-                random_model_dir=random_model_dir
+                random_model_dir=random_model_dir,
             )
 
             train_time = datetime.now() - start_time

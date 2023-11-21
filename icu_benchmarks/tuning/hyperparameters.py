@@ -118,7 +118,7 @@ def choose_and_bind_hyperparameters(
                 verbose=verbose,
                 wandb=wandb,
                 pytorch_forecasting=pytorch_forecasting,
-                random_labels=random_labels
+                random_labels=random_labels,
             )
 
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]

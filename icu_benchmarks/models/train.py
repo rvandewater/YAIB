@@ -31,9 +31,7 @@ from collections import OrderedDict
 from captum.attr import IntegratedGradients, ShapleyValueSampling, Saliency, GuidedBackprop, LRP, FeatureAblation, Lime
 
 
-cpu_core_count = (
-    len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
-)
+cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 
 
 def assure_minimum_length(dataset):
@@ -76,7 +74,7 @@ def train_common(
     pytorch_forecasting: bool = False,
     XAI_metric: bool = False,
     random_labels: bool = False,
-    random_model_dir: str = None
+    random_model_dir: str = None,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -110,25 +108,15 @@ def train_common(
     dataset_class = (
         ImputationDataset
         if mode == RunMode.imputation
-        else (
-            PredictionDatasetpytorch if (pytorch_forecasting) else PredictionDataset
-        )
+        else (PredictionDatasetpytorch if (pytorch_forecasting) else PredictionDataset)
     )
 
     logging.info(f"Logging to directory: {log_dir}.")
-    save_config_file(
-        log_dir
-    )  # We save the operative config before and also after training
+    save_config_file(log_dir)  # We save the operative config before and also after training
 
-    train_dataset = dataset_class(
-        data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"]
-    )
-    val_dataset = dataset_class(
-        data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"]
-    )
-    train_dataset, val_dataset = assure_minimum_length(
-        train_dataset
-    ), assure_minimum_length(val_dataset)
+    train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"])
+    val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
+    train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
     test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"])
     test_dataset = assure_minimum_length(test_dataset)
@@ -219,9 +207,7 @@ def train_common(
         if load_weights:
             model = load_model(model, source_dir, pl_model=pl_model)
         else:
-            model = model(
-                optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode
-            )
+            model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
 
     model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
@@ -261,9 +247,7 @@ def train_common(
         if model.requires_backprop:
             logging.info("Training DL model.")
 
-            trainer.fit(
-                model, train_dataloaders=train_loader, val_dataloaders=val_loader
-            )
+            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
             logging.info("Training complete.")
         else:
             logging.info("Training ML model.")
@@ -277,50 +261,51 @@ def train_common(
 
     if explain:
         attributions_dict = {}
-        Interpertations = model.interpertations(test_loader, log_dir, plot=True)
-        attributions_dict["attention_weights"] = Interpertations["attention"].tolist()
-        attributions_dict["static_variables"] = Interpertations["static_variables"].tolist()
-        attributions_dict["encoder_variables"] = Interpertations["encoder_variables"].tolist()
-        print("attention", Interpertations)
-        model.train()
+        # Interpertations = model.interpertations(test_loader, log_dir, plot=True)
+        # attributions_dict["attention_weights"] = Interpertations["attention"].tolist()
+        # attributions_dict["static_variables"] = Interpertations["static_variables"].tolist()
+        # attributions_dict["encoder_variables"] = Interpertations["encoder_variables"].tolist()
+        # print("attention", Interpertations)
+        # model.train()
         XAI_dict = {}
-        if XAI_metric:
-            XAI_dict = {}
-            # random attribution per timestep
-            random_attributions_ts = np.random.normal(size=24)
-            F_baseline_ts = model.Faithfulness_Correlation(
-                test_loader, random_attributions_ts, pertrub='Noise', subset_size=4, time_step=True, nr_runs=10)
-            print('Random normal faithfulness correlation for timesteps', F_baseline_ts)
+        # if XAI_metric:
 
-            F_attention = model.Faithfulness_Correlation(
-                test_loader, Interpertations["attention"], pertrub='Noise', subset_size=4, time_step=True, nr_runs=10)
-            print('Attention faithfulness correlation', F_attention)
-            # random attribution per variable per timestep
-            random_attributions_v_ts = np.random.normal(size=[24, 53])
-            F_baseline_v_ts = model.Faithfulness_Correlation(
-                test_loader, random_attributions_v_ts, pertrub='Noise', feature_timestep=True, nr_runs=10, subset_size=[4, 9])
-            print('Random normal faithfulness correlation for variables per timesteps', F_baseline_v_ts)
+        # random attribution per timestep
+        # random_attributions_ts = np.random.normal(size=24)
+        # F_baseline_ts = model.Faithfulness_Correlation(
+        #    test_loader, random_attributions_ts, pertrub='Noise', subset_size=4, time_step=True, nr_runs=100)
+        # print('Random normal faithfulness correlation for timesteps', F_baseline_ts)
 
-        XAI_dict["attention_faith"] = F_attention
-        XAI_dict["random_faith_timestep"] = random_attributions_ts
-        XAI_dict["random_faith_var_timestep"] = random_attributions_v_ts.tolist()
+        # F_attention = model.Faithfulness_Correlation(
+        #    test_loader, Interpertations["attention"], pertrub='Noise', subset_size=4, time_step=True, nr_runs=100)
+        # print('Attention faithfulness correlation', F_attention)
+        # random attribution per variable per timestep
+        # random_attributions_v_ts = np.random.normal(size=[24, 53])
+        # F_baseline_v_ts = model.Faithfulness_Correlation(
+        #    test_loader, random_attributions_v_ts, pertrub='Noise', feature_timestep=True, nr_runs=10, subset_size=[4, 9])
+        # print('Random normal faithfulness correlation for variables per timesteps', F_baseline_v_ts)
+
+        # XAI_dict["attention_faith"] = F_attention.tolist()
+        # XAI_dict["random_faith_timestep"] = random_attributions_ts.tolist()
+        # XAI_dict["random_faith_var_timestep"] = random_attributions_v_ts.tolist()
         methods = {
-            "Saliency": Saliency,
+            # "Saliency": Saliency,
             #  "Lime": Lime,
-            "IG": IntegratedGradients,
-
-
+            # "IG": IntegratedGradients,
+            "FA": FeatureAblation
         }
         for key, item in methods.items():
             if key == "IG":
                 all_attrs, features_attrs, timestep_attrs = model.explantation_captum(
-                    test_loader=test_loader,
-                    method=item, log_dir=log_dir, plot=True, n_steps=20
+                    test_loader=test_loader, method=item, log_dir=log_dir, plot=True, n_steps=50
+                )
+            if key == "Lime":
+                all_attrs, features_attrs, timestep_attrs = model.explantation_captum(
+                    test_loader=test_loader, method=item, log_dir=log_dir, plot=True, return_input_shape=True
                 )
             else:
                 all_attrs, features_attrs, timestep_attrs = model.explantation_captum(
-                    test_loader=test_loader,
-                    method=item, log_dir=log_dir, plot=True
+                    test_loader=test_loader, method=item, log_dir=log_dir, plot=True
                 )
             attributions_dict["{}_all".format(key)] = all_attrs.tolist()
             attributions_dict["{}_timesteps".format(key)] = timestep_attrs.tolist()
@@ -329,28 +314,30 @@ def train_common(
             print("{}".format(key), all_attrs, features_attrs, timestep_attrs)
             if XAI_metric:
                 faithfulness_timesteps = model.Faithfulness_Correlation(
-                    test_loader, timestep_attrs, pertrub='Noise', time_step=True, subset_size=4, nr_runs=10)
-                print('Attributions faithfulness timesteps correlation', faithfulness_timesteps)
+                    test_loader, timestep_attrs, pertrub="Noise", time_step=True, subset_size=4, nr_runs=100
+                )
+                print("Attributions faithfulness timesteps correlation", faithfulness_timesteps)
                 XAI_dict["{}_faith_timesteps".format(key)] = faithfulness_timesteps.tolist()
                 random_attributions = np.random.normal(np.shape(all_attrs))
 
                 faithfulness_timesteps_variable = model.Faithfulness_Correlation(
-                    test_loader, all_attrs, pertrub='Noise', feature_timestep=True, subset_size=[4, 9], nr_runs=10)
-                print('Attributions faithfulness variable per timestep correlation', faithfulness_timesteps_variable)
+                    test_loader, all_attrs, pertrub="Noise", feature_timestep=True, subset_size=[4, 9], nr_runs=100
+                )
+                print("Attributions faithfulness variable per timestep correlation", faithfulness_timesteps_variable)
                 XAI_dict["{}_faith_variable_per_timestep".format(key)] = faithfulness_timesteps_variable.tolist()
 
         # Path to the JSON file in log_dir
         json_file_path = f"{log_dir}/Attributions.json"
 
         # Write the dictionary to a JSON file
-        with open(json_file_path, 'w') as json_file:
+        with open(json_file_path, "w") as json_file:
             json.dump(attributions_dict, json_file)
 
         # Path to the JSON file in log_dir
         json_file_path = f"{log_dir}/XAI_metrics.json"
 
         # Write the dictionary to a JSON file
-        with open(json_file_path, 'w') as json_file:
+        with open(json_file_path, "w") as json_file:
             json.dump(XAI_dict, json_file)
 
         # path = Path(random_model_dir)
@@ -370,9 +357,7 @@ def train_common(
         # print('Distance Data randmoization score attention', R_attention)
 
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][
-        "test/loss"
-    ]
+    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
     save_config_file(log_dir)
     return test_loss
 
@@ -390,9 +375,7 @@ def load_model(model, source_dir, pl_model=True, train_dataset=None, optimizer=N
                 return Exception(f"No weights to load at path : {source_dir}")
             if pl_model:
                 if train_dataset is not None:
-                    model = model.load_from_checkpoint(
-                        model_path, dataset=train_dataset, optimizer=optimizer
-                    )
+                    model = model.load_from_checkpoint(model_path, dataset=train_dataset, optimizer=optimizer)
 
                 else:
                     model = model.load_from_checkpoint(model_path)

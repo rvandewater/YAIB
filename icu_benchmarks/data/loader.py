@@ -522,9 +522,9 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
 
     def randomize_labels(self, num_classes=None, min=None, max=None):
         if num_classes == 1:
-
-            random_target = np.random.uniform(self.data["target"][0].min(),
-                                              self.data["target"][0].max(), size=len(self.data["target"][0]))
+            random_target = np.random.uniform(
+                self.data["target"][0].min(), self.data["target"][0].max(), size=len(self.data["target"][0])
+            )
         else:
             random_target = np.random.randint(num_classes, size=len(self.data["target"][0]))
         self.data["target"][0] = Tensor(random_target)

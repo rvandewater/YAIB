@@ -305,8 +305,7 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
         pretrained_imputation_model_checkpoint = torch.load(use_pretrained_imputation, map_location=torch.device("cpu"))
         if isinstance(pretrained_imputation_model_checkpoint, dict):
             imputation_model_class = pretrained_imputation_model_checkpoint["class"]
-            pretrained_imputation_model = imputation_model_class(
-                **pretrained_imputation_model_checkpoint["hyper_parameters"])
+            pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
             pretrained_imputation_model.set_trained_columns(pretrained_imputation_model_checkpoint["trained_columns"])
             pretrained_imputation_model.load_state_dict(pretrained_imputation_model_checkpoint["state_dict"])
         else:

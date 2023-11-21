@@ -637,7 +637,7 @@ class RNNpytorch(DLPredictionPytorchForecastingWrapper):
             "target_scale": tuple_x[10],
         }
         if self.num_classes == 1:
-            x_dict['encoder_cont'][:, :, -1] = 0.0
+            x_dict["encoder_cont"][:, :, -1] = 0.0
 
         out = self.model(x_dict)
 
@@ -698,7 +698,7 @@ class DeepARpytorch(DLPredictionPytorchForecastingWrapper):
             "target_scale": tuple_x[10],
         }
         if self.num_classes == 1:
-            x_dict['encoder_cont'][:, :, -1] = 0.0
+            x_dict["encoder_cont"][:, :, -1] = 0.0
         out = self.model(x_dict)
         out = out["prediction"][0]
 

@@ -21,6 +21,7 @@ from icu_benchmarks.contants import RunMode
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.similarity_func import correlation_spearman, distance_euclidean
 import captum
+
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(nn.functional.cross_entropy, module="torch.nn.functional")
 gin.config.external_configurable(nn.functional.mse_loss, module="torch.nn.functional")
@@ -156,12 +157,10 @@ class DLWrapper(BaseModule, ABC):
         return super().on_train_start()
 
     def finalize_step(self, step_prefix=""):
-
         try:
             for name, metric in self.metrics[step_prefix].items():
                 try:
-                    value = np.float32(metric.compute()) if isinstance(
-                        metric.compute(), np.float64) else metric.compute()
+                    value = np.float32(metric.compute()) if isinstance(metric.compute(), np.float64) else metric.compute()
                     self.log_dict({f"{step_prefix}/{name}": value}, sync_dist=True)
 
                 except (NotComputableError, ValueError) as e:
@@ -491,10 +490,9 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
     def explantation_captum(self, test_loader, method, log_dir=".", plot=False, **kwargs):
         # Initialize lists to store attribution values for all instances
         all_attrs = []
-
+        method_name = method.__name__
         # Loop through the test_loader to compute attributions for all instances
         for batch in test_loader:
-
             for key, value in batch[0].items():
                 batch[0][key] = batch[0][key].to(self.device)
             x = batch[0]
@@ -513,11 +511,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 x["target_scale"].requires_grad_(),
             )
             baselines = (
-                data[0].to(self.device),  # encoder_cat, set to random
+                data[0].to(self.device),  # encoder_cat, no cat variables
                 torch.randn_like(data[1]).to(self.device),  # encoder_cont, set to random
                 torch.randn_like(data[2]).to(self.device),  # encoder_target, set to random
                 data[3].to(self.device),  # encoder_lengths, leave unchanged
-                torch.randn_like(data[4]).to(self.device),  # decoder_cat, set to random
+                data[4].to(self.device),  # decoder_cat, no cat variables
                 torch.randn_like(data[5]).to(self.device),  # decoder_cont, set to random
                 torch.randn_like(data[6]).to(self.device),  # decoder_target, set to random
                 data[7].to(self.device),  # decoder_lengths, leave unchanged
@@ -531,29 +529,23 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             # attr_all_timesteps = []
             # for time_step in range(0, 24):
             if method is not captum.attr.Saliency:
-                attr = explantation.attribute(
-                    data,  baselines=baselines, **kwargs
-                )
+                attr = explantation.attribute(data, baselines=baselines, **kwargs)
             else:
-                attr = explantation.attribute(
-                    data,  **kwargs
-                )
-                # Convert attributions to numpy array and append to the list
+                attr = explantation.attribute(data, **kwargs)
+            print(attr)
+
+            print(attr[0].shape)
+            # Convert attributions to numpy array and append to the list
             all_attrs.append(attr[0].cpu().detach().numpy())
-        # Concatenate a‚ttribution values for all instances along the batch dimension
-        # print('b4', all_attrs)
-        # print('b4 shape', np.shape(all_attrs))
+
         all_attrs = np.array(all_attrs).mean(axis=(0))
-        # print('after', all_attrs)
-        # print('after shape', np.shape(all_attrs))
+
         features_attrs = all_attrs.mean(axis=(0))
-        # print('feat shape ', np.shape(features_attrs))
+
         timestep_attrs = all_attrs.mean(axis=(1))
-        # print('timestep shape', np.shape(timestep_attrs))
+
         # normalized_means = (means - means.min()) / (means.max() - means.min())
         if plot:
-            # Create x values (assuming you want a simple sequential x-axis)
-            # Assuming you have 57 variables
             x_values = np.arange(1, 54)
             # Plotting the featrue means
             plt.figure(figsize=(8, 6))
@@ -567,11 +559,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 markersize=8,
             )
             plt.xlabel("Time Step")
-            plt.ylabel(" Attribution")
-            plt.title("Attribution Values")
+            plt.ylabel("{} Attribution".format(method_name))
+            plt.title("{} Attribution Values".format(method_name))
             plt.xticks(x_values)  # Set x-ticks to match the number of features
             plt.tight_layout()
-            plt.savefig(log_dir / "attribution_features_plot.png", bbox_inches="tight")
+            plt.savefig(log_dir / "{}_attribution_features_plot.png".format(method_name), bbox_inches="tight")
             plt.figure(figsize=(8, 6))
             x_values = np.arange(1, 25)
             plt.plot(
@@ -584,15 +576,24 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 markersize=8,
             )
             plt.xlabel("Time Step")
-            plt.ylabel("Normalized Attribution")
-            plt.title("Attribution Values")
+            plt.ylabel("{} Attribution ".format(method_name))
+            plt.title("{} Attribution Values".format(method_name))
             plt.xticks(x_values)  # Set x-ticks to match the number of features
             plt.tight_layout()
-            plt.savefig(log_dir / "attribution_plot.png", bbox_inches="tight")
+            plt.savefig(log_dir / "{}_attribution_plot.png".format(method_name), bbox_inches="tight")
         return all_attrs, features_attrs, timestep_attrs
 
     def Faithfulness_Correlation(
-        self, test_loader, attribution, similarity_func=None, nr_runs=100, pertrub=None, subset_size=3, feature=False, time_step=False, feature_timestep=False
+        self,
+        test_loader,
+        attribution,
+        similarity_func=None,
+        nr_runs=100,
+        pertrub=None,
+        subset_size=3,
+        feature=False,
+        time_step=False,
+        feature_timestep=False,
     ):
         """
         Implementation of faithfulness correlation by Bhatt et al., 2020.
@@ -651,7 +652,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 if time_step:
                     x["encoder_cont"][:, indices, :] += noise[:, indices, :]
                 elif feature_timestep:
-
                     x["encoder_cont"][:, indices[0], :][:, :, indices[1]] += noise[:, indices[0], :][:, :, indices[1]]
 
             def apply_baseline(x, indices, time_step, feature_timestep):
@@ -662,6 +662,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                     mask[:, indices[0], :][:, :, indices[1]] = 0
                 mask = mask.to(x["encoder_cont"].device)
                 x["encoder_cont"] *= mask
+
             for i_ix in range(nr_runs):
                 # Randomly mask by subset size.
 
@@ -707,7 +708,9 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         score = np.nanmean(similarities)
         return score
 
-    def Data_Randomization(self, test_loader, attribution, explain_method, random_model, similarity_func=None, test_dataset=None, **kwargs):
+    def Data_Randomization(
+        self, test_loader, attribution, explain_method, random_model, similarity_func=None, test_dataset=None, **kwargs
+    ):
         """
         Implementation of the Random Logit Metric by Sixt et al., 2020.
 
@@ -725,7 +728,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         if similarity_func is None:
             similarity_func = distance_euclidean
         if explain_method == "Attention":
-
             Attention_weights = random_model.interpertations(test_loader)
 
             score = similarity_func(Attention_weights["attention"].cpu().numpy(), attribution.cpu().numpy())
@@ -766,13 +768,9 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 explantation = explain_method(random_model.forward_captum)
                 # Reformat attributions.
                 if explain_method is not captum.attr.Saliency:
-                    attr = explantation.attribute(
-                        data,  baselines=baselines, **kwargs
-                    )
+                    attr = explantation.attribute(data, baselines=baselines, **kwargs)
                 else:
-                    attr = explantation.attribute(
-                        data,  **kwargs
-                    )
+                    attr = explantation.attribute(data, **kwargs)
                     # Convert attributions to numpy array and append to the list
                 a_perturbed.append(attr[0].cpu().detach().numpy())
 
