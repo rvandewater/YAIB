@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from icu_benchmarks.models.wrappers import DLPredictionWrapper, DLPredictionPytorchForecastingWrapper
 from torch import Tensor, FloatTensor, zeros_like, ones_like, randn_like, is_tensor
 from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork, DeepAR
-from pytorch_forecasting.metrics import QuantileLoss
+from pytorch_forecasting.metrics import QuantileLoss, MAE
 import matplotlib.pyplot as plt
 
 
@@ -510,13 +510,6 @@ class TFTpytorch(DLPredictionPytorchForecastingWrapper):
         pred = self.logit(out["prediction"])
         return pred
 
-    """
-    def forward(self, x):
-        out = self.model(x)
-        pred = self.logit(out["prediction"])
-        return pred
-    """
-
     def actual_vs_predictions_plot(self, dataloader):
         predictions = self.model.predict(dataloader, return_x=True)
         predictions_vs_actuals = self.model.calculate_prediction_actual_by_variable(predictions.x, predictions.output)
@@ -525,7 +518,7 @@ class TFTpytorch(DLPredictionPytorchForecastingWrapper):
 
     def interpertations(self, dataloader, log_dir=".", plot=False):
         raw_predictions = self.model.predict(dataloader, return_x=True, mode="raw")
-        interpretation = self.model.interpret_output(raw_predictions.output, reduction="sum")
+        interpretation = self.model.interpret_output(raw_predictions.output, reduction="mean")
         if plot:
             figs = self.model.plot_interpretation(interpretation)
             for key, fig in figs.items():
@@ -700,7 +693,7 @@ class DeepARpytorch(DLPredictionPytorchForecastingWrapper):
         if self.num_classes == 1:
             x_dict["encoder_cont"][:, :, -1] = 0.0
         out = self.model(x_dict)
-        out = out["prediction"][0]
 
-        pred = self.logit(out)
+        pred = self.logit(out["prediction"])
+
         return pred

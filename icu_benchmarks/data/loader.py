@@ -10,7 +10,7 @@ from typing import Dict, Tuple, Union
 from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
 from .constants import DataSplit as Split
-from pytorch_forecasting import TimeSeriesDataSet
+from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer
 
 
 class CommonDataset(Dataset):
@@ -463,6 +463,7 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
         )  # create an incremental column indicating the time step(required by constructor)
         data = data.get(split)  # get split
         labels = data["OUTCOME"]
+
         features = data["FEATURES"]
         self.name = name
         self.data = pd.merge(labels, features, on=["stay_id", "time"])
@@ -471,7 +472,7 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
                 self.data["label"] = self.data["label"].astype(float)
             columns_to_lag = lagged_variables
             grouped = self.data.sort_values("time_idx").groupby("stay_id")
-            for lag in range(max_encoder_length, max_encoder_length + max_prediction_length + 1):
+            for lag in range(1, max_encoder_length + 1):
                 for column in columns_to_lag:
                     # Create a new column with lagged values
                     self.data[f"{column}_lag_{lag}"] = grouped[column].shift(lag, fill_value=0)
@@ -501,7 +502,9 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
             # add_target_scales=True,
             # add_encoder_length=True,
             predict_mode=True,
-            target_normalizer=None,
+            target_normalizer=GroupNormalizer(
+                groups=["stay_id"], transformation="relu"
+            ),
         )
 
     def get_balance(self) -> list:

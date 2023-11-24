@@ -117,7 +117,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
             sta_rec.add_step(StepScale())
 
         sta_rec.add_step(StepImputeFastZeroFill(sel=all_numeric_predictors()))
-        sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
+        sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None,
+                         strategy="most_frequent"), sel=has_type("object")))
         sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
 
         data = apply_recipe_to_splits(sta_rec, data, Segment.static, self.save_cache, self.load_cache)
@@ -205,8 +206,11 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
         Returns:
             Preprocessed data.
         """
-        for split in [Split.train, Split.val, Split.test]:
-            data = self._process_outcome(data, vars, split)
+
+        self.outcome_max = data["train"]["OUTCOME"]["label"].max()
+        self.outcome_min = data["train"]["OUTCOME"]["label"].min()
+        # for split in [Split.train, Split.val, Split.test]:
+        #    data = self._process_outcome(data, vars, split)
 
         data = super().apply(data, vars)
         return data
@@ -284,7 +288,8 @@ class DefaultImputationPreprocessor(Preprocessor):
         if self.filter_missing_values:
             rows_to_remove = data[Segment.dynamic][vars[Segment.dynamic]].isna().sum(axis=1) != 0
             ids_to_remove = data[Segment.dynamic].loc[rows_to_remove][vars["GROUP"]].unique()
-            data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
+            data = {table_name: table.loc[~table[vars["GROUP"]].isin(
+                ids_to_remove)] for table_name, table in data.items()}
             logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
         return data
 
