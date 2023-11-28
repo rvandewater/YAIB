@@ -8,16 +8,21 @@ train_common.model = @TFTpytorch
 
 optimizer/hyperparameter.class_to_tune = @Adam
 optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = (0.0001, 0.001,0.01)
 
 
 # Model params
 model/hyperparameter.class_to_tune = @TFTpytorch
-model/hyperparameter.hidden = (16,32,64)
+model/hyperparameter.hidden = (10,20,40,80,160,240,320)
 model/hyperparameter.num_classes = %NUM_CLASSES
-model/hyperparameter.dropout = (0.0, 0.4)
-model/hyperparameter.dropout_att = (0.0, 0.4)
-model/hyperparameter.n_heads =(1,2,4)
-model/hyperparameter.lr_scheduler = "exponential"
+model/hyperparameter.dropout =(0.1, 0.9)
+model/hyperparameter.dropout_att = (0.1, 0.9)
+model/hyperparameter.n_heads =(1,4)
+
+
+
+
+
 
 
 # Dataset params

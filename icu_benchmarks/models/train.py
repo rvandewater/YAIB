@@ -24,11 +24,12 @@ from icu_benchmarks.data.loader import (
     ImputationDataset,
     PredictionDatasetpytorch,
 )
+
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 from collections import OrderedDict
-from captum.attr import IntegratedGradients, ShapleyValueSampling, Saliency, GuidedBackprop, LRP, FeatureAblation, Lime
+from captum.attr import IntegratedGradients, Saliency, FeatureAblation, Lime
 
 
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
@@ -57,6 +58,7 @@ def train_common(
     epochs=1000,
     patience=20,
     min_delta=1e-5,
+    gradient_clip_val=0,
     test_on: str = Split.test,
     dataset_names=None,
     use_wandb: bool = False,
@@ -242,6 +244,7 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
+
     )
     if not eval_only:
         if model.requires_backprop:
@@ -260,82 +263,50 @@ def train_common(
         return 0
 
     if explain:
-        # local_index = np.random.randint(low=0, high=batch_size, size=1)
-        attributions_dict = {}
 
-        model.train()
-        XAI_dict = {}
-        # if XAI_metric:
+        XAI_dict = {}  # dictrionary to log attributions metrics
 
-        # random attribution per timestep
-        random_attributions_ts = np.random.normal(size=24)
-        F_baseline_ts = model.Faithfulness_Correlation(
-            test_loader, random_attributions_ts, pertrub='baseline', subset_size=4, time_step=True, nr_runs=10)
-        print('Random normal faithfulness correlation for timesteps', F_baseline_ts)
-
-        # random attribution per variable per timestep
-        random_attributions_v_ts = np.random.normal(size=[24, 53])
-        F_baseline_v_ts = model.Faithfulness_Correlation(
-            test_loader, random_attributions_v_ts, pertrub='baseline', feature_timestep=True, nr_runs=10, subset_size=[4, 9])
-        print('Random normal faithfulness correlation for variables per timesteps', F_baseline_v_ts)
-
-        XAI_dict["random_faith_timestep"] = random_attributions_ts.tolist()
-        XAI_dict["random_faith_var_timestep"] = random_attributions_v_ts.tolist()
+        # choose which  methods to get attributions
         methods = {
             "Saliency": Saliency,
             # "Lime": Lime,
-            # "IG": IntegratedGradients,
-            # "FA": FeatureAblation
+            "IG": IntegratedGradients,
+            # "FA": FeatureAblation,
+            "Random": "Random",
+            "Attention": "Attention"
         }
         for key, item in methods.items():
+            # If conditions needed here as different explantations require different inputs
             if key == "IG":
-                all_attrs, features_attrs, timestep_attrs = model.explantation_captum(
-                    test_loader=test_loader, method=item, log_dir=log_dir, plot=True, n_steps=10
+                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score = model.explantation(
+                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, n_steps=50, XAI_metric=XAI_metric,
                 )
-            if key == "Lime":
-                all_attrs, features_attrs, timestep_attrs = model.explantation_captum(
-                    test_loader=test_loader, method=item, log_dir=log_dir, plot=True, return_input_shape=True
+            elif key == "Lime":
+                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score = model.explantation(
+                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, return_input_shape=True, XAI_metric=XAI_metric,
                 )
             else:
-                all_attrs, features_attrs, timestep_attrs = model.explantation_captum(
-                    test_loader=test_loader, method=item, log_dir=log_dir, plot=True
+                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score = model.explantation(
+                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, XAI_metric=XAI_metric,
                 )
-            attributions_dict["{}_all".format(key)] = all_attrs.tolist()
-            attributions_dict["{}_timesteps".format(key)] = timestep_attrs.tolist()
-            attributions_dict["{}_features".format(key)] = features_attrs.tolist()
-            print(np.shape(all_attrs), 'shape of attr all shoulld be 24x53')
-            print(np.shape(timestep_attrs), 'shape of attr ts shoulld be 24')
-            print(np.shape(features_attrs), 'shape of attr var shoulld be 53')
-            # print("{}".format(key), all_attrs, features_attrs, timestep_attrs)
+
             if XAI_metric:
-                faithfulness_timesteps = model.Faithfulness_Correlation(
-                    test_loader, timestep_attrs, pertrub="baseline", time_step=True, subset_size=4, nr_runs=10
-                )
-                print("{} Attributions faithfulness timesteps correlation".format(key), faithfulness_timesteps)
-                XAI_dict["{}_faith_timesteps".format(key)] = faithfulness_timesteps.tolist()
-                random_attributions = np.random.normal(np.shape(all_attrs))
+                # logging metric scores
+                print("{} Attributions faithfulness timesteps ".format(key), ts_score)
+                XAI_dict["{}_faith_timesteps".format(key)] = ts_score
+                if key == "Attention":
+                    print("Variable selection weights faithfulness featrues ".format(key), v_score)
+                    XAI_dict["Variable_selection_weights_faith_features".format(key)] = v_score
 
-                faithfulness_timesteps_variable = model.Faithfulness_Correlation(
-                    test_loader, all_attrs, pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=10
-                )
-                print("{}_Attributions faithfulness variable per timestep correlation".format(
-                    key), faithfulness_timesteps_variable)
-                XAI_dict["{}_faith_variable_per_timestep".format(key)] = faithfulness_timesteps_variable.tolist()
-        Interpertations = model.interpertations(test_loader, log_dir, plot=True)
-        attributions_dict["attention_weights"] = Interpertations["attention"].tolist()
-        attributions_dict["static_variables"] = Interpertations["static_variables"].tolist()
-        attributions_dict["encoder_variables"] = Interpertations["encoder_variables"].tolist()
-        print("attention", Interpertations)
-        F_attention = model.Faithfulness_Correlation(
-            test_loader, Interpertations["attention"], pertrub='baseline', subset_size=4, time_step=True, nr_runs=10)
-        print('Attention faithfulness correlation', F_attention)
-        XAI_dict["attention_faith"] = F_attention.tolist()
-        # Path to the JSON file in log_dir
-        json_file_path = f"{log_dir}/Attributions.json"
+                else:
+                    print("{} Attributions faithfulness featrues ".format(key), v_score)
+                    XAI_dict["{}_faith_features".format(key)] = v_score
 
-        # Write the dictionary to a JSON file
-        with open(json_file_path, "w") as json_file:
-            json.dump(attributions_dict, json_file)
+                    print("{}_Attributions faithfulness variable per timestep ".format(
+                        key), ts_v_score)
+                    XAI_dict["{}_faith_variable_per_timestep".format(key)] = ts_v_score
+
+        # Getting the interpertations using pytorch forecasting native methods
 
         # Path to the JSON file in log_dir
         json_file_path = f"{log_dir}/XAI_metrics.json"

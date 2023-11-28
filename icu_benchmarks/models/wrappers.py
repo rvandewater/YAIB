@@ -21,6 +21,7 @@ from icu_benchmarks.contants import RunMode
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.similarity_func import correlation_spearman, distance_euclidean, correlation_pearson
 import captum
+from captum._utils.models.linear_model import SkLearnLasso
 
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(nn.functional.cross_entropy, module="torch.nn.functional")
@@ -478,6 +479,16 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         return loss
 
     def prep_data_captum(self, x):
+        """
+        Prepares data to be fed into captum and generates baseline as well.
+
+        Args:
+            - x:Batch from dataloader
+        Returns:
+            - data:batch data in a tuple after being prepared
+            - baselines:Basically zero tensors in the input 
+        """
+        # captum requires gradient and float values
         data = (
             x["encoder_cat"].float().requires_grad_(),
             x["encoder_cont"].requires_grad_(),
@@ -493,12 +504,12 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         )
         baselines = (
             data[0].to(self.device),  # encoder_cat, no cat variables
-            torch.zeros_like(data[1]).to(self.device),  # encoder_cont, set to random
-            torch.zeros_like(data[2]).to(self.device),  # encoder_target, set to random
+            torch.zeros_like(data[1]).to(self.device),  # encoder_cont, set to zero
+            torch.zeros_like(data[2]).to(self.device),  # encoder_target, set to zero
             data[3].to(self.device),  # encoder_lengths, leave unchanged
             data[4].to(self.device),  # decoder_cat, no cat variables
-            torch.zeros_like(data[5]).to(self.device),  # decoder_cont, set to random
-            torch.zeros_like(data[6]).to(self.device),  # decoder_target, set to random
+            torch.zeros_like(data[5]).to(self.device),  # decoder_cont, set to zero
+            torch.zeros_like(data[6]).to(self.device),  # decoder_target, set to zero
             data[7].to(self.device),  # decoder_lengths, leave unchanged
             data[8].to(self.device),  # decoder_time_idx, unchanged
             data[9].to(self.device),  # groups, leave unchanged
@@ -506,14 +517,126 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         )
         return data, baselines
 
-    def explantation_captum(self, test_loader, method, local_index=None, log_dir=".", plot=False, local=False, **kwargs):
+    def plot_attributions(self, features_attrs, timestep_attrs, method_name, log_dir):
+        """
+        Plots the attribution values for features and timesteps.
+
+        Args:
+            - features_attrs: Array of feature attribution values.
+            - timestep_attrs: Array of timestep attribution values.
+            - method_name: Name of the attribution method.
+            - log_dir: Directory to save the plots.
+        Returns:
+            Nothing
+        """
+
+        # Plot for feature attributions
+        x_values = np.arange(1, len(features_attrs) + 1)
+        plt.figure(figsize=(8, 6))
+        plt.plot(
+            x_values,
+            features_attrs,
+            marker="o",
+            color="skyblue",
+            linestyle="-",
+            linewidth=2,
+            markersize=8,
+        )
+        plt.xlabel("Time Step")
+        plt.ylabel("{} Attribution".format(method_name))
+        plt.title("{} Attribution Values".format(method_name))
+        plt.xticks(x_values, ['height', 'weight', 'age', 'sex', 'time_idx', 'alb', 'alp', 'alt', 'ast', 'be', 'bicar', 'bili', 'bili_dir', 'bnd', 'bun', 'ca', 'cai', 'ck', 'ckmb', 'cl', 'crea', 'crp', 'dbp', 'fgn', 'fio2', 'glu',
+                   'hgb', 'hr', 'inr_pt', 'k', 'lact', 'lymph', 'map', 'mch', 'mchc', 'mcv', 'methb', 'mg', 'na', 'neut', 'o2sat', 'pco2', 'ph', 'phos', 'plt', 'po2', 'ptt', 'resp', 'sbp', 'temp', 'tnt', 'urine', 'wbc'], rotation=90)
+        plt.tight_layout()
+        plt.savefig(log_dir / "{}_attribution_features_plot.png".format(method_name), bbox_inches="tight")
+
+        # Plot for timestep attributions
+        x_values = np.arange(1, len(timestep_attrs) + 1)
+        plt.figure(figsize=(8, 6))
+        plt.plot(
+            x_values,
+            timestep_attrs,
+            marker="o",
+            color="skyblue",
+            linestyle="-",
+            linewidth=2,
+            markersize=8,
+        )
+        plt.xlabel("Time Step")
+        plt.ylabel("{} Attribution".format(method_name))
+        plt.title("{} Attribution Values".format(method_name))
+        plt.xticks(x_values)
+        plt.tight_layout()
+        plt.savefig(log_dir / "{}_attribution_plot.png".format(method_name), bbox_inches="tight")
+
+    def explantation(self, dataloader, method, log_dir=".", plot=False, XAI_metric=False, **kwargs):
+        """
+        Generic method to combine pytorchforecasting data loading , interpertations and captum to generate attributions
+
+        Args:
+            - dataloader: pytorchforecasting data loader 
+            - method: The explantation method chosen
+            - log_dir= The directory to output the plots
+            - plot= Determines if plots should be done or not
+            - XAI_metric=Determines if XAI metrics should be calculated or not
+        Returns:
+            - all_attrs : Attribtuons of features per timesteps
+            - features_attrs : Attribtuons of features averaged over timesteps
+            - timestep_attrs : Attribtuons of timesteps averaged over features
+            - ts_v_score: Faithfulness score for attribtuons of features per timesteps
+            - ts_score: Faithfulness score for attribtuons of timesteps averaged over features
+        """
         # Initialize lists to store attribution values for all instances
         all_attrs = []
-        score = []
-        r_score = []
-        method_name = method.__name__
-        # Loop through the test_loader to compute attributions for all instances
-        for batch in test_loader:
+        ts_score = []
+        r_ts_score = []
+        ts_v_score = []
+        r_ts_v_score = []
+        v_score = []
+
+        method_name = method if (method == "Random") or (method == "Attention") else (
+            method.__name__)
+        if (method_name == "Random") or (method_name == "Attention"):
+            if method_name == "Attention":
+                Interpertations = self.interpertations(dataloader=dataloader, log_dir=log_dir, plot=plot)
+                timestep_attrs = Interpertations["attention"]
+                features_attrs = Interpertations["static_variables"].tolist()
+                features_attrs.extend(Interpertations["encoder_variables"].tolist())
+
+            elif method_name == "Random":
+                # Generate random attributions for baseline comparison
+                all_attrs = np.random.normal(size=[64, 24, 53])
+                features_attrs = all_attrs.mean(axis=(1))
+                timestep_attrs = all_attrs.mean(axis=(2))
+            if XAI_metric:
+                for batch in dataloader:
+
+                    for key, value in batch[0].items():
+                        batch[0][key] = batch[0][key].to(self.device)
+                    x = batch[0]
+
+                    if method_name == "Random":
+                        ts_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
+                                                                        pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
+                        ts_score.append(self.Faithfulness_Correlation(x, all_attrs,
+                                                                      pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
+                        v_score.append(self.Faithfulness_Correlation(x, all_attrs,
+                                                                     pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
+                    else:
+                        ts_score.append(self.Faithfulness_Correlation(x, timestep_attrs,
+                                                                      pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
+                        v_score.append(self.Faithfulness_Correlation(x, features_attrs,
+                                                                     pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
+
+            # Faithfulness score for attribtuons of features per timesteps
+            ts_v_score = np.mean(ts_v_score)
+            # Faithfulness score for attribtuons of timesteps averaged over features
+            ts_score = np.mean(ts_score)
+            v_score = np.mean(v_score)
+            return all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score
+
+        # Loop through the dataloader to compute attributions for all instances
+        for batch in dataloader:
 
             for key, value in batch[0].items():
                 batch[0][key] = batch[0][key].to(self.device)
@@ -521,74 +644,61 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             data, baselines = self.prep_data_captum(x)
 
-            explantation = method(self.forward_captum)
+            # Initialize the explanation method
+            explanation = method(self.forward_captum, interpretable_model=SkLearnLasso(
+                alpha=0.4)) if method_name == 'Lime' else method(self.forward_captum)
 
+            # Calculate attributions using the selected method
             if method is not captum.attr.Saliency:
-                attr = explantation.attribute(data, baselines=baselines, **kwargs)
+                attr = explanation.attribute(data, baselines=baselines, **kwargs)
             else:
-                attr = explantation.attribute(data, **kwargs)
+                attr = explanation.attribute(data, **kwargs)
 
-            # Convert attributions to numpy array and append to the list
-            print(attr.shape, 'shape out of captum should be 64x24x53')
-            stacked_attr = torch.stack(attr).cpu().detach().numpy()
+            # Process and store the calculated attributions
+            stacked_attr = attr[1].cpu().detach().numpy() if method_name in [
+                'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
+            if XAI_metric:
 
-            # Compute the mean along the specified axis (axis=0) and keep it as a numpy array
-            """ score.append(self.Faithfulness_Correlation2(x, stacked_attr,
-                                                        pertrub="Noise", feature_timestep=True, subset_size=[4, 9], nr_runs=10))
-            r_score.append(self.Faithfulness_Correlation2(x, np.random.normal(
-                size=[64, 24, 53]), pertrub="Noise", feature_timestep=True, subset_size=[4, 9], nr_runs=10)) """
-            print(np.shape(stacked_attr), 'shape after stacking')
+                ts_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
+                                                                pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
+
+                ts_score.append(self.Faithfulness_Correlation(x, stacked_attr,
+                                                              pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
+                v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
+                                                             pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
+            # aggregate over batch
             attr = np.mean(stacked_attr, axis=0)
-            print(np.shape(attr), 'shape after averaging over batch should 24x53')
             all_attrs.append(attr)
-
+        # aggregate over all batches
         all_attrs = np.array(all_attrs).mean(axis=(0))
-
+        # aggregate over all timesteps
         features_attrs = all_attrs.mean(axis=(0))
-
+        # aggregate over all features
         timestep_attrs = all_attrs.mean(axis=(1))
+        # Faithfulness score for attribtuons of features per timesteps
+        ts_v_score = np.mean(ts_v_score)
+        # Faithfulness score for attribtuons of timesteps averaged over features
+        ts_score = np.mean(ts_score)
+        # Faithfulness score for attribtuons of timesteps averaged over timesteps
+        v_score = np.mean(v_score)
 
-        # normalized_means = (means - means.min()) / (means.max() - means.min())
         if plot:
-            x_values = np.arange(1, 54)
-            # Plotting the featrue means
-            plt.figure(figsize=(8, 6))
-            plt.plot(
-                x_values,
-                features_attrs,
-                marker="o",
-                color="skyblue",
-                linestyle="-",
-                linewidth=2,
-                markersize=8,
-            )
-            plt.xlabel("Time Step")
-            plt.ylabel("{} Attribution".format(method_name))
-            plt.title("{} Attribution Values".format(method_name))
-            plt.xticks(x_values, ['height', 'weight', 'age', 'sex', 'time_idx', 'alb', 'alp', 'alt', 'ast', 'be', 'bicar', 'bili', 'bili_dir', 'bnd', 'bun', 'ca', 'cai', 'ck', 'ckmb', 'cl', 'crea', 'crp', 'dbp', 'fgn', 'fio2', 'glu', 'hgb', 'hr', 'inr_pt', 'k', 'lact', 'lymph', 'map', 'mch', 'mchc', 'mcv', 'methb', 'mg', 'na', 'neut', 'o2sat', 'pco2', 'ph', 'phos', 'plt', 'po2', 'ptt', 'resp', 'sbp', 'temp', 'tnt', 'urine', 'wbc'], rotation=90
-                       )  # Set x-ticks to match the number of features
-            plt.tight_layout()
-            plt.savefig(log_dir / "{}_attribution_features_plot.png".format(method_name), bbox_inches="tight")
-            plt.figure(figsize=(8, 6))
-            x_values = np.arange(1, 25)
-            plt.plot(
-                x_values,
-                timestep_attrs,
-                marker="o",
-                color="skyblue",
-                linestyle="-",
-                linewidth=2,
-                markersize=8,
-            )
-            plt.xlabel("Time Step")
-            plt.ylabel("{} Attribution ".format(method_name))
-            plt.title("{} Attribution Values".format(method_name))
-            plt.xticks(x_values)  # Set x-ticks to match the number of features
-            plt.tight_layout()
-            plt.savefig(log_dir / "{}_attribution_plot.png".format(method_name), bbox_inches="tight")
-        return all_attrs, features_attrs, timestep_attrs
+            # Plot attributions for features
+            self.plot_attributions(features_attrs, timestep_attrs, method_name, log_dir)
+
+        # Return computed attributions and metrics
+        return all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score
+        # normalized_means = (means - means.min()) / (means.max() - means.min())
 
     def prep_data(self, x):
+        """
+        Prepares data for custom forward method 
+
+        Args:
+            - x:Batch returned from dataloader
+        Returns:
+            data:Tuple consisting of the tensors of X in the format the forward method needs
+        """
         data = (
             x["encoder_cat"],
             x["encoder_cont"],
@@ -606,126 +716,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
     def Faithfulness_Correlation(
         self,
-        test_loader,
-        attribution,
-        local_index=None,
-        similarity_func=None,
-        nr_runs=100,
-        pertrub=None,
-        subset_size=3,
-        feature=False,
-        time_step=False,
-        feature_timestep=False,
-        local=False,
-    ):
-        """
-        Implementation of faithfulness correlation by Bhatt et al., 2020.
-
-        The Faithfulness Correlation metric intend to capture an explanation's relative faithfulness
-        (or 'fidelity') with respect to the model behaviour.
-
-        Faithfulness correlation scores shows to what extent the predicted logits of each modified test point and
-        the average explanation attribution for only the subset of features are (linearly) correlated, taking the
-        average over multiple runs and test samples. The metric returns one float per input-attribution pair that
-        ranges between -1 and 1, where higher scores are better.
-
-        For each test sample, |S| features are randomly selected and replace them with baseline values (zero baseline
-        or average of set). Thereafter, Pearson’s correlation coefficient between the predicted logits of each modified
-        test point and the average explanation attribution for only the subset of features is calculated. Results is
-        average over multiple runs and several test samples.
-        This code is adapted from the quantus libray to suit our use case
-
-        References:
-            1) Umang Bhatt et al.: "Evaluating and aggregating feature-based model
-            explanations." IJCAI (2020): 3016-3022.
-            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
-        """
-        def add_noise(x, indices, time_step, feature_timestep):
-            noise = torch.randn_like(x["encoder_cont"])
-            # In-place modification to save memory
-            if time_step:
-                x["encoder_cont"][:, indices, :] += noise[:, indices, :]
-            elif feature_timestep:
-                x["encoder_cont"][:, indices[0], :][:, :, indices[1]] += noise[:, indices[0], :][:, :, indices[1]]
-
-        def apply_baseline(x, indices, time_step, feature_timestep):
-            mask = torch.ones_like(x["encoder_cont"])
-            if time_step:
-
-                mask[:, indices, :] -= mask[:, indices, :]
-            elif feature_timestep:
-                mask[:, indices[0], :][:, :, indices[1]] -= mask[:, indices[0], :][:, :, indices[1]]
-            # Apply mask in-place
-            x["encoder_cont"] *= mask
-
-        # Assuming 'attribution' is already a GPU tensor
-        if not torch.is_tensor(attribution):
-            attribution = torch.tensor(attribution).to(self.device)
-
-        # Other initializations
-        if similarity_func is None:
-            similarity_func = correlation_pearson  # Ensure this function is compatible with GPU tensors
-        if pertrub is None:
-            pertrub = "baseline"
-        similarities = []
-        if local:
-            for key, value in test_loader[0].items():
-                batch[0][key] = value.to(self.device)
-            x = batch[0]
-
-        else:
-
-            for batch in test_loader:
-                # Move batch to GPU
-                for key, value in batch[0].items():
-                    batch[0][key] = value.to(self.device)
-                x = batch[0]
-                # Assuming this is a method to prepare your data
-
-                y_pred = self((self.prep_data(x))).detach()  # Keep on GPU
-                pred_deltas = []
-                att_sums = []
-
-                for i_ix in range(nr_runs):
-                    if time_step:
-                        a_ix = np.random.choice(24, subset_size, replace=False)
-                    elif feature_timestep:
-                        timesteps_idx = np.random.choice(24, subset_size[0], replace=False)
-                        variables_idx = np.random.choice(53, subset_size[1], replace=False)
-                        a_ix = [timesteps_idx, variables_idx]
-
-                    # Apply perturbation
-                    if pertrub == "Noise":
-                        add_noise(x, a_ix, time_step, feature_timestep)
-                    elif pertrub == "baseline":
-                        apply_baseline(x, a_ix, time_step, feature_timestep)
-
-                    # Predict on perturbed input and calculate deltas
-                    y_pred_perturb = (self(self.prep_data(x))).detach()  # Keep on GPU
-                    # Change dims as per your requirement
-                    pred_deltas.append((y_pred - y_pred_perturb).mean(dim=[0, 1, 2]))
-
-                    # Sum attributions of the random subset and keep on GPU
-                    if time_step:
-                        att_sums.append(attribution[a_ix].sum())
-                    elif feature_timestep:
-                        row_indices = a_ix[0]
-                        col_indices = a_ix[1]
-                        att_sums.append(attribution[row_indices][:, col_indices].sum())
-
-                # Convert to CPU for numpy operations
-                pred_deltas_cpu = torch.stack(pred_deltas).cpu().numpy()
-                att_sums_cpu = torch.tensor(att_sums).cpu().numpy()
-                similarities.append(similarity_func(pred_deltas_cpu, att_sums_cpu))
-
-        score = np.nanmean(similarities)
-        return score
-
-    def Faithfulness_Correlation2(
-        self,
         x,
         attribution,
-        local_index=None,
         similarity_func=None,
         nr_runs=100,
         pertrub=None,
@@ -733,9 +725,24 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         feature=False,
         time_step=False,
         feature_timestep=False,
-        local=False,
+
     ):
         """
+        Calculates faithfulness scores for captum attributions 
+
+        Args:
+            - x:Batch input
+            -attribution: attribution generated by captum,
+            - similarity_func:function to determine similarity between sum of attributions and difference in prediction
+            - nr_runs: How many times to repeat the experiment,
+            - pertrub: What change to do to the input,
+            - subset_size: The size of the subset of featrues to alter ,
+            - feature: Determines if to calcualte faithfulness of feature attributions,
+            - time_step: Determines if to calcualte faithfulness of timesteps attributions,
+            - feature_timestep: Determines if to calcualte faithfulness of featrues per timesteps attributions,
+        Returns:
+            score: similarity score between sum of attributions and difference in prediction averaged over nr_runs
+
         Implementation of faithfulness correlation by Bhatt et al., 2020.
 
         The Faithfulness Correlation metric intend to capture an explanation's relative faithfulness
@@ -759,20 +766,41 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         """
         def add_noise(x, indices, time_step, feature_timestep):
             noise = torch.randn_like(x["encoder_cont"])
-            # In-place modification to save memory
             if time_step:
-                x["encoder_cont"][indices[0], :, :][:, indices[1], :] += noise[indices[0], :, :][:, indices[1], :]
+                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing='ij')
+
+                with torch.no_grad():
+                    x["encoder_cont"][idx0, idx1, :] += noise[idx0, idx1, :]
+
+            elif feature:
+                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing='ij')
+
+                with torch.no_grad():
+                    x["encoder_cont"][idx0, :, idx1] += noise[idx0, :, idx1]
+
             elif feature_timestep:
-                x["encoder_cont"][indices[0], :, :][:, indices[1], :][:, :, indices[2]
-                                                                      ] += noise[indices[0], :, :][:, indices[1], :][:, :, indices[2]]
+                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing='ij')
+
+                with torch.no_grad():
+                    x["encoder_cont"][idx0, idx1, idx2] += noise[idx0, idx1, idx2]
 
         def apply_baseline(x, indices, time_step, feature_timestep):
             mask = torch.ones_like(x["encoder_cont"])
             if time_step:
-                mask[indices[0], :, :][:, indices[1], :] = 0
+
+                idx0, idx1, = np.meshgrid(indices[0], indices[1], indexing='ij')
+
+                mask[idx0, idx1, :] -= mask[idx0, idx1, :]
+            elif feature:
+                idx0, idx1, = np.meshgrid(indices[0], indices[1], indexing='ij')
+
+                mask[idx0, :, idx1] -= mask[idx0, :, idx1]
+
             elif feature_timestep:
-                mask[indices[0], :, :][:, indices[1], :][:, :, indices[2]
-                                                         ] = 0
+                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing='ij')
+
+                mask[idx0, idx1, idx2] -= mask[idx0, idx1, idx2]
+
             with torch.no_grad():
                 x["encoder_cont"] *= mask
         # Assuming 'attribution' is already a GPU tensor
@@ -781,7 +809,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
         # Other initializations
         if similarity_func is None:
-            similarity_func = correlation_pearson  # Ensure this function is compatible with GPU tensors
+            similarity_func = correlation_spearman
         if pertrub is None:
             pertrub = "baseline"
         similarities = []
@@ -795,13 +823,18 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         for i_ix in range(nr_runs):
             if time_step:
                 timesteps_idx = np.random.choice(24, subset_size, replace=False)
-                patient_idx = np.random.choice(64, subset_size, replace=False)
+                patient_idx = np.random.choice(64, 1, replace=False)
                 a_ix = [patient_idx, timesteps_idx]
+
+            elif feature:
+                feature_idx = np.random.choice(53, subset_size, replace=False)
+                patient_idx = np.random.choice(64, 1, replace=False)
+                a_ix = [patient_idx, feature_idx]
             elif feature_timestep:
                 timesteps_idx = np.random.choice(24, subset_size[0], replace=False)
-                variables_idx = np.random.choice(53, subset_size[1], replace=False)
+                feature_idx = np.random.choice(53, subset_size[1], replace=False)
                 patient_idx = np.random.choice(64, 1, replace=False)
-                a_ix = [patient_idx, timesteps_idx, variables_idx]
+                a_ix = [patient_idx, timesteps_idx, feature_idx]
 
             # Apply perturbation
             if pertrub == "Noise":
@@ -811,32 +844,45 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             # Predict on perturbed input and calculate deltas
             y_pred_perturb = (self(self.prep_data(x))).detach()  # Keep on GPU
-            pred_deltas.append((y_pred - y_pred_perturb).mean(dim=[0, 1, 2]))  # Change dims as per your requirement
 
-            # Sum attributions of the random subset and keep on GPU
             if time_step:
-                patient_indices = a_ix[0]
-                timestep_indices = a_ix[1]
-                att_sums.append(attribution[patient_indices, :, :][:, timestep_indices, :].sum())
-
+                # patient_indices = a_ix[0]
+                # timestep_indices = a_ix[1]
+                if attribution.size() == torch.Size([24]):
+                    att_sums.append((attribution[timesteps_idx]).sum())
+                else:
+                    att_sums.append((attribution[patient_idx, :][:, timesteps_idx]).sum())
+            elif feature:
+                # patient_indices = a_ix[0]
+                # feature_indices = a_ix[1]
+                if len(attribution) == 53:
+                    att_sums.append((attribution[feature_idx]).sum())
+                else:
+                    att_sums.append((attribution[patient_idx, :][:, feature_idx]).sum())
             elif feature_timestep:
-                patient_indices = a_ix[0]
-                timestep_indices = a_ix[1]
-                variable_indices = a_ix[2]
-                att_sums.append(attribution[patient_indices, :, :]
-                                [:, timestep_indices, :][:, :, variable_indices].sum())
+                # patient_indices = a_ix[0]
+                # timestep_indices = a_ix[1]
+                # variable_indices = a_ix[2]
 
+                att_sums.append((attribution[patient_idx, :, :]
+                                [:, timesteps_idx, :][:, :, feature_idx]).sum())
+            print(y_pred.shape)
+            print(y_pred_perturb.shape)
+            print((y_pred - y_pred_perturb)[patient_idx], 'error')
+
+            pred_deltas.append((y_pred - y_pred_perturb)[patient_idx].item())
             # Convert to CPU for numpy operations
 
-        pred_deltas_cpu = torch.stack(pred_deltas).cpu().numpy()
+        pred_deltas_cpu = torch.tensor(pred_deltas).cpu().numpy()
         att_sums_cpu = torch.tensor(att_sums).cpu().numpy()
+
         similarities.append(similarity_func(pred_deltas_cpu, att_sums_cpu))
 
         score = np.nanmean(similarities)
         return score
 
     def Data_Randomization(
-        self, test_loader, attribution, explain_method, random_model, similarity_func=None, test_dataset=None, **kwargs
+        self, dataloader, attribution, explain_method, random_model, similarity_func=None, test_dataset=None, **kwargs
     ):
         """
         Implementation of the Random Logit Metric by Sixt et al., 2020.
@@ -855,11 +901,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         if similarity_func is None:
             similarity_func = distance_euclidean
         if explain_method == "Attention":
-            Attention_weights = random_model.interpertations(test_loader)
+            Attention_weights = random_model.interpertations(dataloader)
 
             score = similarity_func(Attention_weights["attention"].cpu().numpy(), attribution.cpu().numpy())
         else:
-            for batch in test_loader:
+            for batch in dataloader:
                 for key, value in batch[0].items():
                     batch[0][key] = batch[0][key].to(random_model.device)
                 x = batch[0]

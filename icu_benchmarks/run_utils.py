@@ -15,6 +15,7 @@ import shutil
 from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
+import numpy as np
 
 
 def build_parser() -> ArgumentParser:
@@ -238,7 +239,9 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
 
     # Calculate the population standard deviation over aggregated results over folds/iterations
     # Divide by sqrt(n) to get standard deviation.
-    std_scores = {metric: (pstdev(list) / sqrt(len(list))) for metric, list in list_scores.items()}
+
+    std_scores = {metric: (pstdev(list) / sqrt(len(list)))
+                  for metric, list in list_scores.items() if not (np.isnan(list).all())}
 
     confidence_interval = {
         metric: (stats.t.interval(0.95, len(list) - 1, loc=mean(list), scale=stats.sem(list)))
@@ -305,7 +308,8 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
         pretrained_imputation_model_checkpoint = torch.load(use_pretrained_imputation, map_location=torch.device("cpu"))
         if isinstance(pretrained_imputation_model_checkpoint, dict):
             imputation_model_class = pretrained_imputation_model_checkpoint["class"]
-            pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
+            pretrained_imputation_model = imputation_model_class(
+                **pretrained_imputation_model_checkpoint["hyper_parameters"])
             pretrained_imputation_model.set_trained_columns(pretrained_imputation_model_checkpoint["trained_columns"])
             pretrained_imputation_model.load_state_dict(pretrained_imputation_model_checkpoint["state_dict"])
         else:

@@ -67,8 +67,10 @@ class MAE(EpochMetric):
         )
 
         def mae_with_invert_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, invert_fn=Callable) -> float:
+
             y_true = invert_fn(y_targets.numpy().reshape(-1, 1))[:, 0]
             y_pred = invert_fn(y_preds.numpy().reshape(-1, 1))[:, 0]
+
             return mean_absolute_error(y_true, y_pred)
 
 
