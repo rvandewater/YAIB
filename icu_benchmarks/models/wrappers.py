@@ -569,7 +569,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         plt.tight_layout()
         plt.savefig(log_dir / "{}_attribution_plot.png".format(method_name), bbox_inches="tight")
 
-    def explantation(self, dataloader, method, log_dir=".", plot=False, XAI_metric=False, **kwargs):
+    def explantation(self, dataloader, method, log_dir=".", plot=False, XAI_metric=False, random_model=None, test_dataset=None, **kwargs):
         """
         Generic method to combine pytorchforecasting data loading , interpertations and captum to generate attributions
 
@@ -583,16 +583,15 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             - all_attrs : Attribtuons of features per timesteps
             - features_attrs : Attribtuons of features averaged over timesteps
             - timestep_attrs : Attribtuons of timesteps averaged over features
-            - ts_v_score: Faithfulness score for attribtuons of features per timesteps
-            - ts_score: Faithfulness score for attribtuons of timesteps averaged over features
+            - f_ts_v_score: Faithfulness score for attribtuons of features per timesteps
+            - f_ts_score: Faithfulness score for attribtuons of timesteps averaged over features
         """
         # Initialize lists to store attribution values for all instances
         all_attrs = []
-        ts_score = []
-        r_ts_score = []
-        ts_v_score = []
-        r_ts_v_score = []
-        v_score = []
+        f_ts_score = []
+        f_ts_v_score = []
+        f_v_score = []
+        r_score = []
 
         method_name = method if (method == "Random") or (method == "Attention") else (
             method.__name__)
@@ -602,6 +601,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 timestep_attrs = Interpertations["attention"]
                 features_attrs = Interpertations["static_variables"].tolist()
                 features_attrs.extend(Interpertations["encoder_variables"].tolist())
+                r_score = self.Data_Randomization(x=None, attribution=timestep_attrs,
+                                                  explain_method=method, random_model=random_model, dataloader=dataloader, method_name=method_name)
 
             elif method_name == "Random":
                 # Generate random attributions for baseline comparison
@@ -616,24 +617,29 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                     x = batch[0]
 
                     if method_name == "Random":
-                        ts_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
-                                                                        pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
-                        ts_score.append(self.Faithfulness_Correlation(x, all_attrs,
-                                                                      pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
-                        v_score.append(self.Faithfulness_Correlation(x, all_attrs,
-                                                                     pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
+
+                        f_ts_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
+                                                                          pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
+                        f_ts_score.append(self.Faithfulness_Correlation(x, all_attrs,
+                                                                        pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
+                        f_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
+                                                                       pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
+
+                        r_score.append(self.Data_Randomization(x, attribution=stacked_attr,
+                                       explain_method=method, random_model=random_model, method_name=method_name))
                     else:
-                        ts_score.append(self.Faithfulness_Correlation(x, timestep_attrs,
-                                                                      pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
-                        v_score.append(self.Faithfulness_Correlation(x, features_attrs,
-                                                                     pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
+                        f_ts_score.append(self.Faithfulness_Correlation(x, timestep_attrs,
+                                                                        pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
+                        f_v_score.append(self.Faithfulness_Correlation(x, features_attrs,
+                                                                       pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
 
             # Faithfulness score for attribtuons of features per timesteps
-            ts_v_score = np.mean(ts_v_score)
+            f_ts_v_score = np.mean(f_ts_v_score)
             # Faithfulness score for attribtuons of timesteps averaged over features
-            ts_score = np.mean(ts_score)
-            v_score = np.mean(v_score)
-            return all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score
+            f_ts_score = np.mean(f_ts_score)
+            f_v_score = np.mean(f_v_score)
+            r_score = np.mean(r_score)
+            return all_attrs, features_attrs, timestep_attrs, f_ts_v_score, f_ts_score, f_v_score, r_score
 
         # Loop through the dataloader to compute attributions for all instances
         for batch in dataloader:
@@ -659,13 +665,15 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
             if XAI_metric:
 
-                ts_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
-                                                                pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
+                f_ts_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
+                                                                  pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
 
-                ts_score.append(self.Faithfulness_Correlation(x, stacked_attr,
-                                                              pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
-                v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
-                                                             pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
+                f_ts_score.append(self.Faithfulness_Correlation(x, stacked_attr,
+                                                                pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
+                f_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
+                                                               pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
+                r_score.append(self.Data_Randomization(x, attribution=stacked_attr,
+                               explain_method=method, random_model=random_model, method_name=method_name))
             # aggregate over batch
             attr = np.mean(stacked_attr, axis=0)
             all_attrs.append(attr)
@@ -676,18 +684,24 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         # aggregate over all features
         timestep_attrs = all_attrs.mean(axis=(1))
         # Faithfulness score for attribtuons of features per timesteps
-        ts_v_score = np.mean(ts_v_score)
+        f_ts_v_score = np.mean(f_ts_v_score)
         # Faithfulness score for attribtuons of timesteps averaged over features
-        ts_score = np.mean(ts_score)
+        f_ts_score = np.mean(f_ts_score)
         # Faithfulness score for attribtuons of timesteps averaged over timesteps
-        v_score = np.mean(v_score)
+        f_v_score = np.mean(f_v_score)
+
+        min_val = np.min(r_score)
+        max_val = np.max(r_score)
+
+        r_score = (r_score - min_val) / (max_val - min_val)
+        r_score = np.mean(r_score)
 
         if plot:
             # Plot attributions for features
             self.plot_attributions(features_attrs, timestep_attrs, method_name, log_dir)
 
         # Return computed attributions and metrics
-        return all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score
+        return all_attrs, features_attrs, timestep_attrs, f_ts_v_score, f_ts_score, f_v_score, r_score
         # normalized_means = (means - means.min()) / (means.max() - means.min())
 
     def prep_data(self, x):
@@ -846,29 +860,22 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             y_pred_perturb = (self(self.prep_data(x))).detach()  # Keep on GPU
 
             if time_step:
-                # patient_indices = a_ix[0]
-                # timestep_indices = a_ix[1]
+
                 if attribution.size() == torch.Size([24]):
                     att_sums.append((attribution[timesteps_idx]).sum())
                 else:
-                    att_sums.append((attribution[patient_idx, :][:, timesteps_idx]).sum())
+                    att_sums.append((attribution[patient_idx, :, :][:, timesteps_idx, :]).sum())
             elif feature:
-                # patient_indices = a_ix[0]
-                # feature_indices = a_ix[1]
+
                 if len(attribution) == 53:
                     att_sums.append((attribution[feature_idx]).sum())
                 else:
-                    att_sums.append((attribution[patient_idx, :][:, feature_idx]).sum())
+
+                    att_sums.append((attribution[patient_idx, :, :][:, :, feature_idx]).sum())
             elif feature_timestep:
-                # patient_indices = a_ix[0]
-                # timestep_indices = a_ix[1]
-                # variable_indices = a_ix[2]
 
                 att_sums.append((attribution[patient_idx, :, :]
                                 [:, timesteps_idx, :][:, :, feature_idx]).sum())
-            print(y_pred.shape)
-            print(y_pred_perturb.shape)
-            print((y_pred - y_pred_perturb)[patient_idx], 'error')
 
             pred_deltas.append((y_pred - y_pred_perturb)[patient_idx].item())
             # Convert to CPU for numpy operations
@@ -882,7 +889,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         return score
 
     def Data_Randomization(
-        self, dataloader, attribution, explain_method, random_model, similarity_func=None, test_dataset=None, **kwargs
+        self, x,
+        attribution, explain_method, random_model, similarity_func=None, dataloader=None, method_name="", **kwargs
     ):
         """
         Implementation of the Random Logit Metric by Sixt et al., 2020.
@@ -897,61 +905,31 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
 
         """
-        a_perturbed = []
+
         if similarity_func is None:
             similarity_func = distance_euclidean
         if explain_method == "Attention":
             Attention_weights = random_model.interpertations(dataloader)
 
             score = similarity_func(Attention_weights["attention"].cpu().numpy(), attribution.cpu().numpy())
+        elif explain_method == "Random":
+            score = similarity_func(np.random.normal(size=[64, 24, 53]), attribution)
         else:
-            for batch in dataloader:
-                for key, value in batch[0].items():
-                    batch[0][key] = batch[0][key].to(random_model.device)
-                x = batch[0]
-                y = batch[1][0]
-                data = (
-                    x["encoder_cat"],
-                    x["encoder_cont"],
-                    x["encoder_target"],
-                    x["encoder_lengths"],
-                    x["decoder_cat"],
-                    x["decoder_cont"],
-                    x["decoder_target"],
-                    x["decoder_lengths"],
-                    x["decoder_time_idx"],
-                    x["groups"],
-                    x["target_scale"],
-                )
+            data, baselines = self.prep_data_captum(x)
+            y_pred = self(data).detach()
 
-                baselines = (
-                    data[0].to(self.device),  # encoder_cat, set to random
-                    torch.randn_like(data[1]).to(self.device),  # encoder_cont, set to random
-                    torch.randn_like(data[2]).to(self.device),  # encoder_target, set to random
-                    data[3].to(self.device),  # encoder_lengths, leave unchanged
-                    torch.randn_like(data[4]).to(self.device),  # decoder_cat, set to random
-                    torch.randn_like(data[5]).to(self.device),  # decoder_cont, set to random
-                    torch.randn_like(data[6]).to(self.device),  # decoder_target, set to random
-                    data[7].to(self.device),  # decoder_lengths, leave unchanged
-                    data[8].to(self.device),  # decoder_time_idx, unchanged
-                    data[9].to(self.device),  # groups, leave unchanged
-                    data[10].to(self.device),  # target_scale, leave unchanged
-                )
+            explantation = explain_method(random_model.forward_captum)
+            # Reformat attributions.
+            if explain_method is not captum.attr.Saliency:
+                attr = explantation.attribute(data, baselines=baselines, **kwargs)
+            else:
+                attr = explantation.attribute(data, **kwargs)
 
-                explantation = explain_method(random_model.forward_captum)
-                # Reformat attributions.
-                if explain_method is not captum.attr.Saliency:
-                    attr = explantation.attribute(data, baselines=baselines, **kwargs)
-                else:
-                    attr = explantation.attribute(data, **kwargs)
-                    # Convert attributions to numpy array and append to the list
-                a_perturbed.append(attr[0].cpu().detach().numpy())
+            # Process and store the calculated attributions
+            stacked_attr = attr[1].cpu().detach().numpy() if method_name in [
+                'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
 
-            a_perturbed = np.mean(a_perturbed, axis=(0))
-
-            # Normalize the means values to range [0, 1]
-            # normalized_a_perturbed = (a_perturbed - a_perturbed.min()) / (a_perturbed.max() - a_perturbed.min())
-            score = similarity_func(a_perturbed, attribution)
+            score = similarity_func(stacked_attr.flatten(), attribution.flatten())
         return score
 
 

@@ -263,6 +263,18 @@ def train_common(
         return 0
 
     if explain:
+        if random_model_dir is None:
+            random_model = None
+        else:
+            path = Path(random_model_dir)
+
+            random_model = load_model(
+                model,
+                source_dir=path,
+                pl_model=pl_model,
+                train_dataset=train_dataset,
+                optimizer=optimizer,
+            )
 
         XAI_dict = {}  # dictrionary to log attributions metrics
 
@@ -270,24 +282,24 @@ def train_common(
         methods = {
             "Saliency": Saliency,
             # "Lime": Lime,
-            "IG": IntegratedGradients,
+            # "IG": IntegratedGradients,
             # "FA": FeatureAblation,
             "Random": "Random",
-            "Attention": "Attention"
+            # "Attention": "Attention"
         }
         for key, item in methods.items():
             # If conditions needed here as different explantations require different inputs
             if key == "IG":
-                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score = model.explantation(
-                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, n_steps=50, XAI_metric=XAI_metric,
+                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
+                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, n_steps=50, XAI_metric=XAI_metric, random_model=random_model
                 )
             elif key == "Lime":
-                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score = model.explantation(
-                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, return_input_shape=True, XAI_metric=XAI_metric,
+                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
+                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, return_input_shape=True, XAI_metric=XAI_metric, random_model=random_model
                 )
             else:
-                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score = model.explantation(
-                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, XAI_metric=XAI_metric,
+                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
+                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, XAI_metric=XAI_metric, random_model=random_model
                 )
 
             if XAI_metric:
@@ -305,6 +317,9 @@ def train_common(
                     print("{}_Attributions faithfulness variable per timestep ".format(
                         key), ts_v_score)
                     XAI_dict["{}_faith_variable_per_timestep".format(key)] = ts_v_score
+                print("{}_Data Randomization distance ".format(
+                    key), r_score)
+                XAI_dict["{}_Data Randomization distance".format(key)] = r_score
 
         # Getting the interpertations using pytorch forecasting native methods
 
@@ -315,15 +330,6 @@ def train_common(
         with open(json_file_path, "w") as json_file:
             json.dump(XAI_dict, json_file)
 
-        # path = Path(random_model_dir)
-
-        # random_model = load_model(
-        #    model,
-        #    source_dir=path,
-        #    pl_model=pl_model,
-        #    train_dataset=train_dataset,
-        #    optimizer=optimizer,
-        # )
         # R_attribution = model.Data_Randomization(
         #    test_loader, attributions_IG, IntegratedGradients, random_model)
         # print('Distance Data randmoization score attribution', R_attribution)
