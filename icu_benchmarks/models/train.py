@@ -280,11 +280,11 @@ def train_common(
 
         # choose which  methods to get attributions
         methods = {
-            "Saliency": Saliency,
-            # "Lime": Lime,
+            # "Saliency": Saliency,
+            "Lime": Lime,
             # "IG": IntegratedGradients,
             # "FA": FeatureAblation,
-            "Random": "Random",
+            # "Random": "Random",
             # "Attention": "Attention"
         }
         for key, item in methods.items():
@@ -297,6 +297,44 @@ def train_common(
                 all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
                     dataloader=test_loader, method=item, log_dir=log_dir, plot=True, return_input_shape=True, XAI_metric=XAI_metric, random_model=random_model
                 )
+            elif key == "FA":
+                # basically need to specify a mask on which input values are considered as a feature
+                shapes = [
+                    torch.Size([64, 24, 0]),
+                    torch.Size([64, 24, 53]),
+                    torch.Size([64, 24]),
+                    torch.Size([64]),
+                    torch.Size([64, 1, 0]),
+                    torch.Size([64, 1, 53]),
+                    torch.Size([64, 1]),
+                    torch.Size([64]),
+                    torch.Size([64, 1]),
+                    torch.Size([64, 1]),
+                    torch.Size([64, 2])
+                ]
+
+                # Create a default mask for non-targeted tensors
+                def create_default_mask(shape):
+                    if len(shape) == 3:
+                        return torch.zeros(shape[0], shape[1], max(1, shape[2]), dtype=torch.int32)
+                    elif len(shape) == 2:
+                        return torch.zeros(shape[0], max(1, shape[1]), dtype=torch.int32)
+                    else:  # len(shape) == 1
+                        return torch.zeros(shape[0], dtype=torch.int32)
+
+                # Create a feature mask for the second tensor
+                num_features_second_tensor = shapes[1][2]
+                feature_mask_second = torch.arange(num_features_second_tensor).repeat(shapes[1][1], 1)
+                feature_mask_second = feature_mask_second.unsqueeze(0).repeat(shapes[1][0], 1, 1)
+
+                # Create a tuple of masks
+                feature_masks = tuple([create_default_mask(shape) if i !=
+                                      1 else feature_mask_second for i, shape in enumerate(shapes)])
+
+                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
+                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, feature_mask=feature_masks, XAI_metric=XAI_metric, random_model=random_model
+                )
+
             else:
                 all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
                     dataloader=test_loader, method=item, log_dir=log_dir, plot=True, XAI_metric=XAI_metric, random_model=random_model

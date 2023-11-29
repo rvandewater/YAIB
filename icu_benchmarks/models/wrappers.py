@@ -489,6 +489,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             - baselines:Basically zero tensors in the input 
         """
         # captum requires gradient and float values
+
         data = (
             x["encoder_cat"].float().requires_grad_(),
             x["encoder_cont"].requires_grad_(),
@@ -625,7 +626,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                         f_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
                                                                        pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
 
-                        r_score.append(self.Data_Randomization(x, attribution=stacked_attr,
+                        r_score.append(self.Data_Randomization(x, attribution=all_attrs,
                                        explain_method=method, random_model=random_model, method_name=method_name))
                     else:
                         f_ts_score.append(self.Faithfulness_Correlation(x, timestep_attrs,
@@ -638,6 +639,10 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             # Faithfulness score for attribtuons of timesteps averaged over features
             f_ts_score = np.mean(f_ts_score)
             f_v_score = np.mean(f_v_score)
+            min_val = np.min(r_score)
+            max_val = np.max(r_score)
+
+            r_score = (r_score - min_val) / (max_val - min_val)
             r_score = np.mean(r_score)
             return all_attrs, features_attrs, timestep_attrs, f_ts_v_score, f_ts_score, f_v_score, r_score
 
@@ -647,7 +652,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             for key, value in batch[0].items():
                 batch[0][key] = batch[0][key].to(self.device)
             x = batch[0]
-
+            
             data, baselines = self.prep_data_captum(x)
 
             # Initialize the explanation method
@@ -913,7 +918,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             score = similarity_func(Attention_weights["attention"].cpu().numpy(), attribution.cpu().numpy())
         elif explain_method == "Random":
-            score = similarity_func(np.random.normal(size=[64, 24, 53]), attribution)
+            score = similarity_func(np.random.normal(size=[64, 24, 53]).flatten(), attribution.flatten())
         else:
             data, baselines = self.prep_data_captum(x)
             y_pred = self(data).detach()
