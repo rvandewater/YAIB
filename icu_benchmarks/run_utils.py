@@ -16,6 +16,7 @@ from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def build_parser() -> ArgumentParser:
@@ -254,6 +255,10 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
         "CI_0.95": confidence_interval,
         "execution_time": execution_time.total_seconds() if execution_time is not None else 0.0,
     }
+    log_dir_plots = log_dir / 'plots'
+    if not (log_dir_plots.exists()):
+        log_dir_plots.mkdir(parents=True)
+    plot_XAI_Metrics(accumulated_metrics, log_dir_plots=log_dir_plots)
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
         json.dump(aggregated, f, cls=JsonResultLoggingEncoder)
@@ -264,6 +269,61 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     logging.info(f"Accumulated results: {accumulated_metrics}")
 
     wandb_log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
+
+
+def plot_XAI_Metrics(accumulated_metrics, log_dir_plots):
+    groups = {}
+    for key in accumulated_metrics['avg']:
+        if key in ['loss', 'MAE']:
+            continue
+        suffix = key.split('_')[-1]
+        if suffix not in groups:
+            groups[suffix] = []
+        groups[suffix].append(key)
+
+    # Define a dictionary for legend labels
+    legend_labels = {
+        'IG': 'Integrated Gradient',
+        'G': 'Gradient',
+        'R': 'Random',
+        'FA': 'Feature Ablation',
+        'Att': 'Attention',
+        'VSN': 'Variable Selection Network',
+        'L': 'Lime'
+    }
+
+    # Plotting
+    num_groups = len(groups)
+    fig, axs = plt.subplots(num_groups, 1, figsize=(10, num_groups * 5))
+
+    # Custom handles for the legend
+    handles = [plt.Rectangle((0, 0), 1, 1, color='none', label=f'{key}: {value}')
+               for key, value in legend_labels.items()]
+
+    for i, (suffix, keys) in enumerate(groups.items()):
+
+        ax = axs[i] if num_groups > 1 else axs
+        avg_values = [accumulated_metrics['avg'][key] for key in keys]
+        ci_lower = [accumulated_metrics['CI_0.95'][key][0] for key in keys]
+        ci_upper = [accumulated_metrics['CI_0.95'][key][1] for key in keys]
+        ci_error = [np.abs([a - b, c - a]) for a, b, c in zip(avg_values, ci_lower, ci_upper)]
+
+        bars = ax.bar(keys, np.abs(avg_values), yerr=np.array(ci_error).T, capsize=5)
+        # Modify the title to use the second suffix
+        title_suffix = keys[0].split('_')[1]
+        ax.set_title(f'Metric: "{title_suffix}"')
+        ax.set_ylabel('Values')
+        ax.axhline(0, color='grey', linewidth=0.8)
+        ax.grid(axis='y')
+        # Modify x-axis labels to show only the prefix
+        ax.set_xticks(keys)
+        ax.set_xticklabels([key.split('_')[0] for key in keys], rotation=45, ha="right")
+        # Create a custom legend for each subplot
+        custom_labels = [legend_labels[key.split('_')[0]] for key in keys]
+        ax.legend(bars, custom_labels, loc='upper right')
+
+    plt.tight_layout()
+    plt.savefig(log_dir_plots / "metrics_plot.png", bbox_inches="tight")
 
 
 def name_datasets(train="default", val="default", test="default"):

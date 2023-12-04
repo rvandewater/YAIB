@@ -19,9 +19,10 @@ from pytorch_lightning import LightningModule
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
 import matplotlib.pyplot as plt
-from icu_benchmarks.models.similarity_func import correlation_spearman, distance_euclidean, correlation_pearson
+from icu_benchmarks.models.similarity_func import correlation_spearman, distance_euclidean, correlation_pearson, cosine
 import captum
 from captum._utils.models.linear_model import SkLearnLasso
+import os
 
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(nn.functional.cross_entropy, module="torch.nn.functional")
@@ -543,7 +544,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             linewidth=2,
             markersize=8,
         )
-        plt.xlabel("Time Step")
+        plt.xlabel("Feature")
         plt.ylabel("{} Attribution".format(method_name))
         plt.title("{} Attribution Values".format(method_name))
         plt.xticks(x_values, ['height', 'weight', 'age', 'sex', 'time_idx', 'alb', 'alp', 'alt', 'ast', 'be', 'bicar', 'bili', 'bili_dir', 'bnd', 'bun', 'ca', 'cai', 'ck', 'ckmb', 'cl', 'crea', 'crp', 'dbp', 'fgn', 'fio2', 'glu',
@@ -604,7 +605,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 features_attrs.extend(Interpertations["encoder_variables"].tolist())
                 r_score = self.Data_Randomization(x=None, attribution=timestep_attrs,
                                                   explain_method=method, random_model=random_model, dataloader=dataloader, method_name=method_name)
-
+                print(r_score)
             elif method_name == "Random":
                 # Generate random attributions for baseline comparison
                 all_attrs = np.random.normal(size=[64, 24, 53])
@@ -641,9 +642,9 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             f_v_score = np.mean(f_v_score)
             min_val = np.min(r_score)
             max_val = np.max(r_score)
-
-            r_score = (r_score - min_val) / (max_val - min_val)
-            r_score = np.mean(r_score)
+            if method_name != "Attention":
+                r_score = (r_score - min_val) / (max_val - min_val)
+                r_score = np.mean(r_score)
             return all_attrs, features_attrs, timestep_attrs, f_ts_v_score, f_ts_score, f_v_score, r_score
 
         # Loop through the dataloader to compute attributions for all instances
@@ -652,7 +653,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             for key, value in batch[0].items():
                 batch[0][key] = batch[0][key].to(self.device)
             x = batch[0]
-            
+
             data, baselines = self.prep_data_captum(x)
 
             # Initialize the explanation method
@@ -695,15 +696,16 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         # Faithfulness score for attribtuons of timesteps averaged over timesteps
         f_v_score = np.mean(f_v_score)
 
-        min_val = np.min(r_score)
-        max_val = np.max(r_score)
-
-        r_score = (r_score - min_val) / (max_val - min_val)
+        # Random data score
         r_score = np.mean(r_score)
 
         if plot:
-            # Plot attributions for features
-            self.plot_attributions(features_attrs, timestep_attrs, method_name, log_dir)
+            log_dir_plots = log_dir / 'plots'
+            if not (log_dir_plots.exists()):
+                log_dir_plots.mkdir(parents=True)
+            # Plot attributions for features and timesteps
+
+            self.plot_attributions(features_attrs, timestep_attrs, method_name, log_dir_plots)
 
         # Return computed attributions and metrics
         return all_attrs, features_attrs, timestep_attrs, f_ts_v_score, f_ts_score, f_v_score, r_score
@@ -912,11 +914,19 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         """
 
         if similarity_func is None:
-            similarity_func = distance_euclidean
+            similarity_func = cosine
         if explain_method == "Attention":
             Attention_weights = random_model.interpertations(dataloader)
+            attribution = attribution.cpu().numpy()
+            min_val = np.min(attribution)
+            max_val = np.max(attribution)
 
-            score = similarity_func(Attention_weights["attention"].cpu().numpy(), attribution.cpu().numpy())
+            attribution = (attribution - min_val) / (max_val - min_val)
+            random_attr = Attention_weights["attention"].cpu().numpy()
+            min_val = np.min(random_attr)
+            max_val = np.max(random_attr)
+            random_attr = (random_attr - min_val) / (max_val - min_val)
+            score = similarity_func(random_attr, attribution)*53
         elif explain_method == "Random":
             score = similarity_func(np.random.normal(size=[64, 24, 53]).flatten(), attribution.flatten())
         else:
@@ -931,10 +941,19 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 attr = explantation.attribute(data, **kwargs)
 
             # Process and store the calculated attributions
-            stacked_attr = attr[1].cpu().detach().numpy() if method_name in [
+            random_attr = attr[1].cpu().detach().numpy() if method_name in [
                 'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
 
-            score = similarity_func(stacked_attr.flatten(), attribution.flatten())
+            attribution = attribution.flatten()
+            min_val = np.min(attribution)
+            max_val = np.max(attribution)
+            attribution = (attribution - min_val) / (max_val - min_val)
+            random_attr = random_attr.flatten()
+            min_val = np.min(random_attr)
+            max_val = np.max(random_attr)
+            random_attr = (random_attr - min_val) / (max_val - min_val)
+
+            score = similarity_func(random_attr, attribution)
         return score
 
 

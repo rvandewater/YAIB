@@ -19,8 +19,12 @@ model/hyperparameter.dropout =(0.1, 0.9)
 model/hyperparameter.dropout_att = (0.1, 0.9)
 model/hyperparameter.n_heads =(1,4)
 
+#dataloader
 
+train_common/hyperparameter.class_to_tune = @train_common
+train_common/hyperparameter.batch_size=(32,64,128,256,512)
 
+train_common/hyperparameter.gradient_clip_val=(0,0.01, 1.0, 100.0)
 
 
 

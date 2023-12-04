@@ -77,6 +77,7 @@ def train_common(
     XAI_metric: bool = False,
     random_labels: bool = False,
     random_model_dir: str = None,
+
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -127,7 +128,7 @@ def train_common(
             f"Training on {train_dataset.name} with {len(train_dataset)} samples and validating on {val_dataset.name} with"
             f" {len(val_dataset)} samples."
         )
-
+    batch_size = int(batch_size)
     logging.info(f"Using {num_workers} workers for data loading.")
     if pytorch_forecasting:
         train_loader = train_dataset.to_dataloader(
@@ -244,7 +245,7 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
-
+        gradient_clip_val=gradient_clip_val
     )
     if not eval_only:
         if model.requires_backprop:
@@ -280,12 +281,12 @@ def train_common(
 
         # choose which  methods to get attributions
         methods = {
-            # "Saliency": Saliency,
-            "Lime": Lime,
-            # "IG": IntegratedGradients,
-            # "FA": FeatureAblation,
-            # "Random": "Random",
-            # "Attention": "Attention"
+            "G": Saliency,
+            "L": Lime,
+            "IG": IntegratedGradients,
+            "FA": FeatureAblation,
+            "R": "Random",
+            "Att": "Attention"
         }
         for key, item in methods.items():
             # If conditions needed here as different explantations require different inputs
@@ -293,12 +294,8 @@ def train_common(
                 all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
                     dataloader=test_loader, method=item, log_dir=log_dir, plot=True, n_steps=50, XAI_metric=XAI_metric, random_model=random_model
                 )
-            elif key == "Lime":
-                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
-                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, return_input_shape=True, XAI_metric=XAI_metric, random_model=random_model
-                )
-            elif key == "FA":
-                # basically need to specify a mask on which input values are considered as a feature
+            elif key == "L" or key == "FA":
+                # for Lime and feature ablation we need to define what is a feature we define each variable per timestep as a feature
                 shapes = [
                     torch.Size([64, 24, 0]),
                     torch.Size([64, 24, 53]),
@@ -322,17 +319,17 @@ def train_common(
                     else:  # len(shape) == 1
                         return torch.zeros(shape[0], dtype=torch.int32)
 
-                # Create a feature mask for the second tensor
-                num_features_second_tensor = shapes[1][2]
-                feature_mask_second = torch.arange(num_features_second_tensor).repeat(shapes[1][1], 1)
+                # Create a feature mask for the second tensor that includes both features and timesteps
+                num_timesteps = shapes[1][1]
+                num_features = shapes[1][2]
+                feature_mask_second = torch.arange(num_timesteps * num_features).reshape(num_timesteps, num_features)
                 feature_mask_second = feature_mask_second.unsqueeze(0).repeat(shapes[1][0], 1, 1)
 
                 # Create a tuple of masks
                 feature_masks = tuple([create_default_mask(shape) if i !=
                                       1 else feature_mask_second for i, shape in enumerate(shapes)])
-
                 all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
-                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, feature_mask=feature_masks, XAI_metric=XAI_metric, random_model=random_model
+                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, return_input_shape=True, XAI_metric=XAI_metric, random_model=random_model
                 )
 
             else:
@@ -342,22 +339,22 @@ def train_common(
 
             if XAI_metric:
                 # logging metric scores
-                print("{} Attributions faithfulness timesteps ".format(key), ts_score)
-                XAI_dict["{}_faith_timesteps".format(key)] = ts_score
-                if key == "Attention":
+                print("{} Attributions Faithfulness Timesteps ".format(key), ts_score)
+                XAI_dict["{}_Faith Timesteps".format(key)] = ts_score
+                if key == "Att":
                     print("Variable selection weights faithfulness featrues ".format(key), v_score)
-                    XAI_dict["Variable_selection_weights_faith_features".format(key)] = v_score
+                    XAI_dict["VSN_Faith Features".format(key)] = v_score
 
                 else:
                     print("{} Attributions faithfulness featrues ".format(key), v_score)
-                    XAI_dict["{}_faith_features".format(key)] = v_score
+                    XAI_dict["{}_Faith Features".format(key)] = v_score
 
-                    print("{}_Attributions faithfulness variable per timestep ".format(
+                    print("{}_Attributions Faithfulness Variable Per Timestep ".format(
                         key), ts_v_score)
-                    XAI_dict["{}_faith_variable_per_timestep".format(key)] = ts_v_score
-                print("{}_Data Randomization distance ".format(
+                    XAI_dict["{}_Faith Variable Per Timestep".format(key)] = ts_v_score
+                print("{}_Data Randomization Distance ".format(
                     key), r_score)
-                XAI_dict["{}_Data Randomization distance".format(key)] = r_score
+                XAI_dict["{}_Data Randomization Distance".format(key)] = r_score
 
         # Getting the interpertations using pytorch forecasting native methods
 
@@ -367,13 +364,6 @@ def train_common(
         # Write the dictionary to a JSON file
         with open(json_file_path, "w") as json_file:
             json.dump(XAI_dict, json_file)
-
-        # R_attribution = model.Data_Randomization(
-        #    test_loader, attributions_IG, IntegratedGradients, random_model)
-        # print('Distance Data randmoization score attribution', R_attribution)
-        # R_attention = model.Data_Randomization(
-        #    test_loader, Attention_weights["attention"], "Attention", random_model)
-        # print('Distance Data randmoization score attention', R_attention)
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
