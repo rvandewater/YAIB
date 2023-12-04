@@ -281,17 +281,17 @@ def train_common(
 
         # choose which  methods to get attributions
         methods = {
-            "G": Saliency,
-            "L": Lime,
-            "IG": IntegratedGradients,
-            "FA": FeatureAblation,
-            "R": "Random",
+            # "G": Saliency,
+            # "L": Lime,
+            # "IG": IntegratedGradients,
+            # "FA": FeatureAblation,
+            # "R": "Random",
             "Att": "Attention"
         }
         for key, item in methods.items():
             # If conditions needed here as different explantations require different inputs
             if key == "IG":
-                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
+                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score, st_i_score, st_o_score = model.explantation(
                     dataloader=test_loader, method=item, log_dir=log_dir, plot=True, n_steps=50, XAI_metric=XAI_metric, random_model=random_model
                 )
             elif key == "L" or key == "FA":
@@ -328,12 +328,12 @@ def train_common(
                 # Create a tuple of masks
                 feature_masks = tuple([create_default_mask(shape) if i !=
                                       1 else feature_mask_second for i, shape in enumerate(shapes)])
-                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
+                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score, st_i_score, st_o_score = model.explantation(
                     dataloader=test_loader, method=item, log_dir=log_dir, plot=True, return_input_shape=True, XAI_metric=XAI_metric, random_model=random_model
                 )
 
             else:
-                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score = model.explantation(
+                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score, st_i_score, st_o_score = model.explantation(
                     dataloader=test_loader, method=item, log_dir=log_dir, plot=True, XAI_metric=XAI_metric, random_model=random_model
                 )
 
@@ -341,6 +341,12 @@ def train_common(
                 # logging metric scores
                 print("{} Attributions Faithfulness Timesteps ".format(key), ts_score)
                 XAI_dict["{}_Faith Timesteps".format(key)] = ts_score
+                print("{}_ROS ".format(
+                    key), st_o_score)
+                XAI_dict["{}_ROS".format(key)] = st_o_score
+                print("{}_RIS ".format(
+                    key), st_i_score)
+                XAI_dict["{}_RIS".format(key)] = st_i_score
                 if key == "Att":
                     print("Variable selection weights faithfulness featrues ".format(key), v_score)
                     XAI_dict["VSN_Faith Features".format(key)] = v_score

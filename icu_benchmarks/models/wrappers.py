@@ -594,6 +594,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         f_ts_v_score = []
         f_v_score = []
         r_score = []
+        st_i_score = []
+        st_o_score = []
 
         method_name = method if (method == "Random") or (method == "Attention") else (
             method.__name__)
@@ -605,7 +607,9 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 features_attrs.extend(Interpertations["encoder_variables"].tolist())
                 r_score = self.Data_Randomization(x=None, attribution=timestep_attrs,
                                                   explain_method=method, random_model=random_model, dataloader=dataloader, method_name=method_name)
-                print(r_score)
+                st_i_score, st_o_score = self.Relative_Stability(x=None,
+                                                                 attribution=timestep_attrs, explain_method=method, method_name=method_name, dataloader=dataloader, **kwargs
+                                                                 )
             elif method_name == "Random":
                 # Generate random attributions for baseline comparison
                 all_attrs = np.random.normal(size=[64, 24, 53])
@@ -620,7 +624,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
                     if method_name == "Random":
 
-                        f_ts_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
+                        """  f_ts_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
                                                                           pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
                         f_ts_score.append(self.Faithfulness_Correlation(x, all_attrs,
                                                                         pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
@@ -628,7 +632,12 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                                                                        pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
 
                         r_score.append(self.Data_Randomization(x, attribution=all_attrs,
-                                       explain_method=method, random_model=random_model, method_name=method_name))
+                                       explain_method=method, random_model=random_model, method_name=method_name)) """
+                        res1, res2 = self.Relative_Stability(x,
+                                                             all_attrs, explain_method=method, method_name=method_name, dataloader=None, **kwargs
+                                                             )
+                        st_i_score.append(res1)
+                        st_o_score.append(res2)
                     else:
                         f_ts_score.append(self.Faithfulness_Correlation(x, timestep_attrs,
                                                                         pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
@@ -640,12 +649,14 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             # Faithfulness score for attribtuons of timesteps averaged over features
             f_ts_score = np.mean(f_ts_score)
             f_v_score = np.mean(f_v_score)
-            min_val = np.min(r_score)
-            max_val = np.max(r_score)
+            # min_val = np.min(r_score)
+            # max_val = np.max(r_score)
             if method_name != "Attention":
-                r_score = (r_score - min_val) / (max_val - min_val)
+                # r_score = (r_score - min_val) / (max_val - min_val)
                 r_score = np.mean(r_score)
-            return all_attrs, features_attrs, timestep_attrs, f_ts_v_score, f_ts_score, f_v_score, r_score
+                st_i_score = np.max(st_i_score)
+                st_o_score = np.max(st_o_score)
+            return all_attrs, features_attrs, timestep_attrs, f_ts_v_score, f_ts_score, f_v_score, r_score, st_i_score, st_o_score
 
         # Loop through the dataloader to compute attributions for all instances
         for batch in dataloader:
@@ -671,7 +682,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
             if XAI_metric:
 
-                f_ts_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
+                """ f_ts_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
                                                                   pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
 
                 f_ts_score.append(self.Faithfulness_Correlation(x, stacked_attr,
@@ -679,7 +690,12 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 f_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
                                                                pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
                 r_score.append(self.Data_Randomization(x, attribution=stacked_attr,
-                               explain_method=method, random_model=random_model, method_name=method_name))
+                               explain_method=method, random_model=random_model, method_name=method_name)) """
+                res1, res2 = self.Relative_Stability(x,
+                                                     stacked_attr, explain_method=method, method_name=method_name,  dataloader=None, **kwargs
+                                                     )
+                st_i_score.append(res1)
+                st_o_score.append(res2)
             # aggregate over batch
             attr = np.mean(stacked_attr, axis=0)
             all_attrs.append(attr)
@@ -698,6 +714,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
         # Random data score
         r_score = np.mean(r_score)
+        st_i_score = np.max(st_i_score)
+        st_o_score = np.max(st_o_score)
 
         if plot:
             log_dir_plots = log_dir / 'plots'
@@ -708,7 +726,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             self.plot_attributions(features_attrs, timestep_attrs, method_name, log_dir_plots)
 
         # Return computed attributions and metrics
-        return all_attrs, features_attrs, timestep_attrs, f_ts_v_score, f_ts_score, f_v_score, r_score
+        return all_attrs, features_attrs, timestep_attrs, f_ts_v_score, f_ts_score, f_v_score, r_score, st_i_score, st_o_score
         # normalized_means = (means - means.min()) / (means.max() - means.min())
 
     def prep_data(self, x):
@@ -955,6 +973,119 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             score = similarity_func(random_attr, attribution)
         return score
+
+    def Relative_Stability(self, x,
+                           attribution, explain_method, method_name, dataloader=None, **kwargs
+                           ):
+        """
+    Computes relative input and output stabilities maximization objective
+    as defined here :
+    ref:`https://arxiv.org/pdf/2203.06877.pdf` by the authors.
+    Code mainly by:
+    Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+        """
+
+        def relative_stability_objective(
+            x: np.ndarray, xs: np.ndarray, e_x: np.ndarray, e_xs: np.ndarray, eps_min=0.0001, input=False
+        ) -> np.ndarray:
+            """
+            Computes relative input stabilities maximization objective
+            as defined here :ref:`https://arxiv.org/pdf/2203.06877.pdf` by the authors.
+
+            Parameters
+            ----------
+            x: np.ndarray
+                Batch of images.
+            xs: np.ndarray
+                Batch of perturbed images.
+            e_x: np.ndarray
+                Explanations for x.
+            e_xs: np.ndarray
+                Explanations for xs.
+
+            Returns
+            -------
+            ris_obj: np.ndarray
+                RIS maximization objective.
+            """
+
+            if input:
+                num_dim = x.ndim
+            else:
+                num_dim = e_x.ndim
+
+            if num_dim == 3:
+                def norm_function(arr): return np.linalg.norm(arr, axis=(-1, -2))  # noqa
+            elif num_dim == 2:
+                def norm_function(arr): return np.linalg.norm(arr, axis=-1)
+            else:
+                raise ValueError(
+                    "Relative Input Stability only supports 4D, 3D and 2D inputs (batch dimension inclusive)."
+                )
+
+            # fmt: off
+
+            nominator = (e_x - e_xs) / (e_x + (e_x == 0) * eps_min)  # prevent division by 0
+            nominator = norm_function(nominator)
+            # fmt: on
+            if input:
+                denominator = x - xs
+                denominator /= x + (x == 0) * eps_min
+                # fmt: off
+                denominator = norm_function(denominator)
+                # fmt: on
+                denominator += (denominator == 0) * eps_min
+            else:
+
+                denominator = np.squeeze(x) - np.squeeze(xs)
+                denominator = np.linalg.norm(denominator, axis=-1)
+                denominator += (denominator == 0) * eps_min  # prevent division by 0
+
+            return nominator / denominator
+
+        y_pred = self(self.prep_data(x)).detach()
+
+        if explain_method == "Attention":
+            with torch.no_grad():
+                noise = torch.randn_like(self.dataset["encoder_cont"])*0.1
+                self.dataset += noise
+
+            Attention_weights = self.interpertations(dataloader)
+            att_preturb = Attention_weights["attention"].cpu().numpy()
+
+        else:
+            y_pred = self(self.prep_data(x)).detach()
+            x_original = x["encoder_cont"].detach().clone()
+            y_pred_preturb = self(self.prep_data(x)).detach()
+            with torch.no_grad():
+                noise = torch.randn_like(x["encoder_cont"])*0.01
+                x["encoder_cont"] += noise
+
+            if explain_method == "Random":
+                att_preturb = np.random.normal(size=[64, 24, 53])
+
+            else:
+
+                data, baselines = self.prep_data_captum(x)
+
+                explantation = explain_method(self.forward_captum)
+                # Reformat attributions.
+                if explain_method is not captum.attr.Saliency:
+                    att_preturb = explantation.attribute(data, baselines=baselines, **kwargs)
+                else:
+                    att_preturb = explantation.attribute(data, **kwargs)
+
+                # Process and store the calculated attributions
+                att_preturb = att_preturb[1].cpu().detach().numpy() if method_name in [
+                    'Lime', 'FeatureAblation'] else torch.stack(att_preturb).cpu().detach().numpy()
+        RIS = relative_stability_objective(
+            x_original.detach().cpu().numpy(), x["encoder_cont"].detach().cpu().numpy(), attribution, att_preturb, input=True
+        )
+        ROS = relative_stability_objective(
+            y_pred.cpu().numpy(), y_pred_preturb.cpu().numpy(), attribution, att_preturb, input=False
+        )
+
+        return np.max(RIS), np.max(ROS)
 
 
 @gin.configurable("MLWrapper")
