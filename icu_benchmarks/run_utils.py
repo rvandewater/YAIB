@@ -291,6 +291,7 @@ def plot_XAI_Metrics(accumulated_metrics, log_dir_plots):
         'VSN': 'Variable Selection Network',
         'L': 'Lime'
     }
+    colors = ['navy', 'skyblue', 'crimson', 'salmon', 'teal', 'orange', 'darkgreen', 'lightgreen']
 
     # Plotting
     num_groups = len(groups)
@@ -303,23 +304,33 @@ def plot_XAI_Metrics(accumulated_metrics, log_dir_plots):
     for i, (suffix, keys) in enumerate(groups.items()):
 
         ax = axs[i] if num_groups > 1 else axs
+        # Extract values and errors
         avg_values = [accumulated_metrics['avg'][key] for key in keys]
         ci_lower = [accumulated_metrics['CI_0.95'][key][0] for key in keys]
         ci_upper = [accumulated_metrics['CI_0.95'][key][1] for key in keys]
         ci_error = [np.abs([a - b, c - a]) for a, b, c in zip(avg_values, ci_lower, ci_upper)]
 
-        bars = ax.bar(keys, np.abs(avg_values), yerr=np.array(ci_error).T, capsize=5)
-        # Modify the title to use the second suffix
-        title_suffix = keys[0].split('_')[1]
+        # Sort by absolute values of avg_values
+        sorted_indices = np.argsort([np.abs(val) for val in avg_values])[::-1]  # Indices to sort in descending order
+        sorted_keys = np.array(keys)[sorted_indices]
+        sorted_avg_values = np.array(avg_values)[sorted_indices]
+        sorted_ci_error = np.array(ci_error)[sorted_indices]
+
+        # Plot bars
+        bars = ax.bar(sorted_keys, np.abs(sorted_avg_values), yerr=np.array(sorted_ci_error).T, capsize=5, color=colors)
+
+        # Set titles and labels
+        title_suffix = sorted_keys[0].split('_')[1]
         ax.set_title(f'Metric: "{title_suffix}"')
         ax.set_ylabel('Values')
         ax.axhline(0, color='grey', linewidth=0.8)
         ax.grid(axis='y')
-        # Modify x-axis labels to show only the prefix
-        ax.set_xticks(keys)
-        ax.set_xticklabels([key.split('_')[0] for key in keys], rotation=45, ha="right")
+
+        # Set x-ticks
+        ax.set_xticks(sorted_keys)
+        ax.set_xticklabels([key.split('_')[0] for key in sorted_keys], rotation=45, ha="right")
         # Create a custom legend for each subplot
-        custom_labels = [legend_labels[key.split('_')[0]] for key in keys]
+        custom_labels = [legend_labels[key.split('_')[0]] for key in sorted_keys]
         ax.legend(bars, custom_labels, loc='upper right')
 
     plt.tight_layout()

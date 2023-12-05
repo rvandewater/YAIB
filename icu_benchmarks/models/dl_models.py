@@ -476,7 +476,7 @@ class TFTpytorch(DLPredictionPytorchForecastingWrapper):
         **kwargs,
     ):
         super().__init__(optimizer=optimizer, pytorch_forecasting=True, *args, **kwargs)
-
+        self.dataset = dataset
         self.model = TemporalFusionTransformer.from_dataset(
             dataset=dataset,
             hidden_size=hidden,

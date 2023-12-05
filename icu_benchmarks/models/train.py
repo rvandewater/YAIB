@@ -342,10 +342,10 @@ def train_common(
                 print("{} Attributions Faithfulness Timesteps ".format(key), ts_score)
                 XAI_dict["{}_Faith Timesteps".format(key)] = ts_score
                 print("{}_ROS ".format(
-                    key), st_o_score)
+                    key), st_o_score, type(st_o_score))
                 XAI_dict["{}_ROS".format(key)] = st_o_score
                 print("{}_RIS ".format(
-                    key), st_i_score)
+                    key), st_i_score, type(st_i_score))
                 XAI_dict["{}_RIS".format(key)] = st_i_score
                 if key == "Att":
                     print("Variable selection weights faithfulness featrues ".format(key), v_score)

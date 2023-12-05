@@ -3,7 +3,7 @@ from pandas import DataFrame
 import pandas as pd
 import gin
 import numpy as np
-from torch import Tensor, cat, from_numpy, float32, min, max
+from torch import Tensor, cat, from_numpy, float32, min, max, randn_like
 from torch.utils.data import Dataset
 import logging
 from typing import Dict, Tuple, Union
@@ -531,3 +531,7 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
         else:
             random_target = np.random.randint(num_classes, size=len(self.data["target"][0]))
         self.data["target"][0] = Tensor(random_target)
+
+    def add_noise(self, num_classes=None, min=None, max=None):
+        noise = randn_like(self.data["reals"])*0.1
+        self.data["reals"] += noise

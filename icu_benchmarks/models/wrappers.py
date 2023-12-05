@@ -605,8 +605,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 timestep_attrs = Interpertations["attention"]
                 features_attrs = Interpertations["static_variables"].tolist()
                 features_attrs.extend(Interpertations["encoder_variables"].tolist())
-                r_score = self.Data_Randomization(x=None, attribution=timestep_attrs,
-                                                  explain_method=method, random_model=random_model, dataloader=dataloader, method_name=method_name)
+                """ r_score = self.Data_Randomization(x=None, attribution=timestep_attrs,
+                                                  explain_method=method, random_model=random_model, dataloader=dataloader, method_name=method_name) """
                 st_i_score, st_o_score = self.Relative_Stability(x=None,
                                                                  attribution=timestep_attrs, explain_method=method, method_name=method_name, dataloader=dataloader, **kwargs
                                                                  )
@@ -649,8 +649,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             # Faithfulness score for attribtuons of timesteps averaged over features
             f_ts_score = np.mean(f_ts_score)
             f_v_score = np.mean(f_v_score)
-            # min_val = np.min(r_score)
-            # max_val = np.max(r_score)
+
             if method_name != "Attention":
                 # r_score = (r_score - min_val) / (max_val - min_val)
                 r_score = np.mean(r_score)
@@ -944,7 +943,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             min_val = np.min(random_attr)
             max_val = np.max(random_attr)
             random_attr = (random_attr - min_val) / (max_val - min_val)
-            score = similarity_func(random_attr, attribution)*53
+            score = similarity_func(random_attr, attribution)
         elif explain_method == "Random":
             score = similarity_func(np.random.normal(size=[64, 24, 53]).flatten(), attribution.flatten())
         else:
@@ -989,7 +988,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             x: np.ndarray, xs: np.ndarray, e_x: np.ndarray, e_xs: np.ndarray, eps_min=0.0001, input=False
         ) -> np.ndarray:
             """
-            Computes relative input stabilities maximization objective
+            Computes relative input and output stabilities maximization objective
             as defined here :ref:`https://arxiv.org/pdf/2203.06877.pdf` by the authors.
 
             Parameters
@@ -1019,9 +1018,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             elif num_dim == 2:
                 def norm_function(arr): return np.linalg.norm(arr, axis=-1)
             else:
-                raise ValueError(
-                    "Relative Input Stability only supports 4D, 3D and 2D inputs (batch dimension inclusive)."
-                )
+                def norm_function(arr): return np.linalg.norm(arr)
 
             # fmt: off
 
@@ -1043,16 +1040,30 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             return nominator / denominator
 
-        y_pred = self(self.prep_data(x)).detach()
-
         if explain_method == "Attention":
-            with torch.no_grad():
-                noise = torch.randn_like(self.dataset["encoder_cont"])*0.1
-                self.dataset += noise
+            y_pred = self.model.predict(dataloader)
+            x_original = dataloader.dataset.data["reals"].clone()
 
+            dataloader.dataset.add_noise()
+            x_preturb = dataloader.dataset.data["reals"].clone()
+            """ dataloader = self.dataset.to_dataloader(
+                train=False,
+                batch_size=64,
+                num_workers=8,
+                pin_memory=False,
+                drop_last=True,
+                shuffle=False,
+            )  """
+
+            y_pred_preturb = self.model.predict(dataloader)
             Attention_weights = self.interpertations(dataloader)
             att_preturb = Attention_weights["attention"].cpu().numpy()
-
+            RIS = relative_stability_objective(
+                x_original.detach().cpu().numpy(), x_preturb.detach().cpu().numpy(), attribution.cpu().numpy(), att_preturb, input=True
+            )
+            ROS = relative_stability_objective(
+                y_pred.cpu().numpy(), y_pred_preturb.cpu().numpy(), attribution.cpu().numpy(), att_preturb, input=False
+            )
         else:
             y_pred = self(self.prep_data(x)).detach()
             x_original = x["encoder_cont"].detach().clone()
@@ -1078,12 +1089,12 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 # Process and store the calculated attributions
                 att_preturb = att_preturb[1].cpu().detach().numpy() if method_name in [
                     'Lime', 'FeatureAblation'] else torch.stack(att_preturb).cpu().detach().numpy()
-        RIS = relative_stability_objective(
-            x_original.detach().cpu().numpy(), x["encoder_cont"].detach().cpu().numpy(), attribution, att_preturb, input=True
-        )
-        ROS = relative_stability_objective(
-            y_pred.cpu().numpy(), y_pred_preturb.cpu().numpy(), attribution, att_preturb, input=False
-        )
+            RIS = relative_stability_objective(
+                x_original.detach().cpu().numpy(), x["encoder_cont"].detach().cpu().numpy(), attribution, att_preturb, input=True
+            )
+            ROS = relative_stability_objective(
+                y_pred.cpu().numpy(), y_pred_preturb.cpu().numpy(), attribution, att_preturb, input=False
+            )
 
         return np.max(RIS), np.max(ROS)
 
