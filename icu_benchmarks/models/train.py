@@ -285,8 +285,8 @@ def train_common(
             # "L": Lime,
             # "IG": IntegratedGradients,
             # "FA": FeatureAblation,
-            "R": "Random",
-            # "Att": "Attention"
+            # "R": "Random",
+            "Att": "Attention"
         }
         for key, item in methods.items():
             # If conditions needed here as different explantations require different inputs

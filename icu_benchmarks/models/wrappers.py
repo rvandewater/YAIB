@@ -605,8 +605,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 timestep_attrs = Interpertations["attention"]
                 features_attrs = Interpertations["static_variables"].tolist()
                 features_attrs.extend(Interpertations["encoder_variables"].tolist())
-                r_score = self.Data_Randomization(x=None, attribution=timestep_attrs,
-                                                  explain_method=method, random_model=random_model, dataloader=dataloader, method_name=method_name)
+                """ r_score = self.Data_Randomization(x=None, attribution=timestep_attrs,
+                                                  explain_method=method, random_model=random_model, dataloader=dataloader, method_name=method_name) """
                 st_i_score, st_o_score = self.Relative_Stability(x=None,
                                                                  attribution=timestep_attrs, explain_method=method, method_name=method_name, dataloader=dataloader, **kwargs
                                                                  )
@@ -638,11 +638,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                                                              )
                         st_i_score.append(res1)
                         st_o_score.append(res2)
-                    else:
+                    """ else:
                         f_ts_score.append(self.Faithfulness_Correlation(x, timestep_attrs,
                                                                         pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
                         f_v_score.append(self.Faithfulness_Correlation(x, features_attrs,
-                                                                       pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
+                                                                       pertrub="baseline", feature=True, subset_size=9, nr_runs=100)) """
 
             # Faithfulness score for attribtuons of features per timesteps
             f_ts_v_score = np.mean(f_ts_v_score)
@@ -681,7 +681,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
             if XAI_metric:
 
-                f_ts_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
+                """ f_ts_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
                                                                   pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
 
                 f_ts_score.append(self.Faithfulness_Correlation(x, stacked_attr,
@@ -689,7 +689,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 f_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
                                                                pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
                 r_score.append(self.Data_Randomization(x, attribution=stacked_attr,
-                               explain_method=method, random_model=random_model, method_name=method_name))
+                               explain_method=method, random_model=random_model, method_name=method_name)) """
                 res1, res2 = self.Relative_Stability(x,
                                                      stacked_attr, explain_method=method, method_name=method_name,  dataloader=None, **kwargs
                                                      )
@@ -985,7 +985,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         return score
 
     def Relative_Stability(self, x,
-                           attribution, explain_method, method_name, dataloader=None, thershold=0.5, **kwargs
+                           attribution, explain_method, method_name, dataloader=None, thershold=0.5, device='cuda', **kwargs
                            ):
         """
      Args:
@@ -1008,7 +1008,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         """
 
         def relative_stability_objective(
-            x, xs, e_x, e_xs, eps_min=0.0001, input=False, device='cuda'
+            x, xs, e_x, e_xs, close_indices, eps_min=0.0001, input=False, attention=False, device='cuda'
         ) -> torch.Tensor:
             """
             Computes relative input and output stabilities maximization objective
@@ -1032,11 +1032,15 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             # Function to convert inputs to tensors if they are numpy arrays
             def to_tensor(input_array):
                 if isinstance(input_array, np.ndarray):
-                    return torch.tensor(input_array).to(device)
-                return input_array.to(device)
+                    return torch.index_select(torch.tensor(input_array).to(device), 0, close_indices)
+
+                return torch.index_select(input_array.to(device), 0, close_indices)
 
             # Convert all inputs to tensors and move to GPU
-            x, xs, e_x, e_xs = map(to_tensor, [x, xs, e_x, e_xs])
+            if attention:
+                x, xs = map(to_tensor, [x, xs])
+            else:
+                x, xs, e_x, e_xs = map(to_tensor, [x, xs, e_x, e_xs])
 
             if input:
                 num_dim = x.ndim
@@ -1078,12 +1082,13 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             difference = torch.abs(y_pred_preturb - y_pred)
 
             # Find where the difference is less than or equal to a thershold
-            close_indices = torch.nonzero(difference <= thershold).squeeze()
+            close_indices = torch.nonzero(difference <= thershold).squeeze()[:, 0].to(device)
+
             RIS = relative_stability_objective(
-                x_original[close_indices, :, :].detach(), x_preturb[close_indices, :, :].detach(), attribution, att_preturb, input=True
+                x_original.detach(), x_preturb.detach(), attribution, att_preturb, close_indices=close_indices, input=True, attention=True
             )
             ROS = relative_stability_objective(
-                y_pred[close_indices], y_pred_preturb[close_indices], attribution, att_preturb, input=False
+                y_pred, y_pred_preturb, attribution, att_preturb, close_indices=close_indices, input=False, attention=True
             )
 
         else:
@@ -1115,15 +1120,15 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             difference = torch.abs(y_pred_preturb - y_pred)
 
             # Find where the difference is less than or equal to a thershold
-            close_indices = torch.nonzero(difference <= thershold).squeeze()
-            print(close_indices)
+            close_indices = torch.nonzero(difference <= thershold).squeeze()[:, 0].to(device)
 
             RIS = relative_stability_objective(
-                x_original[close_indices, :, :].detach(), x["encoder_cont"][close_indices, :, :].detach(), attribution[close_indices, :, :], att_preturb[close_indices, :, :], input=True
+                x_original.detach(),
+                x["encoder_cont"].detach(),
+                attribution, att_preturb, close_indices=close_indices, input=True
             )
             ROS = relative_stability_objective(
-                y_pred[close_indices], y_pred_preturb[close_indices], attribution[close_indices,
-                                                                                  :, :], att_preturb[close_indices, :, :], input=False
+                y_pred, y_pred_preturb, attribution, att_preturb, close_indices=close_indices, input=False
             )
 
         return np.max(RIS.cpu().numpy()).astype(np.float64), np.max(ROS.cpu().numpy()).astype(np.float64)
