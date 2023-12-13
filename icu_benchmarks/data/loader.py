@@ -533,5 +533,5 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
         self.data["target"][0] = Tensor(random_target)
 
     def add_noise(self, num_classes=None, min=None, max=None):
-        noise = randn_like(self.data["reals"])*0.1
+        noise = randn_like(self.data["reals"])*0.01
         self.data["reals"] += noise

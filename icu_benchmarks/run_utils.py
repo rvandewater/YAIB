@@ -258,7 +258,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     log_dir_plots = log_dir / 'plots'
     if not (log_dir_plots.exists()):
         log_dir_plots.mkdir(parents=True)
-    plot_XAI_Metrics(accumulated_metrics, log_dir_plots=log_dir_plots)
+    # plot_XAI_Metrics(accumulated_metrics, log_dir_plots=log_dir_plots)
 
     with open(log_dir / "aggregated_test_metrics.json", "w") as f:
         json.dump(aggregated, f, cls=JsonResultLoggingEncoder)

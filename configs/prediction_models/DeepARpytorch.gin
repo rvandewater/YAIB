@@ -5,24 +5,27 @@ include "configs/prediction_models/common/DLCommon.gin"
 
 # Optimizer params
 train_common.model = @DeepARpytorch
-
+                         
 optimizer/hyperparameter.class_to_tune = @Adam
 optimizer/hyperparameter.weight_decay = 1e-6
-optimizer/hyperparameter.lr = (1e-5, 1e-3)
-
+optimizer/hyperparameter.lr = 0.00046
+#(1e-5, 1e-3)
 # Model params
 
 model/hyperparameter.class_to_tune = @DeepARpytorch
-model/hyperparameter.hidden = (4, 64, "log-uniform", 2)
-model/hyperparameter.rnn_layers=(1, 3)
+model/hyperparameter.hidden = 116
+#(4, 64, "log-uniform", 2)
+model/hyperparameter.rnn_layers=1
+
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.cell_type='LSTM'
-model/hyperparameter.dropout = (0.0, 0.4)
+model/hyperparameter.dropout = (0.286968842146375, 0.29)
 #model/hyperparameter.lr_scheduler = "exponential"
 
 train_common/hyperparameter.class_to_tune = @train_common
-train_common/hyperparameter.batch_size=(32,64,128,256,512)
-train_common/hyperparameter.gradient_clip_val=(0,0.01, 1.0, 100.0)
+train_common/hyperparameter.batch_size=256
+train_common/hyperparameter.gradient_clip_val=0.01
+#(0,0.01, 1.0, 100.0)
 # Dataset params
 PredictionDatasetpytorch.max_encoder_length = 24
 PredictionDatasetpytorch.max_prediction_length = 1

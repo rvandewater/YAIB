@@ -8,23 +8,27 @@ train_common.model = @TFTpytorch
 
 optimizer/hyperparameter.class_to_tune = @Adam
 optimizer/hyperparameter.weight_decay = 1e-6
-optimizer/hyperparameter.lr = (0.0001, 0.001,0.01)
-
+optimizer/hyperparameter.lr = 0.001
+#(0.0001, 0.001,0.01)
 
 # Model params
 model/hyperparameter.class_to_tune = @TFTpytorch
-model/hyperparameter.hidden = (10,20,40,80,160,240,320)
+model/hyperparameter.hidden = 32
+#(10,20,40,80,160,240,320)
 model/hyperparameter.num_classes = %NUM_CLASSES
-model/hyperparameter.dropout =(0.1, 0.9)
-model/hyperparameter.dropout_att = (0.1, 0.9)
-model/hyperparameter.n_heads =(1,4)
+model/hyperparameter.dropout =(0.37, 0.38)
+model/hyperparameter.dropout_att = 0.0589
+#(0.1, 0.9)
+model/hyperparameter.n_heads =2
 
 #dataloader
 
 train_common/hyperparameter.class_to_tune = @train_common
-train_common/hyperparameter.batch_size=(32,64,128,256,512)
+train_common/hyperparameter.batch_size=64
+#(32,64,128,256,512)
 
-train_common/hyperparameter.gradient_clip_val=(0,0.01, 1.0, 100.0)
+train_common/hyperparameter.gradient_clip_val=0.0
+#(0,0.01, 1.0, 100.0)
 
 
 
