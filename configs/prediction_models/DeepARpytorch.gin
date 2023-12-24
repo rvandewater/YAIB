@@ -14,7 +14,7 @@ optimizer/hyperparameter.lr = 0.00046
 
 model/hyperparameter.class_to_tune = @DeepARpytorch
 model/hyperparameter.hidden = 116
-#(4, 64, "log-uniform", 2)
+#(4, 120, "log-uniform", 2)
 model/hyperparameter.rnn_layers=1
 
 model/hyperparameter.num_classes = %NUM_CLASSES

@@ -242,6 +242,8 @@ class DLPredictionWrapper(DLWrapper):
         input_size: Tensor = None,
         initialization_method: str = "normal",
         pytorch_forecasting: bool = False,
+        explain: list = [],
+        XAI_metric: list = [],
         **kwargs,
     ):
         super().__init__(
@@ -262,6 +264,8 @@ class DLPredictionWrapper(DLWrapper):
         self.output_transform = None
         self.loss_weights = None
         self.pytorch_forecasting = pytorch_forecasting
+        self.explain = explain
+        self.XAI_metric = XAI_metric
 
     def set_weight(self, weight, dataset):
         """Set the weight for the loss function."""
@@ -605,8 +609,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 timestep_attrs = Interpertations["attention"]
                 features_attrs = Interpertations["static_variables"].tolist()
                 features_attrs.extend(Interpertations["encoder_variables"].tolist())
-                """ r_score = self.Data_Randomization(x=None, attribution=timestep_attrs,
-                                                  explain_method=method, random_model=random_model, dataloader=dataloader, method_name=method_name) """
+                r_score = self.Data_Randomization(x=None, attribution=timestep_attrs,
+                                                  explain_method=method, random_model=random_model, dataloader=dataloader, method_name=method_name)
                 st_i_score, st_o_score = self.Relative_Stability(x=None,
                                                                  attribution=timestep_attrs, explain_method=method, method_name=method_name, dataloader=dataloader, **kwargs
                                                                  )
@@ -624,25 +628,25 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
                     if method_name == "Random":
 
-                        """ f_ts_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
+                        f_ts_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
                                                                           pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
                         f_ts_score.append(self.Faithfulness_Correlation(x, all_attrs,
                                                                         pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
                         f_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
-                                                                       pertrub="baseline", feature=True, subset_size=9, nr_runs=100)) 
+                                                                       pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
 
                         r_score.append(self.Data_Randomization(x, attribution=all_attrs,
-                                       explain_method=method, random_model=random_model, method_name=method_name))"""
+                                       explain_method=method, random_model=random_model, method_name=method_name))
                         res1, res2 = self.Relative_Stability(x,
                                                              all_attrs, explain_method=method, method_name=method_name, dataloader=None, **kwargs
                                                              )
                         st_i_score.append(res1)
                         st_o_score.append(res2)
-                    """ else:
+                    else:
                         f_ts_score.append(self.Faithfulness_Correlation(x, timestep_attrs,
                                                                         pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
                         f_v_score.append(self.Faithfulness_Correlation(x, features_attrs,
-                                                                       pertrub="baseline", feature=True, subset_size=9, nr_runs=100)) """
+                                                                       pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
 
             # Faithfulness score for attribtuons of features per timesteps
             f_ts_v_score = np.mean(f_ts_v_score)
@@ -681,7 +685,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
             if XAI_metric:
 
-                """ f_ts_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
+                f_ts_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
                                                                   pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
 
                 f_ts_score.append(self.Faithfulness_Correlation(x, stacked_attr,
@@ -689,12 +693,14 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 f_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
                                                                pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
                 r_score.append(self.Data_Randomization(x, attribution=stacked_attr,
-                               explain_method=method, random_model=random_model, method_name=method_name)) """
+                               explain_method=method, random_model=random_model, method_name=method_name))
+
                 res1, res2 = self.Relative_Stability(x,
                                                      stacked_attr, explain_method=method, method_name=method_name,  dataloader=None, **kwargs
                                                      )
                 st_i_score.append(res1)
                 st_o_score.append(res2)
+
             # aggregate over batch
             attr = np.mean(stacked_attr, axis=0)
             all_attrs.append(attr)

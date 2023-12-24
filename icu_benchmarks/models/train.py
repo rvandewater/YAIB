@@ -25,6 +25,7 @@ from icu_benchmarks.data.loader import (
     PredictionDatasetpytorch,
 )
 
+
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
@@ -72,9 +73,9 @@ def train_common(
         torch.cuda.device_count() * 8 * int(torch.cuda.is_available()),
         32,
     ),
-    explain: bool = False,
+    explain: list = [],
     pytorch_forecasting: bool = False,
-    XAI_metric: bool = False,
+    XAI_metric: list = [],
     random_labels: bool = False,
     random_model_dir: str = None,
 
@@ -245,7 +246,7 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
-        gradient_clip_val=gradient_clip_val
+        # gradient_clip_val=gradient_clip_val
     )
     if not eval_only:
         if model.requires_backprop:
@@ -281,11 +282,11 @@ def train_common(
 
         # choose which  methods to get attributions
         methods = {
-            # "G": Saliency,
+            "G": Saliency,
             # "L": Lime,
-            # "IG": IntegratedGradients,
+            "IG": IntegratedGradients,
             # "FA": FeatureAblation,
-            # "R": "Random",
+            "R": "Random",
             "Att": "Attention"
         }
         for key, item in methods.items():

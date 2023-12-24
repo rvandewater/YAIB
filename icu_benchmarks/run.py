@@ -56,6 +56,7 @@ def main(my_args=tuple(sys.argv[1:])):
     pytorch_forecasting = args.pytorch_forecasting
     XAI_metric = args.XAI_metric
     random_labels = args.random_labels
+
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
@@ -117,7 +118,8 @@ def main(my_args=tuple(sys.argv[1:])):
             name_datasets(args.name, args.name, args.name)
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
-        logging.info(f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
+        logging.info(
+            f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
         gin.parse_config_file(source_dir / "train_config.gin")
     elif args.samples and args.source_dir is not None:  # Train model with limited samples and bind existing config
         logging.info("Binding train gin-config. Note: this might override your config.")
@@ -130,7 +132,8 @@ def main(my_args=tuple(sys.argv[1:])):
         name_datasets(args.name, args.name, args.name)
         hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
-            Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
+            Path("configs") / ("imputation_models" if mode ==
+                               RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]

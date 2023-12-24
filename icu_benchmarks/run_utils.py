@@ -123,29 +123,43 @@ def build_parser() -> ArgumentParser:
         default=None,
         help="Number of samples to use for evaluation.",
     )
-    parser.add_argument(
+    """ parser.add_argument(
         "--explain",
         default=False,
         action=BOA,
         help="Provide explaintations for predictions.",
-    )
+    ) """
     parser.add_argument(
         "--pytorch-forecasting",
         default=False,
         action=BOA,
         help="use pytorch forecasting library ",
     )
-    parser.add_argument(
+    """ parser.add_argument(
         "--XAI_metric",
         default=False,
         action=BOA,
         help="Compare explantations ",
+    ) """
+    parser.add_argument(
+        "-ex",
+        "--explain",
+        nargs='+',  # '+' means one or more arguments
+        type=str,   # or any type you need
+        help="List of XAI methods to run"
+    )
+    parser.add_argument(
+        "-exm",
+        "--XAI_metric",
+        nargs='+',  # '+' means one or more arguments
+        type=str,   # or any type you need
+        help="List of XAI metrics to run"
     )
     parser.add_argument(
         "--random_labels",
         default=False,
         action=BOA,
-        help="train model on random label dataset",
+        help="randmize target labels",
     )
 
     parser.add_argument(
