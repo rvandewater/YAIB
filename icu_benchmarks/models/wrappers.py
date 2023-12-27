@@ -518,15 +518,16 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         if self.explain is not None:
 
             for method in self.explain:
+                print(method)
                 if method == "Attention":
-                    all_attrs, features_attrs, timestep_attrs = self.explantation2(dic, method)
+                    all_attrs, features_attrs, timestep_attrs = self.explantation2(dic, method, self.test_loader)
                 else:
                     all_attrs, features_attrs, timestep_attrs = self.explantation2(dic, method)
                 for key, value in self.metrics[step_prefix].items():
                     if key == "Faithfulness_timesteps":
                         value.update(
                             dic,
-                            all_attrs,
+                            timestep_attrs,
                             self,
                             correlation_pearson,
                             100,
@@ -540,7 +541,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                     elif key == "Faithfulness_features":
                         value.update(
                             dic,
-                            all_attrs,
+                            features_attrs,
                             self,
                             correlation_pearson,
                             100,
@@ -573,7 +574,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                                 dic,
                                 timestep_attrs,
                                 self,
-                                self.methods[method],
                                 method,
                                 self.test_loader,
                                 0.5,
@@ -584,7 +584,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                                 dic,
                                 all_attrs,
                                 self,
-                                self.methods[method],
                                 method,
                                 None,
                                 0.5,
@@ -596,11 +595,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                                 dic,
                                 timestep_attrs,
                                 self,
-                                self.methods[method],
+                                method,
                                 self.random_model,
                                 cosine,
                                 None,
-                                method
+
                             )
                         else:
 
@@ -608,15 +607,17 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                                 dic,
                                 all_attrs,
                                 self,
-                                self.methods[method],
+                                method,
                                 self.random_model,
                                 cosine,
                                 self.test_loader,
-                                method
+
                             )
 
         for key, value in self.metrics[step_prefix].items():
-
+            if (key == "Faithfulness_timesteps" or key == "Faithfulness_features" or key == "Faithfulness_feature_timestep"
+                    or key == "Stability" or key == "Randomization"):
+                continue
             if isinstance(value, torchmetrics.Metric):
                 if key == "Binary_Fairness":
                     feature_names = self.metrics[step_prefix][key].feature_helper(self.trainer, step_prefix)
@@ -626,9 +627,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                         data,
                         feature_names,
                     )
-                elif (key == "Faithfulness_timesteps" or key == "Faithfulness_features" or key == "Faithfulness_feature_timestep"
-                      or key == "Stability" or key == "Randomization"):
-                    continue
 
                 else:
                     value.update(transformed_output[0], transformed_output[1].int())
@@ -780,23 +778,59 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
         # Calculate attributions using the selected method
         if method is not Saliency:
-            attr = explanation.attribute(data, baselines=baselines, **kwargs)
+            if method_name == "IG":
+                attr = explanation.attribute(data, baselines=baselines, n_steps=50, **kwargs)
+            elif method_name == "L" or method_name == "FA":
+                # for Lime and feature ablation we need to define what is a feature we define each variable per timestep as a feature
+                shapes = [
+                    torch.Size([64, 24, 0]),
+                    torch.Size([64, 24, 53]),
+                    torch.Size([64, 24]),
+                    torch.Size([64]),
+                    torch.Size([64, 1, 0]),
+                    torch.Size([64, 1, 53]),
+                    torch.Size([64, 1]),
+                    torch.Size([64]),
+                    torch.Size([64, 1]),
+                    torch.Size([64, 1]),
+                    torch.Size([64, 2])
+                ]
+
+                # Create a default mask for non-targeted tensors
+                def create_default_mask(shape):
+                    if len(shape) == 3:
+                        return torch.zeros(shape[0], shape[1], max(1, shape[2]), dtype=torch.int32)
+                    elif len(shape) == 2:
+                        return torch.zeros(shape[0], max(1, shape[1]), dtype=torch.int32)
+                    else:  # len(shape) == 1
+                        return torch.zeros(shape[0], dtype=torch.int32)
+
+                # Create a feature mask for the second tensor that includes both features and timesteps
+                num_timesteps = shapes[1][1]
+                num_features = shapes[1][2]
+                feature_mask_second = torch.arange(num_timesteps * num_features).reshape(num_timesteps, num_features)
+                feature_mask_second = feature_mask_second.unsqueeze(0).repeat(shapes[1][0], 1, 1)
+
+                # Create a tuple of masks
+                feature_masks = tuple([create_default_mask(shape) if i !=
+                                      1 else feature_mask_second for i, shape in enumerate(shapes)])
+
+                attr = explanation.attribute(data, baselines=baselines, feature_mask=feature_masks, **kwargs)
         else:
             attr = explanation.attribute(data, **kwargs)
         self.eval()
         # Process and store the calculated attributions
         stacked_attr = attr[1].cpu().detach().numpy() if method_name in [
             'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
-
         # aggregate over batch
-        attr = np.mean(stacked_attr, axis=0)
-        all_attrs.append(attr)
+        # attr = np.mean(stacked_attr, axis=0)
+
         # aggregate over all batches
-        all_attrs = np.array(all_attrs).mean(axis=(0))
+        # all_attrs = np.array(all_attrs).mean(axis=(0))
         # aggregate over all timesteps
-        features_attrs = all_attrs.mean(axis=(0))
+        features_attrs = stacked_attr.mean(axis=(1))
         # aggregate over all features
-        timestep_attrs = all_attrs.mean(axis=(1))
+        timestep_attrs = stacked_attr.mean(axis=(2))
 
         if plot:
             log_dir_plots = log_dir / 'plots'
@@ -807,7 +841,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             self.plot_attributions(features_attrs, timestep_attrs, method_name, log_dir_plots)
 
         # Return computed attributions and metrics
-        return all_attrs, features_attrs, timestep_attrs
+        return stacked_attr, features_attrs, timestep_attrs
 
     def explantation(self, dataloader, method, log_dir=".", plot=False, XAI_metric=False, random_model=None, test_dataset=None, **kwargs):
         """

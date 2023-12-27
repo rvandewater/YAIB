@@ -243,7 +243,6 @@ class Faithfulness(EpochMetric):
         # Assuming 'attribution' is already a GPU tensor
         if not torch.is_tensor(attribution):
             attribution = torch.tensor(attribution).to(device)
-
         # Other initializations
         if similarity_func is None:
             similarity_func = correlation_spearman
@@ -287,16 +286,15 @@ class Faithfulness(EpochMetric):
                 if attribution.size() == torch.Size([24]):
                     att_sums.append((attribution[timesteps_idx]).sum())
                 else:
-                    att_sums.append((attribution[patient_idx, :, :][:, timesteps_idx, :]).sum())
+                    att_sums.append((attribution[patient_idx, :][:, timesteps_idx]).sum())
             elif feature:
 
                 if len(attribution) == 53:
                     att_sums.append((attribution[feature_idx]).sum())
                 else:
 
-                    att_sums.append((attribution[patient_idx, :, :][:, :, feature_idx]).sum())
+                    att_sums.append((attribution[patient_idx, :][:, feature_idx]).sum())
             elif feature_timestep:
-
                 att_sums.append((attribution[patient_idx, :, :]
                                 [:, timesteps_idx, :][:, :, feature_idx]).sum())
 
@@ -323,7 +321,7 @@ class Stability(EpochMetric):
                          )
 
     def update(self, x,
-               attribution, model, explain_method, method_name, dataloader=None, thershold=0.5, device='cuda', **kwargs
+               attribution, model, explain_method, dataloader=None, thershold=0.5, device='cuda', **kwargs
                ):
         """
     Args:
@@ -441,19 +439,9 @@ class Stability(EpochMetric):
                 att_preturb = np.random.normal(size=[64, 24, 53])
 
             else:
+                att_preturb, features_attrs, timestep_attrs = model.explantation2(x, explain_method)
 
-                data, baselines = model.prep_data_captum(x)
-
-                explantation = explain_method(model.forward_captum)
-                # Reformat attributions.
-                if explain_method is not captum.attr.Saliency:
-                    att_preturb = explantation.attribute(data, baselines=baselines, **kwargs)
-                else:
-                    att_preturb = explantation.attribute(data, **kwargs)
-
-                # Process and store the calculated attributions
-                att_preturb = att_preturb[1].detach() if method_name in [
-                    'Lime', 'FeatureAblation'] else torch.stack(att_preturb).detach()
+                #
             # Calculate the absolute difference
             difference = torch.abs(y_pred_preturb - y_pred)
 
@@ -484,7 +472,7 @@ class Randomization(EpochMetric):
 
     def update(
         self, x,
-        attribution, model, explain_method, random_model, similarity_func=cosine, dataloader=None, method_name="", **kwargs
+        attribution, model, explain_method, random_model, similarity_func=cosine, dataloader=None, **kwargs
     ):
         """
 
@@ -531,16 +519,7 @@ class Randomization(EpochMetric):
             data, baselines = model.prep_data_captum(x)
             y_pred = model(data).detach()
 
-            explantation = explain_method(random_model.forward_captum)
-            # Reformat attributions.
-            if explain_method is not captum.attr.Saliency:
-                attr = explantation.attribute(data, baselines=baselines, **kwargs)
-            else:
-                attr = explantation.attribute(data, **kwargs)
-
-            # Process and store the calculated attributions
-            random_attr = attr[1].cpu().detach().numpy() if method_name in [
-                'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
+            random_attr, features_attrs, timestep_attrs = model.explantation2(x, explain_method)
 
             attribution = attribution.flatten()
             min_val = np.min(attribution)
