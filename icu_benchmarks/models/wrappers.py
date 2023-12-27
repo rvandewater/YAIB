@@ -18,9 +18,10 @@ from joblib import dump
 from pytorch_lightning import LightningModule
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
+from icu_benchmarks.models.train import load_model
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.similarity_func import correlation_spearman, distance_euclidean, correlation_pearson, cosine
-import captum
+from captum.attr import IntegratedGradients, Saliency, FeatureAblation, Lime
 from captum._utils.models.linear_model import SkLearnLasso
 import os
 
@@ -242,8 +243,7 @@ class DLPredictionWrapper(DLWrapper):
         input_size: Tensor = None,
         initialization_method: str = "normal",
         pytorch_forecasting: bool = False,
-        explain: list = [],
-        XAI_metric: list = [],
+
         **kwargs,
     ):
         super().__init__(
@@ -264,8 +264,6 @@ class DLPredictionWrapper(DLWrapper):
         self.output_transform = None
         self.loss_weights = None
         self.pytorch_forecasting = pytorch_forecasting
-        self.explain = explain
-        self.XAI_metric = XAI_metric
 
     def set_weight(self, weight, dataset):
         """Set the weight for the loss function."""
@@ -408,6 +406,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         input_size: Tensor = None,
         initialization_method: str = "normal",
         pytorch_forecasting: bool = False,
+        explain: list = None,
+        XAI_metric: list = None,
+        random_model=None,
+        test_loader=None,
+        dataset=None,
         **kwargs,
     ):
         super().__init__(
@@ -425,6 +428,55 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             initialization_method=initialization_method,
             kwargs=kwargs,
         )
+        self.explain = explain
+        self.XAI_metric = XAI_metric
+        self.methods = {
+            "G": Saliency,
+            "L": Lime,
+            "IG": IntegratedGradients,
+            "FA": FeatureAblation,
+            "R": "Random",
+            "Att": "Attention"
+        }
+        self.random_model = random_model
+        self.test_loader = test_loader
+
+        if random_model is not None:
+            self.random_model = load_model(
+                model=self,
+                source_dir=random_model,
+                pl_model=True,
+                train_dataset=dataset,
+                optimizer=optimizer,
+            )
+        else:
+            self.random_model = None
+
+    def set_metrics(self, *args):
+        """Set the evaluation metrics for the prediction model."""
+
+        metrics = super().set_metrics(*args)
+
+        if self.XAI_metric is not None:
+            for metric in self.XAI_metric:
+                if metric == "Faithfulness":
+                    metrics.update(DLMetrics.Faithfulness)
+                elif metric == "Stability":
+                    metrics.update(DLMetrics.Stability)
+                elif metric == "Randmoization":
+                    metrics.update(DLMetrics.Randmoization)
+
+        return metrics
+
+    def on_train_start(self):
+        self.metrics = {
+            step_name: {
+                metric_name: (metric() if isinstance(metric, type) else metric)
+                for metric_name, metric in self.set_metrics().items()
+            }
+            for step_name in ["train", "val", "test"]
+        }
+        return super().on_train_start()
 
     def step_fn(self, element, step_prefix=""):
         """Perform a step in the DL prediction model training loop.
@@ -449,7 +501,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         else:
             aux_loss = 0
         # Get prediction and target
-
         prediction = out.to(self.device).squeeze(-1)
 
         target = labels.to(self.device)
@@ -460,13 +511,112 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             # Returns torch.long because negative log likelihood loss
         elif self.run_mode == RunMode.regression:
             # Regression task
-
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss
         else:
             raise ValueError(f"Run mode {self.run_mode} not yet supported. Please implement it.")
         transformed_output = self.output_transform((prediction, target))
+        if self.explain is not None:
+
+            for method in self.explain:
+                if method == "Attention":
+                    all_attrs, features_attrs, timestep_attrs = self.explantation2(dic, method)
+                else:
+                    all_attrs, features_attrs, timestep_attrs = self.explantation2(dic, method)
+                for key, value in self.metrics[step_prefix].items():
+                    if key == "Faithfulness_timesteps":
+                        value.update(
+                            dic,
+                            all_attrs,
+                            self,
+                            correlation_pearson,
+                            100,
+                            "baseline",
+                            4,
+                            False,
+                            True,
+                            False
+
+                        )
+                    elif key == "Faithfulness_features":
+                        value.update(
+                            dic,
+                            all_attrs,
+                            self,
+                            correlation_pearson,
+                            100,
+                            "baseline",
+                            9,
+                            True,
+                            False,
+                            False
+
+                        )
+                    elif key == "Faithfulness_feature_timestep":
+                        value.update(
+                            dic,
+                            all_attrs,
+                            self,
+                            correlation_pearson,
+                            100,
+                            "baseline",
+                            [4, 9],
+                            False,
+                            False,
+                            True
+
+                        )
+
+                    elif key == "Stability":
+                        if method == "Attention":
+
+                            value.update(
+                                dic,
+                                timestep_attrs,
+                                self,
+                                self.methods[method],
+                                method,
+                                self.test_loader,
+                                0.5,
+
+                            )
+                        else:
+                            value.update(
+                                dic,
+                                all_attrs,
+                                self,
+                                self.methods[method],
+                                method,
+                                None,
+                                0.5,
+                            )
+                    elif key == "Randomization":
+
+                        if method == "Attention":
+                            value.update(
+                                dic,
+                                timestep_attrs,
+                                self,
+                                self.methods[method],
+                                self.random_model,
+                                cosine,
+                                None,
+                                method
+                            )
+                        else:
+
+                            value.update(
+                                dic,
+                                all_attrs,
+                                self,
+                                self.methods[method],
+                                self.random_model,
+                                cosine,
+                                self.test_loader,
+                                method
+                            )
 
         for key, value in self.metrics[step_prefix].items():
+
             if isinstance(value, torchmetrics.Metric):
                 if key == "Binary_Fairness":
                     feature_names = self.metrics[step_prefix][key].feature_helper(self.trainer, step_prefix)
@@ -476,6 +626,10 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                         data,
                         feature_names,
                     )
+                elif (key == "Faithfulness_timesteps" or key == "Faithfulness_features" or key == "Faithfulness_feature_timestep"
+                      or key == "Stability" or key == "Randomization"):
+                    continue
+
                 else:
                     value.update(transformed_output[0], transformed_output[1].int())
             else:
@@ -574,6 +728,86 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         plt.xticks(x_values)
         plt.tight_layout()
         plt.savefig(log_dir / "{}_attribution_plot.png".format(method_name), bbox_inches="tight")
+
+    def explantation2(self, dic, method, dataloader=None, log_dir=".", plot=False, **kwargs):
+        """
+        Generic method to combine pytorchforecasting data loading , interpertations and captum to generate attributions
+
+        Args:
+            - dataloader: pytorchforecasting data loader 
+            - method: The explantation method chosen
+            - log_dir= The directory to output the plots
+            - plot= Determines if plots should be done or not
+            - XAI_metric=Determines if XAI metrics should be calculated or not
+        Returns:
+            - all_attrs : Attribtuons of features per timesteps
+            - features_attrs : Attribtuons of features averaged over timesteps
+            - timestep_attrs : Attribtuons of timesteps averaged over features
+            - f_ts_v_score: Faithfulness score for attribtuons of features per timesteps
+            - f_ts_score: Faithfulness score for attribtuons of timesteps averaged over features
+        """
+        # Initialize lists to store attribution values for all instances
+
+        all_attrs = []
+        method = self.methods[method]
+        for key, value in dic.items():
+            dic[key] = dic[key].to(self.device)
+
+        method_name = method if (method == "Random") or (method == "Attention") else (
+            method.__name__)
+        if (method_name == "Random") or (method_name == "Attention"):
+            if method_name == "Attention":
+                Interpertations = self.interpertations(dataloader=dataloader, log_dir=log_dir, plot=plot)
+                timestep_attrs = Interpertations["attention"]
+                features_attrs = Interpertations["static_variables"].tolist()
+                features_attrs.extend(Interpertations["encoder_variables"].tolist())
+
+            elif method_name == "Random":
+                # Generate random attributions for baseline comparison
+                all_attrs = np.random.normal(size=[64, 24, 53])
+                features_attrs = all_attrs.mean(axis=(1))
+                timestep_attrs = all_attrs.mean(axis=(2))
+
+            return all_attrs, features_attrs, timestep_attrs
+        # Loop through the dataloader to compute attributions for all instances
+
+        data, baselines = self.prep_data_captum(dic)
+
+        # Initialize the explanation method
+        self.train()
+        explanation = method(self.forward_captum, interpretable_model=SkLearnLasso(
+            alpha=0.4)) if method_name == 'Lime' else method(self.forward_captum)
+
+        # Calculate attributions using the selected method
+        if method is not Saliency:
+            attr = explanation.attribute(data, baselines=baselines, **kwargs)
+        else:
+            attr = explanation.attribute(data, **kwargs)
+        self.eval()
+        # Process and store the calculated attributions
+        stacked_attr = attr[1].cpu().detach().numpy() if method_name in [
+            'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
+
+        # aggregate over batch
+        attr = np.mean(stacked_attr, axis=0)
+        all_attrs.append(attr)
+        # aggregate over all batches
+        all_attrs = np.array(all_attrs).mean(axis=(0))
+        # aggregate over all timesteps
+        features_attrs = all_attrs.mean(axis=(0))
+        # aggregate over all features
+        timestep_attrs = all_attrs.mean(axis=(1))
+
+        if plot:
+            log_dir_plots = log_dir / 'plots'
+            if not (log_dir_plots.exists()):
+                log_dir_plots.mkdir(parents=True)
+            # Plot attributions for features and timesteps
+
+            self.plot_attributions(features_attrs, timestep_attrs, method_name, log_dir_plots)
+
+        # Return computed attributions and metrics
+        return all_attrs, features_attrs, timestep_attrs
 
     def explantation(self, dataloader, method, log_dir=".", plot=False, XAI_metric=False, random_model=None, test_dataset=None, **kwargs):
         """

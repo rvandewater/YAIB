@@ -38,9 +38,9 @@ def execute_repeated_cv(
     verbose: bool = False,
     wandb: bool = False,
     complete_train: bool = False,
-    explain: bool = False,
+    explain: list = None,
     pytorch_forecasting: bool = False,
-    XAI_metric: bool = False,
+    XAI_metric: list = None,
     random_labels: bool = False,
     random_model_dir: str = None,
 ) -> float:

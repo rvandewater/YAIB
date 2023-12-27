@@ -12,7 +12,7 @@ from icu_benchmarks.models.layers import (
 )
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.wrappers import DLPredictionWrapper, DLPredictionPytorchForecastingWrapper
-from torch import Tensor, FloatTensor, zeros_like, ones_like, randn_like, is_tensor
+from torch import Tensor, FloatTensor, zeros_like, ones_like, randn_like, is_tensor, autograd
 from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork, DeepAR
 from pytorch_forecasting.metrics import QuantileLoss, MAE
 import matplotlib.pyplot as plt
@@ -475,8 +475,8 @@ class TFTpytorch(DLPredictionPytorchForecastingWrapper):
         *args,
         **kwargs,
     ):
-        super().__init__(optimizer=optimizer, pytorch_forecasting=True, *args, **kwargs)
-        self.dataset = dataset
+        super().__init__(optimizer=optimizer, pytorch_forecasting=True, dataset=dataset, * args, **kwargs)
+
         self.model = TemporalFusionTransformer.from_dataset(
             dataset=dataset,
             hidden_size=hidden,
@@ -486,6 +486,7 @@ class TFTpytorch(DLPredictionPytorchForecastingWrapper):
             loss=QuantileLoss(),
             hidden_continuous_size=hidden,
         )
+        self.dataset = dataset
         self.num_classes = num_classes
         self.logit = nn.Linear(7, num_classes)
 
@@ -575,7 +576,10 @@ class TFTpytorch(DLPredictionPytorchForecastingWrapper):
             target_scale,
         )
 
-        return self.forward(tuple_x)
+        # with autograd.set_grad_enabled(True):
+        result = self.forward(tuple_x)
+
+        return result
 
 
 @gin.configurable
@@ -634,9 +638,11 @@ class RNNpytorch(DLPredictionPytorchForecastingWrapper):
 
         out = self.model(x_dict)
 
-        pred = self.logit(out["prediction"])
+        out = ((out["prediction"][-1]).squeeze(dim=-1))
 
-        return pred
+        pred = self.logit(out)
+
+        return pred.unsqueeze(1)
 
 
 @gin.configurable
@@ -694,6 +700,8 @@ class DeepARpytorch(DLPredictionPytorchForecastingWrapper):
             x_dict["encoder_cont"][:, :, -1] = 0.0
         out = self.model(x_dict)
 
-        pred = self.logit(out["prediction"])
+        out = ((out["prediction"][-1]))
+
+        pred = self.logit(out)
 
         return pred

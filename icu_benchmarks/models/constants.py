@@ -26,6 +26,9 @@ from icu_benchmarks.models.custom_metrics import (
     MAE,
     JSD,
     BinaryFairnessWrapper,
+    Faithfulness,
+    Stability,
+    Randomization
 )
 
 
@@ -84,6 +87,17 @@ class DLMetrics:
         "rmse": RootMeanSquaredError,
         "mae": MAE,
         "jsd": JSD,
+    }
+    Faithfulness = {
+        "Faithfulness_timesteps": Faithfulness,
+        "Faithfulness_features": Faithfulness,
+        "Faithfulness_feature_timestep": Faithfulness,
+    }
+    Stability = {
+        "Stability": Stability
+    }
+    Randmoization = {
+        "DDR": Randomization,
     }
 
 

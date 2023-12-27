@@ -73,9 +73,9 @@ def train_common(
         torch.cuda.device_count() * 8 * int(torch.cuda.is_available()),
         32,
     ),
-    explain: list = [],
+    explain: list = None,
     pytorch_forecasting: bool = False,
-    XAI_metric: list = [],
+    XAI_metric: list = None,
     random_labels: bool = False,
     random_model_dir: str = None,
 
@@ -154,6 +154,12 @@ def train_common(
             drop_last=True,
             shuffle=False,
         )
+        if random_model_dir is None:
+            random_model = None
+        else:
+
+            random_model = Path(random_model_dir)
+
         if load_weights:
             model = load_model(
                 model,
@@ -161,6 +167,11 @@ def train_common(
                 pl_model=pl_model,
                 train_dataset=train_dataset,
                 optimizer=optimizer,
+                explain=explain,
+                XAI_metric=XAI_metric,
+                random_model=random_model,
+                test_loader=test_loader
+
             )
 
         else:
@@ -170,6 +181,11 @@ def train_common(
                 epochs=epochs,
                 run_mode=mode,
                 batch_size=batch_size,
+                explain=explain,
+                XAI_metric=XAI_metric,
+                random_model=random_model,
+                test_loader=test_loader
+
             )
         if random_labels:
             train_dataset.randomize_labels(num_classes=model.num_classes)
@@ -246,7 +262,8 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
-        # gradient_clip_val=gradient_clip_val
+        gradient_clip_val=gradient_clip_val,
+        inference_mode=False
     )
     if not eval_only:
         if model.requires_backprop:
@@ -264,21 +281,7 @@ def train_common(
         save_config_file(log_dir)
         return 0
 
-    if explain:
-        if random_model_dir is None:
-            random_model = None
-        else:
-            path = Path(random_model_dir)
-
-            random_model = load_model(
-                model,
-                source_dir=path,
-                pl_model=pl_model,
-                train_dataset=train_dataset,
-                optimizer=optimizer,
-            )
-
-        XAI_dict = {}  # dictrionary to log attributions metrics
+        """ XAI_dict = {}  # dictrionary to log attributions metrics
 
         # choose which  methods to get attributions
         methods = {
@@ -370,7 +373,7 @@ def train_common(
 
         # Write the dictionary to a JSON file
         with open(json_file_path, "w") as json_file:
-            json.dump(XAI_dict, json_file)
+            json.dump(XAI_dict, json_file) """
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
@@ -378,7 +381,7 @@ def train_common(
     return test_loss
 
 
-def load_model(model, source_dir, pl_model=True, train_dataset=None, optimizer=None):
+def load_model(model, source_dir, pl_model=True, train_dataset=None, optimizer=None, explain=None, XAI_metric=None, random_model=None, test_loader=None):
     if source_dir.exists():
         if model.requires_backprop:
             if (source_dir / "model.ckpt").exists():
@@ -391,7 +394,8 @@ def load_model(model, source_dir, pl_model=True, train_dataset=None, optimizer=N
                 return Exception(f"No weights to load at path : {source_dir}")
             if pl_model:
                 if train_dataset is not None:
-                    model = model.load_from_checkpoint(model_path, dataset=train_dataset, optimizer=optimizer)
+                    model = model.load_from_checkpoint(model_path, dataset=train_dataset, optimizer=optimizer,
+                                                       explain=explain, XAI_metric=XAI_metric, test_loader=test_loader)
 
                 else:
                     model = model.load_from_checkpoint(model_path)
