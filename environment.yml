@@ -33,6 +33,8 @@ dependencies:
       # Fixed version because of NumPy incompatibility and stale development status.
       - scikit-optimize-fix==0.9.1
       - hydra-submitit-launcher==1.2.0
+      - git+https://github.com/youssefmecky96/pytorchforecasting
+      - git+https://github.com/youssefmecky96/captum
 # Note: versioning of Pytorch might be dependent on compatible CUDA version.
 # Please check yourself if your Pytorch installation supports cuda (for gpu acceleration)
 

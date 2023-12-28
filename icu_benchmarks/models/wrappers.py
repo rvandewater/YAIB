@@ -1072,7 +1072,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 denominator += (denominator == 0) * eps_min
 
             return nominator / denominator
-
+        if not torch.is_tensor(attribution):
+            attribution = torch.tensor(attribution).to(self.device)
         if explain_method == "Attention":
             y_pred = self.model.predict(dataloader)
             x_original = dataloader.dataset.data["reals"].clone()
@@ -1090,6 +1091,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             RIS = relative_stability_objective(
                 x_original[close_indices, :, :].detach(), x_preturb[close_indices, :, :].detach(), attribution, att_preturb, input=True
             )
+
             ROS = relative_stability_objective(
                 y_pred[close_indices], y_pred_preturb[close_indices], attribution, att_preturb, input=False
             )
@@ -1124,7 +1126,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             # Find where the difference is less than or equal to a thershold
             close_indices = torch.nonzero(difference <= thershold).squeeze()
-            print(close_indices)
 
             RIS = relative_stability_objective(
                 x_original[close_indices, :, :].detach(), x["encoder_cont"][close_indices, :, :].detach(), attribution[close_indices, :, :], att_preturb[close_indices, :, :], input=True

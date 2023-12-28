@@ -10,7 +10,7 @@ from typing import Dict, Tuple, Union
 from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
 from .constants import DataSplit as Split
-from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer
+from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer, MultiNormalizer, EncoderNormalizer
 
 
 class CommonDataset(Dataset):
@@ -450,6 +450,7 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
         time_varying_known_reals: List[str],
         time_varying_unknown_categoricals: List[str],
         lagged_variables: List[str],
+        target_normalizer: str,
         *args,
         ram_cache: bool = False,
         add_relative_time_idx: bool = False,
@@ -482,7 +483,13 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
         self.ram_cache = ram_cache
         self.kwargs = kwargs
         self.column_names = features.columns
-
+        if target_normalizer == 'multi':
+            target_normalizer = MultiNormalizer([EncoderNormalizer(transformation='relu') for _ in range(len(target)-1)] + [GroupNormalizer(groups=["stay_id"], transformation="relu")]
+                                                )
+        else:
+            target_normalizer = GroupNormalizer(
+                groups=["stay_id"], transformation="relu"
+            )
         super().__init__(
             data=self.data,
             time_idx="time_idx",
@@ -502,9 +509,7 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
             # add_target_scales=True,
             # add_encoder_length=True,
             predict_mode=True,
-            target_normalizer=GroupNormalizer(
-                groups=["stay_id"], transformation="relu"
-            ),
+            target_normalizer=target_normalizer
         )
 
     def get_balance(self) -> list:
