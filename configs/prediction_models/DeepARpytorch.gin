@@ -138,5 +138,6 @@ PredictionDatasetpytorch.time_varying_unknown_reals=[
             ]
 PredictionDatasetpytorch.time_varying_unknown_categoricals=[]
 PredictionDatasetpytorch.lagged_variables=[]
+PredictionDatasetpytorch.targetnormalizer='multi'
 
                 

@@ -1105,8 +1105,9 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 x["encoder_cont"] += noise
             y_pred_preturb = self(self.prep_data(x)).detach()
             if explain_method == "Random":
-                att_preturb = np.random.normal(size=[64, 24, 53])
 
+                att_preturb = np.random.normal(size=[64, 24, 53])
+                att_preturb = torch.tensor(att_preturb).to(self.device)
             else:
 
                 data, baselines = self.prep_data_captum(x)
@@ -1126,7 +1127,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             # Find where the difference is less than or equal to a thershold
             close_indices = torch.nonzero(difference <= thershold).squeeze()
-
             RIS = relative_stability_objective(
                 x_original[close_indices, :, :].detach(), x["encoder_cont"][close_indices, :, :].detach(), attribution[close_indices, :, :], att_preturb[close_indices, :, :], input=True
             )

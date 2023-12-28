@@ -450,8 +450,8 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
         time_varying_known_reals: List[str],
         time_varying_unknown_categoricals: List[str],
         lagged_variables: List[str],
-        target_normalizer: str,
         *args,
+        target_normalizer: str = "",
         ram_cache: bool = False,
         add_relative_time_idx: bool = False,
         name: str = "",
@@ -509,7 +509,9 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
             # add_target_scales=True,
             # add_encoder_length=True,
             predict_mode=True,
-            target_normalizer=target_normalizer
+            target_normalizer=GroupNormalizer(
+                groups=["stay_id"], transformation="relu"
+            )
         )
 
     def get_balance(self) -> list:

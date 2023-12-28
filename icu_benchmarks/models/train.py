@@ -282,9 +282,9 @@ def train_common(
 
         # choose which  methods to get attributions
         methods = {
-            "G": Saliency,
+            # "G": Saliency,
             # "L": Lime,
-            "IG": IntegratedGradients,
+            # "IG": IntegratedGradients,
             # "FA": FeatureAblation,
             "R": "Random",
             "Att": "Attention"
@@ -331,7 +331,7 @@ def train_common(
                 feature_masks = tuple([create_default_mask(shape) if i !=
                                       1 else feature_mask_second for i, shape in enumerate(shapes)])
                 all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score, st_i_score, st_o_score = model.explantation(
-                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, return_input_shape=True, XAI_metric=XAI_metric, random_model=random_model
+                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, feature_mask=feature_masks, return_input_shape=True, XAI_metric=XAI_metric, random_model=random_model
                 )
 
             else:
