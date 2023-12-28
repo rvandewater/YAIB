@@ -290,7 +290,11 @@ def train_common(
             "IG": IntegratedGradients,
             # "FA": FeatureAblation,
             "R": "Random",
+<<<<<<< HEAD
             "Att": "Attention"
+=======
+            # "Att": "Attention"
+>>>>>>> parent of a39b5c4... added condition for ROS and RIS for attention
         }
         for key, item in methods.items():
             # If conditions needed here as different explantations require different inputs

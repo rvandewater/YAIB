@@ -962,7 +962,10 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                                                                pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
                 r_score.append(self.Data_Randomization(x, attribution=stacked_attr,
                                explain_method=method, random_model=random_model, method_name=method_name))
+<<<<<<< HEAD
 
+=======
+>>>>>>> parent of a39b5c4... added condition for ROS and RIS for attention
                 res1, res2 = self.Relative_Stability(x,
                                                      stacked_attr, explain_method=method, method_name=method_name,  dataloader=None, **kwargs
                                                      )
@@ -1259,7 +1262,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         return score
 
     def Relative_Stability(self, x,
-                           attribution, explain_method, method_name, dataloader=None, thershold=0.5, device='cuda', **kwargs
+                           attribution, explain_method, method_name, dataloader=None, thershold=0.5, **kwargs
                            ):
         """
      Args:
@@ -1282,7 +1285,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         """
 
         def relative_stability_objective(
-            x, xs, e_x, e_xs, close_indices, eps_min=0.0001, input=False, attention=False, device='cuda'
+            x, xs, e_x, e_xs, eps_min=0.0001, input=False, device='cuda'
         ) -> torch.Tensor:
             """
             Computes relative input and output stabilities maximization objective
@@ -1306,15 +1309,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             # Function to convert inputs to tensors if they are numpy arrays
             def to_tensor(input_array):
                 if isinstance(input_array, np.ndarray):
-                    return torch.index_select(torch.tensor(input_array).to(device), 0, close_indices)
-
-                return torch.index_select(input_array.to(device), 0, close_indices)
+                    return torch.tensor(input_array).to(device)
+                return input_array.to(device)
 
             # Convert all inputs to tensors and move to GPU
-            if attention:
-                x, xs = map(to_tensor, [x, xs])
-            else:
-                x, xs, e_x, e_xs = map(to_tensor, [x, xs, e_x, e_xs])
+            x, xs, e_x, e_xs = map(to_tensor, [x, xs, e_x, e_xs])
 
             if input:
                 num_dim = x.ndim
@@ -1356,13 +1355,12 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             difference = torch.abs(y_pred_preturb - y_pred)
 
             # Find where the difference is less than or equal to a thershold
-            close_indices = torch.nonzero(difference <= thershold).squeeze()[:, 0].to(device)
-
+            close_indices = torch.nonzero(difference <= thershold).squeeze()
             RIS = relative_stability_objective(
-                x_original.detach(), x_preturb.detach(), attribution, att_preturb, close_indices=close_indices, input=True, attention=True
+                x_original[close_indices, :, :].detach(), x_preturb[close_indices, :, :].detach(), attribution, att_preturb, input=True
             )
             ROS = relative_stability_objective(
-                y_pred, y_pred_preturb, attribution, att_preturb, close_indices=close_indices, input=False, attention=True
+                y_pred[close_indices], y_pred_preturb[close_indices], attribution, att_preturb, input=False
             )
 
         else:
@@ -1394,15 +1392,15 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             difference = torch.abs(y_pred_preturb - y_pred)
 
             # Find where the difference is less than or equal to a thershold
-            close_indices = torch.nonzero(difference <= thershold).squeeze()[:, 0].to(device)
+            close_indices = torch.nonzero(difference <= thershold).squeeze()
+            print(close_indices)
 
             RIS = relative_stability_objective(
-                x_original.detach(),
-                x["encoder_cont"].detach(),
-                attribution, att_preturb, close_indices=close_indices, input=True
+                x_original[close_indices, :, :].detach(), x["encoder_cont"][close_indices, :, :].detach(), attribution[close_indices, :, :], att_preturb[close_indices, :, :], input=True
             )
             ROS = relative_stability_objective(
-                y_pred, y_pred_preturb, attribution, att_preturb, close_indices=close_indices, input=False
+                y_pred[close_indices], y_pred_preturb[close_indices], attribution[close_indices,
+                                                                                  :, :], att_preturb[close_indices, :, :], input=False
             )
 
         return np.max(RIS.cpu().numpy()).astype(np.float64), np.max(ROS.cpu().numpy()).astype(np.float64)
