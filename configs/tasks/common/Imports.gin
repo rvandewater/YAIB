@@ -4,3 +4,4 @@ import icu_benchmarks.data.loader
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.dl_models
 import icu_benchmarks.models.ml_models
+import icu_benchmarks.models.metrics

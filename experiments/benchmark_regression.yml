@@ -17,22 +17,25 @@ name: yaib_regression_benchmark
 parameters:
   data_dir:
     values:
-      - ../data/los/miiv
-      - ../data/los/hirid
-      - ../data/los/eicu
-      - ../data/los/aumc
-      - ../data/kf/miiv
-      - ../data/kf/hirid
-      - ../data/kf/eicu
-      - ../data/kf/aumc
+      - data/YAIB_Preprint/los/miiv
+      - data/YAIB_Preprint/los/hirid
+      - data/YAIB_Preprint/los/eicu
+      - data/YAIB_Preprint/los/aumc
+      - data/YAIB_Preprint/kf/miiv
+      - data/YAIB_Preprint/kf/hirid
+      - data/YAIB_Preprint/kf/eicu
+      - data/YAIB_Preprint/kf/aumc
   model:
     values:
-      - ElasticNet
-      - LGBMRegressor
-      - GRU
-      - LSTM
-      - TCN
-      - Transformer
+     # - ElasticNet
+     # - LGBMRegressor
+     # - GRU
+     # - LSTM
+     # - TCN
+     # - Transformer
+     # - TFT
+      - TFTpytorch
+      
   seed:
     values:
       - 1111

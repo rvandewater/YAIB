@@ -15,7 +15,8 @@ train_common.weight = "balanced"
 train_common.ram_cache = True
 
 # LOSS FUNCTION
-DLPredictionWrapper.loss = @mse_loss
+DLPredictionWrapper.loss = @l1_loss
+DLPredictionPytorchForecastingWrapper.loss = @l1_loss
 MLWrapper.loss = @mean_squared_error
 
 # SELECTING PREPROCESSOR
@@ -25,7 +26,7 @@ preprocess.use_static = True
 
 # SPECIFYING REGRESSION OUTCOME SCALING
 base_regression_preprocessor.outcome_min = 0
-base_regression_preprocessor.outcome_max = 15
+base_regression_preprocessor.outcome_max = 168
 
 # SELECTING DATASET
 PredictionDataset.vars = %vars

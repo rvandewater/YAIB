@@ -1,0 +1,142 @@
+# Settings for RNN model.
+
+# Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
+
+# Optimizer params
+train_common.model = @RNNpytorch
+
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = 0.00041
+
+# Model params
+model/hyperparameter.class_to_tune = @RNNpytorch
+model/hyperparameter.hidden =  214
+#(2, 64, "log-uniform", 2)
+model/hyperparameter.rnn_layers=1
+#(1,3)
+model/hyperparameter.num_classes = %NUM_CLASSES
+model/hyperparameter.cell_type='LSTM'
+model/hyperparameter.dropout = (0.244, 0.2441)
+#(0.0, 0.4)
+#model/hyperparameter.lr_scheduler = "exponential"
+
+train_common/hyperparameter.class_to_tune = @train_common
+train_common/hyperparameter.batch_size=256
+#(32,64,128,256,512)
+train_common/hyperparameter.gradient_clip_val=100.0
+#(0,0.01, 1.0, 100.0)
+# Dataset params
+PredictionDatasetpytorch.max_encoder_length = 24
+PredictionDatasetpytorch.max_prediction_length = 1
+PredictionDatasetpytorch.time_varying_known_reals=[ ]
+PredictionDatasetpytorch.add_relative_time_idx=False
+PredictionDatasetpytorch.target=[
+    "alb",
+                "alp",
+                "alt",
+                "ast",
+                "be",
+                "bicar",
+                "bili",
+                "bili_dir",
+                "bnd",
+                "bun",
+                "ca",
+                "cai",
+                "ck",
+                "ckmb",
+                "cl",
+                "crea",
+                "crp",
+                "dbp",
+                "fgn",
+                "fio2",
+                "glu",
+                "hgb",
+                "hr",
+                "inr_pt",
+                "k",
+                "lact",
+                "lymph",
+                "map",
+                "mch",
+                "mchc",
+                "mcv",
+                "methb",
+                "mg",
+                "na",
+                "neut",
+                "o2sat",
+                "pco2",
+                "ph",
+                "phos",
+                "plt",
+                "po2",
+                "ptt",
+                "resp",
+                "sbp",
+                "temp",
+                "tnt",
+                "urine",
+                "wbc",
+                "label",
+              
+            ]
+            
+PredictionDatasetpytorch.time_varying_unknown_reals=[
+    "alb",
+                "alp",
+                "alt",
+                "ast",
+                "be",
+                "bicar",
+                "bili",
+                "bili_dir",
+                "bnd",
+                "bun",
+                "ca",
+                "cai",
+                "ck",
+                "ckmb",
+                "cl",
+                "crea",
+                "crp",
+                "dbp",
+                "fgn",
+                "fio2",
+                "glu",
+                "hgb",
+                "hr",
+                "inr_pt",
+                "k",
+                "lact",
+                "lymph",
+                "map",
+                "mch",
+                "mchc",
+                "mcv",
+                "methb",
+                "mg",
+                "na",
+                "neut",
+                "o2sat",
+                "pco2",
+                "ph",
+                "phos",
+                "plt",
+                "po2",
+                "ptt",
+                "resp",
+                "sbp",
+                "temp",
+                "tnt",
+                "urine",
+                "wbc",
+                "label",
+              
+            ]
+PredictionDatasetpytorch.time_varying_unknown_categoricals=[]
+PredictionDatasetpytorch.lagged_variables=[]
+PredictionDatasetpytorch.targetnormalizer='multi'

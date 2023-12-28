@@ -5,6 +5,8 @@ import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.dl_models
 import icu_benchmarks.models.utils
+import icu_benchmarks.models.layers
+import icu_benchmarks.data.loader
 
 # Do not generate features from dynamic data
 base_classification_preprocessor.generate_features = False
@@ -13,9 +15,11 @@ base_regression_preprocessor.generate_features = False
 # Train params
 train_common.optimizer = @Adam
 train_common.epochs = 1000
-train_common.batch_size = 64
-train_common.patience = 10
+#train_common.batch_size = 64
+train_common.patience = 20
 train_common.min_delta = 1e-4
+
+
 
 # Hyperparameter tuning settings
 include "configs/prediction_models/common/DLTuning.gin"

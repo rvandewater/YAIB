@@ -1,0 +1,92 @@
+# Settings for TFT model.
+
+# Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
+
+# Optimizer params
+train_common.model = @TFTpytorch
+
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = 0.001
+#(0.0001, 0.001,0.01)
+
+# Model params
+model/hyperparameter.class_to_tune = @TFTpytorch
+model/hyperparameter.hidden = 32
+#(10,20,40,80,160,240,320)
+model/hyperparameter.num_classes = %NUM_CLASSES
+model/hyperparameter.dropout =(0.37, 0.38)
+model/hyperparameter.dropout_att = 0.0589
+#(0.1, 0.9)
+model/hyperparameter.n_heads =2
+
+#dataloader
+
+train_common/hyperparameter.class_to_tune = @train_common
+train_common/hyperparameter.batch_size=64
+#(32,64,128,256,512)
+
+train_common/hyperparameter.gradient_clip_val=0.01
+#(0,0.01, 1.0, 100.0)
+
+
+
+
+# Dataset params
+PredictionDatasetpytorch.max_encoder_length = 24
+PredictionDatasetpytorch.max_prediction_length = 1
+PredictionDatasetpytorch.target="label"
+PredictionDatasetpytorch.time_varying_known_reals=["time_idx"]
+PredictionDatasetpytorch.add_relative_time_idx=False
+PredictionDatasetpytorch.time_varying_unknown_categoricals=[]
+PredictionDatasetpytorch.time_varying_unknown_reals=["alb",
+                "alp",
+                "alt",
+                "ast",
+                "be",
+                "bicar",
+                "bili",
+                "bili_dir",
+                "bnd",
+                "bun",
+                "ca",
+                "cai",
+                "ck",
+                "ckmb",
+                "cl",
+                "crea",
+                "crp",
+                "dbp",
+                "fgn",
+                "fio2",
+                "glu",
+                "hgb",
+                "hr",
+                "inr_pt",
+                "k",
+                "lact",
+                "lymph",
+                "map",
+                "mch",
+                "mchc",
+                "mcv",
+                "methb",
+                "mg",
+                "na",
+                "neut",
+                "o2sat",
+                "pco2",
+                "ph",
+                "phos",
+                "plt",
+                "po2",
+                "ptt",
+                "resp",
+                "sbp",
+                "temp",
+                "tnt",
+                "urine",
+                "wbc",]
+PredictionDatasetpytorch.lagged_variables=[]
+PredictionDatasetpytorch.targetnormalizer='single'

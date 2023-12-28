@@ -61,7 +61,9 @@ class DiffWaveImputer(ImputationWrapper):
         )
 
         self.final_conv = nn.Sequential(
-            Conv(skip_channels, skip_channels, kernel_size=1), nn.ReLU(), ZeroConv1d(skip_channels, out_channels)
+            Conv(skip_channels, skip_channels, kernel_size=1),
+            nn.ReLU(),
+            ZeroConv1d(skip_channels, out_channels),
         )
 
         self.diffusion_parameters = calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T)
@@ -93,7 +95,10 @@ class DiffWaveImputer(ImputationWrapper):
         observed_mask = 1 - amputation_mask.float()
 
         if step_prefix in ["train", "val"]:
-            T, Alpha_bar = self.hparams.diffusion_time_steps, self.diffusion_parameters["Alpha_bar"]
+            T, Alpha_bar = (
+                self.hparams.diffusion_time_steps,
+                self.diffusion_parameters["Alpha_bar"],
+            )
 
             B, C, L = amputated_data.shape  # B is batchsize, C=1, L is audio length
             diffusion_steps = torch.randint(T, size=(B, 1, 1)).to(self.device)  # randomly sample diffusion steps from 1~T
@@ -121,7 +126,12 @@ class DiffWaveImputer(ImputationWrapper):
             amputated_data[target_missingness > 0] = target[target_missingness > 0]
             loss = self.loss(amputated_data, target)
             for metric in self.metrics[step_prefix].values():
-                metric.update((torch.flatten(amputated_data, start_dim=1).clone(), torch.flatten(target, start_dim=1).clone()))
+                metric.update(
+                    (
+                        torch.flatten(amputated_data, start_dim=1).clone(),
+                        torch.flatten(target, start_dim=1).clone(),
+                    )
+                )
 
         self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
         return loss
@@ -230,7 +240,13 @@ def calc_diffusion_hyperparams(diffusion_time_steps, beta_0, beta_T):
     Sigma = torch.sqrt(Beta_tilde)  # \sigma_t^2  = \tilde{\beta}_t
 
     _dh = {}
-    _dh["T"], _dh["Beta"], _dh["Alpha"], _dh["Alpha_bar"], _dh["Sigma"] = diffusion_time_steps, Beta, Alpha, Alpha_bar, Sigma
+    _dh["T"], _dh["Beta"], _dh["Alpha"], _dh["Alpha_bar"], _dh["Sigma"] = (
+        diffusion_time_steps,
+        Beta,
+        Alpha,
+        Alpha_bar,
+        Sigma,
+    )
     diffusion_hyperparams = _dh
     return diffusion_hyperparams
 
@@ -239,7 +255,13 @@ class Conv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, dilation=1):
         super(Conv, self).__init__()
         self.padding = dilation * (kernel_size - 1) // 2
-        self.conv = nn.Conv1d(in_channels, out_channels, kernel_size, dilation=dilation, padding=self.padding)
+        self.conv = nn.Conv1d(
+            in_channels,
+            out_channels,
+            kernel_size,
+            dilation=dilation,
+            padding=self.padding,
+        )
         self.conv = nn.utils.weight_norm(self.conv)
         nn.init.kaiming_normal_(self.conv.weight)
 
@@ -261,7 +283,14 @@ class ZeroConv1d(nn.Module):
 
 
 class Residual_block(nn.Module):
-    def __init__(self, res_channels, skip_channels, dilation, diffusion_step_embed_dim_out, in_channels):
+    def __init__(
+        self,
+        res_channels,
+        skip_channels,
+        dilation,
+        diffusion_step_embed_dim_out,
+        in_channels,
+    ):
         super(Residual_block, self).__init__()
 
         self.res_channels = res_channels
@@ -301,7 +330,7 @@ class Residual_block(nn.Module):
         cond = self.cond_conv(cond)
         h += cond
 
-        out = torch.tanh(h[:, :self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels:, :])
+        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels :, :])
 
         res = self.res_conv(out)
         assert x.shape == res.shape

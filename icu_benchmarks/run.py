@@ -5,7 +5,11 @@ import logging
 import sys
 from pathlib import Path
 import torch.cuda
-from icu_benchmarks.wandb_utils import update_wandb_config, apply_wandb_sweep, set_wandb_experiment_name
+from icu_benchmarks.wandb_utils import (
+    update_wandb_config,
+    apply_wandb_sweep,
+    set_wandb_experiment_name,
+)
 from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters
 from scripts.plotting.utils import plot_aggregated_results
 from icu_benchmarks.cross_validation import execute_repeated_cv
@@ -48,6 +52,11 @@ def main(my_args=tuple(sys.argv[1:])):
     evaluate = args.eval
     experiment = args.experiment
     source_dir = args.source_dir
+    explain = args.explain
+    pytorch_forecasting = args.pytorch_forecasting
+    XAI_metric = args.XAI_metric
+    random_labels = args.random_labels
+
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
@@ -73,7 +82,7 @@ def main(my_args=tuple(sys.argv[1:])):
             else "None"
         }
     )
-
+    random_model_dir = args.random_model
     log_dir_name = args.log_dir / name
     log_dir = (
         (log_dir_name / experiment)
@@ -85,10 +94,14 @@ def main(my_args=tuple(sys.argv[1:])):
     # Check cuda availability
     if torch.cuda.is_available():
         for name in range(0, torch.cuda.device_count()):
-            log_full_line(f"Available GPU {name}: {torch.cuda.get_device_name(name)}", level=logging.INFO)
+            log_full_line(
+                f"Available GPU {name}: {torch.cuda.get_device_name(name)}",
+                level=logging.INFO,
+            )
     else:
         log_full_line(
-            "No GPUs available: please check your device and Torch,Cuda installation if unintended.", level=logging.WARNING
+            "No GPUs available: please check your device and Torch,Cuda installation if unintended.",
+            level=logging.WARNING,
         )
 
     if args.preprocessor:
@@ -105,7 +118,8 @@ def main(my_args=tuple(sys.argv[1:])):
             name_datasets(args.name, args.name, args.name)
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
-        logging.info(f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
+        logging.info(
+            f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
         gin.parse_config_file(source_dir / "train_config.gin")
     elif args.samples and args.source_dir is not None:  # Train model with limited samples and bind existing config
         logging.info("Binding train gin-config. Note: this might override your config.")
@@ -118,7 +132,8 @@ def main(my_args=tuple(sys.argv[1:])):
         name_datasets(args.name, args.name, args.name)
         hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
-                Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
+            Path("configs") / ("imputation_models" if mode ==
+                               RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]
@@ -139,6 +154,8 @@ def main(my_args=tuple(sys.argv[1:])):
             generate_cache=args.generate_cache,
             load_cache=args.load_cache,
             verbose=verbose,
+            pytorch_forecasting=pytorch_forecasting,
+            random_labels=random_labels,
         )
 
     log_full_line(f"Logging to {run_dir.resolve()}", level=logging.INFO)
@@ -151,6 +168,7 @@ def main(my_args=tuple(sys.argv[1:])):
     log_full_line(mode_string, level=logging.INFO, char="=", num_newlines=3)
 
     start_time = datetime.now()
+
     execute_repeated_cv(
         data_dir,
         run_dir,
@@ -169,6 +187,11 @@ def main(my_args=tuple(sys.argv[1:])):
         cpu=args.cpu,
         wandb=args.wandb_sweep,
         complete_train=args.complete_train,
+        explain=explain,
+        pytorch_forecasting=pytorch_forecasting,
+        XAI_metric=XAI_metric,
+        random_model_dir=random_model_dir,
+        random_labels=random_labels,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)

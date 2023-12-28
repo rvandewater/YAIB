@@ -199,6 +199,7 @@ icu-benchmarks \
 > For a list of available flags, run `icu-benchmarks train -h`.
 
 > Run with `PYTORCH_ENABLE_MPS_FALLBACK=1` on Macs with Metal Performance Shaders.
+> Can set conda enviroment variable by running `conda env config vars set PYTORCH_ENABLE_MPS_FALLBACK=1`
 
 [//]: # (> Please note that, for Windows based systems, paths need to be formatted differently, e.g: ` r"\..\data\mortality_seq\hirid"`.)
 > For Windows based systems, the next line character (\\)  needs to be replaced by (^) (Command Prompt) or (`) (Powershell)
