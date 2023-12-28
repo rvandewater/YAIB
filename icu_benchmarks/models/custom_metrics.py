@@ -6,8 +6,6 @@ from sklearn.metrics import balanced_accuracy_score, mean_absolute_error
 from sklearn.calibration import calibration_curve
 from scipy.spatial.distance import jensenshannon
 from torchmetrics.classification import BinaryFairness
-from icu_benchmarks.models.similarity_func import correlation_spearman, distance_euclidean, correlation_pearson, cosine
-
 
 """"
 This file contains custom metrics that can be added to YAIB.
@@ -134,6 +132,7 @@ class BinaryFairnessWrapper(BinaryFairness):
         else:
             feature_names = trainer.test_dataloaders.dataset.features
         return feature_names
+
 
 # XAI Metrics
 
