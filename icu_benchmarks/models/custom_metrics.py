@@ -194,7 +194,9 @@ class Faithfulness(EpochMetric):
         References:
             1) Umang Bhatt et al.: "Evaluating and aggregating feature-based model
             explanations." IJCAI (2020): 3016-3022.
-            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for
+            responsible evaluation of neural network explanations and beyond."
+            Journal of Machine Learning Research 24.34 (2023): 1-11.
         """
 
         def add_noise(x, indices, time_step, feature_timestep):
@@ -319,7 +321,7 @@ class Stability(EpochMetric):
                 -attribution: attribution
                 - explain_method:function to generate explantations
                 - method_name: Name of the explantation
-                - dataloader:In case of using Attention as the explain method need to pass the dataloader instead of the batch ,
+                - dataloader:In case of using Attention as the explain method need to pass the dataloader instead of the batch.
 
 
             Returns:
@@ -329,7 +331,9 @@ class Stability(EpochMetric):
 
         References:
                 1) `https://arxiv.org/pdf/2203.06877.pdf
-                2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+                2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for
+                responsible evaluation of neural network explanations and beyond."
+                Journal of Machine Learning Research 24.34 (2023): 1-11.
 
         """
 
@@ -515,7 +519,9 @@ class Randomization(EpochMetric):
         References:
             1) Leon Sixt et al.: "When Explanations Lie: Why Many Modified BP
             Attributions Fail." ICML (2020): 9046-9057.
-            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for
+              responsible evaluation of neural network explanations and beyond."
+                Journal of Machine Learning Research 24.34 (2023): 1-11.
 
         """
 

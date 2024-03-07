@@ -1219,7 +1219,8 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
         References:
                1) `https://arxiv.org/pdf/2203.06877.pdf
-               2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+               2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation
+               of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
 
         """
 

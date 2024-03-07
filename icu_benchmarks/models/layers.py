@@ -804,9 +804,9 @@ class TFTBack(nn.Module):
         x, attn_prob = self.attention(enriched)
 
         # Don't compute historical quantiles
-        x = x[:, self.encoder_length :, :]
-        temporal_features = temporal_features[:, self.encoder_length :, :]
-        enriched = enriched[:, self.encoder_length :, :]
+        x = x[:, self.encoder_length:, :]
+        temporal_features = temporal_features[:, self.encoder_length:, :]
+        enriched = enriched[:, self.encoder_length:, :]
 
         x = self.attention_gate(x)
         x = x + enriched

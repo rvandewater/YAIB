@@ -324,7 +324,7 @@ class TemporalConvNet(DLPredictionWrapper):
 @gin.configurable
 class TFT(DLPredictionWrapper):
     """
-    Implementation of https://arxiv.org/abs/1912.09363 
+    Implementation of https://arxiv.org/abs/1912.09363
     from https://github.com/NVIDIA/DeepLearningExamples/tree/master/PyTorch/Forecasting/TFT
     """
 
