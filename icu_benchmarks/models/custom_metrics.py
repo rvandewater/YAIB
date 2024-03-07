@@ -145,6 +145,53 @@ class Faithfulness(EpochMetric):
     def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False, *args, **kwargs) -> None:
         super().__init__(output_transform, check_compute_fn, *args, **kwargs)
 
+    def add_noise(self, x, indices, time_step, feature, feature_timestep):
+        noise = torch.randn_like(x["encoder_cont"])
+        if time_step:
+            idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
+
+            with torch.no_grad():
+                x["encoder_cont"][idx0, idx1, :] += noise[idx0, idx1, :]
+
+        elif feature:
+            idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
+
+            with torch.no_grad():
+                x["encoder_cont"][idx0, :, idx1] += noise[idx0, :, idx1]
+
+        elif feature_timestep:
+            idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
+
+            with torch.no_grad():
+                x["encoder_cont"][idx0, idx1, idx2] += noise[idx0, idx1, idx2]
+        return x
+
+    def apply_baseline(self, x, indices, time_step, feature, feature_timestep):
+        mask = torch.ones_like(x["encoder_cont"])
+        if time_step:
+            (
+                idx0,
+                idx1,
+            ) = np.meshgrid(indices[0], indices[1], indexing="ij")
+
+            mask[idx0, idx1, :] -= mask[idx0, idx1, :]
+        elif feature:
+            (
+                idx0,
+                idx1,
+            ) = np.meshgrid(indices[0], indices[1], indexing="ij")
+
+            mask[idx0, :, idx1] -= mask[idx0, :, idx1]
+
+        elif feature_timestep:
+            idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
+
+            mask[idx0, idx1, idx2] -= mask[idx0, idx1, idx2]
+
+        with torch.no_grad():
+            x["encoder_cont"] *= mask
+        return x
+
     def update(
         self,
         x,
@@ -199,54 +246,8 @@ class Faithfulness(EpochMetric):
             Journal of Machine Learning Research 24.34 (2023): 1-11.
         """
 
-        def add_noise(x, indices, time_step, feature_timestep):
-            noise = torch.randn_like(x["encoder_cont"])
-            if time_step:
-                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
-
-                with torch.no_grad():
-                    x["encoder_cont"][idx0, idx1, :] += noise[idx0, idx1, :]
-
-            elif feature:
-                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
-
-                with torch.no_grad():
-                    x["encoder_cont"][idx0, :, idx1] += noise[idx0, :, idx1]
-
-            elif feature_timestep:
-                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
-
-                with torch.no_grad():
-                    x["encoder_cont"][idx0, idx1, idx2] += noise[idx0, idx1, idx2]
-
-        def apply_baseline(x, indices, time_step, feature_timestep):
-            mask = torch.ones_like(x["encoder_cont"])
-            if time_step:
-                (
-                    idx0,
-                    idx1,
-                ) = np.meshgrid(indices[0], indices[1], indexing="ij")
-
-                mask[idx0, idx1, :] -= mask[idx0, idx1, :]
-            elif feature:
-                (
-                    idx0,
-                    idx1,
-                ) = np.meshgrid(indices[0], indices[1], indexing="ij")
-
-                mask[idx0, :, idx1] -= mask[idx0, :, idx1]
-
-            elif feature_timestep:
-                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
-
-                mask[idx0, idx1, idx2] -= mask[idx0, idx1, idx2]
-
-            with torch.no_grad():
-                x["encoder_cont"] *= mask
-
         # Assuming 'attribution' is already a GPU tensor
-        if not torch.is_tensor(attribution):
-            attribution = torch.tensor(attribution).to(device)
+        attribution = torch.tensor(attribution).to(device)
         # Other initializations
         if similarity_func is None:
             similarity_func = correlation_spearman
@@ -278,9 +279,9 @@ class Faithfulness(EpochMetric):
 
             # Apply perturbation
             if pertrub == "Noise":
-                add_noise(x, a_ix, time_step, feature_timestep)
+                x = self.add_noise(x, a_ix, time_step, feature, feature_timestep)
             elif pertrub == "baseline":
-                apply_baseline(x, a_ix, time_step, feature_timestep)
+                x = self.apply_baseline(x, a_ix, time_step, feature, feature_timestep)
 
             # Predict on perturbed input and calculate deltas
             y_pred_perturb = (model(model.prep_data(x))).detach()  # Keep on GPU

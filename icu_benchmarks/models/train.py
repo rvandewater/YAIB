@@ -119,6 +119,7 @@ def train_common(
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
     test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"])
     test_dataset = assure_minimum_length(test_dataset)
+
     if not eval_only:
         logging.info(
             f"Training on {train_dataset.name} with {len(train_dataset)} samples and validating on {val_dataset.name} with"
@@ -126,87 +127,24 @@ def train_common(
         )
     batch_size = int(batch_size)
     logging.info(f"Using {num_workers} workers for data loading.")
-    if pytorch_forecasting:
-        train_loader = train_dataset.to_dataloader(
-            train=True,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=False,
-            drop_last=True,
-        )
-        val_loader = val_dataset.to_dataloader(
-            train=False,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=False,
-            drop_last=True,
-        )
-        test_loader = test_dataset.to_dataloader(
-            train=False,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=False,
-            drop_last=True,
-            shuffle=False,
-        )
-        if load_weights:
-            model = load_model(
-                model,
-                source_dir,
-                pl_model=pl_model,
-                train_dataset=train_dataset,
-                optimizer=optimizer,
-            )
-
-        else:
-            model = model(
-                train_dataset,
-                optimizer=optimizer,
-                epochs=epochs,
-                run_mode=mode,
-                batch_size=batch_size,
-            )
-        if random_labels:
-            train_dataset.randomize_labels(num_classes=model.num_classes)
-            val_dataset.randomize_labels(num_classes=model.num_classes)
-            test_dataset.randomize_labels(num_classes=model.num_classes)
-
-    else:
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=num_workers,
-            pin_memory=True,
-            drop_last=True,
-        )
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=batch_size,
-            shuffle=False,
-            num_workers=num_workers,
-            pin_memory=True,
-            drop_last=True,
-        )
-
-        test_loader = (
-            DataLoader(
-                test_dataset,
-                batch_size=min(batch_size * 4, len(test_dataset)),
-                shuffle=False,
-                num_workers=num_workers,
-                pin_memory=True,
-                drop_last=True,
-            )
-            if model.requires_backprop
-            else DataLoader([test_dataset.to_tensor()], batch_size=1)
-        )
-
-        data_shape = next(iter(train_loader))[0].shape
-        if load_weights:
-            model = load_model(model, source_dir, pl_model=pl_model)
-        else:
-            model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+    train_loader, val_loader, test_loader, model = prepare_data_loaders(
+        model=model,
+        train_dataset=train_dataset,
+        val_dataset=val_dataset,
+        test_dataset=test_dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=True,
+        pytorch_forecasting=pytorch_forecasting,
+        load_weights=load_weights,
+        source_dir=source_dir,
+        pl_model=pl_model,
+        optimizer=optimizer,
+        epochs=epochs,
+        mode=mode,
+        random_labels=random_labels,
+    )
 
     model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
@@ -241,7 +179,6 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
-        # gradient_clip_val=gradient_clip_val
     )
     if not eval_only:
         if model.requires_backprop:
@@ -260,18 +197,14 @@ def train_common(
         return 0
 
     if explain:
-        if random_model_dir is None:
-            random_model = None
-        else:
-            path = Path(random_model_dir)
-
-            random_model = load_model(
-                model,
-                source_dir=path,
-                pl_model=pl_model,
-                train_dataset=train_dataset,
-                optimizer=optimizer,
-            )
+        path = Path(random_model_dir)
+        random_model = load_model(
+            model,
+            source_dir=path,
+            pl_model=pl_model,
+            train_dataset=train_dataset,
+            optimizer=optimizer,
+        )
 
         XAI_dict = {}  # dictrionary to log attributions metrics
 
@@ -324,21 +257,11 @@ def train_common(
                     torch.Size([64, 2]),
                 ]
 
-                # Create a default mask for non-targeted tensors
-                def create_default_mask(shape):
-                    if len(shape) == 3:
-                        return torch.zeros(shape[0], shape[1], max(1, shape[2]), dtype=torch.int32)
-                    elif len(shape) == 2:
-                        return torch.zeros(shape[0], max(1, shape[1]), dtype=torch.int32)
-                    else:  # len(shape) == 1
-                        return torch.zeros(shape[0], dtype=torch.int32)
-
                 # Create a feature mask for the second tensor that includes both features and timesteps
                 num_timesteps = shapes[1][1]
                 num_features = shapes[1][2]
                 feature_mask_second = torch.arange(num_timesteps * num_features).reshape(num_timesteps, num_features)
                 feature_mask_second = feature_mask_second.unsqueeze(0).repeat(shapes[1][0], 1, 1)
-
                 # Create a tuple of masks
                 feature_masks = tuple(
                     [create_default_mask(shape) if i != 1 else feature_mask_second for i, shape in enumerate(shapes)]
@@ -392,23 +315,17 @@ def train_common(
                 XAI_dict["{}_ROS".format(key)] = st_o_score
                 print("{}_RIS ".format(key), st_i_score)
                 XAI_dict["{}_RIS".format(key)] = st_i_score
-                if key == "Att":
-                    print("{} weights faithfulness featrues ".format(key), v_score)
-                    XAI_dict["{}_Faith Features".format(key)] = v_score
 
-                else:
-                    print("{} Attributions faithfulness featrues ".format(key), v_score)
-                    XAI_dict["{}_Faith Features".format(key)] = v_score
+                print("{} Attributions faithfulness featrues ".format(key), v_score)
+                XAI_dict["{}_Faith Features".format(key)] = v_score
 
-                    print(
-                        "{}_Attributions Faithfulness Variable Per Timestep ".format(key),
-                        ts_v_score,
-                    )
-                    XAI_dict["{}_Faith Variable Per Timestep".format(key)] = ts_v_score
+                print(
+                    "{}_Attributions Faithfulness Variable Per Timestep ".format(key),
+                    ts_v_score,
+                )
+                XAI_dict["{}_Faith Variable Per Timestep".format(key)] = ts_v_score
                 print("{}_Data Randomization Distance ".format(key), r_score)
                 XAI_dict["{}_Data Randomization Distance".format(key)] = r_score
-
-        # Getting the interpertations using pytorch forecasting native methods
 
         # Path to the JSON file in log_dir
         json_file_path = f"{log_dir}/XAI_metrics.json"
@@ -423,7 +340,146 @@ def train_common(
     return test_loss
 
 
+def prepare_data_loaders(
+    model,
+    train_dataset,
+    val_dataset,
+    test_dataset,
+    batch_size,
+    num_workers,
+    pin_memory,
+    drop_last=True,
+    shuffle_train=True,
+    pytorch_forecasting=False,
+    load_weights=False,
+    source_dir=None,
+    pl_model=None,
+    optimizer=None,
+    epochs=None,
+    mode=None,
+    random_labels=False,
+):
+    """
+    Prepares PyTorch data loaders based on the provided datasets and configuration.
+
+    Args:
+        train_dataset: Training dataset.
+        val_dataset: Validation dataset.
+        test_dataset: Test dataset.
+        batch_size: Batch size for data loaders.
+        num_workers: Number of worker processes for data loading.
+        pin_memory: Whether to use pin_memory for faster data transfer to GPU.
+        drop_last: Whether to drop the last incomplete batch.
+        shuffle_train: Whether to shuffle the training data loader.
+        load_weights: Whether to load weights from a pre-trained model.
+        source_dir: Directory to load weights from.
+        pl_model: PyTorch Lightning model (used for loading weights).
+        optimizer: Optimizer for the model.
+        epochs: Number of training epochs.
+        mode: Run mode for the model.
+        random_labels: Whether to randomize labels for the datasets.
+
+    Returns:
+        tuple: Tuple containing train_loader, val_loader, and test_loader.
+    """
+    if pytorch_forecasting:
+        train_loader = train_dataset.to_dataloader(
+            train=True,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            drop_last=drop_last,
+            shuffle=shuffle_train,
+        )
+        val_loader = val_dataset.to_dataloader(
+            train=False,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            drop_last=drop_last,
+        )
+        test_loader = test_dataset.to_dataloader(
+            train=False,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            drop_last=drop_last,
+            shuffle=False,
+        )
+        if load_weights:
+            model = load_model(
+                model,
+                source_dir,
+                pl_model=pl_model,
+                train_dataset=train_dataset,
+                optimizer=optimizer,
+            )
+        else:
+            model = model(
+                train_dataset,
+                optimizer=optimizer,
+                epochs=epochs,
+                run_mode=mode,
+                batch_size=batch_size,
+            )
+        if random_labels:
+            train_dataset.randomize_labels(num_classes=model.num_classes)
+            val_dataset.randomize_labels(num_classes=model.num_classes)
+            test_dataset.randomize_labels(num_classes=model.num_classes)
+
+    else:
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=shuffle_train,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            drop_last=drop_last,
+        )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            drop_last=drop_last,
+        )
+
+        test_loader = (
+            DataLoader(
+                test_dataset,
+                batch_size=min(batch_size * 4, len(test_dataset)),
+                shuffle=False,
+                num_workers=num_workers,
+                pin_memory=pin_memory,
+                drop_last=drop_last,
+            )
+            if model.requires_backprop
+            else DataLoader([test_dataset.to_tensor()], batch_size=1)
+        )
+
+        data_shape = next(iter(train_loader))[0].shape
+        if load_weights:
+            model = load_model(model, source_dir, pl_model=pl_model)
+        else:
+            model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+
+    return train_loader, val_loader, test_loader, model
+
+
+def create_default_mask(shape):
+    if len(shape) == 3:
+        return torch.zeros(shape[0], shape[1], max(1, shape[2]), dtype=torch.int32)
+    elif len(shape) == 2:
+        return torch.zeros(shape[0], max(1, shape[1]), dtype=torch.int32)
+    else:  # len(shape) == 1
+        return torch.zeros(shape[0], dtype=torch.int32)
+
+
 def load_model(model, source_dir, pl_model=True, train_dataset=None, optimizer=None):
+    if source_dir is None:
+        return None
+
     if source_dir.exists():
         if model.requires_backprop:
             if (source_dir / "model.ckpt").exists():

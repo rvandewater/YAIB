@@ -901,13 +901,13 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         st_i_score = np.max(st_i_score)
         st_o_score = np.max(st_o_score)
 
-        if plot:
+        """ if plot:
             log_dir_plots = log_dir / "plots"
             if not (log_dir_plots.exists()):
                 log_dir_plots.mkdir(parents=True)
             # Plot attributions for features and timesteps
 
-            self.plot_attributions(features_attrs, timestep_attrs, method_name, log_dir_plots)
+            self.plot_attributions(features_attrs, timestep_attrs, method_name, log_dir_plots) """
 
         # Return computed attributions and metrics
         return (
@@ -946,6 +946,53 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             x["target_scale"],
         )
         return data
+
+    def add_noise(self, x, indices, time_step, feature, feature_timestep):
+        noise = torch.randn_like(x["encoder_cont"])
+        if time_step:
+            idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
+
+            with torch.no_grad():
+                x["encoder_cont"][idx0, idx1, :] += noise[idx0, idx1, :]
+
+        elif feature:
+            idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
+
+            with torch.no_grad():
+                x["encoder_cont"][idx0, :, idx1] += noise[idx0, :, idx1]
+
+        elif feature_timestep:
+            idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
+
+            with torch.no_grad():
+                x["encoder_cont"][idx0, idx1, idx2] += noise[idx0, idx1, idx2]
+        return x
+
+    def apply_baseline(self, x, indices, time_step, feature, feature_timestep):
+        mask = torch.ones_like(x["encoder_cont"])
+        if time_step:
+            (
+                idx0,
+                idx1,
+            ) = np.meshgrid(indices[0], indices[1], indexing="ij")
+
+            mask[idx0, idx1, :] -= mask[idx0, idx1, :]
+        elif feature:
+            (
+                idx0,
+                idx1,
+            ) = np.meshgrid(indices[0], indices[1], indexing="ij")
+
+            mask[idx0, :, idx1] -= mask[idx0, :, idx1]
+
+        elif feature_timestep:
+            idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
+
+            mask[idx0, idx1, idx2] -= mask[idx0, idx1, idx2]
+
+        with torch.no_grad():
+            x["encoder_cont"] *= mask
+        return x
 
     def Faithfulness_Correlation(
         self,
@@ -999,54 +1046,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             Journal of Machine Learning Research 24.34 (2023): 1-11.
         """
 
-        def add_noise(x, indices, time_step, feature_timestep):
-            noise = torch.randn_like(x["encoder_cont"])
-            if time_step:
-                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
-
-                with torch.no_grad():
-                    x["encoder_cont"][idx0, idx1, :] += noise[idx0, idx1, :]
-
-            elif feature:
-                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
-
-                with torch.no_grad():
-                    x["encoder_cont"][idx0, :, idx1] += noise[idx0, :, idx1]
-
-            elif feature_timestep:
-                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
-
-                with torch.no_grad():
-                    x["encoder_cont"][idx0, idx1, idx2] += noise[idx0, idx1, idx2]
-
-        def apply_baseline(x, indices, time_step, feature_timestep):
-            mask = torch.ones_like(x["encoder_cont"])
-            if time_step:
-                (
-                    idx0,
-                    idx1,
-                ) = np.meshgrid(indices[0], indices[1], indexing="ij")
-
-                mask[idx0, idx1, :] -= mask[idx0, idx1, :]
-            elif feature:
-                (
-                    idx0,
-                    idx1,
-                ) = np.meshgrid(indices[0], indices[1], indexing="ij")
-
-                mask[idx0, :, idx1] -= mask[idx0, :, idx1]
-
-            elif feature_timestep:
-                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
-
-                mask[idx0, idx1, idx2] -= mask[idx0, idx1, idx2]
-
-            with torch.no_grad():
-                x["encoder_cont"] *= mask
-
-        # Assuming 'attribution' is already a GPU tensor
-        if not torch.is_tensor(attribution):
-            attribution = torch.tensor(attribution).to(self.device)
+        attribution = torch.tensor(attribution).to(self.device)
 
         # Other initializations
         if similarity_func is None:
@@ -1079,9 +1079,9 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             # Apply perturbation
             if pertrub == "Noise":
-                add_noise(x, a_ix, time_step, feature_timestep)
+                x = self.add_noise(x, a_ix, time_step, feature, feature_timestep)
             elif pertrub == "baseline":
-                apply_baseline(x, a_ix, time_step, feature_timestep)
+                x = self.apply_baseline(x, a_ix, time_step, feature, feature_timestep)
 
             # Predict on perturbed input and calculate deltas
             y_pred_perturb = (self(self.prep_data(x))).detach()  # Keep on GPU
@@ -1289,8 +1289,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
 
             return nominator / denominator
 
-        if not torch.is_tensor(attribution):
-            attribution = torch.tensor(attribution).to(self.device)
+        attribution = torch.tensor(attribution).to(self.device)
         if explain_method == "Attention":
             y_pred = self.model.predict(dataloader)
             x_original = dataloader.dataset.data["reals"].clone()
