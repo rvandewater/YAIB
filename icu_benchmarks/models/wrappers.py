@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional, Union
 import torchmetrics
 from sklearn.metrics import log_loss, mean_squared_error
 import torch
-from torch.nn import MSELoss, CrossEntropyLoss, L1Loss
+from torch.nn import MSELoss, CrossEntropyLoss
 import torch.nn as nn
 from torch import Tensor, FloatTensor
 from torch.optim import Optimizer, Adam
@@ -19,10 +19,9 @@ from pytorch_lightning import LightningModule
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
 import matplotlib.pyplot as plt
-from icu_benchmarks.models.similarity_func import correlation_spearman, distance_euclidean, correlation_pearson, cosine
+from icu_benchmarks.models.similarity_func import correlation_spearman, cosine
 import captum
 from captum._utils.models.linear_model import SkLearnLasso
-import os
 
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(nn.functional.cross_entropy, module="torch.nn.functional")
@@ -162,8 +161,7 @@ class DLWrapper(BaseModule, ABC):
         try:
             for name, metric in self.metrics[step_prefix].items():
                 try:
-                    value = np.float32(metric.compute()) if isinstance(
-                        metric.compute(), np.float64) else metric.compute()
+                    value = np.float32(metric.compute()) if isinstance(metric.compute(), np.float64) else metric.compute()
                     self.log_dict({f"{step_prefix}/{name}": value}, sync_dist=True)
 
                 except (NotComputableError, ValueError) as e:
@@ -467,7 +465,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         transformed_output = self.output_transform((prediction, target))
 
         for key, value in self.metrics[step_prefix].items():
-
             if isinstance(value, torchmetrics.Metric):
                 if key == "Binary_Fairness":
                     feature_names = self.metrics[step_prefix][key].feature_helper(self.trainer, step_prefix)
@@ -493,7 +490,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             - x:Batch from dataloader
         Returns:
             - data:batch data in a tuple after being prepared
-            - baselines:Basically zero tensors in the input 
+            - baselines:Basically zero tensors in the input
         """
         # captum requires gradient and float values
 
@@ -553,10 +550,70 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         plt.xlabel("Feature")
         plt.ylabel("{} Attribution".format(method_name))
         plt.title("{} Attribution Values".format(method_name))
-        plt.xticks(x_values, ['height', 'weight', 'age', 'sex', 'time_idx', 'alb', 'alp', 'alt', 'ast', 'be', 'bicar', 'bili', 'bili_dir', 'bnd', 'bun', 'ca', 'cai', 'ck', 'ckmb', 'cl', 'crea', 'crp', 'dbp', 'fgn', 'fio2', 'glu',
-                   'hgb', 'hr', 'inr_pt', 'k', 'lact', 'lymph', 'map', 'mch', 'mchc', 'mcv', 'methb', 'mg', 'na', 'neut', 'o2sat', 'pco2', 'ph', 'phos', 'plt', 'po2', 'ptt', 'resp', 'sbp', 'temp', 'tnt', 'urine', 'wbc'], rotation=90)
+        plt.xticks(
+            x_values,
+            [
+                "height",
+                "weight",
+                "age",
+                "sex",
+                "time_idx",
+                "alb",
+                "alp",
+                "alt",
+                "ast",
+                "be",
+                "bicar",
+                "bili",
+                "bili_dir",
+                "bnd",
+                "bun",
+                "ca",
+                "cai",
+                "ck",
+                "ckmb",
+                "cl",
+                "crea",
+                "crp",
+                "dbp",
+                "fgn",
+                "fio2",
+                "glu",
+                "hgb",
+                "hr",
+                "inr_pt",
+                "k",
+                "lact",
+                "lymph",
+                "map",
+                "mch",
+                "mchc",
+                "mcv",
+                "methb",
+                "mg",
+                "na",
+                "neut",
+                "o2sat",
+                "pco2",
+                "ph",
+                "phos",
+                "plt",
+                "po2",
+                "ptt",
+                "resp",
+                "sbp",
+                "temp",
+                "tnt",
+                "urine",
+                "wbc",
+            ],
+            rotation=90,
+        )
         plt.tight_layout()
-        plt.savefig(log_dir / "{}_attribution_features_plot.png".format(method_name), bbox_inches="tight")
+        plt.savefig(
+            log_dir / "{}_attribution_features_plot.png".format(method_name),
+            bbox_inches="tight",
+        )
 
         # Plot for timestep attributions
         x_values = np.arange(1, len(timestep_attrs) + 1)
@@ -577,12 +634,22 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         plt.tight_layout()
         plt.savefig(log_dir / "{}_attribution_plot.png".format(method_name), bbox_inches="tight")
 
-    def explantation(self, dataloader, method, log_dir=".", plot=False, XAI_metric=False, random_model=None, test_dataset=None, **kwargs):
+    def explantation(
+        self,
+        dataloader,
+        method,
+        log_dir=".",
+        plot=False,
+        XAI_metric=False,
+        random_model=None,
+        test_dataset=None,
+        **kwargs,
+    ):
         """
         Generic method to combine pytorchforecasting data loading , interpertations and captum to generate attributions
 
         Args:
-            - dataloader: pytorchforecasting data loader 
+            - dataloader: pytorchforecasting data loader
             - method: The explantation method chosen
             - log_dir= The directory to output the plots
             - plot= Determines if plots should be done or not
@@ -603,19 +670,29 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         st_i_score = []
         st_o_score = []
 
-        method_name = method if (method == "Random") or (method == "Attention") else (
-            method.__name__)
+        method_name = method if (method == "Random") or (method == "Attention") else (method.__name__)
         if (method_name == "Random") or (method_name == "Attention"):
             if method_name == "Attention":
                 Interpertations = self.interpertations(dataloader=dataloader, log_dir=log_dir, plot=plot)
                 timestep_attrs = Interpertations["attention"]
                 features_attrs = Interpertations["static_variables"].tolist()
                 features_attrs.extend(Interpertations["encoder_variables"].tolist())
-                r_score = self.Data_Randomization(x=None, attribution=timestep_attrs,
-                                                  explain_method=method, random_model=random_model, dataloader=dataloader, method_name=method_name)
-                st_i_score, st_o_score = self.Relative_Stability(x=None,
-                                                                 attribution=timestep_attrs, explain_method=method, method_name=method_name, dataloader=dataloader, **kwargs
-                                                                 )
+                r_score = self.Data_Randomization(
+                    x=None,
+                    attribution=timestep_attrs,
+                    explain_method=method,
+                    random_model=random_model,
+                    dataloader=dataloader,
+                    method_name=method_name,
+                )
+                st_i_score, st_o_score = self.Relative_Stability(
+                    x=None,
+                    attribution=timestep_attrs,
+                    explain_method=method,
+                    method_name=method_name,
+                    dataloader=dataloader,
+                    **kwargs,
+                )
             elif method_name == "Random":
                 # Generate random attributions for baseline comparison
                 all_attrs = np.random.normal(size=[64, 24, 53])
@@ -623,32 +700,82 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 timestep_attrs = all_attrs.mean(axis=(2))
             if XAI_metric:
                 for batch in dataloader:
-
                     for key, value in batch[0].items():
                         batch[0][key] = batch[0][key].to(self.device)
                     x = batch[0]
 
                     if method_name == "Random":
+                        f_ts_v_score.append(
+                            self.Faithfulness_Correlation(
+                                x,
+                                all_attrs,
+                                pertrub="baseline",
+                                feature_timestep=True,
+                                subset_size=[4, 9],
+                                nr_runs=100,
+                            )
+                        )
+                        f_ts_score.append(
+                            self.Faithfulness_Correlation(
+                                x,
+                                all_attrs,
+                                pertrub="baseline",
+                                time_step=True,
+                                subset_size=4,
+                                nr_runs=100,
+                            )
+                        )
+                        f_v_score.append(
+                            self.Faithfulness_Correlation(
+                                x,
+                                all_attrs,
+                                pertrub="baseline",
+                                feature=True,
+                                subset_size=9,
+                                nr_runs=100,
+                            )
+                        )
 
-                        f_ts_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
-                                                                          pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
-                        f_ts_score.append(self.Faithfulness_Correlation(x, all_attrs,
-                                                                        pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
-                        f_v_score.append(self.Faithfulness_Correlation(x, all_attrs,
-                                                                       pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
-
-                        r_score.append(self.Data_Randomization(x, attribution=all_attrs,
-                                       explain_method=method, random_model=random_model, method_name=method_name))
-                        res1, res2 = self.Relative_Stability(x,
-                                                             all_attrs, explain_method=method, method_name=method_name, dataloader=None, **kwargs
-                                                             )
+                        r_score.append(
+                            self.Data_Randomization(
+                                x,
+                                attribution=all_attrs,
+                                explain_method=method,
+                                random_model=random_model,
+                                method_name=method_name,
+                            )
+                        )
+                        res1, res2 = self.Relative_Stability(
+                            x,
+                            all_attrs,
+                            explain_method=method,
+                            method_name=method_name,
+                            dataloader=None,
+                            **kwargs,
+                        )
                         st_i_score.append(res1)
                         st_o_score.append(res2)
                     else:
-                        f_ts_score.append(self.Faithfulness_Correlation(x, timestep_attrs,
-                                                                        pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
-                        f_v_score.append(self.Faithfulness_Correlation(x, features_attrs,
-                                                                       pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
+                        f_ts_score.append(
+                            self.Faithfulness_Correlation(
+                                x,
+                                timestep_attrs,
+                                pertrub="baseline",
+                                time_step=True,
+                                subset_size=4,
+                                nr_runs=100,
+                            )
+                        )
+                        f_v_score.append(
+                            self.Faithfulness_Correlation(
+                                x,
+                                features_attrs,
+                                pertrub="baseline",
+                                feature=True,
+                                subset_size=9,
+                                nr_runs=100,
+                            )
+                        )
 
             # Faithfulness score for attribtuons of features per timesteps
             f_ts_v_score = np.mean(f_ts_v_score)
@@ -661,11 +788,20 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 r_score = np.mean(r_score)
                 st_i_score = np.max(st_i_score)
                 st_o_score = np.max(st_o_score)
-            return all_attrs, features_attrs, timestep_attrs, f_ts_v_score, f_ts_score, f_v_score, r_score, st_i_score, st_o_score
+            return (
+                all_attrs,
+                features_attrs,
+                timestep_attrs,
+                f_ts_v_score,
+                f_ts_score,
+                f_v_score,
+                r_score,
+                st_i_score,
+                st_o_score,
+            )
 
         # Loop through the dataloader to compute attributions for all instances
         for batch in dataloader:
-
             for key, value in batch[0].items():
                 batch[0][key] = batch[0][key].to(self.device)
             x = batch[0]
@@ -673,8 +809,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             data, baselines = self.prep_data_captum(x)
 
             # Initialize the explanation method
-            explanation = method(self.forward_captum, interpretable_model=SkLearnLasso(
-                alpha=0.4)) if method_name == 'Lime' else method(self.forward_captum)
+            explanation = (
+                method(self.forward_captum, interpretable_model=SkLearnLasso(alpha=0.4))
+                if method_name == "Lime"
+                else method(self.forward_captum)
+            )
 
             # Calculate attributions using the selected method
             if method is not captum.attr.Saliency:
@@ -683,23 +822,61 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 attr = explanation.attribute(data, **kwargs)
 
             # Process and store the calculated attributions
-            stacked_attr = attr[1].cpu().detach().numpy() if method_name in [
-                'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
+            stacked_attr = (
+                attr[1].cpu().detach().numpy()
+                if method_name in ["Lime", "FeatureAblation"]
+                else torch.stack(attr).cpu().detach().numpy()
+            )
             if XAI_metric:
+                f_ts_v_score.append(
+                    self.Faithfulness_Correlation(
+                        x,
+                        stacked_attr,
+                        pertrub="baseline",
+                        feature_timestep=True,
+                        subset_size=[4, 9],
+                        nr_runs=100,
+                    )
+                )
 
-                f_ts_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
-                                                                  pertrub="baseline", feature_timestep=True, subset_size=[4, 9], nr_runs=100))
+                f_ts_score.append(
+                    self.Faithfulness_Correlation(
+                        x,
+                        stacked_attr,
+                        pertrub="baseline",
+                        time_step=True,
+                        subset_size=4,
+                        nr_runs=100,
+                    )
+                )
+                f_v_score.append(
+                    self.Faithfulness_Correlation(
+                        x,
+                        stacked_attr,
+                        pertrub="baseline",
+                        feature=True,
+                        subset_size=9,
+                        nr_runs=100,
+                    )
+                )
+                r_score.append(
+                    self.Data_Randomization(
+                        x,
+                        attribution=stacked_attr,
+                        explain_method=method,
+                        random_model=random_model,
+                        method_name=method_name,
+                    )
+                )
 
-                f_ts_score.append(self.Faithfulness_Correlation(x, stacked_attr,
-                                                                pertrub="baseline", time_step=True, subset_size=4, nr_runs=100))
-                f_v_score.append(self.Faithfulness_Correlation(x, stacked_attr,
-                                                               pertrub="baseline", feature=True, subset_size=9, nr_runs=100))
-                r_score.append(self.Data_Randomization(x, attribution=stacked_attr,
-                               explain_method=method, random_model=random_model, method_name=method_name))
-
-                res1, res2 = self.Relative_Stability(x,
-                                                     stacked_attr, explain_method=method, method_name=method_name,  dataloader=None, **kwargs
-                                                     )
+                res1, res2 = self.Relative_Stability(
+                    x,
+                    stacked_attr,
+                    explain_method=method,
+                    method_name=method_name,
+                    dataloader=None,
+                    **kwargs,
+                )
                 st_i_score.append(res1)
                 st_o_score.append(res2)
 
@@ -725,7 +902,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         st_o_score = np.max(st_o_score)
 
         if plot:
-            log_dir_plots = log_dir / 'plots'
+            log_dir_plots = log_dir / "plots"
             if not (log_dir_plots.exists()):
                 log_dir_plots.mkdir(parents=True)
             # Plot attributions for features and timesteps
@@ -733,12 +910,22 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             self.plot_attributions(features_attrs, timestep_attrs, method_name, log_dir_plots)
 
         # Return computed attributions and metrics
-        return all_attrs, features_attrs, timestep_attrs, f_ts_v_score, f_ts_score, f_v_score, r_score, st_i_score, st_o_score
+        return (
+            all_attrs,
+            features_attrs,
+            timestep_attrs,
+            f_ts_v_score,
+            f_ts_score,
+            f_v_score,
+            r_score,
+            st_i_score,
+            st_o_score,
+        )
         # normalized_means = (means - means.min()) / (means.max() - means.min())
 
     def prep_data(self, x):
         """
-        Prepares data for custom forward method 
+        Prepares data for custom forward method
 
         Args:
             - x:Batch returned from dataloader
@@ -771,10 +958,9 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         feature=False,
         time_step=False,
         feature_timestep=False,
-
     ):
         """
-        Calculates faithfulness scores for captum attributions 
+        Calculates faithfulness scores for captum attributions
 
         Args:
             - x:Batch input
@@ -808,24 +994,27 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         References:
             1) Umang Bhatt et al.: "Evaluating and aggregating feature-based model
             explanations." IJCAI (2020): 3016-3022.
-            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for
+            responsible evaluation of neural network explanations and beyond."
+            Journal of Machine Learning Research 24.34 (2023): 1-11.
         """
+
         def add_noise(x, indices, time_step, feature_timestep):
             noise = torch.randn_like(x["encoder_cont"])
             if time_step:
-                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing='ij')
+                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
 
                 with torch.no_grad():
                     x["encoder_cont"][idx0, idx1, :] += noise[idx0, idx1, :]
 
             elif feature:
-                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing='ij')
+                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
 
                 with torch.no_grad():
                     x["encoder_cont"][idx0, :, idx1] += noise[idx0, :, idx1]
 
             elif feature_timestep:
-                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing='ij')
+                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
 
                 with torch.no_grad():
                     x["encoder_cont"][idx0, idx1, idx2] += noise[idx0, idx1, idx2]
@@ -833,22 +1022,28 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         def apply_baseline(x, indices, time_step, feature_timestep):
             mask = torch.ones_like(x["encoder_cont"])
             if time_step:
-
-                idx0, idx1, = np.meshgrid(indices[0], indices[1], indexing='ij')
+                (
+                    idx0,
+                    idx1,
+                ) = np.meshgrid(indices[0], indices[1], indexing="ij")
 
                 mask[idx0, idx1, :] -= mask[idx0, idx1, :]
             elif feature:
-                idx0, idx1, = np.meshgrid(indices[0], indices[1], indexing='ij')
+                (
+                    idx0,
+                    idx1,
+                ) = np.meshgrid(indices[0], indices[1], indexing="ij")
 
                 mask[idx0, :, idx1] -= mask[idx0, :, idx1]
 
             elif feature_timestep:
-                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing='ij')
+                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
 
                 mask[idx0, idx1, idx2] -= mask[idx0, idx1, idx2]
 
             with torch.no_grad():
                 x["encoder_cont"] *= mask
+
         # Assuming 'attribution' is already a GPU tensor
         if not torch.is_tensor(attribution):
             attribution = torch.tensor(attribution).to(self.device)
@@ -892,22 +1087,17 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             y_pred_perturb = (self(self.prep_data(x))).detach()  # Keep on GPU
 
             if time_step:
-
                 if attribution.size() == torch.Size([24]):
                     att_sums.append((attribution[timesteps_idx]).sum())
                 else:
                     att_sums.append((attribution[patient_idx, :, :][:, timesteps_idx, :]).sum())
             elif feature:
-
                 if len(attribution) == 53:
                     att_sums.append((attribution[feature_idx]).sum())
                 else:
-
                     att_sums.append((attribution[patient_idx, :, :][:, :, feature_idx]).sum())
             elif feature_timestep:
-
-                att_sums.append((attribution[patient_idx, :, :]
-                                [:, timesteps_idx, :][:, :, feature_idx]).sum())
+                att_sums.append((attribution[patient_idx, :, :][:, timesteps_idx, :][:, :, feature_idx]).sum())
 
             pred_deltas.append((y_pred - y_pred_perturb)[patient_idx].item())
             # Convert to CPU for numpy operations
@@ -921,17 +1111,24 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         return score
 
     def Data_Randomization(
-        self, x,
-        attribution, explain_method, random_model, similarity_func=cosine, dataloader=None, method_name="", **kwargs
+        self,
+        x,
+        attribution,
+        explain_method,
+        random_model,
+        similarity_func=cosine,
+        dataloader=None,
+        method_name="",
+        **kwargs,
     ):
         """
 
         Args:
             - x:Batch input
-            -attribution: attribution 
+            -attribution: attribution
             - explain_method:function to generate explantations
             - random_model: Reference to model trained on random labels
-            - similarity_func: Function to measure similiarity 
+            - similarity_func: Function to measure similiarity
             - dataloader:In case of using Attention as the explain method need to pass the dataloader instead of the batch ,
             - method_name: Name of the explantation
 
@@ -947,7 +1144,9 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
         References:
             1) Leon Sixt et al.: "When Explanations Lie: Why Many Modified BP
             Attributions Fail." ICML (2020): 9046-9057.
-            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+            2)Hedström, Anna, et al. "Quantus: An explainable ai
+            toolkit for responsible evaluation of neural network explanations and beyond."
+              Journal of Machine Learning Research 24.34 (2023): 1-11.
 
         """
 
@@ -967,7 +1166,6 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             score = similarity_func(np.random.normal(size=[64, 24, 53]).flatten(), attribution.flatten())
         else:
             data, baselines = self.prep_data_captum(x)
-            y_pred = self(data).detach()
 
             explantation = explain_method(random_model.forward_captum)
             # Reformat attributions.
@@ -977,8 +1175,11 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 attr = explantation.attribute(data, **kwargs)
 
             # Process and store the calculated attributions
-            random_attr = attr[1].cpu().detach().numpy() if method_name in [
-                'Lime', 'FeatureAblation'] else torch.stack(attr).cpu().detach().numpy()
+            random_attr = (
+                attr[1].cpu().detach().numpy()
+                if method_name in ["Lime", "FeatureAblation"]
+                else torch.stack(attr).cpu().detach().numpy()
+            )
 
             attribution = attribution.flatten()
             min_val = np.min(attribution)
@@ -992,32 +1193,37 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             score = similarity_func(random_attr, attribution)
         return score
 
-    def Relative_Stability(self, x,
-                           attribution, explain_method, method_name, dataloader=None, thershold=0.5, **kwargs
-                           ):
+    def Relative_Stability(
+        self,
+        x,
+        attribution,
+        explain_method,
+        method_name,
+        dataloader=None,
+        thershold=0.5,
+        **kwargs,
+    ):
         """
-     Args:
-            - x:Batch input
-            -attribution: attribution 
-            - explain_method:function to generate explantations
-            - method_name: Name of the explantation
-            - dataloader:In case of using Attention as the explain method need to pass the dataloader instead of the batch ,
+        Args:
+               - x:Batch input
+               -attribution: attribution
+               - explain_method:function to generate explantations
+               - method_name: Name of the explantation
+               - dataloader:In case of using Attention as the explain method need to pass the dataloader instead of the batch ,
 
 
-        Returns:
-            RIS : relative distance between the explantation and the input
-            ROS: relative distance between the explantation and the output
+           Returns:
+               RIS : relative distance between the explantation and the input
+               ROS: relative distance between the explantation and the output
 
 
-     References:
-            1) `https://arxiv.org/pdf/2203.06877.pdf
-            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+        References:
+               1) `https://arxiv.org/pdf/2203.06877.pdf
+               2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
 
         """
 
-        def relative_stability_objective(
-            x, xs, e_x, e_xs, eps_min=0.0001, input=False, device='cuda'
-        ) -> torch.Tensor:
+        def relative_stability_objective(x, xs, e_x, e_xs, eps_min=0.0001, input=False, device="cuda") -> torch.Tensor:
             """
             Computes relative input and output stabilities maximization objective
             as defined here :ref:`https://arxiv.org/pdf/2203.06877.pdf` by the authors.
@@ -1028,15 +1234,16 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 xs: perturbed tensor.
                 e_x: Explanations for x.
                 e_xs: Explanations for xs.
-                eps_min:Value to avoid division by zero if needed 
+                eps_min:Value to avoid division by zero if needed
                 input:Boolean to indicate if this is an input or an output
-                device: the device to keep the tensors on 
+                device: the device to keep the tensors on
 
             Returns:
 
                 ris_obj: Tensor
                     RIS maximization objective.
             """
+
             # Function to convert inputs to tensors if they are numpy arrays
             def to_tensor(input_array):
                 if isinstance(input_array, np.ndarray):
@@ -1052,11 +1259,19 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 num_dim = e_x.ndim
 
             if num_dim == 3:
-                def norm_function(arr): return torch.norm(arr, dim=(-1, -2))
+
+                def norm_function(arr):
+                    return torch.norm(arr, dim=(-1, -2))
+
             elif num_dim == 2:
-                def norm_function(arr): return torch.norm(arr, dim=-1)
+
+                def norm_function(arr):
+                    return torch.norm(arr, dim=-1)
+
             else:
-                def norm_function(arr): return torch.norm(arr)
+
+                def norm_function(arr):
+                    return torch.norm(arr)
 
             nominator = (e_x - e_xs) / (e_x + (e_x == 0) * eps_min)
             nominator = norm_function(nominator)
@@ -1072,6 +1287,7 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                 denominator += (denominator == 0) * eps_min
 
             return nominator / denominator
+
         if not torch.is_tensor(attribution):
             attribution = torch.tensor(attribution).to(self.device)
         if explain_method == "Attention":
@@ -1089,11 +1305,19 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             # Find where the difference is less than or equal to a thershold
             close_indices = torch.nonzero(difference <= thershold).squeeze()
             RIS = relative_stability_objective(
-                x_original[close_indices, :, :].detach(), x_preturb[close_indices, :, :].detach(), attribution, att_preturb, input=True
+                x_original[close_indices, :, :].detach(),
+                x_preturb[close_indices, :, :].detach(),
+                attribution,
+                att_preturb,
+                input=True,
             )
 
             ROS = relative_stability_objective(
-                y_pred[close_indices], y_pred_preturb[close_indices], attribution, att_preturb, input=False
+                y_pred[close_indices],
+                y_pred_preturb[close_indices],
+                attribution,
+                att_preturb,
+                input=False,
             )
 
         else:
@@ -1101,15 +1325,13 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
             x_original = x["encoder_cont"].detach().clone()
 
             with torch.no_grad():
-                noise = torch.randn_like(x["encoder_cont"])*0.01
+                noise = torch.randn_like(x["encoder_cont"]) * 0.01
                 x["encoder_cont"] += noise
             y_pred_preturb = self(self.prep_data(x)).detach()
             if explain_method == "Random":
-
                 att_preturb = np.random.normal(size=[64, 24, 53])
                 att_preturb = torch.tensor(att_preturb).to(self.device)
             else:
-
                 data, baselines = self.prep_data_captum(x)
 
                 explantation = explain_method(self.forward_captum)
@@ -1120,19 +1342,29 @@ class DLPredictionPytorchForecastingWrapper(DLPredictionWrapper):
                     att_preturb = explantation.attribute(data, **kwargs)
 
                 # Process and store the calculated attributions
-                att_preturb = att_preturb[1].detach() if method_name in [
-                    'Lime', 'FeatureAblation'] else torch.stack(att_preturb).detach()
+                att_preturb = (
+                    att_preturb[1].detach()
+                    if method_name in ["Lime", "FeatureAblation"]
+                    else torch.stack(att_preturb).detach()
+                )
             # Calculate the absolute difference
             difference = torch.abs(y_pred_preturb - y_pred)
 
             # Find where the difference is less than or equal to a thershold
             close_indices = torch.nonzero(difference <= thershold).squeeze()
             RIS = relative_stability_objective(
-                x_original[close_indices, :, :].detach(), x["encoder_cont"][close_indices, :, :].detach(), attribution[close_indices, :, :], att_preturb[close_indices, :, :], input=True
+                x_original[close_indices, :, :].detach(),
+                x["encoder_cont"][close_indices, :, :].detach(),
+                attribution[close_indices, :, :],
+                att_preturb[close_indices, :, :],
+                input=True,
             )
             ROS = relative_stability_objective(
-                y_pred[close_indices], y_pred_preturb[close_indices], attribution[close_indices,
-                                                                                  :, :], att_preturb[close_indices, :, :], input=False
+                y_pred[close_indices],
+                y_pred_preturb[close_indices],
+                attribution[close_indices, :, :],
+                att_preturb[close_indices, :, :],
+                input=False,
             )
 
         return np.max(RIS.cpu().numpy()).astype(np.float64), np.max(ROS.cpu().numpy()).astype(np.float64)

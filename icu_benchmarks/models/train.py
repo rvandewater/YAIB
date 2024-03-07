@@ -1,14 +1,11 @@
 import os
 import gin
 import torch
-import pickle
 import logging
 import json
 import pandas as pd
 from joblib import load
 from torch.optim import Adam
-import numpy as np
-import quantus
 from torch.utils.data import DataLoader
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning import Trainer
@@ -29,7 +26,6 @@ from icu_benchmarks.data.loader import (
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
-from collections import OrderedDict
 from captum.attr import IntegratedGradients, Saliency, FeatureAblation, Lime
 
 
@@ -78,7 +74,6 @@ def train_common(
     XAI_metric: bool = False,
     random_labels: bool = False,
     random_model_dir: str = None,
-
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -282,22 +277,39 @@ def train_common(
 
         # choose which  methods to get attributions
         methods = {
-            # "G": Saliency,
-            # "L": Lime,
-            # "IG": IntegratedGradients,
-            # "FA": FeatureAblation,
+            "G": Saliency,
+            "L": Lime,
+            "IG": IntegratedGradients,
+            "FA": FeatureAblation,
             "R": "Random",
-            "Att": "Attention"
-
+            "Att": "Attention",
         }
         for key, item in methods.items():
             # If conditions needed here as different explantations require different inputs
             if key == "IG":
-                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score, st_i_score, st_o_score = model.explantation(
-                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, n_steps=50, XAI_metric=XAI_metric, random_model=random_model
+                (
+                    all_attrs,
+                    features_attrs,
+                    timestep_attrs,
+                    ts_v_score,
+                    ts_score,
+                    v_score,
+                    r_score,
+                    st_i_score,
+                    st_o_score,
+                ) = model.explantation(
+                    dataloader=test_loader,
+                    method=item,
+                    log_dir=log_dir,
+                    plot=True,
+                    n_steps=50,
+                    XAI_metric=XAI_metric,
+                    random_model=random_model,
                 )
             elif key == "L" or key == "FA":
-                # for Lime and feature ablation we need to define what is a feature we define each variable per timestep as a feature
+                """for Lime and feature ablation we need to define
+                what is a feature we define each variable
+                per timestep as a feature"""
                 shapes = [
                     torch.Size([64, 24, 0]),
                     torch.Size([64, 24, 53]),
@@ -309,7 +321,7 @@ def train_common(
                     torch.Size([64]),
                     torch.Size([64, 1]),
                     torch.Size([64, 1]),
-                    torch.Size([64, 2])
+                    torch.Size([64, 2]),
                 ]
 
                 # Create a default mask for non-targeted tensors
@@ -328,40 +340,72 @@ def train_common(
                 feature_mask_second = feature_mask_second.unsqueeze(0).repeat(shapes[1][0], 1, 1)
 
                 # Create a tuple of masks
-                feature_masks = tuple([create_default_mask(shape) if i !=
-                                      1 else feature_mask_second for i, shape in enumerate(shapes)])
-                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score, st_i_score, st_o_score = model.explantation(
-                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, feature_mask=feature_masks, return_input_shape=True, XAI_metric=XAI_metric, random_model=random_model
+                feature_masks = tuple(
+                    [create_default_mask(shape) if i != 1 else feature_mask_second for i, shape in enumerate(shapes)]
+                )
+                (
+                    all_attrs,
+                    features_attrs,
+                    timestep_attrs,
+                    ts_v_score,
+                    ts_score,
+                    v_score,
+                    r_score,
+                    st_i_score,
+                    st_o_score,
+                ) = model.explantation(
+                    dataloader=test_loader,
+                    method=item,
+                    log_dir=log_dir,
+                    plot=True,
+                    feature_mask=feature_masks,
+                    return_input_shape=True,
+                    XAI_metric=XAI_metric,
+                    random_model=random_model,
                 )
 
             else:
-                all_attrs, features_attrs, timestep_attrs, ts_v_score, ts_score, v_score, r_score, st_i_score, st_o_score = model.explantation(
-                    dataloader=test_loader, method=item, log_dir=log_dir, plot=True, XAI_metric=XAI_metric, random_model=random_model
+                (
+                    all_attrs,
+                    features_attrs,
+                    timestep_attrs,
+                    ts_v_score,
+                    ts_score,
+                    v_score,
+                    r_score,
+                    st_i_score,
+                    st_o_score,
+                ) = model.explantation(
+                    dataloader=test_loader,
+                    method=item,
+                    log_dir=log_dir,
+                    plot=True,
+                    XAI_metric=XAI_metric,
+                    random_model=random_model,
                 )
 
             if XAI_metric:
                 # logging metric scores
                 print("{} Attributions Faithfulness Timesteps ".format(key), ts_score)
                 XAI_dict["{}_Faith Timesteps".format(key)] = ts_score
-                print("{}_ROS ".format(
-                    key), st_o_score)
+                print("{}_ROS ".format(key), st_o_score)
                 XAI_dict["{}_ROS".format(key)] = st_o_score
-                print("{}_RIS ".format(
-                    key), st_i_score)
+                print("{}_RIS ".format(key), st_i_score)
                 XAI_dict["{}_RIS".format(key)] = st_i_score
                 if key == "Att":
-                    print("Variable selection weights faithfulness featrues ".format(key), v_score)
-                    XAI_dict["VSN_Faith Features".format(key)] = v_score
+                    print("{} weights faithfulness featrues ".format(key), v_score)
+                    XAI_dict["{}_Faith Features".format(key)] = v_score
 
                 else:
                     print("{} Attributions faithfulness featrues ".format(key), v_score)
                     XAI_dict["{}_Faith Features".format(key)] = v_score
 
-                    print("{}_Attributions Faithfulness Variable Per Timestep ".format(
-                        key), ts_v_score)
+                    print(
+                        "{}_Attributions Faithfulness Variable Per Timestep ".format(key),
+                        ts_v_score,
+                    )
                     XAI_dict["{}_Faith Variable Per Timestep".format(key)] = ts_v_score
-                print("{}_Data Randomization Distance ".format(
-                    key), r_score)
+                print("{}_Data Randomization Distance ".format(key), r_score)
                 XAI_dict["{}_Data Randomization Distance".format(key)] = r_score
 
         # Getting the interpertations using pytorch forecasting native methods

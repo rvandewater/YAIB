@@ -3,14 +3,19 @@ from pandas import DataFrame
 import pandas as pd
 import gin
 import numpy as np
-from torch import Tensor, cat, from_numpy, float32, min, max, randn_like
+from torch import Tensor, cat, from_numpy, float32, randn_like
 from torch.utils.data import Dataset
 import logging
 from typing import Dict, Tuple, Union
 from icu_benchmarks.imputation.amputations import ampute_data
 from .constants import DataSegment as Segment
 from .constants import DataSplit as Split
-from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer, MultiNormalizer, EncoderNormalizer
+from pytorch_forecasting import (
+    TimeSeriesDataSet,
+    GroupNormalizer,
+    MultiNormalizer,
+    EncoderNormalizer,
+)
 
 
 class CommonDataset(Dataset):
@@ -483,13 +488,13 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
         self.ram_cache = ram_cache
         self.kwargs = kwargs
         self.column_names = features.columns
-        if target_normalizer == 'multi':
-            target_normalizer = MultiNormalizer([EncoderNormalizer(transformation='relu') for _ in range(len(target)-1)] + [GroupNormalizer(groups=["stay_id"], transformation="relu")]
-                                                )
-        else:
-            target_normalizer = GroupNormalizer(
-                groups=["stay_id"], transformation="relu"
+        if target_normalizer == "multi":
+            target_normalizer = MultiNormalizer(
+                [EncoderNormalizer(transformation="relu") for _ in range(len(target) - 1)]
+                + [GroupNormalizer(groups=["stay_id"], transformation="relu")]
             )
+        else:
+            target_normalizer = GroupNormalizer(groups=["stay_id"], transformation="relu")
         super().__init__(
             data=self.data,
             time_idx="time_idx",
@@ -509,9 +514,7 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
             # add_target_scales=True,
             # add_encoder_length=True,
             predict_mode=True,
-            target_normalizer=GroupNormalizer(
-                groups=["stay_id"], transformation="relu"
-            )
+            target_normalizer=GroupNormalizer(groups=["stay_id"], transformation="relu"),
         )
 
     def get_balance(self) -> list:
@@ -533,12 +536,14 @@ class PredictionDatasetpytorch(TimeSeriesDataSet):
     def randomize_labels(self, num_classes=None, min=None, max=None):
         if num_classes == 1:
             random_target = np.random.uniform(
-                self.data["target"][0].min(), self.data["target"][0].max(), size=len(self.data["target"][0])
+                self.data["target"][0].min(),
+                self.data["target"][0].max(),
+                size=len(self.data["target"][0]),
             )
         else:
             random_target = np.random.randint(num_classes, size=len(self.data["target"][0]))
         self.data["target"][0] = Tensor(random_target)
 
     def add_noise(self, num_classes=None, min=None, max=None):
-        noise = randn_like(self.data["reals"])*0.01
+        noise = randn_like(self.data["reals"]) * 0.01
         self.data["reals"] += noise

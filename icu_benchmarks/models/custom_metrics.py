@@ -6,7 +6,8 @@ from sklearn.metrics import balanced_accuracy_score, mean_absolute_error
 from sklearn.calibration import calibration_curve
 from scipy.spatial.distance import jensenshannon
 from torchmetrics.classification import BinaryFairness
-from icu_benchmarks.models.similarity_func import correlation_spearman, distance_euclidean, correlation_pearson, cosine
+from icu_benchmarks.models.similarity_func import correlation_spearman, cosine
+
 """"
 This file contains custom metrics that can be added to YAIB.
 """
@@ -32,7 +33,9 @@ def accuracy(output, target, topk=(1,)):
 class BalancedAccuracy(EpochMetric):
     def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
         super(BalancedAccuracy, self).__init__(
-            self.balanced_accuracy_compute, output_transform=output_transform, check_compute_fn=check_compute_fn
+            self.balanced_accuracy_compute,
+            output_transform=output_transform,
+            check_compute_fn=check_compute_fn,
         )
 
         def balanced_accuracy_compute(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
@@ -44,7 +47,9 @@ class BalancedAccuracy(EpochMetric):
 class CalibrationCurve(EpochMetric):
     def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
         super(CalibrationCurve, self).__init__(
-            self.ece_curve_compute_fn, output_transform=output_transform, check_compute_fn=check_compute_fn
+            self.ece_curve_compute_fn,
+            output_transform=output_transform,
+            check_compute_fn=check_compute_fn,
         )
 
         def ece_curve_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, n_bins=10) -> float:
@@ -67,7 +72,6 @@ class MAE(EpochMetric):
         )
 
         def mae_with_invert_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, invert_fn=Callable) -> float:
-
             y_true = invert_fn(y_targets.numpy().reshape(-1, 1))[:, 0]
             y_pred = invert_fn(y_preds.numpy().reshape(-1, 1))[:, 0]
 
@@ -138,33 +142,25 @@ class BinaryFairnessWrapper(BinaryFairness):
 
 
 class Faithfulness(EpochMetric):
-    def __init__(
-        self,
-        output_transform: Callable = lambda x: x,
-        check_compute_fn: bool = False,
-        *args, **kwargs
-    ) -> None:
-        super().__init__(output_transform,
-                         check_compute_fn, *args, **kwargs
-                         )
+    def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False, *args, **kwargs) -> None:
+        super().__init__(output_transform, check_compute_fn, *args, **kwargs)
 
     def update(
-            self,
-            x,
-            attribution,
-            model,
-            similarity_func=None,
-            nr_runs=100,
-            pertrub=None,
-            subset_size=3,
-            feature=False,
-            time_step=False,
-            feature_timestep=False,
-            device='cuda'
-
+        self,
+        x,
+        attribution,
+        model,
+        similarity_func=None,
+        nr_runs=100,
+        pertrub=None,
+        subset_size=3,
+        feature=False,
+        time_step=False,
+        feature_timestep=False,
+        device="cuda",
     ):
         """
-        Calculates faithfulness scores for captum attributions 
+        Calculates faithfulness scores for captum attributions
 
         Args:
             - x:Batch input
@@ -200,22 +196,23 @@ class Faithfulness(EpochMetric):
             explanations." IJCAI (2020): 3016-3022.
             2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
         """
+
         def add_noise(x, indices, time_step, feature_timestep):
             noise = torch.randn_like(x["encoder_cont"])
             if time_step:
-                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing='ij')
+                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
 
                 with torch.no_grad():
                     x["encoder_cont"][idx0, idx1, :] += noise[idx0, idx1, :]
 
             elif feature:
-                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing='ij')
+                idx0, idx1 = np.meshgrid(indices[0], indices[1], indexing="ij")
 
                 with torch.no_grad():
                     x["encoder_cont"][idx0, :, idx1] += noise[idx0, :, idx1]
 
             elif feature_timestep:
-                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing='ij')
+                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
 
                 with torch.no_grad():
                     x["encoder_cont"][idx0, idx1, idx2] += noise[idx0, idx1, idx2]
@@ -223,22 +220,28 @@ class Faithfulness(EpochMetric):
         def apply_baseline(x, indices, time_step, feature_timestep):
             mask = torch.ones_like(x["encoder_cont"])
             if time_step:
-
-                idx0, idx1, = np.meshgrid(indices[0], indices[1], indexing='ij')
+                (
+                    idx0,
+                    idx1,
+                ) = np.meshgrid(indices[0], indices[1], indexing="ij")
 
                 mask[idx0, idx1, :] -= mask[idx0, idx1, :]
             elif feature:
-                idx0, idx1, = np.meshgrid(indices[0], indices[1], indexing='ij')
+                (
+                    idx0,
+                    idx1,
+                ) = np.meshgrid(indices[0], indices[1], indexing="ij")
 
                 mask[idx0, :, idx1] -= mask[idx0, :, idx1]
 
             elif feature_timestep:
-                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing='ij')
+                idx0, idx1, idx2 = np.meshgrid(indices[0], indices[1], indices[2], indexing="ij")
 
                 mask[idx0, idx1, idx2] -= mask[idx0, idx1, idx2]
 
             with torch.no_grad():
                 x["encoder_cont"] *= mask
+
         # Assuming 'attribution' is already a GPU tensor
         if not torch.is_tensor(attribution):
             attribution = torch.tensor(attribution).to(device)
@@ -281,21 +284,17 @@ class Faithfulness(EpochMetric):
             y_pred_perturb = (model(model.prep_data(x))).detach()  # Keep on GPU
 
             if time_step:
-
                 if attribution.size() == torch.Size([24]):
                     att_sums.append((attribution[timesteps_idx]).sum())
                 else:
                     att_sums.append((attribution[patient_idx, :][:, timesteps_idx]).sum())
             elif feature:
-
                 if len(attribution) == 53:
                     att_sums.append((attribution[feature_idx]).sum())
                 else:
-
                     att_sums.append((attribution[patient_idx, :][:, feature_idx]).sum())
             elif feature_timestep:
-                att_sums.append((attribution[patient_idx, :, :]
-                                [:, timesteps_idx, :][:, :, feature_idx]).sum())
+                att_sums.append((attribution[patient_idx, :, :][:, timesteps_idx, :][:, :, feature_idx]).sum())
 
             pred_deltas.append((y_pred - y_pred_perturb)[patient_idx].item())
             # Convert to CPU for numpy operations
@@ -310,40 +309,40 @@ class Faithfulness(EpochMetric):
 
 
 class Stability(EpochMetric):
-    def __init__(
-        self, output_transform: Callable = lambda x: x,
-        check_compute_fn: bool = False,
-        *args, **kwargs
-    ) -> None:
-        super().__init__(output_transform,
-                         check_compute_fn, *args, **kwargs
-                         )
+    def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False, *args, **kwargs) -> None:
+        super().__init__(output_transform, check_compute_fn, *args, **kwargs)
 
-    def update(self, x,
-               attribution, model, explain_method, dataloader=None, thershold=0.5, device='cuda', **kwargs
-               ):
+    def update(self, x, attribution, model, explain_method, dataloader=None, thershold=0.5, device="cuda", **kwargs):
         """
-    Args:
-            - x:Batch input
-            -attribution: attribution 
-            - explain_method:function to generate explantations
-            - method_name: Name of the explantation
-            - dataloader:In case of using Attention as the explain method need to pass the dataloader instead of the batch ,
+        Args:
+                - x:Batch input
+                -attribution: attribution
+                - explain_method:function to generate explantations
+                - method_name: Name of the explantation
+                - dataloader:In case of using Attention as the explain method need to pass the dataloader instead of the batch ,
 
 
-        Returns:
-            RIS : relative distance between the explantation and the input
-            ROS: relative distance between the explantation and the output
+            Returns:
+                RIS : relative distance between the explantation and the input
+                ROS: relative distance between the explantation and the output
 
 
-    References:
-            1) `https://arxiv.org/pdf/2203.06877.pdf
-            2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
+        References:
+                1) `https://arxiv.org/pdf/2203.06877.pdf
+                2)Hedström, Anna, et al. "Quantus: An explainable ai toolkit for responsible evaluation of neural network explanations and beyond." Journal of Machine Learning Research 24.34 (2023): 1-11.
 
         """
 
         def relative_stability_objective(
-            x, xs, e_x, e_xs, close_indices, eps_min=0.0001, input=False, attention=False, device='cuda'
+            x,
+            xs,
+            e_x,
+            e_xs,
+            close_indices,
+            eps_min=0.0001,
+            input=False,
+            attention=False,
+            device="cuda",
         ) -> torch.Tensor:
             """
             Computes relative input and output stabilities maximization objective
@@ -355,15 +354,16 @@ class Stability(EpochMetric):
                 xs: perturbed tensor.
                 e_x: Explanations for x.
                 e_xs: Explanations for xs.
-                eps_min:Value to avoid division by zero if needed 
+                eps_min:Value to avoid division by zero if needed
                 input:Boolean to indicate if this is an input or an output
-                device: the device to keep the tensors on 
+                device: the device to keep the tensors on
 
             Returns:
 
                 ris_obj: Tensor
                     RIS maximization objective.
             """
+
             # Function to convert inputs to tensors if they are numpy arrays
             def to_tensor(input_array):
                 if isinstance(input_array, np.ndarray):
@@ -383,11 +383,19 @@ class Stability(EpochMetric):
                 num_dim = e_x.ndim
 
             if num_dim == 3:
-                def norm_function(arr): return torch.norm(arr, dim=(-1, -2))
+
+                def norm_function(arr):
+                    return torch.norm(arr, dim=(-1, -2))
+
             elif num_dim == 2:
-                def norm_function(arr): return torch.norm(arr, dim=-1)
+
+                def norm_function(arr):
+                    return torch.norm(arr, dim=-1)
+
             else:
-                def norm_function(arr): return torch.norm(arr)
+
+                def norm_function(arr):
+                    return torch.norm(arr)
 
             nominator = (e_x - e_xs) / (e_x + (e_x == 0) * eps_min)
             nominator = norm_function(nominator)
@@ -420,10 +428,22 @@ class Stability(EpochMetric):
             close_indices = torch.nonzero(difference <= thershold).squeeze()[:, 0].to(device)
 
             RIS = relative_stability_objective(
-                x_original.detach(), x_preturb.detach(), attribution, att_preturb, close_indices=close_indices, input=True, attention=True
+                x_original.detach(),
+                x_preturb.detach(),
+                attribution,
+                att_preturb,
+                close_indices=close_indices,
+                input=True,
+                attention=True,
             )
             ROS = relative_stability_objective(
-                y_pred, y_pred_preturb, attribution, att_preturb, close_indices=close_indices, input=False, attention=True
+                y_pred,
+                y_pred_preturb,
+                attribution,
+                att_preturb,
+                close_indices=close_indices,
+                input=False,
+                attention=True,
             )
 
         else:
@@ -431,7 +451,7 @@ class Stability(EpochMetric):
             x_original = x["encoder_cont"].detach().clone()
 
             with torch.no_grad():
-                noise = torch.randn_like(x["encoder_cont"])*0.01
+                noise = torch.randn_like(x["encoder_cont"]) * 0.01
                 x["encoder_cont"] += noise
             y_pred_preturb = model(model.prep_data(x)).detach()
             if explain_method == "Random":
@@ -450,37 +470,36 @@ class Stability(EpochMetric):
             RIS = relative_stability_objective(
                 x_original.detach(),
                 x["encoder_cont"].detach(),
-                attribution, att_preturb, close_indices=close_indices, input=True
+                attribution,
+                att_preturb,
+                close_indices=close_indices,
+                input=True,
             )
             ROS = relative_stability_objective(
-                y_pred, y_pred_preturb, attribution, att_preturb, close_indices=close_indices, input=False
+                y_pred,
+                y_pred_preturb,
+                attribution,
+                att_preturb,
+                close_indices=close_indices,
+                input=False,
             )
 
         return np.max(RIS.cpu().numpy()).astype(np.float64), np.max(ROS.cpu().numpy()).astype(np.float64)
 
 
 class Randomization(EpochMetric):
-    def __init__(
-        self, output_transform: Callable = lambda x: x,
-        check_compute_fn: bool = False,
-        *args, **kwargs
-    ) -> None:
-        super().__init__(output_transform,
-                         check_compute_fn, *args, **kwargs
-                         )
+    def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False, *args, **kwargs) -> None:
+        super().__init__(output_transform, check_compute_fn, *args, **kwargs)
 
-    def update(
-        self, x,
-        attribution, model, explain_method, random_model, similarity_func=cosine, dataloader=None, **kwargs
-    ):
+    def update(self, x, attribution, model, explain_method, random_model, similarity_func=cosine, dataloader=None, **kwargs):
         """
 
         Args:
             - x:Batch input
-            -attribution: attribution 
+            -attribution: attribution
             - explain_method:function to generate explantations
             - random_model: Reference to model trained on random labels
-            - similarity_func: Function to measure similiarity 
+            - similarity_func: Function to measure similiarity
             - dataloader:In case of using Attention as the explain method need to pass the dataloader instead of the batch ,
             - method_name: Name of the explantation
 
@@ -516,7 +535,6 @@ class Randomization(EpochMetric):
             score = similarity_func(np.random.normal(size=[64, 24, 53]).flatten(), attribution.flatten())
         else:
             data, baselines = model.prep_data_captum(x)
-            y_pred = model(data).detach()
 
             random_attr, features_attrs, timestep_attrs = model.explantation2(x, explain_method)
 

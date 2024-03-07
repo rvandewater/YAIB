@@ -241,8 +241,9 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     # Calculate the population standard deviation over aggregated results over folds/iterations
     # Divide by sqrt(n) to get standard deviation.
 
-    std_scores = {metric: (pstdev(list) / sqrt(len(list)))
-                  for metric, list in list_scores.items() if not (np.isnan(list).all())}
+    std_scores = {
+        metric: (pstdev(list) / sqrt(len(list))) for metric, list in list_scores.items() if not (np.isnan(list).all())
+    }
 
     confidence_interval = {
         metric: (stats.t.interval(0.95, len(list) - 1, loc=mean(list), scale=stats.sem(list)))
@@ -255,7 +256,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
         "CI_0.95": confidence_interval,
         "execution_time": execution_time.total_seconds() if execution_time is not None else 0.0,
     }
-    log_dir_plots = log_dir / 'plots'
+    log_dir_plots = log_dir / "plots"
     if not (log_dir_plots.exists()):
         log_dir_plots.mkdir(parents=True)
     # plot_XAI_Metrics(accumulated_metrics, log_dir_plots=log_dir_plots)
@@ -273,41 +274,48 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
 
 def plot_XAI_Metrics(accumulated_metrics, log_dir_plots):
     groups = {}
-    for key in accumulated_metrics['avg']:
-        if key in ['loss', 'MAE']:
+    for key in accumulated_metrics["avg"]:
+        if key in ["loss", "MAE"]:
             continue
-        suffix = key.split('_')[-1]
+        suffix = key.split("_")[-1]
         if suffix not in groups:
             groups[suffix] = []
         groups[suffix].append(key)
 
     # Define a dictionary for legend labels
     legend_labels = {
-        'IG': 'Integrated Gradient',
-        'G': 'Gradient',
-        'R': 'Random',
-        'FA': 'Feature Ablation',
-        'Att': 'Attention',
-        'VSN': 'Variable Selection Network',
-        'L': 'Lime'
+        "IG": "Integrated Gradient",
+        "G": "Gradient",
+        "R": "Random",
+        "FA": "Feature Ablation",
+        "Att": "Attention",
+        "VSN": "Variable Selection Network",
+        "L": "Lime",
     }
-    colors = ['navy', 'skyblue', 'crimson', 'salmon', 'teal', 'orange', 'darkgreen', 'lightgreen']
+    colors = [
+        "navy",
+        "skyblue",
+        "crimson",
+        "salmon",
+        "teal",
+        "orange",
+        "darkgreen",
+        "lightgreen",
+    ]
 
     # Plotting
     num_groups = len(groups)
     fig, axs = plt.subplots(num_groups, 1, figsize=(10, num_groups * 5))
 
     # Custom handles for the legend
-    handles = [plt.Rectangle((0, 0), 1, 1, color='none', label=f'{key}: {value}')
-               for key, value in legend_labels.items()]
+    # handles = [plt.Rectangle((0, 0), 1, 1, color="none", label=f"{key}: {value}") for key, value in legend_labels.items()]
 
     for i, (suffix, keys) in enumerate(groups.items()):
-
         ax = axs[i] if num_groups > 1 else axs
         # Extract values and errors
-        avg_values = [accumulated_metrics['avg'][key] for key in keys]
-        ci_lower = [accumulated_metrics['CI_0.95'][key][0] for key in keys]
-        ci_upper = [accumulated_metrics['CI_0.95'][key][1] for key in keys]
+        avg_values = [accumulated_metrics["avg"][key] for key in keys]
+        ci_lower = [accumulated_metrics["CI_0.95"][key][0] for key in keys]
+        ci_upper = [accumulated_metrics["CI_0.95"][key][1] for key in keys]
         ci_error = [np.abs([a - b, c - a]) for a, b, c in zip(avg_values, ci_lower, ci_upper)]
 
         # Sort by absolute values of avg_values
@@ -317,21 +325,27 @@ def plot_XAI_Metrics(accumulated_metrics, log_dir_plots):
         sorted_ci_error = np.array(ci_error)[sorted_indices]
 
         # Plot bars
-        bars = ax.bar(sorted_keys, np.abs(sorted_avg_values), yerr=np.array(sorted_ci_error).T, capsize=5, color=colors)
+        bars = ax.bar(
+            sorted_keys,
+            np.abs(sorted_avg_values),
+            yerr=np.array(sorted_ci_error).T,
+            capsize=5,
+            color=colors,
+        )
 
         # Set titles and labels
-        title_suffix = sorted_keys[0].split('_')[1]
+        title_suffix = sorted_keys[0].split("_")[1]
         ax.set_title(f'Metric: "{title_suffix}"')
-        ax.set_ylabel('Values')
-        ax.axhline(0, color='grey', linewidth=0.8)
-        ax.grid(axis='y')
+        ax.set_ylabel("Values")
+        ax.axhline(0, color="grey", linewidth=0.8)
+        ax.grid(axis="y")
 
         # Set x-ticks
         ax.set_xticks(sorted_keys)
-        ax.set_xticklabels([key.split('_')[0] for key in sorted_keys], rotation=45, ha="right")
+        ax.set_xticklabels([key.split("_")[0] for key in sorted_keys], rotation=45, ha="right")
         # Create a custom legend for each subplot
-        custom_labels = [legend_labels[key.split('_')[0]] for key in sorted_keys]
-        ax.legend(bars, custom_labels, loc='upper right')
+        custom_labels = [legend_labels[key.split("_")[0]] for key in sorted_keys]
+        ax.legend(bars, custom_labels, loc="upper right")
 
     plt.tight_layout()
     plt.savefig(log_dir_plots / "metrics_plot.png", bbox_inches="tight")
@@ -379,8 +393,7 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
         pretrained_imputation_model_checkpoint = torch.load(use_pretrained_imputation, map_location=torch.device("cpu"))
         if isinstance(pretrained_imputation_model_checkpoint, dict):
             imputation_model_class = pretrained_imputation_model_checkpoint["class"]
-            pretrained_imputation_model = imputation_model_class(
-                **pretrained_imputation_model_checkpoint["hyper_parameters"])
+            pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
             pretrained_imputation_model.set_trained_columns(pretrained_imputation_model_checkpoint["trained_columns"])
             pretrained_imputation_model.load_state_dict(pretrained_imputation_model_checkpoint["state_dict"])
         else:

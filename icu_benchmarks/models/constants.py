@@ -1,4 +1,9 @@
-from ignite.contrib.metrics import AveragePrecision, ROC_AUC, RocCurve, PrecisionRecallCurve
+from ignite.contrib.metrics import (
+    AveragePrecision,
+    ROC_AUC,
+    RocCurve,
+    PrecisionRecallCurve,
+)
 from ignite.metrics import Accuracy, RootMeanSquaredError
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
@@ -14,8 +19,6 @@ from sklearn.metrics import (
 )
 from torchmetrics.classification import (
     AUROC,
-    AveragePrecision as TorchMetricsAveragePrecision,
-    PrecisionRecallCurve as TorchMetricsPrecisionRecallCurve,
     CalibrationError,
     F1Score,
 )
@@ -25,7 +28,6 @@ from icu_benchmarks.models.custom_metrics import (
     BalancedAccuracy,
     MAE,
     JSD,
-    BinaryFairnessWrapper,
 )
 
 
