@@ -19,7 +19,7 @@ from pytorch_lightning import LightningModule
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.contants import RunMode
 import matplotlib.pyplot as plt
-from icu_benchmarks.models.similarity_func import correlation_spearman, cosine
+from quantus.functions.similarity_func import correlation_spearman, cosine
 import captum
 from captum._utils.models.linear_model import SkLearnLasso
 

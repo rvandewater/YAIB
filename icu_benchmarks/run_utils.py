@@ -16,7 +16,6 @@ from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 def build_parser() -> ArgumentParser:
@@ -27,132 +26,39 @@ def build_parser() -> ArgumentParser:
     """
     parser = ArgumentParser(description="Framework for benchmarking ML/DL models on ICU data")
 
-    parser.add_argument(
-        "-d",
-        "--data-dir",
-        required=True,
-        type=Path,
-        help="Path to the parquet data directory.",
-    )
-    parser.add_argument(
-        "-t",
-        "--task",
-        default="BinaryClassification",
-        required=True,
-        help="Name of the task gin.",
-    )
+    parser.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
+    parser.add_argument("-t", "--task", default="BinaryClassification", required=True, help="Name of the task gin.")
     parser.add_argument("-n", "--name", help="Name of the (target) dataset.")
     parser.add_argument("-tn", "--task-name", help="Name of the task, used for naming experiments.")
     parser.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     parser.add_argument("-e", "--experiment", help="Name of the experiment gin.")
-    parser.add_argument(
-        "-l",
-        "--log-dir",
-        default=Path("../yaib_logs/"),
-        type=Path,
-        help="Log directory for model weights.",
-    )
-    parser.add_argument(
-        "-s",
-        "--seed",
-        default=1234,
-        type=int,
-        help="Random seed for processing, tuning and training.",
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        default=False,
-        action=BOA,
-        help="Set to log verbosly. Disable for clean logs.",
-    )
+    parser.add_argument("-l", "--log-dir", default=Path("../yaib_logs/"), type=Path, help="Log directory for model weights.")
+    parser.add_argument("-s", "--seed", default=1234, type=int, help="Random seed for processing, tuning and training.")
+    parser.add_argument("-v", "--verbose", default=False, action=BOA, help="Set to log verbosly. Disable for clean logs.")
     parser.add_argument("--cpu", default=False, action=BOA, help="Set to use CPU.")
     parser.add_argument("-db", "--debug", default=False, action=BOA, help="Set to load less data.")
     parser.add_argument("--reproducible", default=True, action=BOA, help="Make torch reproducible.")
-    parser.add_argument(
-        "-lc",
-        "--load_cache",
-        default=False,
-        action=BOA,
-        help="Set to load generated data cache.",
-    )
-    parser.add_argument(
-        "-gc",
-        "--generate_cache",
-        default=False,
-        action=BOA,
-        help="Set to generate data cache.",
-    )
+    parser.add_argument("-lc", "--load_cache", default=False, action=BOA, help="Set to load generated data cache.")
+    parser.add_argument("-gc", "--generate_cache", default=False, action=BOA, help="Set to generate data cache.")
     parser.add_argument("-p", "--preprocessor", type=Path, help="Load custom preprocessor from file.")
     parser.add_argument("-pl", "--plot", action=BOA, help="Generate common plots.")
-    parser.add_argument(
-        "-wd",
-        "--wandb-sweep",
-        action="store_true",
-        help="Activates wandb hyper parameter sweep.",
-    )
-    parser.add_argument(
-        "-imp",
-        "--pretrained-imputation",
-        type=str,
-        help="Path to pretrained imputation model.",
-    )
+    parser.add_argument("-wd", "--wandb-sweep", action="store_true", help="Activates wandb hyper parameter sweep.")
+    parser.add_argument("-imp", "--pretrained-imputation", type=str, help="Path to pretrained imputation model.")
     parser.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
     parser.add_argument("--tune", default=False, action=BOA, help="Find best hyperparameters.")
     parser.add_argument("--hp-checkpoint", type=Path, help="Use previous hyperparameter checkpoint.")
     parser.add_argument("--eval", default=False, action=BOA, help="Only evaluate model, skip training.")
-    parser.add_argument(
-        "--complete-train",
-        default=False,
-        action=BOA,
-        help="Use all data to train model, skip testing.",
-    )
-    parser.add_argument(
-        "-ft",
-        "--fine-tune",
-        default=None,
-        type=int,
-        help="Finetune model with amount of train data.",
-    )
+    parser.add_argument("--complete-train", default=False, action=BOA, help="Use all data to train model, skip testing.")
+    parser.add_argument("-ft", "--fine-tune", default=None, type=int, help="Finetune model with amount of train data.")
     parser.add_argument("-sn", "--source-name", type=Path, help="Name of the source dataset.")
     parser.add_argument("--source-dir", type=Path, help="Directory containing gin and model weights.")
+    parser.add_argument("-sa", "--samples", type=int, default=None, help="Number of samples to use for evaluation.")
+    parser.add_argument("--explain", default=False, action=BOA, help="Provide explaintations for predictions.")
+    parser.add_argument("--pytorch-forecasting", default=False, action=BOA, help="use pytorch forecasting library ")
+    parser.add_argument("--XAI_metric", default=False, action=BOA, help="Compare explantations ")
+    parser.add_argument("--random_labels", default=False, action=BOA, help="randmize target labels")
     parser.add_argument(
-        "-sa",
-        "--samples",
-        type=int,
-        default=None,
-        help="Number of samples to use for evaluation.",
-    )
-    parser.add_argument(
-        "--explain",
-        default=False,
-        action=BOA,
-        help="Provide explaintations for predictions.",
-    )
-    parser.add_argument(
-        "--pytorch-forecasting",
-        default=False,
-        action=BOA,
-        help="use pytorch forecasting library ",
-    )
-    parser.add_argument(
-        "--XAI_metric",
-        default=False,
-        action=BOA,
-        help="Compare explantations ",
-    )
-    parser.add_argument(
-        "--random_labels",
-        default=False,
-        action=BOA,
-        help="randmize target labels",
-    )
-
-    parser.add_argument(
-        "--random_model",
-        default=Path("."),
-        type=Path,
-        help="Log directory for model weights that is trained on random labels",
+        "--random_model", default=Path("."), type=Path, help="path for model weights that is trained on random labels"
     )
 
     return parser
@@ -270,85 +176,6 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     logging.info(f"Accumulated results: {accumulated_metrics}")
 
     wandb_log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
-
-
-def plot_XAI_Metrics(accumulated_metrics, log_dir_plots):
-    groups = {}
-    for key in accumulated_metrics["avg"]:
-        if key in ["loss", "MAE"]:
-            continue
-        suffix = key.split("_")[-1]
-        if suffix not in groups:
-            groups[suffix] = []
-        groups[suffix].append(key)
-
-    # Define a dictionary for legend labels
-    legend_labels = {
-        "IG": "Integrated Gradient",
-        "G": "Gradient",
-        "R": "Random",
-        "FA": "Feature Ablation",
-        "Att": "Attention",
-        "VSN": "Variable Selection Network",
-        "L": "Lime",
-    }
-    colors = [
-        "navy",
-        "skyblue",
-        "crimson",
-        "salmon",
-        "teal",
-        "orange",
-        "darkgreen",
-        "lightgreen",
-    ]
-
-    # Plotting
-    num_groups = len(groups)
-    fig, axs = plt.subplots(num_groups, 1, figsize=(10, num_groups * 5))
-
-    # Custom handles for the legend
-    # handles = [plt.Rectangle((0, 0), 1, 1, color="none", label=f"{key}: {value}") for key, value in legend_labels.items()]
-
-    for i, (suffix, keys) in enumerate(groups.items()):
-        ax = axs[i] if num_groups > 1 else axs
-        # Extract values and errors
-        avg_values = [accumulated_metrics["avg"][key] for key in keys]
-        ci_lower = [accumulated_metrics["CI_0.95"][key][0] for key in keys]
-        ci_upper = [accumulated_metrics["CI_0.95"][key][1] for key in keys]
-        ci_error = [np.abs([a - b, c - a]) for a, b, c in zip(avg_values, ci_lower, ci_upper)]
-
-        # Sort by absolute values of avg_values
-        sorted_indices = np.argsort([np.abs(val) for val in avg_values])[::-1]  # Indices to sort in descending order
-        sorted_keys = np.array(keys)[sorted_indices]
-        sorted_avg_values = np.array(avg_values)[sorted_indices]
-        sorted_ci_error = np.array(ci_error)[sorted_indices]
-
-        # Plot bars
-        bars = ax.bar(
-            sorted_keys,
-            np.abs(sorted_avg_values),
-            yerr=np.array(sorted_ci_error).T,
-            capsize=5,
-            color=colors,
-        )
-
-        # Set titles and labels
-        title_suffix = sorted_keys[0].split("_")[1]
-        ax.set_title(f'Metric: "{title_suffix}"')
-        ax.set_ylabel("Values")
-        ax.axhline(0, color="grey", linewidth=0.8)
-        ax.grid(axis="y")
-
-        # Set x-ticks
-        ax.set_xticks(sorted_keys)
-        ax.set_xticklabels([key.split("_")[0] for key in sorted_keys], rotation=45, ha="right")
-        # Create a custom legend for each subplot
-        custom_labels = [legend_labels[key.split("_")[0]] for key in sorted_keys]
-        ax.legend(bars, custom_labels, loc="upper right")
-
-    plt.tight_layout()
-    plt.savefig(log_dir_plots / "metrics_plot.png", bbox_inches="tight")
 
 
 def name_datasets(train="default", val="default", test="default"):

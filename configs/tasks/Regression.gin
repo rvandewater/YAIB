@@ -15,7 +15,7 @@ train_common.weight = "balanced"
 train_common.ram_cache = True
 
 # LOSS FUNCTION
-DLPredictionWrapper.loss = @l1_loss
+DLPredictionWrapper.loss = @mse_loss
 DLPredictionPytorchForecastingWrapper.loss = @l1_loss
 MLWrapper.loss = @mean_squared_error
 

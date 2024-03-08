@@ -23,7 +23,7 @@ def execute_repeated_cv(
     train_size: int = None,
     load_weights: bool = False,
     source_dir: Path = None,
-    cv_repetitions: int = 1,
+    cv_repetitions: int = 5,
     cv_repetitions_to_train: int = None,
     cv_folds: int = 5,
     cv_folds_to_train: int = None,
