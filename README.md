@@ -277,6 +277,8 @@ We appreciate contributions to the project. Please read the [contribution guidel
 request.
 
 # Acknowledgements
+Robin van de Water is funded by the “Gemeinsamer Bundesausschuss (G-BA) Innovationsausschuss” in the framework of “CASSANDRA - Clinical ASSist AND aleRt Algorithms” this project has been developed under this funding.
+(project number 01VSF20015). We would like to acknowledge the work of Alisher Turubayev, Anna Shopova, Fabian Lange, Mahmut Kamalak, Paul Mattes, and Victoria Ayvasky for adding Pytorch Lightning, Weights and Biases compatibility, and several optional imputation methods to a later version of the benchmark repository. 
 
 We do not own any of the datasets used in this benchmark. This project uses heavily adapted components of
 the [HiRID benchmark](https://github.com/ratschlab/HIRID-ICU-Benchmark/). We thank the authors for providing this codebase and
