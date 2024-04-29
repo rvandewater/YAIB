@@ -169,7 +169,7 @@ class PredictionDataset(CommonDataset):
             return from_numpy(data), from_numpy(labels)
 
 
-"""
+
 @gin.configurable("PredictionDatasetTFT")
 class PredictionDatasetTFT(PredictionDataset):
     Subclass of prediction dataset for TFT as we need to define if variables are cont,static,known or observed.
@@ -298,7 +298,7 @@ class PredictionDatasetTFT(PredictionDataset):
         tensors = (from_numpy(np.array(tensor)).to(float32) for tensor in tensors)
         tensors = [stack((x,), dim=-1) if x.numel() > 0 else empty(0) for x in tensors]
         return OrderedDict(zip(Features.FEAT_NAMES, tensors)), from_numpy(pad_mask)
-"""
+
 
 
 @gin.configurable("ImputationDataset")

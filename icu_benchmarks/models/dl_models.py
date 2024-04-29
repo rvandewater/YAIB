@@ -320,7 +320,7 @@ class TemporalConvNet(DLPredictionWrapper):
         return pred
 
 
-'''
+
 @gin.configurable
 class TFT(DLPredictionWrapper):
     """
@@ -454,7 +454,7 @@ class TFT(DLPredictionWrapper):
         )
         pred = self.logit(o)
         return pred
-'''
+
 
 
 @gin.configurable
