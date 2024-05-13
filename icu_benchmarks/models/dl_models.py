@@ -9,6 +9,15 @@ from icu_benchmarks.models.layers import (
     LocalBlock,
     TemporalBlock,
     PositionalEncoding,
+    MaybeLayerNorm,
+    GLU,
+    GRN,
+    TFTEmbedding,
+    LazyEmbedding,
+    VariableSelectionNetwork,
+    StaticCovariateEncoder,
+    InterpretableMultiHeadAttention,
+    TFTBack
 )
 import matplotlib.pyplot as plt
 from icu_benchmarks.models.wrappers import (
@@ -340,16 +349,14 @@ class TFT(DLPredictionWrapper):
         dropout_att,
         example_length,  # determines interval to predict
         *args,
-        quantiles=[0.1, 0.5, 0.9],  # quantiles to produce
-        static_categorical_inp_size=[2],  # number of catergories
-        temporal_known_categorical_inp_size=[],
-        temporal_observed_categorical_inp_size=[
-            48
-        ],  # number of categorical observed variables
-        static_continuous_inp_size=3,  # number of static coutinous variables
-        temporal_known_continuous_inp_size=0,
-        temporal_observed_continuous_inp_size=48,
-        temporal_target_size=1,  # number of target variables
+        quantiles :list = gin.REQUIRED,  # quantiles to produce
+        static_categorical_inp_size:list = gin.REQUIRED ,  # number of catergories
+        temporal_known_categorical_inp_size:list = gin.REQUIRED,
+        temporal_observed_categorical_inp_size:list = gin.REQUIRED,  # number of categorical observed variables
+        static_continuous_inp_size: int=gin.REQUIRED,  # number of static coutinous variables
+        temporal_known_continuous_inp_size:int=gin.REQUIRED,
+        temporal_observed_continuous_inp_size:int=gin.REQUIRED,
+        temporal_target_size:int=gin.REQUIRED,  # number of target variables
         **kwargs,
     ):
         # derived variables
@@ -379,13 +386,6 @@ class TFT(DLPredictionWrapper):
             num_future_vars=num_future_vars,
             num_historic_vars=num_historic_vars,
             *args,
-            static_categorical_inp_size=1,
-            temporal_known_categorical_inp_size=0,
-            temporal_observed_categorical_inp_size=48,
-            static_continuous_inp_size=3,
-            temporal_known_continuous_inp_size=0,
-            temporal_observed_continuous_inp_size=48,
-            temporal_target_size=1,
             **kwargs,
         )
 
@@ -420,7 +420,11 @@ class TFT(DLPredictionWrapper):
             len(quantiles), num_classes
         )  # Linear layer on top to output to the number of classes and allow modification by predictionwrapper
 
-    def forward(self, x: Dict[str, Tensor]) -> Tensor:
+    def forward(self, x) -> Tensor:
+        #Prep data to be in format model expects 
+
+
+
         s_inp, t_known_inp, t_observed_inp, t_observed_tgt = self.embedding(x)
         # Static context
         cs, ce, ch, cc = self.static_encoder(s_inp)

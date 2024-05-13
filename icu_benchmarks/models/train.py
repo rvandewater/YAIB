@@ -107,8 +107,8 @@ def train_common(
     dataset_class = (
         ImputationDataset
         if mode == RunMode.imputation
-        else (PredictionDatasetpytorch if (pytorch_forecasting) else PredictionDataset)
-    )
+         else PredictionDataset)
+    
 
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training

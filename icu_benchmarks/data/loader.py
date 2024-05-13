@@ -172,16 +172,19 @@ class PredictionDataset(CommonDataset):
 
 @gin.configurable("PredictionDatasetTFT")
 class PredictionDatasetTFT(PredictionDataset):
+    """
     Subclass of prediction dataset for TFT as we need to define if variables are cont,static,known or observed.
     We also need to feed the model the variables in a specific order
     Args:
         ram_cache (bool, optional): Whether the complete dataset should be stored in ram. Defaults to True.
-
+    """
 
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
         super().__init__(*args, ram_cache=True, **kwargs)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
+
+        """  
         Function to sample from the data split of choice. Used for TFT.
         The data needs to be given to the model in the following order
         [static categorical,static contious,known catergorical,known continous,
@@ -189,7 +192,8 @@ class PredictionDatasetTFT(PredictionDataset):
         Args:
             idx: A specific row index to sample.
         Returns:
-            A sample from the data, consisting of data, labels and padding mask.
+            A sample from the data, consisting of data, labels and padding mask. 
+        """
 
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
@@ -199,6 +203,7 @@ class PredictionDatasetTFT(PredictionDataset):
 
         # We need to be sure that tensors are returned in the correct order to be processed correclty by tft
         tensors = [[] for _ in range(8)]
+        print(self.features_df.columns)
         for var in self.features_df.columns:
             if var == "sex":
                 tensors[0].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
