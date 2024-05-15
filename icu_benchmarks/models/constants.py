@@ -24,7 +24,7 @@ from torchmetrics.classification import (
     CalibrationError,
     F1Score,
 )
-from enum import Enum
+from enum import Enum,IntEnum
 from icu_benchmarks.models.custom_metrics import (
     CalibrationCurve,
     BalancedAccuracy,
@@ -32,6 +32,7 @@ from icu_benchmarks.models.custom_metrics import (
     JSD,
     BinaryFairnessWrapper,
 )
+import gin
 
 
 class MLMetrics:
@@ -100,3 +101,21 @@ class ImputationInit(str, Enum):
     XAVIER = "xavier"
     KAIMING = "kaiming"
     ORTHOGONAL = "orthogonal"
+
+
+@gin.constants_from_enum
+class DataTypes(Enum):
+    """Defines numerical types of each column."""
+    CONTINUOUS = 0
+    CATEGORICAL = 1
+    DATE = 2
+    STR = 3
+@gin.constants_from_enum
+class InputTypes(IntEnum):
+    """Defines input types of each column."""
+    TARGET = 0
+    OBSERVED = 1
+    KNOWN = 2
+    STATIC = 3
+    ID = 4  # Single column used as an entity identifier
+    TIME = 5  # Single column exclusively used as a time index

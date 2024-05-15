@@ -27,6 +27,7 @@ from icu_benchmarks.models.wrappers import (
 from torch import Tensor
 from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork, DeepAR
 from pytorch_forecasting.metrics import QuantileLoss
+from constants import InputTypes,DataTypes
 
 
 @gin.configurable
@@ -350,15 +351,37 @@ class TFT(DLPredictionWrapper):
         example_length,  # determines interval to predict
         *args,
         quantiles :list = gin.REQUIRED,  # quantiles to produce
-        static_categorical_inp_size:list = gin.REQUIRED ,  # number of catergories
-        temporal_known_categorical_inp_size:list = gin.REQUIRED,
-        temporal_observed_categorical_inp_size:list = gin.REQUIRED,  # number of categorical observed variables
-        static_continuous_inp_size: int=gin.REQUIRED,  # number of static coutinous variables
-        temporal_known_continuous_inp_size:int=gin.REQUIRED,
-        temporal_observed_continuous_inp_size:int=gin.REQUIRED,
-        temporal_target_size:int=gin.REQUIRED,  # number of target variables
+         # number of target variables
+        vars_type:dict =gin.REQUIRED,
+        temporal_target_size:int=gin.REQUIRED,
         **kwargs,
     ):
+        
+        static_categorical_inp_size=0 # number of catergories
+        temporal_known_categorical_inp_size=0
+        temporal_observed_categorical_inp_size=0  # number of categorical observed variables
+        static_continuous_inp_size=0  # number of static coutinous variables
+        temporal_known_continuous_inp_size=0
+        temporal_observed_continuous_inp_size=0
+        for value in vars_type.values():
+            if value==[DataTypes.CONTINUOUS, InputTypes.OBSERVED]:
+                temporal_observed_continuous_inp_size+=1
+            elif value==[DataTypes.CATEGORICAL, InputTypes.OBSERVED]:
+                temporal_observed_categorical_inp_size+=1
+            elif value==[DataTypes.CONTINUOUS, InputTypes.STATIC]:
+                static_continuous_inp_size+=1
+            elif value==[DataTypes.CATEGORICAL, InputTypes.STATIC]:
+                static_categorical_inp_size+=1
+            elif value==[DataTypes.CONTINUOUS, InputTypes.KNOWN]:
+                 temporal_known_continuous_inp_size+=1
+            elif value==[DataTypes.CATEGORICAL, InputTypes.KNOWN]:
+                temporal_known_categorical_inp_size+=1
+            else:
+                print('incorrect datatype')
+            
+
+
+        
         # derived variables
         num_static_vars = len(static_categorical_inp_size) + static_continuous_inp_size
         num_future_vars = (
