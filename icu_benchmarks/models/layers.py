@@ -8,7 +8,7 @@ from torch import Tensor
 from torch.nn.parameter import UninitializedParameter
 from typing import Dict, Tuple, Optional
 from torch.nn import LayerNorm
-
+from collections import OrderedDict
 
 @gin.configurable("masking")
 def parallel_recomb(q_t, kv_t, att_type="all", local_context=3, bin_size=None):
@@ -546,7 +546,7 @@ class TFTEmbedding(nn.Module):
         t_cont_k_inp = x.get("k_cont", None)
         t_cat_o_inp = x.get("o_cat", None)
         t_cont_o_inp = x.get("o_cont", None)
-        t_tgt_obs = x["target"]  # Has to be present
+        t_tgt_obs = x.get("target")  # Has to be present
         # Static inputs are expected to be equal for all timesteps
         # For memory efficiency there is no assert statement
 
