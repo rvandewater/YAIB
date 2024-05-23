@@ -449,29 +449,27 @@ class TFT(DLPredictionWrapper):
 
     def forward(self, x) -> Tensor:
         #Prep data to be in format model expects 
+        
         tensors = [[] for _ in range(8)]
         i=0
         nan_array = from_numpy(np.full_like(x[:, 0], np.nan))#target is nan in the input
-        print(x.size())
+        
         for var in self.vars:
-            print(var)
-            print(i)
-            print(self.vars_type[var])
-            print(x[:, i].size())
+            
 
 
             if self.vars_type[var][0:2] == [DataTypes.CATEGORICAL, InputTypes.STATIC]:
-                tensors[0].append(x[:, i])
+                tensors[0].append(x[:, :, i])
             elif self.vars_type[var] == [DataTypes.CONTINUOUS, InputTypes.STATIC]:
-                tensors[1].append(x[:, i])
+                tensors[1].append(x[:, :, i])
             elif self.vars_type[var][0:2] == [DataTypes.CATEGORICAL, InputTypes.KNOWN]:
-                tensors[2].append(x[:, i])
+                tensors[2].append(x[:, :, i])
             elif self.vars_type[var] == [DataTypes.CONTINUOUS, InputTypes.KNOWN]:
-                tensors[3].append(x[:, i])
+                tensors[3].append(x[:, :, i])
             elif self.vars_type[var][0:2] == [DataTypes.CATEGORICAL, InputTypes.OBSERVED]:
-                tensors[4].append(x[:, i])
+                tensors[4].append(x[:, :, i])
             elif self.vars_type[var] == [DataTypes.CONTINUOUS, InputTypes.OBSERVED]:
-                tensors[5].append(x[:, i])
+                tensors[5].append(x[:, :, i])
             
             i+=1
         

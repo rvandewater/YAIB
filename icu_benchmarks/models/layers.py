@@ -513,12 +513,13 @@ class TFTEmbedding(nn.Module):
         cont_emb: Tensor,
         cont_bias: Tensor,
     ) -> Tuple[Optional[Tensor], Optional[Tensor]]:
+        
         e_cat = (
             torch.stack([embed(cat[..., i].int()) for i, embed in enumerate(cat_emb)], dim=-2)
-            if (cat is not None) and (cat.size()[1] > 0)
+            if (cat is not None) and (cat.size()[0] > 0)
             else None
         )
-        if (cont is not None) and (cont.size()[1] > 0):
+        if (cont is not None) and (cont.size()[0] > 0):
             # the line below is equivalent to following einsums
             # e_cont = torch.einsum('btf,fh->bthf', cont, cont_emb)
             # e_cont = torch.einsum('bf,fh->bhf', cont, cont_emb)
