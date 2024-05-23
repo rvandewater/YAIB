@@ -445,7 +445,6 @@ class TFTEmbedding(nn.Module):
         # 5. Temporal observed categorical
         # 6. Temporal observed continuous
         # 7. Temporal observed targets (time series obseved so far)
-
         self.s_cat_embed = (
             nn.ModuleList([nn.Embedding(n, self.hidden) for n in self.s_cat_inp_size]) if self.s_cat_inp_size else None
         )
@@ -552,7 +551,6 @@ class TFTEmbedding(nn.Module):
 
         s_cat_inp = s_cat_inp[:, 0, :] if s_cat_inp is not None else None
         s_cont_inp = s_cont_inp[:, 0, :] if s_cont_inp is not None else None
-
         s_inp = self._apply_embedding(
             s_cat_inp, s_cont_inp, self.s_cat_embed, self.s_cont_embedding_vectors, self.s_cont_embedding_bias
         )
@@ -627,15 +625,15 @@ class LazyEmbedding(nn.modules.lazy.LazyModuleMixin, TFTEmbedding):
             t_cont_k_inp = x.get("k_cont", None)
             t_cont_o_inp = x.get("o_cont", None)
             t_tgt_obs = x["target"]  # Has to be present
-            if (s_cont_inp is not None) and (s_cont_inp.size()[1] > 0):
+            if (s_cont_inp is not None) and (s_cont_inp.size()[0] > 0):
                 self.s_cont_embedding_vectors.materialize((s_cont_inp.shape[-1], self.hidden))
                 self.s_cont_embedding_bias.materialize((s_cont_inp.shape[-1], self.hidden))
 
-            if (t_cont_k_inp is not None) and (t_cont_k_inp.size()[1] > 0):
+            if (t_cont_k_inp is not None) and (t_cont_k_inp.size()[0] > 0):
                 self.t_cont_k_embedding_vectors.materialize((t_cont_k_inp.shape[-1], self.hidden))
                 self.t_cont_k_embedding_bias.materialize((t_cont_k_inp.shape[-1], self.hidden))
 
-            if (t_cont_o_inp) is not None and (t_cont_o_inp.size()[1] > 0):
+            if (t_cont_o_inp) is not None and (t_cont_o_inp.size()[0] > 0):
                 self.t_cont_o_embedding_vectors.materialize((t_cont_o_inp.shape[-1], self.hidden))
                 self.t_cont_o_embedding_bias.materialize((t_cont_o_inp.shape[-1], self.hidden))
 

@@ -4,6 +4,7 @@ import numpy as np
 import torch.nn as nn
 from typing import Dict
 from icu_benchmarks.contants import RunMode
+from icu_benchmarks.models.constants import InputTypes,DataTypes
 from icu_benchmarks.models.layers import (
     TransformerBlock,
     LocalBlock,
@@ -24,10 +25,10 @@ from icu_benchmarks.models.wrappers import (
     DLPredictionWrapper,
     DLPredictionPytorchForecastingWrapper,
 )
-from torch import Tensor,cat,stack,empty
+from torch import Tensor,cat,stack,empty,from_numpy
 from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork, DeepAR
 from pytorch_forecasting.metrics import QuantileLoss
-from constants import InputTypes,DataTypes
+from collections import OrderedDict
 
 
 @gin.configurable
@@ -359,25 +360,26 @@ class TFT(DLPredictionWrapper):
     ):
         self.vars_type=vars_type
         self.vars=vars
-        static_categorical_inp_size=0 # number of catergories
-        temporal_known_categorical_inp_size=0
-        temporal_observed_categorical_inp_size=0  # number of categorical observed variables
+        static_categorical_inp_size=[] # number of catergories
+        temporal_known_categorical_inp_size=[]
+        temporal_observed_categorical_inp_size=[]  # number of categories in each category of observed variables
         static_continuous_inp_size=0  # number of static coutinous variables
         temporal_known_continuous_inp_size=0
         temporal_observed_continuous_inp_size=0
+        #Infering # of varaibles in each category based on the gin input
         for value in self.vars_type.values():
             if value==[DataTypes.CONTINUOUS, InputTypes.OBSERVED]:
                 temporal_observed_continuous_inp_size+=1
-            elif value==[DataTypes.CATEGORICAL, InputTypes.OBSERVED]:
-                temporal_observed_categorical_inp_size+=1
+            elif value[0:2]==[DataTypes.CATEGORICAL, InputTypes.OBSERVED]:#categoral variables need to define also # of categories 
+                temporal_observed_categorical_inp_size.append(value[2])
             elif value==[DataTypes.CONTINUOUS, InputTypes.STATIC]:
                 static_continuous_inp_size+=1
-            elif value==[DataTypes.CATEGORICAL, InputTypes.STATIC]:
-                static_categorical_inp_size+=1
+            elif value[0:2]==[DataTypes.CATEGORICAL, InputTypes.STATIC]:
+                static_categorical_inp_size.append(value[2])
             elif value==[DataTypes.CONTINUOUS, InputTypes.KNOWN]:
                  temporal_known_continuous_inp_size+=1
-            elif value==[DataTypes.CATEGORICAL, InputTypes.KNOWN]:
-                temporal_known_categorical_inp_size+=1
+            elif value[0:2]==[DataTypes.CATEGORICAL, InputTypes.KNOWN]:
+                temporal_known_categorical_inp_size.append(value[2])
             else:
                 print('incorrect datatype')
             
@@ -449,29 +451,35 @@ class TFT(DLPredictionWrapper):
         #Prep data to be in format model expects 
         tensors = [[] for _ in range(8)]
         i=0
-        nan_array = np.full_like(x[:, 0], np.nan)
-        for var in vars:
-            
-            if self.vars_type[var] == [DataTypes.CATEGORICAL, InputTypes.STATIC]:
-                tensors[0].append(x[:, i].to_numpy())
+        nan_array = from_numpy(np.full_like(x[:, 0], np.nan))#target is nan in the input
+        print(x.size())
+        for var in self.vars:
+            print(var)
+            print(i)
+            print(self.vars_type[var])
+            print(x[:, i].size())
+
+
+            if self.vars_type[var][0:2] == [DataTypes.CATEGORICAL, InputTypes.STATIC]:
+                tensors[0].append(x[:, i])
             elif self.vars_type[var] == [DataTypes.CONTINUOUS, InputTypes.STATIC]:
-                tensors[1].append(x[:, i].to_numpy())
-            elif self.vars_type[var] == [DataTypes.CATEGORICAL, InputTypes.KNOWN]:
-                tensors[2].append(x[:, i].to_numpy())
+                tensors[1].append(x[:, i])
+            elif self.vars_type[var][0:2] == [DataTypes.CATEGORICAL, InputTypes.KNOWN]:
+                tensors[2].append(x[:, i])
             elif self.vars_type[var] == [DataTypes.CONTINUOUS, InputTypes.KNOWN]:
-                tensors[3].append(x[:, i].to_numpy())
-            elif self.vars_type[var] == [DataTypes.CATEGORICAL, InputTypes.OBSERVED]:
-                tensors[4].append(x[:, i].to_numpy())
+                tensors[3].append(x[:, i])
+            elif self.vars_type[var][0:2] == [DataTypes.CATEGORICAL, InputTypes.OBSERVED]:
+                tensors[4].append(x[:, i])
             elif self.vars_type[var] == [DataTypes.CONTINUOUS, InputTypes.OBSERVED]:
-                tensors[5].append(x[:, i].to_numpy())
+                tensors[5].append(x[:, i])
             
             i+=1
+        
         tensors[6].append(
             nan_array#target needs to be there 
             )
         
         
-
         tensors = [stack(x, dim=-1) if x else empty(0) for x in tensors]
         FEAT_NAMES = ['s_cat' , 's_cont' , 'k_cat' , 'k_cont' , 'o_cat' , 'o_cont' , 'target']
         s_inp, t_known_inp, t_observed_inp, t_observed_tgt = self.embedding(OrderedDict(zip(FEAT_NAMES, tensors)))

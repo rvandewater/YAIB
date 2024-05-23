@@ -102,10 +102,8 @@ class PredictionDataset(CommonDataset):
         """
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
-
         pad_value = 0.0
         stay_id = self.outcome_df.index.unique()[idx]
-
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id].to_numpy()
         labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
@@ -203,7 +201,6 @@ class PredictionDatasetTFT(PredictionDataset):
 
         # We need to be sure that tensors are returned in the correct order to be processed correclty by tft
         tensors = [[] for _ in range(8)]
-        print(self.features_df.columns)
         for var in self.features_df.columns:
             if var == "sex":
                 tensors[0].append(self.features_df.loc[stay_id:stay_id][var].to_numpy())
