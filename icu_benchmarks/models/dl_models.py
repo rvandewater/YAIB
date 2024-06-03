@@ -25,7 +25,7 @@ from icu_benchmarks.models.wrappers import (
     DLPredictionWrapper,
     DLPredictionPytorchForecastingWrapper,
 )
-from torch import Tensor,cat,stack,empty,from_numpy
+from torch import Tensor,cat,stack,from_numpy,zeros
 from pytorch_forecasting import TemporalFusionTransformer, RecurrentNetwork, DeepAR
 from pytorch_forecasting.metrics import QuantileLoss
 from collections import OrderedDict
@@ -452,7 +452,7 @@ class TFT(DLPredictionWrapper):
         
         tensors = [[] for _ in range(8)]
         i=0
-        nan_array = from_numpy(np.full_like(x[:, 0], np.nan))#target is nan in the input
+        nan_array = from_numpy(np.full_like(x[:,:, 0].cpu(), -1)).to(x[:,:, 0].device)#target is nan in the input
         
         for var in self.vars:
             
@@ -478,11 +478,12 @@ class TFT(DLPredictionWrapper):
             )
         
         
-        tensors = [stack(x, dim=-1) if x else empty(0) for x in tensors]
+        tensors = [stack(x, dim=-1) if x else zeros(0) for x in tensors]
         FEAT_NAMES = ['s_cat' , 's_cont' , 'k_cat' , 'k_cont' , 'o_cat' , 'o_cont' , 'target']
         s_inp, t_known_inp, t_observed_inp, t_observed_tgt = self.embedding(OrderedDict(zip(FEAT_NAMES, tensors)))
         # Static context
         cs, ce, ch, cc = self.static_encoder(s_inp)
+        
         ch, cc = ch.unsqueeze(0), cc.unsqueeze(0)  # lstm initial states
         # Temporal input
 

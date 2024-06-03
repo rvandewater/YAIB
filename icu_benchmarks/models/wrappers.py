@@ -319,7 +319,7 @@ class DLPredictionWrapper(DLWrapper):
             element (object):
             step_prefix (str): Step type, by default: test, train, val.
         """
-
+       
         if len(element) == 2:
             data, labels = element[0], (element[1]).to(self.device)
             if isinstance(data, list):
@@ -342,8 +342,9 @@ class DLPredictionWrapper(DLWrapper):
                 data = data.float().to(self.device)
         else:
             raise Exception("Loader should return either (data, label) or (data, label, mask)")
+        
         out = self(data)
-
+        
         # If aux_loss is present, it is returned as a tuple
         if len(out) == 2 and isinstance(out, tuple):
             out, aux_loss = out

@@ -132,7 +132,6 @@ def execute_repeated_cv(
             )
 
             train_time = datetime.now() - start_time
-
             log_full_line(
                 f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| PROCEDURE DURATION {train_time}",
                 level=logging.INFO,

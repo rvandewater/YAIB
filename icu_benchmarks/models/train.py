@@ -104,10 +104,8 @@ def train_common(
     logging.info(f"Training model: {model.__name__}.")
 
     # choose dataset_class based on the model
-    dataset_class = (
-        ImputationDataset
-        if mode == RunMode.imputation
-         else PredictionDataset)
+    dataset_class = ImputationDataset if mode == RunMode.imputation else (PredictionDatasetpytorch if pytorch_forecasting else PredictionDataset)
+
     
 
     logging.info(f"Logging to directory: {log_dir}.")
@@ -179,6 +177,7 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
+        gradient_clip_val=gradient_clip_val
     )
     if not eval_only:
         if model.requires_backprop:

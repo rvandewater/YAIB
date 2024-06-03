@@ -421,7 +421,7 @@ class TFTEmbedding(nn.Module):
         temporal_observed_continuous_inp_size,
         temporal_target_size,
         hidden,
-        initialize_cont_params=False,
+        initialize_cont_params=True,
     ):
         # initialize_cont_params=False prevents form initializing parameters inside this class
         # so they can be lazily initialized in LazyEmbedding module
@@ -513,22 +513,36 @@ class TFTEmbedding(nn.Module):
         cont_emb: Tensor,
         cont_bias: Tensor,
     ) -> Tuple[Optional[Tensor], Optional[Tensor]]:
-        
+        """  print("Input cat:")
+        print(cat)
+        print("Shape:", cat.shape)
+        print("Contains NaNs:", torch.isnan(cat).any())
+        if cat is not None and cat.size(0) > 0:
+            e_cat = []
+            for i, embed in enumerate(cat_emb):
+                indices = cat[..., i].int()
+                embedded_values = embed(indices)
+                print(f"Output of embedding layer {i}:")
+                print(embedded_values)
+                print("Contains NaNs:", torch.isnan(embedded_values).any())
+                e_cat.append(embedded_values)
+            e_cat = torch.stack(e_cat, dim=-2)
+            print(1,e_cat) """
         e_cat = (
             torch.stack([embed(cat[..., i].int()) for i, embed in enumerate(cat_emb)], dim=-2)
             if (cat is not None) and (cat.size()[0] > 0)
             else None
-        )
+        ) 
+        #print(2,e_cat)
+        
         if (cont is not None) and (cont.size()[0] > 0):
-            # the line below is equivalent to following einsums
-            # e_cont = torch.einsum('btf,fh->bthf', cont, cont_emb)
-            # e_cont = torch.einsum('bf,fh->bhf', cont, cont_emb)
+            
+            
             e_cont = torch.mul(cont.unsqueeze(-1), cont_emb)
             e_cont = e_cont + cont_bias
-        # e_cont = fused_pointwise_linear_v1(cont, cont_emb, cont_bias)
+        
         else:
             e_cont = None
-
         if e_cat is not None and e_cont is not None:
             return torch.cat([e_cat, e_cont], dim=-2)
         elif e_cat is not None:
@@ -549,25 +563,28 @@ class TFTEmbedding(nn.Module):
         t_tgt_obs = x.get("target")  # Has to be present
         # Static inputs are expected to be equal for all timesteps
         # For memory efficiency there is no assert statement
+        
 
         s_cat_inp = s_cat_inp[:, 0, :] if s_cat_inp is not None else None
         s_cont_inp = s_cont_inp[:, 0, :] if s_cont_inp is not None else None
         s_inp = self._apply_embedding(
             s_cat_inp, s_cont_inp, self.s_cat_embed, self.s_cont_embedding_vectors, self.s_cont_embedding_bias
         )
+        
 
         t_known_inp = self._apply_embedding(
             t_cat_k_inp, t_cont_k_inp, self.t_cat_k_embed, self.t_cont_k_embedding_vectors, self.t_cont_k_embedding_bias
         )
-
+        
         t_observed_inp = self._apply_embedding(
             t_cat_o_inp, t_cont_o_inp, self.t_cat_o_embed, self.t_cont_o_embedding_vectors, self.t_cont_o_embedding_bias
         )
-
+        
         # Temporal observed targets
         t_observed_tgt = torch.matmul(t_tgt_obs.unsqueeze(3).unsqueeze(4), self.t_tgt_embedding_vectors.unsqueeze(1)).squeeze(
             3
         )
+       
         t_observed_tgt = t_observed_tgt + self.t_tgt_embedding_bias
 
         return s_inp, t_known_inp, t_observed_inp, t_observed_tgt
@@ -621,6 +638,7 @@ class LazyEmbedding(nn.modules.lazy.LazyModuleMixin, TFTEmbedding):
         self.t_tgt_embedding_bias = UninitializedParameter()
 
     def initialize_parameters(self, x):
+        
         if self.has_uninitialized_params():
             s_cont_inp = x.get("s_cont", None)
             t_cont_k_inp = x.get("k_cont", None)
