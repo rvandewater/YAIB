@@ -15,12 +15,12 @@ optimizer/hyperparameter.lr = (0.0001, 0.001,0.01)
 # Encoder params
 model/hyperparameter.class_to_tune = @TFT
 model/hyperparameter.encoder_length = 24
-model/hyperparameter.hidden = 32
+model/hyperparameter.hidden = (10,20,40,80,160,240,320)
 #(10,20,40,80,160,240,320)
 model/hyperparameter.num_classes = %NUM_CLASSES
-model/hyperparameter.dropout = (0.37, 0.38)
-model/hyperparameter.dropout_att = 0.0589
-model/hyperparameter.n_heads =2
+model/hyperparameter.dropout = (0, 0.4)
+model/hyperparameter.dropout_att = (0, 0.4)#0.0589
+model/hyperparameter.n_heads =(1,2,4)
 #(1,2,4)
 model/hyperparameter.example_length=25
 
@@ -29,10 +29,10 @@ model/hyperparameter.example_length=25
 TFT.temporal_target_size=1
 TFT.quantiles=[0.1,0.5,0.9]
 
-train_common/hyperparameter.batch_size=64
+train_common/hyperparameter.batch_size=(32,64,128,256,512)
 #(32,64,128,256,512)
 
-train_common/hyperparameter.gradient_clip_val=0.01
+train_common/hyperparameter.gradient_clip_val=(0,0.01, 1.0, 100.0)
 #(0,0.01, 1.0, 100.0)
 
 

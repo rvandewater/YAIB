@@ -21,7 +21,7 @@ from icu_benchmarks.data.loader import (
     ImputationDataset,
     PredictionDatasetpytorch,
 )
-
+from lightning.pytorch.profilers import PyTorchProfiler
 
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
@@ -164,7 +164,9 @@ def train_common(
         callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
     if precision == 16 or "16-mixed":
         torch.set_float32_matmul_precision("medium")
-
+    profiler = PyTorchProfiler(dirpath='.',filename='memory.txt',sort_by_key='self_cuda_memory_usage',
+                               profile_memory=True,with_stack=True,activities=[torch.profiler.ProfilerActivity.CUDA],
+                               on_trace_ready=torch.profiler.tensorboard_trace_handler('.'))
     trainer = Trainer(
         max_epochs=epochs if model.requires_backprop else 1,
         callbacks=callbacks,
@@ -177,7 +179,8 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=-1,
         log_every_n_steps=5,
-        gradient_clip_val=gradient_clip_val
+        gradient_clip_val=gradient_clip_val,
+        profiler=profiler
     )
     if not eval_only:
         if model.requires_backprop:
