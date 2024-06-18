@@ -32,6 +32,7 @@ class CommonDataset(Dataset):
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
+        # logging.info(f"data split: {data[split]}")
         self.features_df = (
             data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
         )

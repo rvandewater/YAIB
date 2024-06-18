@@ -1,0 +1,39 @@
+command:
+  - ${env}
+  - ${program}
+  - train
+  - -d
+  - ../data/
+  - -t
+  - CassClassification
+  - --log-dir
+  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
+  - --tune
+  - --wandb-sweep
+  - -tn
+  - SSI
+  - -n
+  - cass
+#  - -gc
+#  - -lc
+method: grid
+name: yaib_classification_benchmark
+parameters:
+  data_dir:
+    values:
+      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/notes
+  model:
+    values:
+#      - LogisticRegression
+      - LGBMClassifier
+#      - GRU
+#      - LSTM
+#      - TCN
+#      - Transformer
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks

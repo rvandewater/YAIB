@@ -117,8 +117,9 @@ class DefaultClassificationPreprocessor(Preprocessor):
             sta_rec.add_step(StepScale())
 
         sta_rec.add_step(StepImputeFastZeroFill(sel=all_numeric_predictors()))
-        sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
-        sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
+        if len(data[Split.train][Segment.static].select_dtypes(include=["object"]).columns) > 0:
+            sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type("object")))
+            sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
 
         data = apply_recipe_to_splits(sta_rec, data, Segment.static, self.save_cache, self.load_cache)
 

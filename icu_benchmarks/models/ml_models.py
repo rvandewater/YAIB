@@ -8,7 +8,7 @@ from sklearn import neural_network
 from sklearn import svm
 from icu_benchmarks.models.wrappers import MLWrapper
 from icu_benchmarks.contants import RunMode
-from wandb.lightgbm import wandb_callback
+from wandb.integration.lightgbm import wandb_callback
 
 
 class LGBMWrapper(MLWrapper):

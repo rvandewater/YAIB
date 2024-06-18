@@ -94,6 +94,7 @@ def preprocess_data(
     data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
     # Generate the splits
     logging.info("Generating splits.")
+    # complete_train = True
     if not complete_train:
         data = make_single_split(
             data,
@@ -108,11 +109,16 @@ def preprocess_data(
             runmode=runmode,
         )
     else:
+        data = data
         # If full train is set, we use all data for training/validation
-        data = make_train_val(data, vars, train_size=0.8, seed=seed, debug=debug, runmode=runmode)
+        # data = make_train_val(data, vars, train_size=None, seed=seed, debug=debug, runmode=runmode)
 
     # Apply preprocessing
+    # data = {Split.train: data, Split.val: data, Split.test: data}
     data = preprocessor.apply(data, vars)
+
+    # data[Split.train][Segment.dynamic].to_parquet(data_dir / "preprocessed.parquet")
+    # data[Split.train][Segment.outcome].to_parquet(data_dir / "outcome.parquet")
 
     # Generate cache
     if generate_cache:
@@ -155,12 +161,12 @@ def make_train_val(
         stays = stays.sample(frac=0.01, random_state=seed)
 
     # If there are labels, and the task is classification, use stratified k-fold
-    if Var.label in vars and runmode is RunMode.classification:
+    if Var.label in vars and runmode is RunMode.classification :
         # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
         labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
         if train_size:
             train_val = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
-        train, val = list(train_val.split(stays, labels))[0]
+            train, val = list(train_val.split(stays, labels))[0]
     else:
         # If there are no labels, use random split
         train_val = ShuffleSplit(train_size=train_size, random_state=seed)
@@ -263,7 +269,7 @@ def make_single_split(
         data_split[fold] = {
             data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
         }
-
+    # logging.info(f"Data split: {data_split}")
     return data_split
 
 
