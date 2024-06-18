@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 import torch.cuda
 from icu_benchmarks.wandb_utils import update_wandb_config, apply_wandb_sweep, set_wandb_experiment_name
-from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters
+from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters, choose_and_bind_hyperparameters_optuna
 from scripts.plotting.utils import plot_aggregated_results
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import (
@@ -128,7 +128,7 @@ def main(my_args=tuple(sys.argv[1:])):
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
         run_dir = create_run_dir(log_dir)
-        choose_and_bind_hyperparameters(
+        choose_and_bind_hyperparameters_optuna(
             args.tune,
             data_dir,
             run_dir,

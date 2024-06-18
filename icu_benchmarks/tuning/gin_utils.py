@@ -44,3 +44,15 @@ def bind_gin_params(hyperparams_names: list[str], hyperparams_values: list):
         gin.bind_parameter(param, value)
         logging.info(f"{param} = {value}")
         wandb_log({param: value})
+
+def bind_gin_params(hyperparams: dict[str, any]):
+    """Binds hyperparameters to gin config and logs them.
+
+    Args:
+
+    """
+    logging.info("Binding Hyperparameters:")
+    for param, value in hyperparams.items():
+        gin.bind_parameter(param, value)
+        logging.info(f"{param} = {value}")
+        wandb_log({param: value})
