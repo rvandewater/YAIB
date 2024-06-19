@@ -328,6 +328,7 @@ def choose_and_bind_hyperparameters_optuna(
         sampler=sampler,
         storage="sqlite:///" + str(log_dir / checkpoint_file),
         study_name=str(data_dir) + str(seed),
+        pruner=optuna.pruners.HyperbandPruner(),
     )
     callbacks = [tune_step_callback]
     if wandb:
