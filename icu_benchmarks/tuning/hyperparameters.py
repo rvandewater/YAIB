@@ -7,6 +7,8 @@ from pathlib import Path
 from skopt import gp_minimize
 import tempfile
 import optuna
+import wandb
+from optuna.integration.wandb import WeightsAndBiasesCallback
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder, log_table_row, Align
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import log_full_line
@@ -180,6 +182,7 @@ def choose_and_bind_hyperparameters_optuna(
         scopes: list[str] = [],
         n_initial_points: int = 3,
         n_calls: int = 20,
+        sampler=optuna.samplers.GPSampler,
         folds_to_tune_on: int = None,
         checkpoint_file: str = "hyperparameter_tuning_logs.db",
         generate_cache: bool = False,
@@ -188,9 +191,10 @@ def choose_and_bind_hyperparameters_optuna(
         verbose: bool = False,
         wandb: bool = False,
 ):
-    """Choose hyperparameters to tune and bind them to gin.
+    """Choose hyperparameters to tune and bind them to gin. Uses Optuna for hyperparameter optimization.
 
     Args:
+        sampler:
         wandb: Whether we use wandb or not.
         load_cache: Load cached data if available.
         generate_cache: Generate cache data.
@@ -219,7 +223,6 @@ def choose_and_bind_hyperparameters_optuna(
 
     # Collect hyperparameters.
     hyperparams_bounds, hyperparams_names = collect_bound_hyperparameters(hyperparams, scopes)
-    sampler = optuna.samplers.GPSampler()
 
     if do_tune and not hyperparams_bounds:
         logging.info("No hyperparameters to tune, skipping tuning.")
@@ -236,17 +239,16 @@ def choose_and_bind_hyperparameters_optuna(
         # Check if we found a checkpoint file
         if checkpoint_path:
             n_calls, configuration, evaluation = load_checkpoint(checkpoint_path, n_calls)
-            # Check if we surpassed maximum tuning iterations
-            if n_calls <= 0:
-                logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
-                logging.info("Training with these hyperparameters:")
-                bind_gin_params(hyperparams_names, configuration[np.argmin(evaluation)])  # bind best hyperparameters
-                return
+        #     # Check if we surpassed maximum tuning iterations
+        #     if n_calls <= 0:
+        #         logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
+        #         logging.info("Training with these hyperparameters:")
+        #         bind_gin_params(hyperparams_names, configuration[np.argmin(evaluation)])  # bind best hyperparameters
+        #         return
         else:
             logging.warning("No checkpoint file found, starting from scratch.")
 
     # Function that trains the model with the given hyperparameters.
-
 
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
 
@@ -258,7 +260,7 @@ def choose_and_bind_hyperparameters_optuna(
         #         "func_vals": res.func_vals,
         #     }
         #     f.write(json.dumps(data, cls=JsonResultLoggingEncoder))
-        table_cells = [str(len(study.trials)), study.trials[-1].params, study.trials[-1].value]
+        table_cells = [str(len(study.trials)), *list(study.trials[-1].params.values()), study.trials[-1].value]
         highlight = study.trials[-1] == study.best_trial  # highlight if best so far
         log_table_row(header, TUNE)
         log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
@@ -289,13 +291,13 @@ def choose_and_bind_hyperparameters_optuna(
             bind_gin_params(hyperparams)
             if not do_tune:
                 return 0
-            return execute_repeated_cv(
+            score = execute_repeated_cv(
                 data_dir,
                 Path(temp_dir),
                 seed,
                 mode=run_mode,
                 cv_repetitions_to_train=1,
-                cv_folds_to_train=1,#folds_to_tune_on,
+                cv_folds_to_train=folds_to_tune_on,
                 generate_cache=generate_cache,
                 load_cache=load_cache,
                 test_on="val",
@@ -303,65 +305,47 @@ def choose_and_bind_hyperparameters_optuna(
                 verbose=verbose,
                 wandb=wandb,
             )
+            logging.info(f"Score: {score}")
+            return score
+
     def objective(trail, hyperparams_bounds, hyperparams_names):
+        # Optuna objective function
         hyperparams = {}
         logging.info(f"Bounds: {hyperparams_bounds}, Names: {hyperparams_names}")
         for name, value in zip(hyperparams_names, hyperparams_bounds):
             if isinstance(value, tuple):
                 if isinstance(value[0], int) and isinstance(value[1], int):
-                    hyperparams[name] = trail.suggest_int(name, value[0], value[1])
+                    hyperparams[name] = trail.suggest_int(name, value[0], value[1],
+                                                          log=len(value) > 2 and value[2] == "log")
                 else:
-                    hyperparams[name] = trail.suggest_float(name, value[0], value[1])
-                # if len(value) == 2:
-                #     if isinstance(value[0],int) and isinstance(value[1], int):
-                #         hyperparams[name] = trail.suggest_int(name, value[0], value[1])
-                #     else:
-                #         hyperparams[name] = trail.suggest_float(name, value[0], value[1])
-                # else:
-                #     if isinstance(value[0],int) and isinstance(value[1], int):
-                #         hyperparams[name] = trail.suggest_int(name, value[0], value[1], log= lambda: True if value[2] == "log-uniform" else False)
-                #     else:
-                #         hyperparams[name] = trail.suggest_float(name, value[0], value[1], log= lambda: True if value[2] == "log-uniform" else False)
-
-                        # hyperparams[name] = trail.suggest_float(name, value[0], value[1], log= lambda:True if len(value>2): True if value[2] == "log-uniform" else False else False)
-                    # hyperparams[name] = trail.suggest_float(name, value[0], value[1], log=if len(value)>2: if value[2] == "log-uniform" else: False else: False)
+                    hyperparams[name] = trail.suggest_float(name, value[0], value[1],
+                                                            log=len(value) > 2 and value[2] == "log")
             else:
                 hyperparams[name] = trail.suggest_categorical(name, value)
         return bind_params_and_train(hyperparams)
 
+    if isinstance(sampler, optuna.samplers.GPSampler):
+        sampler = sampler(seed=seed, n_startup_trials=n_initial_points, deterministic_objective=True)
+    else:
+        sampler = sampler(seed=seed)
 
     study = optuna.create_study(
         sampler=sampler,
-        storage="sqlite:///"+str(log_dir / checkpoint_file),
-        study_name=str(data_dir)+str(seed),
+        storage="sqlite:///" + str(log_dir / checkpoint_file),
+        study_name=str(data_dir) + str(seed),
     )
-    # func = bind_params_and_train(configuration)
-    # hyperparams_bounds, hyperparams_names
-    # objective(study, hyperparams_bounds, hyperparams_names)
-    res = study.optimize(lambda trail: objective(trail, hyperparams_bounds, hyperparams_names), n_trials=n_calls,
-                         callbacks=[tune_step_callback])
-
-    # res = gp_minimize(
-    #     bind_params_and_train,
-    #     hyperparams_bounds,
-    #     x0=configuration,
-    #     y0=evaluation,
-    #     n_calls=n_calls,
-    #     n_initial_points=n_initial_points,
-    #     random_state=seed,
-    #     noise=1e-10,  # The models are deterministic, but noise is needed for the gp to work.
-    #     callback=tune_step_callback if do_tune else None,
-    # )
+    callbacks = [tune_step_callback()]
+    if wandb:
+        callbacks.append(WeightsAndBiasesCallback())
+    study.optimize(lambda trail: objective(trail, hyperparams_bounds, hyperparams_names), n_trials=n_calls,
+                         callbacks=callbacks, )
     logging.disable(level=NOTSET)
 
     if do_tune:
         log_full_line("FINISHED TUNING", level=TUNE, char="=", num_newlines=4)
 
     logging.info("Training with these hyperparameters:")
-    bind_gin_params(hyperparams_names, res.x)
-
-
-
+    bind_gin_params(study.best_params)
 
 
 def collect_bound_hyperparameters(hyperparams, scopes):
@@ -372,7 +356,15 @@ def collect_bound_hyperparameters(hyperparams, scopes):
     hyperparams_bounds = list(hyperparams.values())
     return hyperparams_bounds, hyperparams_names
 
-
+def load_optuna_checkpoint(checkpoint_path, n_calls):
+    logging.info(f"Loading checkpoint at {checkpoint_path}")
+    with open(checkpoint_path, "r") as f:
+        data = json.loads(f.read())
+        x0 = data["x_iters"]
+        y0 = data["func_vals"]
+    n_calls -= len(x0)
+    logging.log(TUNE, f"Checkpoint contains {len(x0)} points.")
+    return n_calls, x0, y0
 def load_checkpoint(checkpoint_path, n_calls):
     logging.info(f"Loading checkpoint at {checkpoint_path}")
     with open(checkpoint_path, "r") as f:
