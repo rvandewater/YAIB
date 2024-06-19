@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 import torch.cuda
 from icu_benchmarks.wandb_utils import update_wandb_config, apply_wandb_sweep, set_wandb_experiment_name
-from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters, choose_and_bind_hyperparameters_optuna
+from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters_optuna
 from scripts.plotting.utils import plot_aggregated_results
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import (
