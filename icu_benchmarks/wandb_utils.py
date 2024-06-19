@@ -75,4 +75,3 @@ def set_wandb_experiment_name(args, mode):
     if wandb_running():
         wandb.config.update({"run-name": run_name})
         wandb.run.name = run_name
-        wandb.run.save()

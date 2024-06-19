@@ -230,35 +230,29 @@ def choose_and_bind_hyperparameters_optuna(
     # Attempt checkpoint loading
     configuration, evaluation = None, None
     if checkpoint:
-        checkpoint_path = checkpoint / checkpoint_file
-        if not checkpoint_path.exists():
-            logging.warning(f"Hyperparameter checkpoint {checkpoint_path} does not exist.")
-            logging.info("Attempting to find latest checkpoint file.")
-            checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
-        # Check if we found a checkpoint file
-        if checkpoint_path:
-            n_calls, configuration, evaluation = load_checkpoint(checkpoint_path, n_calls)
-        #     # Check if we surpassed maximum tuning iterations
-        #     if n_calls <= 0:
-        #         logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
-        #         logging.info("Training with these hyperparameters:")
-        #         bind_gin_params(hyperparams_names, configuration[np.argmin(evaluation)])  # bind best hyperparameters
-        #         return
-        else:
-            logging.warning("No checkpoint file found, starting from scratch.")
+        return NotImplementedError("Checkpoint loading is not implemented for Optuna yet.")
+        # checkpoint_path = checkpoint / checkpoint_file
+        # if not checkpoint_path.exists():
+        #     logging.warning(f"Hyperparameter checkpoint {checkpoint_path} does not exist.")
+        #     logging.info("Attempting to find latest checkpoint file.")
+        #     checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
+        # # Check if we found a checkpoint file
+        # if checkpoint_path:
+        #     n_calls, configuration, evaluation = load_checkpoint(checkpoint_path, n_calls)
+        # #     # Check if we surpassed maximum tuning iterations
+        # #     if n_calls <= 0:
+        # #         logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
+        # #         logging.info("Training with these hyperparameters:")
+        # #         bind_gin_params(hyperparams_names, configuration[np.argmin(evaluation)])  # bind best hyperparameters
+        # #         return
+        # else:
+        #     logging.warning("No checkpoint file found, starting from scratch.")
 
     # Function that trains the model with the given hyperparameters.
 
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
 
     def tune_step_callback(study: optuna.study.Study, trial: optuna.trial.FrozenTrial):
-
-        # with open(log_dir / checkpoint_file, "w") as f:
-        #     data = {
-        #         "x_iters": res.x_iters,
-        #         "func_vals": res.func_vals,
-        #     }
-        #     f.write(json.dumps(data, cls=JsonResultLoggingEncoder))
         table_cells = [str(len(study.trials)), *list(study.trials[-1].params.values()), study.trials[-1].value]
         highlight = study.trials[-1] == study.best_trial  # highlight if best so far
         log_table_row(header, TUNE)
@@ -307,6 +301,7 @@ def choose_and_bind_hyperparameters_optuna(
             logging.info(f"Score: {score}")
             return score
 
+    # Optuna objective function
     def objective(trail, hyperparams_bounds, hyperparams_names):
         # Optuna objective function
         hyperparams = {}
@@ -328,6 +323,7 @@ def choose_and_bind_hyperparameters_optuna(
     else:
         sampler = sampler(seed=seed)
 
+    # Optuna study
     study = optuna.create_study(
         sampler=sampler,
         storage="sqlite:///" + str(log_dir / checkpoint_file),
@@ -335,9 +331,14 @@ def choose_and_bind_hyperparameters_optuna(
     )
     callbacks = [tune_step_callback]
     if wandb:
-        callbacks.append(WeightsAndBiasesCallback())
+        wandb_kwargs = {
+            "config": {"sampler": sampler},
+        }
+        wandbc = WeightsAndBiasesCallback(metric_name="loss",wandb_kwargs=wandb_kwargs)
+        callbacks.append(wandbc)
+    logging.info(f"Starting Optuna study with {n_calls} trials and callbacks: {callbacks}.")
     study.optimize(lambda trail: objective(trail, hyperparams_bounds, hyperparams_names), n_trials=n_calls,
-                         callbacks=callbacks, )
+                         callbacks=callbacks, gc_after_trial = True)
     logging.disable(level=NOTSET)
 
     if do_tune:

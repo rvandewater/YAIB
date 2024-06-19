@@ -139,6 +139,7 @@ def main(my_args=tuple(sys.argv[1:])):
             generate_cache=args.generate_cache,
             load_cache=args.load_cache,
             verbose=verbose,
+            wandb=args.wandb_sweep,
         )
 
     log_full_line(f"Logging to {run_dir.resolve()}", level=logging.INFO)
