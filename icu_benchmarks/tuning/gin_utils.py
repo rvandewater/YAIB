@@ -32,15 +32,28 @@ def get_gin_hyperparameters(class_to_tune: str = gin.REQUIRED, **hyperparams: di
     return hyperparams_to_tune
 
 
-def bind_gin_params(hyperparams_names: list[str], hyperparams_values: list):
-    """Binds hyperparameters to gin config and logs them.
+# def bind_gin_params(hyperparams_names: list[str], hyperparams_values: list):
+#     """Binds hyperparameters to gin config and logs them.
+#
+#     Args:
+#         hyperparams_names: List of hyperparameter names.
+#         hyperparams_values: List of hyperparameter values.
+#     """
+#     logging.info("Binding Hyperparameters:")
+#     for param, value in zip(hyperparams_names, hyperparams_values):
+#         gin.bind_parameter(param, value)
+#         logging.info(f"{param} = {value}")
+#         wandb_log({param: value})
+
+
+def bind_gin_params(hyperparams: dict[str, any]):
+    """Binds hyperparameter dict to gin config and logs them.
 
     Args:
-        hyperparams_names: List of hyperparameter names.
-        hyperparams_values: List of hyperparameter values.
+        hyperparams: Dictionary of hyperparameters.
     """
     logging.info("Binding Hyperparameters:")
-    for param, value in zip(hyperparams_names, hyperparams_values):
+    for param, value in hyperparams.items():
         gin.bind_parameter(param, value)
         logging.info(f"{param} = {value}")
         wandb_log({param: value})

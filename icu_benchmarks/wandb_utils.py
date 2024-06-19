@@ -18,7 +18,7 @@ def update_wandb_config(config: dict) -> None:
     """
     logging.debug(f"Updating Wandb config: {config}")
     if wandb_running():
-        wandb.config.update(config)
+        wandb.config.update(config, allow_val_change=True)
 
 
 def apply_wandb_sweep(args: Namespace) -> Namespace:
@@ -30,7 +30,7 @@ def apply_wandb_sweep(args: Namespace) -> Namespace:
     Returns:
         Namespace: arguments with sweep configuration applied (some are applied via hyperparams)
     """
-    wandb.init()
+    wandb.init(allow_val_change=True)
     sweep_config = wandb.config
     args.__dict__.update(sweep_config)
     if args.hyperparams is None:
@@ -75,4 +75,3 @@ def set_wandb_experiment_name(args, mode):
     if wandb_running():
         wandb.config.update({"run-name": run_name})
         wandb.run.name = run_name
-        wandb.run.save()
