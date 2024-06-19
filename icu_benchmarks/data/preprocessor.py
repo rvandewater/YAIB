@@ -109,6 +109,9 @@ class DefaultClassificationPreprocessor(Preprocessor):
         data[Split.train][Segment.features] = data[Split.train].pop(Segment.dynamic)
         data[Split.val][Segment.features] = data[Split.val].pop(Segment.dynamic)
         data[Split.test][Segment.features] = data[Split.test].pop(Segment.dynamic)
+
+        logging.info(data[Split.train][Segment.features].head())
+        logging.info(f"Generate features: {self.generate_features}")
         return data
 
     def _process_static(self, data, vars):

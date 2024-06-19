@@ -37,7 +37,7 @@ def train_common(
     weight: str = None,
     optimizer: type = Adam,
     precision=32,
-    batch_size=64,
+    batch_size=1,
     epochs=1000,
     patience=20,
     min_delta=1e-5,
@@ -49,7 +49,7 @@ def train_common(
     ram_cache=False,
     pl_model=True,
     train_only=False,
-    num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
+    num_workers: int = 1 #min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
 ):
     """Common wrapper to train all benchmarked models.
 
