@@ -1,5 +1,5 @@
 --extra-index-url https://download.pytorch.org/whl/cu118
-black==24.2.0
+black==24.3.0
 coverage==7.2.3
 flake8==5.0.4
 matplotlib==3.7.1
