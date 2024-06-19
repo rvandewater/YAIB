@@ -14,7 +14,7 @@ torchmetrics==1.0.3
 lightgbm==3.3.5
 numpy==1.24.3
 pandas==2.0.0
-pyarrow==11.0.0
+pyarrow==14.0.1
 pytest==7.3.1
 scikit-learn==1.2.2
 tensorboard==2.12.2
