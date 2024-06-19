@@ -1,9 +1,4 @@
 name: yaib_bench
-channels:
-  - pytorch
-  - nvidia
-  - conda-forge
-  - anaconda
 dependencies:
   - python=3.10
   - pip=24.0
