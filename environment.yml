@@ -1,4 +1,4 @@
-name: yaib_bench
+name: yaib
 dependencies:
   - python=3.10
   - pip=24.0
