@@ -95,7 +95,7 @@ def train_common(
             f" {len(val_dataset)} samples."
         )
     logging.info(f"Using {num_workers} workers for data loading.")
-
+    logging.info(f"Using accelerator: {'cpu' if cpu else 'auto'}.")
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,

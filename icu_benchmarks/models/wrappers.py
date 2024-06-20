@@ -302,7 +302,7 @@ class DLPredictionWrapper(DLWrapper):
             element (object):
             step_prefix (str): Step type, by default: test, train, val.
         """
-
+        logging.debug(f"Element: {element}")
         if len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
             if isinstance(data, list):
