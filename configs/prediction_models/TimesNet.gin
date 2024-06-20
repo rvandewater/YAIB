@@ -1,0 +1,19 @@
+# Settings for the TimesNet model
+
+#Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
+
+# Train params
+train_common.model = @TimesNet
+
+# Optimizer params
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = (1e-5, 3e-4)
+
+# Encoder params
+model/hyperparameter.class_to_tune = @TimesNet
+model/hyperparameter.num_classes = %NUM_CLASSES
+model/hyperparameter.hidden_dim = (32, 256, "log-uniform", 2)
+model/hyperparameter.layer_dim = (1, 3)
+

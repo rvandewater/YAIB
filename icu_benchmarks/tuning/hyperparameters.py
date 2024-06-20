@@ -189,6 +189,7 @@ def choose_and_bind_hyperparameters_optuna(
     debug: bool = False,
     verbose: bool = False,
     wandb: bool = False,
+    cpu: bool = False,
 ):
     """Choose hyperparameters to tune and bind them to gin. Uses Optuna for hyperparameter optimization.
 
@@ -310,6 +311,7 @@ def choose_and_bind_hyperparameters_optuna(
                 debug=debug,
                 verbose=verbose,
                 wandb=wandb,
+                cpu=cpu
             )
             logging.info(f"Score: {score}")
             return score

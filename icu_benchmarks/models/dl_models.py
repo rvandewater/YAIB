@@ -1,3 +1,5 @@
+import argparse
+
 import gin
 from numbers import Integral
 import numpy as np
@@ -5,7 +7,7 @@ import torch.nn as nn
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.models.layers import TransformerBlock, LocalBlock, TemporalBlock, PositionalEncoding
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
-
+from icu_benchmarks.models.architectures.TimesNet import Model as TimesNetModel
 
 @gin.configurable
 class RNNet(DLPredictionWrapper):
@@ -279,4 +281,46 @@ class TemporalConvNet(DLPredictionWrapper):
         o = self.network(x)
         o = o.permute(0, 2, 1)  # Permute to channel last
         pred = self.logit(o)
+        return pred
+
+@gin.configurable
+class TimesNet(DLPredictionWrapper):
+
+    _supported_run_modes = [RunMode.classification, RunMode.regression]
+
+    def __init__(self, input_size, hidden_dim, layer_dim, num_classes, seq_len=12, pred_len=12, freq=1, dropout=0.0, *args, **kwargs):
+        super().__init__(
+            input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, *args, **kwargs
+        )
+
+        configs = argparse.Namespace()
+        configs.seq_len = seq_len
+        configs.pred_len = pred_len
+        configs.num_class = num_classes
+        configs.label_len = 14
+        configs.pred_len = 14
+
+        configs.enc_in = input_size[2]
+        configs.d_model = 32
+        configs.embed = hidden_dim
+        configs.freq = freq
+        configs.dropout = dropout
+        configs.task_name = "classification"
+        configs.e_layers = 3
+        configs.top_k = 3
+        configs.d_ff = 32
+        configs.num_kernels = 6
+        self.model = TimesNetModel(configs)
+        self.logit = self.model.projection
+        # self.hidden_dim = hidden_dim
+        # self.layer_dim = layer_dim
+        # self.rnn = nn.GRU(input_size[2], hidden_dim, layer_dim, batch_first=True)
+
+
+    # def init_hidden(self, x):
+    #     h0 = x.new_zeros(self.layer_dim, x.size(0), self.hidden_dim)
+    #     return h0
+
+    def forward(self, x):
+        pred=self.model(x, padding_mask, None, None)
         return pred

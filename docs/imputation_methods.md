@@ -41,7 +41,7 @@ Your `.gin` file should look like this:
 import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
 import icu_benchmarks.models.dl_models
-import icu_benchmarks.models.utils
+import icu_benchmarks.models.model_utils
 import icu_benchmarks.data.split_process_data
 # import here the file you created your New_Method class in
 import icu_benchmarks.imputation.new_model
