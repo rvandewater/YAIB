@@ -299,10 +299,9 @@ class DLPredictionWrapper(DLWrapper):
         """Perform a step in the DL prediction model training loop.
 
         Args:
-            element (object):
+            element (list): List of data, labels, and mask.
             step_prefix (str): Step type, by default: test, train, val.
         """
-        logging.debug(f"Element: {element}")
         if len(element) == 2:
             data, labels = element[0], element[1].to(self.device)
             if isinstance(data, list):
@@ -321,14 +320,18 @@ class DLPredictionWrapper(DLWrapper):
                 data = data.float().to(self.device)
         else:
             raise Exception("Loader should return either (data, label) or (data, label, mask)")
-        out = self(data)
-
+        # logging.debug(f"Element: {element}")
+        # logging.debug(f"Class: {self.__class__}")
+        out = self.run_model(data, mask)
         # If aux_loss is present, it is returned as a tuple
         if len(out) == 2 and isinstance(out, tuple):
             out, aux_loss = out
         else:
             aux_loss = 0
         # Get prediction and target
+        # logging.debug(f"Output: {out.size()}, {out}, mask: {mask.size()}, {mask}, labels: {labels.size()}, {labels}")
+        # What does this normally return?
+        # Timesnet returns 1D classification tensor (batch_size, class_num)
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
         target = torch.masked_select(labels, mask).to(self.device)
 
@@ -354,6 +357,9 @@ class DLPredictionWrapper(DLWrapper):
                 value.update(transformed_output)
         self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
         return loss
+    def run_model(self, data, mask):
+        """Run the model on the input data. Sometimes needs mask"""
+        return self(data)
 
 
 @gin.configurable("MLWrapper")
