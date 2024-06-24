@@ -294,7 +294,7 @@ class TimesNet(DLPredictionWrapper):
 
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, input_size, hidden_dim, num_classes, pred_len=0, freq=1, dropout=0.0, label_len=1,
+    def __init__(self, input_size, hidden_dim, num_classes, pred_len=0, freq='h', dropout=0.0, label_len=1,
                  e_layers=3, top_k=3, d_ff=32, num_kernels=6, d_model=32, task_name="classification", *args, **kwargs):
         """
         Changes to architecture:
