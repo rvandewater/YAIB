@@ -5,13 +5,15 @@ command:
   - -d
   - ../data/
   - -t
-  - CassClassification
+  - BinaryClassification
+#  - CassClassification
   - --log-dir
   - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
   - --tune
   - --wandb-sweep
   - -tn
-  - SSI
+#  - SSI
+  - Mortality
   - -n
   - cass
 #  - -gc
@@ -21,11 +23,12 @@ name: yaib_classification_benchmark
 parameters:
   data_dir:
     values:
-      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/notes
+      - /home/vandewrp/projects/YAIB/data/YAIB_Datasets/data/mortality24/miiv
+      #- /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/notes
   model:
     values:
 #      - LogisticRegression
-      - LGBMClassifier
+      - TimesNet
 #      - GRU
 #      - LSTM
 #      - TCN
