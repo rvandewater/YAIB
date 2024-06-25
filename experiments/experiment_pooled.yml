@@ -36,11 +36,11 @@ parameters:
       - ../data/sepsis/aumc_eicu_miiv_10000
       - ../data/sepsis/aumc_hirid_miiv_10000
       - ../data/sepsis/aumc_hirid_eicu_miiv_10000
-      - ../data/kf/aumc_hirid_eicu_10000
-      - ../data/kf/hirid_eicu_miiv_10000
-      - ../data/kf/aumc_eicu_miiv_10000
-      - ../data/kf/aumc_hirid_miiv_10000
-      - ../data/kf/aumc_hirid_eicu_miiv_10000
+      - ../data/kidney_function/aumc_hirid_eicu_10000
+      - ../data/kidney_function/hirid_eicu_miiv_10000
+      - ../data/kidney_function/aumc_eicu_miiv_10000
+      - ../data/kidney_function/aumc_hirid_miiv_10000
+      - ../data/kidney_function/aumc_hirid_eicu_miiv_10000
       - ../data/los/aumc_hirid_eicu_10000
       - ../data/los/hirid_eicu_miiv_10000
       - ../data/los/aumc_eicu_miiv_10000

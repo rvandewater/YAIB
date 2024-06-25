@@ -71,7 +71,7 @@ setup(
     keywords="benchmark mimic-iii eicu hirid clinical-ml machine-learning benchmark time-series mimic-iv patient-monitoring "
     "amsterdamumcdb clinical-data ehr icu ricu pyicu",
     name="yaib",
-    packages=find_packages(include=["icu_benchmarks"]),
+    packages=find_packages(),
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=[],

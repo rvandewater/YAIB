@@ -37,10 +37,10 @@ parameters:
       - ../data/los/hirid
       - ../data/los/eicu
       - ../data/los/aumc
-      - ../data/kf/miiv
-      - ../data/kf/hirid
-      - ../data/kf/eicu
-      - ../data/kf/aumc
+      - ../data/kidney_function/miiv
+      - ../data/kidney_function/hirid
+      - ../data/kidney_function/eicu
+      - ../data/kidney_function/aumc
   model:
     values:
       - GRU
