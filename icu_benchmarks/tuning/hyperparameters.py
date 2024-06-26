@@ -259,10 +259,22 @@ def choose_and_bind_hyperparameters_optuna(
         logging.info(f"Bounds: {hyperparams_bounds}, Names: {hyperparams_names}")
         for name, value in zip(hyperparams_names, hyperparams_bounds):
             if isinstance(value, tuple):
-                if isinstance(value[0], int) and isinstance(value[1], int):
-                    hyperparams[name] = trail.suggest_int(name, value[0], value[1], log=len(value) > 2 and value[2] == "log")
+                if isinstance(value[0], (int, float)) and isinstance(value[1], (int, float)):
+                    if len(value)>2 and isinstance(value[2], str):
+                        if isinstance(value[0], int) and isinstance(value[1], int):
+                            hyperparams[name] = trail.suggest_int(name, value[0], value[1], log= value[2] == "log")
+                        elif isinstance(value[0], float) and isinstance(value[1], float):
+                            hyperparams[name] = trail.suggest_float(name, value[0], value[1], log=value[2] == "log")
+                        else:
+                            hyperparams[name] = trail.suggest_categorical(name, value)
+                    # elif len(value)>2:
+                    #     hyperparams[name] = trail.suggest_categorical(name, value)
+                    elif isinstance(value[0], int) and isinstance(value[1], int):
+                        hyperparams[name] = trail.suggest_int(name, value[0], value[1])
+                    else:
+                        hyperparams[name] = trail.suggest_float(name, value[0], value[1])
                 else:
-                    hyperparams[name] = trail.suggest_float(name, value[0], value[1], log=len(value) > 2 and value[2] == "log")
+                    hyperparams[name]=trail.suggest_categorical(name, value)
             else:
                 hyperparams[name] = trail.suggest_categorical(name, value)
         return bind_params_and_train(hyperparams)
@@ -272,7 +284,7 @@ def choose_and_bind_hyperparameters_optuna(
         highlight = study.trials[-1] == study.best_trial  # highlight if best so far
         log_table_row(header, TUNE)
         log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
-        wandb_log({"hp-iteration": len(study.trials)})
+        # wandb_log({"hp-iteration": len(study.trials)})
 
     if do_tune:
         log_full_line("STARTING TUNING", level=TUNE, char="=")
@@ -330,6 +342,7 @@ def choose_and_bind_hyperparameters_optuna(
     if wandb:
         wandb_kwargs = {
             "config": {"sampler": sampler},
+            "allow_val_change": True,
         }
         wandbc = WeightsAndBiasesCallback(metric_name="loss", wandb_kwargs=wandb_kwargs)
         callbacks.append(wandbc)
