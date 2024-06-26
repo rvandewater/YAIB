@@ -15,7 +15,8 @@ import shutil
 from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
-
+import os
+import glob
 
 def build_parser() -> ArgumentParser:
     """Builds an ArgumentParser for the command line.
@@ -235,3 +236,15 @@ def setup_logging(date_format, log_format, verbose):
         for logger in loggers:
             logging.getLogger(logger).setLevel(logging.DEBUG)
         warnings.filterwarnings("default")
+
+
+def get_config_files(config_dir: Path):
+    tasks = glob.glob(os.path.join(config_dir / "tasks", '*'))
+    models = glob.glob(os.path.join(config_dir / "prediction_models", '*'))
+    tasks = [os.path.splitext(os.path.basename(task))[0] for task in tasks]
+    models = [os.path.splitext(os.path.basename(model))[0] for model in models]
+    tasks.remove("common")
+    models.remove("common")
+    logging.info(f"Found tasks: {tasks}")
+    logging.info(f"Found models: {models}")
+    return tasks, models

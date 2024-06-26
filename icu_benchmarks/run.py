@@ -18,6 +18,7 @@ from icu_benchmarks.run_utils import (
     setup_logging,
     import_preprocessor,
     name_datasets,
+    get_config_files,
 )
 from icu_benchmarks.contants import RunMode
 
@@ -31,6 +32,7 @@ def get_mode(mode: gin.REQUIRED):
 
 def main(my_args=tuple(sys.argv[1:])):
     args, _ = build_parser().parse_known_args(my_args)
+    # Set arguments for wandb sweep
     if args.wandb_sweep:
         args = apply_wandb_sweep(args)
         set_wandb_experiment_name(args, "run")
@@ -48,10 +50,15 @@ def main(my_args=tuple(sys.argv[1:])):
     evaluate = args.eval
     experiment = args.experiment
     source_dir = args.source_dir
+    tasks, models = get_config_files(Path("configs"))
+
+    if task not in tasks:
+        raise ValueError(f"Task {task} not found in tasks.")
+    if model not in models:
+        raise ValueError(f"Model {model} not found in models.")
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
-    # Set arguments for wandb sweep
 
     # Set experiment name
     if name is None:
