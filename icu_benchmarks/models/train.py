@@ -116,9 +116,9 @@ def train_common(
     data_shape = next(iter(train_loader))[0].shape
 
     if load_weights:
-        model = load_model(model, source_dir, pl_model=pl_model)
+        model = load_model(model, source_dir, pl_model=pl_model, cpu=cpu)
     else:
-        model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+        model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode, cpu=cpu)
 
     model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())

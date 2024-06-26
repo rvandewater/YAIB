@@ -1,3 +1,5 @@
+import logging
+
 import gin
 import catboost as cb
 import numpy as np
@@ -10,7 +12,7 @@ class CBClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(cb.CatBoostClassifier, *args, **kwargs)
+        self.model = self.set_model_args(cb.CatBoostClassifier, task_type="GPU" if not kwargs['cpu'] else "CPU", *args, **kwargs)
         super().__init__(*args, **kwargs)
 
     def predict(self, features):

@@ -7,7 +7,7 @@ class XGBClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs)
+        self.model = self.set_model_args(xgb.XGBClassifier, device="cpu" if kwargs["cpu"] else "cuda", *args, **kwargs)
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
