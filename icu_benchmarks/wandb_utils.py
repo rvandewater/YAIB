@@ -30,7 +30,7 @@ def apply_wandb_sweep(args: Namespace) -> Namespace:
     Returns:
         Namespace: arguments with sweep configuration applied (some are applied via hyperparams)
     """
-    wandb.init(allow_val_change=True)
+    wandb.init(allow_val_change=True, dir=args.log_dir)
     sweep_config = wandb.config
     args.__dict__.update(sweep_config)
     if args.hyperparams is None:

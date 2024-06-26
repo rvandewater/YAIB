@@ -3,7 +3,11 @@
 # Imports to register the models
 import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.ml_models
+import icu_benchmarks.models.ml_models.sklearn
+import icu_benchmarks.models.ml_models.lgbm
+import icu_benchmarks.models.ml_models.xgboost
+import icu_benchmarks.models.ml_models.imblearn
+import icu_benchmarks.models.ml_models.catboost
 import icu_benchmarks.models.utils
 
 # Patience for early stopping

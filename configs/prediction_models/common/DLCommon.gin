@@ -3,7 +3,9 @@
 # Imports to register the models
 import gin.torch.external_configurables
 import icu_benchmarks.models.wrappers
-import icu_benchmarks.models.dl_models
+import icu_benchmarks.models.dl_models.rnn
+import icu_benchmarks.models.dl_models.transformer
+import icu_benchmarks.models.dl_models.tcn
 import icu_benchmarks.models.utils
 
 # Do not generate features from dynamic data
