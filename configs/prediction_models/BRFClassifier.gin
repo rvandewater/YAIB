@@ -4,9 +4,9 @@
 include "configs/prediction_models/common/MLCommon.gin"
 
 # Train params
-train_common.model = @BalancedRFClassifier
+train_common.model = @BRFClassifier
 
-model/hyperparameter.class_to_tune = @BalancedRFClassifier
+model/hyperparameter.class_to_tune = @BRFClassifier
 model/hyperparameter.n_estimators = (10, 50, 100, 200, 500)
 model/hyperparameter.max_depth = [3, 5, 10, 15]
 model/hyperparameter.max_features = ['sqrt', 'log2', None]
