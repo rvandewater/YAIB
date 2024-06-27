@@ -136,10 +136,10 @@ def main(my_args=tuple(sys.argv[1:])):
         log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
         run_dir = create_run_dir(log_dir)
         choose_and_bind_hyperparameters_optuna(
-            args.tune,
-            data_dir,
-            run_dir,
-            args.seed,
+            do_tune=args.tune,
+            data_dir=data_dir,
+            log_dir=run_dir,
+            seed=args.seed,
             run_mode=mode,
             checkpoint=hp_checkpoint,
             debug=args.debug,
