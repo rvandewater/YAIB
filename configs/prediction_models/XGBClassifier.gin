@@ -7,8 +7,8 @@ include "configs/prediction_models/common/MLCommon.gin"
 train_common.model = @XGBClassifier
 
 model/hyperparameter.class_to_tune = @XGBClassifier
-model/hyperparameter.learning_rate = (0.01, 0.1, "log", 2)
-model/hyperparameter.n_estimators = [50, 100, 250, 500, 750]
+model/hyperparameter.learning_rate = (0.01, 0.1, "log")
+model/hyperparameter.n_estimators = [50, 100, 250, 500, 750, 1000,1500,2000]
 model/hyperparameter.max_depth = [3, 5, 10, 15]
 model/hyperparameter.scale_pos_weight = [1, 5, 10, 25, 50, 75, 99, 100, 1000]
 model/hyperparameter.min_child_weight = [1, 0.5]
