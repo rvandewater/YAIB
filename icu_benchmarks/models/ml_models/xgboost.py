@@ -8,6 +8,7 @@ import xgboost as xgb
 from xgboost.callback import EarlyStopping, LearningRateScheduler
 from wandb.integration.xgboost import wandb_callback as wandb_xgb
 import wandb
+from statistics import mean
 from optuna.integration import XGBoostPruningCallback
 @gin.configurable
 class XGBClassifier(MLWrapper):
@@ -27,7 +28,8 @@ class XGBClassifier(MLWrapper):
 
         if wandb.run is not None:
             callbacks.append(wandb_xgb())
-        self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], callbacks=callbacks)
+        self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)])
+        return mean(self.model.evals_result_["validation_0"]["logloss"])#, callbacks=callbacks)
 
 
     def set_model_args(self, model, *args, **kwargs):

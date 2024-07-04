@@ -3,6 +3,7 @@ import gin
 import torch
 import logging
 import pandas as pd
+import polars as pl
 from joblib import load
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -10,7 +11,7 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar, LearningRateMonitor
 from pathlib import Path
-from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset
+from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset, PredictionPolarsDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
@@ -79,13 +80,16 @@ def train_common(
     """
 
     logging.info(f"Training model: {model.__name__}.")
-    dataset_class = ImputationDataset if mode == RunMode.imputation else PredictionDataset
-
+    # dataset_class = ImputationDataset if mode == RunMode.imputation else PredictionDataset
+    for dict in data.values():
+        for key,val in dict.items():
+            dict[key] = pl.from_pandas(val)
+    dataset_class = PredictionPolarsDataset
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
-    train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"])
-    val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
+    train_dataset = dataset_class(data, split=Split.train, ram_cache=False, name=dataset_names["train"])
+    val_dataset = dataset_class(data, split=Split.val, ram_cache=False, name=dataset_names["val"])
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
 
@@ -95,13 +99,14 @@ def train_common(
             f" {len(val_dataset)} samples."
         )
     logging.info(f"Using {num_workers} workers for data loading.")
-
+    cpu=True
+    batch_size=1
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=not cpu,
         drop_last=True,
     )
     val_loader = DataLoader(
@@ -109,7 +114,7 @@ def train_common(
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=not cpu,
         drop_last=True,
     )
 

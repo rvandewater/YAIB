@@ -24,6 +24,8 @@ preprocess.use_static = True
 
 # SELECTING DATASET
 PredictionDataset.vars = %vars
+PredictionPolarsDataset.vars = %vars
+
 PredictionDataset.ram_cache = True
 
 
