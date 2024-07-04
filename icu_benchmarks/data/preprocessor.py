@@ -110,7 +110,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
         data[Split.val][Segment.features] = data[Split.val].pop(Segment.dynamic)
         data[Split.test][Segment.features] = data[Split.test].pop(Segment.dynamic)
 
-        logging.info(data[Split.train][Segment.features].head())
+        logging.debug("Data head")
+        logging.debug(data[Split.train][Segment.features].head())
         logging.info(f"Generate features: {self.generate_features}")
         return data
 
