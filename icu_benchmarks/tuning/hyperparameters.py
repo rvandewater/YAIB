@@ -229,18 +229,6 @@ def choose_and_bind_hyperparameters_optuna(
         logging.info("No hyperparameters to tune, skipping tuning.")
         return
 
-    # Attempt checkpoint loading
-
-    if not checkpoint.exists():
-        logging.warning(f"Hyperparameter checkpoint {checkpoint} does not exist.")
-        checkpoint = None
-        # logging.info("Attempting to find latest checkpoint file.")
-        # checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
-    # Check if we found a checkpoint file
-    #     # Check if we surpassed maximum tuning iterations
-    else:
-        logging.warning("No checkpoint file found, starting from scratch.")
-
     # Function that trains the model with the given hyperparameters.
 
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
@@ -296,8 +284,10 @@ def choose_and_bind_hyperparameters_optuna(
             # We have loaded a checkpoint, use the best hyperparameters.
             logging.info("Training with the best hyperparameters from loaded checkpoint:")
             bind_gin_params(configuration)
+            return
         else:
-            logging.log(TUNE, "Choosing hyperparameters randomly from bounds using hp tuning.")
+            logging.log(TUNE, "Choosing hyperparameters randomly from bounds using hp tuning as no earlier checkpoint "
+                              "supplied.")
             n_initial_points = 1
             n_calls = 1
 
@@ -327,19 +317,29 @@ def choose_and_bind_hyperparameters_optuna(
         sampler = sampler(seed=seed, n_startup_trials=n_initial_points, deterministic_objective=True)
     else:
         sampler = sampler(seed=seed)
-
+    pruner = optuna.pruners.HyperbandPruner()
     # Optuna study
-    if not checkpoint:
+    # Attempt checkpoint loading
+    if checkpoint and checkpoint.exists():
+            logging.warning(f"Hyperparameter checkpoint {checkpoint} does not exist.")
+            # logging.info("Attempting to find latest checkpoint file.")
+            # checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
+        # Check if we found a checkpoint file
+            logging.info(f"Loading checkpoint at {checkpoint}")
+            study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(checkpoint), sampler=sampler,
+                                      pruner=pruner)
+            n_calls = n_calls - len(study.trials)
+    else:
+        if checkpoint:
+            logging.warning("Checkpoint path given as flag but not found, starting from scratch.")
         study = optuna.create_study(
             sampler=sampler,
             storage="sqlite:///" + str(log_dir / checkpoint_file),
             study_name="tuning",
-            pruner=optuna.pruners.HyperbandPruner(),
+            pruner=pruner,
             load_if_exists=True,
         )
-    else:
-        logging.info(f"Loading checkpoint at {checkpoint}")
-        study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(checkpoint))
+
     callbacks = [tune_step_callback]
     if wandb:
         wandb_kwargs = {
@@ -348,8 +348,9 @@ def choose_and_bind_hyperparameters_optuna(
         }
         wandbc = WeightsAndBiasesCallback(metric_name="loss", wandb_kwargs=wandb_kwargs)
         callbacks.append(wandbc)
-    if not checkpoint:
-        logging.info(f"Starting Optuna study with {n_calls} trials and callbacks: {callbacks}.")
+
+    logging.info(f"Starting or resuming Optuna study with {n_calls} trails and callbacks: {callbacks}.")
+    if n_calls > 0:
         study.optimize(
             lambda trail: objective(trail, hyperparams_bounds, hyperparams_names),
             n_trials=n_calls,
@@ -357,10 +358,10 @@ def choose_and_bind_hyperparameters_optuna(
             gc_after_trial=True,
         )
     else:
-        logging.info(f"Resuming Optuna study with {n_calls-len(study.trials)} trails and callbacks: {callbacks}.")
-        study.optimize(
-            lambda trail: objective(trail, hyperparams_bounds, hyperparams_names)
-        )
+        logging.info("No more hyperparameter tuning iterations left, skipping tuning.")
+        logging.info("Training with these hyperparameters:")
+        bind_gin_params(study.best_params)
+        return
     logging.disable(level=NOTSET)
 
     if do_tune:
@@ -370,11 +371,14 @@ def choose_and_bind_hyperparameters_optuna(
     bind_gin_params(study.best_params)
 
     if plot:
-        logging.info("Plotting hyperparameter importances.")
-        plot_param_importances(study)
-        plt.savefig(log_dir / "param_importances.png")
-        plot_optimization_history(study)
-        plt.savefig(log_dir / "optimization_history.png")
+        try:
+            logging.info("Plotting hyperparameter importances.")
+            plot_param_importances(study)
+            plt.savefig(log_dir / "param_importances.png")
+            plot_optimization_history(study)
+            plt.savefig(log_dir / "optimization_history.png")
+        except Exception as e:
+            logging.error(f"Failed to plot hyperparameter importances: {e}")
 
 
 def collect_bound_hyperparameters(hyperparams, scopes):
