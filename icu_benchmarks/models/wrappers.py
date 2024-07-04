@@ -498,6 +498,7 @@ class MLWrapper(BaseModule, ABC):
         # Get passed keyword arguments
         arguments = locals()["kwargs"]
         # Get valid hyperparameters
+        logging.debug(f"Possible hps: {possible_hps}")
         hyperparams = {key: value for key, value in arguments.items() if key in possible_hps}
         logging.debug(f"Creating model with: {hyperparams}.")
         return model(**hyperparams)
