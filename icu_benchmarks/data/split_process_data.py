@@ -11,7 +11,7 @@ import pickle
 
 from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
 
-from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
+from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor, PolarsClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
 
@@ -20,7 +20,7 @@ from .constants import DataSplit as Split, DataSegment as Segment, VarType as Va
 def preprocess_data(
     data_dir: Path,
     file_names: dict[str] = gin.REQUIRED,
-    preprocessor: Preprocessor = DefaultClassificationPreprocessor,
+    preprocessor: Preprocessor = PolarsClassificationPreprocessor,
     use_static: bool = True,
     vars: dict[str] = gin.REQUIRED,
     seed: int = 42,

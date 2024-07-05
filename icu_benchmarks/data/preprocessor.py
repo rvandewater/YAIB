@@ -6,12 +6,15 @@ import logging
 
 import gin
 import pandas as pd
+import polars.selectors as cs
+import polars as pl
 from recipys.recipe import Recipe
 from recipys.selector import all_numeric_predictors, all_outcomes, has_type, all_of
 from recipys.step import (
     StepScale,
-    StepImputeFastForwardFill,
-    StepImputeFastZeroFill,
+    # StepImputeFastForwardFill,
+    # StepImputeFastZeroFill,
+    StepImputeFill,
     StepSklearn,
     StepHistorical,
     Accumulator,
@@ -41,8 +44,145 @@ class Preprocessor:
         if self.imputation_model is not None:
             update_wandb_config({"imputation_model": self.imputation_model.__class__.__name__})
 
-
 @gin.configurable("base_classification_preprocessor")
+class PolarsClassificationPreprocessor(Preprocessor):
+    def __init__(
+        self,
+        generate_features: bool = True,
+        scaling: bool = True,
+        use_static_features: bool = True,
+        save_cache=None,
+        load_cache=None,
+    ):
+        """
+        Args:
+            generate_features: Generate features for dynamic data.
+            scaling: Scaling of dynamic and static data.
+            use_static_features: Use static features.
+            save_cache: Save recipe cache from this path.
+            load_cache: Load recipe cache from this path.
+        Returns:
+            Preprocessed data.
+        """
+        self.generate_features = generate_features
+        self.scaling = scaling
+        self.use_static_features = use_static_features
+        self.imputation_model = None
+        self.save_cache = save_cache
+        self.load_cache = load_cache
+
+    def apply(self, data, vars) -> dict[dict[pd.DataFrame]]:
+        """
+        Args:
+            data: Train, validation and test data dictionary. Further divided in static, dynamic, and outcome.
+            vars: Variables for static, dynamic, outcome.
+        Returns:
+            Preprocessed data.
+        """
+        logging.info("Preprocessing dynamic features.")
+
+        data = self._process_dynamic(data, vars)
+        if self.use_static_features:
+            logging.info("Preprocessing static features.")
+            data = self._process_static(data, vars)
+
+            # Set index to grouping variable
+            data[Split.train][Segment.static] = data[Split.train][Segment.static]#.set_index(vars["GROUP"])
+            data[Split.val][Segment.static] = data[Split.val][Segment.static]#.set_index(vars["GROUP"])
+            data[Split.test][Segment.static] = data[Split.test][Segment.static]#.set_index(vars["GROUP"])
+
+            # Join static and dynamic data.
+            data[Split.train][Segment.dynamic] = data[Split.train][Segment.dynamic].join(
+                data[Split.train][Segment.static], on=vars["GROUP"]
+            )
+            data[Split.val][Segment.dynamic] = data[Split.val][Segment.dynamic].join(
+                data[Split.val][Segment.static], on=vars["GROUP"]
+            )
+            data[Split.test][Segment.dynamic] = data[Split.test][Segment.dynamic].join(
+                data[Split.test][Segment.static], on=vars["GROUP"]
+            )
+
+            # Remove static features from splits
+            data[Split.train][Segment.features] = data[Split.train].pop(Segment.static)
+            data[Split.val][Segment.features] = data[Split.val].pop(Segment.static)
+            data[Split.test][Segment.features] = data[Split.test].pop(Segment.static)
+
+        # Create feature splits
+        data[Split.train][Segment.features] = data[Split.train].pop(Segment.dynamic)
+        data[Split.val][Segment.features] = data[Split.val].pop(Segment.dynamic)
+        data[Split.test][Segment.features] = data[Split.test].pop(Segment.dynamic)
+
+        logging.debug("Data head")
+        logging.debug(data[Split.train][Segment.features].head())
+        logging.info(f"Generate features: {self.generate_features}")
+        return data
+
+    def _process_static(self, data, vars):
+        sta_rec = Recipe(data[Split.train][Segment.static], [], vars[Segment.static])
+        if self.scaling:
+            sta_rec.add_step(StepScale())
+
+        # sta_rec.add_step(StepImputeFastZeroFill(sel=all_numeric_predictors()))
+        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(),strategy="zero"))
+        # if len(data[Split.train][Segment.static].select_dtypes(include=["object"]).columns) > 0:
+        pl_dtypes = [pl.String, pl.Object, pl.Categorical]
+        types = ["String", "Object", "Categorical"]
+        sel = has_type(types)
+        if(len(sel(sta_rec.data))>0):
+        # if len(data[Split.train][Segment.static].select(cs.by_dtype(types)).columns) > 0:
+            sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type(types)))
+            sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type(types), columnwise=True))
+
+        data = apply_recipe_to_splits(sta_rec, data, Segment.static, self.save_cache, self.load_cache)
+
+        return data
+
+    def _model_impute(self, data, group=None):
+        dataset = ImputationPredictionDataset(data, group, self.imputation_model.trained_columns)
+        input_data = torch.cat([data_point.unsqueeze(0) for data_point in dataset], dim=0)
+        self.imputation_model.eval()
+        with torch.no_grad():
+            logging.info(f"Imputing with {self.imputation_model.__class__.__name__}.")
+            imputation = self.imputation_model.predict(input_data)
+            logging.info("Imputation done.")
+        assert imputation.isnan().sum() == 0
+        data = data.copy()
+        data.loc[:, self.imputation_model.trained_columns] = imputation.flatten(end_dim=1).to("cpu")
+        if group is not None:
+            data.drop(columns=group, inplace=True)
+        return data
+
+    def _process_dynamic(self, data, vars):
+        dyn_rec = Recipe(data[Split.train][Segment.dynamic], [], vars[Segment.dynamic], vars["GROUP"], vars["SEQUENCE"])
+        if self.scaling:
+            dyn_rec.add_step(StepScale())
+        if self.imputation_model is not None:
+            dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[Segment.dynamic])))
+        dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars[Segment.dynamic]), in_place=False))
+        # dyn_rec.add_step(StepImputeFastForwardFill())
+        dyn_rec.add_step(StepImputeFill(strategy="forward"))
+        # dyn_rec.add_step(StepImputeFastZeroFill())
+        dyn_rec.add_step(StepImputeFill(strategy="zero"))
+        if self.generate_features:
+            dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars[Segment.dynamic]))
+        data = apply_recipe_to_splits(dyn_rec, data, Segment.dynamic, self.save_cache, self.load_cache)
+        return data
+
+    def _dynamic_feature_generation(self, data, dynamic_vars):
+        logging.debug("Adding dynamic feature generation.")
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.COUNT, suffix="count_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist"))
+        return data
+
+    def to_cache_string(self):
+        return (
+            super().to_cache_string()
+            + f"_classification_{self.generate_features}_{self.scaling}_{self.imputation_model.__class__.__name__}"
+        )
+
+# @gin.configurable("base_classification_preprocessor")
 class DefaultClassificationPreprocessor(Preprocessor):
     def __init__(
         self,

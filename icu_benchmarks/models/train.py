@@ -81,9 +81,9 @@ def train_common(
 
     logging.info(f"Training model: {model.__name__}.")
     # dataset_class = ImputationDataset if mode == RunMode.imputation else PredictionDataset
-    for dict in data.values():
-        for key,val in dict.items():
-            dict[key] = pl.from_pandas(val)
+    # for dict in data.values():
+    #     for key,val in dict.items():
+    #         dict[key] = pl.from_pandas(val)
     dataset_class = PredictionPolarsDataset
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
