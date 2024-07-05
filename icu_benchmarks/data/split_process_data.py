@@ -4,6 +4,7 @@ import gin
 import json
 import hashlib
 import pandas as pd
+import polars as pl
 import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
@@ -91,7 +92,7 @@ def preprocess_data(
 
     # Read parquet files into pandas dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
-    data = {f: pq.read_table(data_dir / file_names[f]).to_pandas(self_destruct=True) for f in file_names.keys()}
+    data = {f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys()}
     # Generate the splits
     logging.info("Generating splits.")
     # complete_train = True
@@ -187,6 +188,7 @@ def make_train_val(
     return data_split
 
 
+
 def make_single_split(
     data: dict[pd.DataFrame],
     vars: dict[str],
@@ -198,6 +200,7 @@ def make_single_split(
     seed: int = 42,
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
+    polars: bool = True,
 ) -> dict[dict[pd.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
@@ -222,19 +225,34 @@ def make_single_split(
     if debug:
         # Only use 1% of the data
         logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
-        data[Segment.outcome] = data[Segment.outcome].sample(frac=0.01, random_state=seed)
+        if polars:
+            data[Segment.outcome] = data[Segment.outcome].sample(fraction=0.01, seed=seed)
+        else:
+            data[Segment.outcome] = data[Segment.outcome].sample(frac=0.01, random_state=seed)
     # Get stay IDs from outcome segment
-    stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
+    if polars:
+        stays = pl.Series(name=id, values=data[Segment.outcome][id].unique())
+    else:
+        stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
 
     # If there are labels, and the task is classification, use stratified k-fold
     if Var.label in vars and runmode is RunMode.classification:
         # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
-        labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
-        if labels.value_counts().min() < cv_folds:
-            raise Exception(
-                f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
-                f"but {cv_folds} folds are requested. Reduce the number of folds or use more data."
-            )
+        if polars:
+            labels = data[Segment.outcome].group_by(id).max()[vars[Var.label]]
+            if labels.value_counts().min().item(0, 1) < cv_folds:
+                raise Exception(
+                    f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
+                    f"but {cv_folds} folds are requested. Reduce the number of folds or use more data."
+                )
+        else:
+            labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+            if labels.value_counts().min() < cv_folds:
+                raise Exception(
+                    f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
+                    f"but {cv_folds} folds are requested. Reduce the number of folds or use more data."
+                )
+
         if train_size:
             outer_cv = StratifiedShuffleSplit(cv_repetitions, train_size=train_size)
         else:
@@ -242,8 +260,12 @@ def make_single_split(
         inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
 
         dev, test = list(outer_cv.split(stays, labels))[repetition_index]
-        dev_stays = stays.iloc[dev]
-        train, val = list(inner_cv.split(dev_stays, labels.iloc[dev]))[fold_index]
+        if polars:
+            dev_stays = stays[dev]
+            train, val = list(inner_cv.split(dev_stays, labels[dev]))[fold_index]
+        else:
+            dev_stays = stays.iloc[dev]
+            train, val = list(inner_cv.split(dev_stays, labels.iloc[dev]))[fold_index]
     else:
         # If there are no labels, or the task is regression, use regular k-fold.
         if train_size:
@@ -255,21 +277,32 @@ def make_single_split(
         dev, test = list(outer_cv.split(stays))[repetition_index]
         dev_stays = stays.iloc[dev]
         train, val = list(inner_cv.split(dev_stays))[fold_index]
-
-    split = {
-        Split.train: dev_stays.iloc[train],
-        Split.val: dev_stays.iloc[val],
-        Split.test: stays.iloc[test],
-    }
+    if polars:
+        split = {
+            Split.train: dev_stays[train].to_frame(),
+            Split.val: dev_stays[val].to_frame(),
+            Split.test: stays[test].to_frame(),
+        }
+    else:
+        split = {
+            Split.train: dev_stays.iloc[train],
+            Split.val: dev_stays.iloc[val],
+            Split.test: stays.iloc[test],
+        }
     data_split = {}
 
     for fold in split.keys():  # Loop through splits (train / val / test)
         # Loop through segments (DYNAMIC / STATIC / OUTCOME)
         # set sort to true to make sure that IDs are reordered after scrambling earlier
-        data_split[fold] = {
-            data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
-        }
-    # logging.info(f"Data split: {data_split}")
+        if polars:
+            data_split[fold] = {
+                data_type: split[fold].join(data[data_type], on=id, how="left").sort(by=id) for data_type in data.keys()
+            }
+        else:
+            data_split[fold] = {
+                data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
+            }
+    logging.debug(f"Data split: {data_split}")
     return data_split
 
 
