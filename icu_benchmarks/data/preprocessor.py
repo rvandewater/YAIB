@@ -119,11 +119,11 @@ class PolarsClassificationPreprocessor(Preprocessor):
 
     def _process_static(self, data, vars):
         sta_rec = Recipe(data[Split.train][Segment.static], [], vars[Segment.static])
+        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(),strategy="zero"))
         if self.scaling:
             sta_rec.add_step(StepScale())
 
         # sta_rec.add_step(StepImputeFastZeroFill(sel=all_numeric_predictors()))
-        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(),strategy="zero"))
         # if len(data[Split.train][Segment.static].select_dtypes(include=["object"]).columns) > 0:
         pl_dtypes = [pl.String, pl.Object, pl.Categorical]
         types = ["String", "Object", "Categorical"]
@@ -154,8 +154,6 @@ class PolarsClassificationPreprocessor(Preprocessor):
 
     def _process_dynamic(self, data, vars):
         dyn_rec = Recipe(data[Split.train][Segment.dynamic], [], vars[Segment.dynamic], vars["GROUP"], vars["SEQUENCE"])
-        if self.scaling:
-            dyn_rec.add_step(StepScale())
         if self.imputation_model is not None:
             dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[Segment.dynamic])))
         dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars[Segment.dynamic]), in_place=False))
@@ -163,6 +161,8 @@ class PolarsClassificationPreprocessor(Preprocessor):
         dyn_rec.add_step(StepImputeFill(strategy="forward"))
         # dyn_rec.add_step(StepImputeFastZeroFill())
         dyn_rec.add_step(StepImputeFill(strategy="zero"))
+        if self.scaling:
+            dyn_rec.add_step(StepScale())
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars[Segment.dynamic]))
         data = apply_recipe_to_splits(dyn_rec, data, Segment.dynamic, self.save_cache, self.load_cache)

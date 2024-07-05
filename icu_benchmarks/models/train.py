@@ -100,7 +100,7 @@ def train_common(
         )
     logging.info(f"Using {num_workers} workers for data loading.")
     cpu=True
-    batch_size=1
+    # batch_size=1
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
