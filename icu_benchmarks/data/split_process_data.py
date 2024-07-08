@@ -7,7 +7,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
-
+from timeit import default_timer as timer
 from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
 
 from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor
@@ -115,7 +115,11 @@ def preprocess_data(
 
     # Apply preprocessing
     # data = {Split.train: data, Split.val: data, Split.test: data}
+
+    start = timer()
     data = preprocessor.apply(data, vars)
+    end = timer()
+    logging.info(f"Preprocessing took {end - start:.2f} seconds.")
 
     # data[Split.train][Segment.dynamic].to_parquet(data_dir / "preprocessed.parquet")
     # data[Split.train][Segment.outcome].to_parquet(data_dir / "outcome.parquet")
