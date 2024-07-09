@@ -23,7 +23,5 @@ preprocess.vars = %vars
 preprocess.use_static = True
 
 # SELECTING DATASET
-PredictionDataset.vars = %vars
-PredictionDataset.ram_cache = True
-
+include "configs/tasks/common/Dataloader.gin"
 

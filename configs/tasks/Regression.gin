@@ -28,6 +28,5 @@ base_regression_preprocessor.outcome_min = 0
 base_regression_preprocessor.outcome_max = 15
 
 # SELECTING DATASET
-PredictionDataset.vars = %vars
-PredictionDataset.ram_cache = True
+include "configs/tasks/common/Dataloader.gin"
 

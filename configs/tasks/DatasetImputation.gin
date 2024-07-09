@@ -22,6 +22,6 @@ preprocess.file_names = {
 preprocess.preprocessor = @base_imputation_preprocessor
 
 preprocess.vars = %vars
-ImputationDataset.vars = %vars
-ImputationDataset.ram_cache = True
+
+include "configs/tasks/common/Dataloader.gin"
 
