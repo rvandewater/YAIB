@@ -185,7 +185,8 @@ def make_train_val(
         # Loop through segments (DYNAMIC / STATIC / OUTCOME)
         # set sort to true to make sure that IDs are reordered after scrambling earlier
         data_split[fold] = {
-            data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
+            data_type: split[fold].join(data[data_type].with_columns(pl.col(id).cast(pl.datatypes.Int64)), on=id,
+                                        how="left").sort(by=id) for data_type in data.keys()
         }
     # Maintain compatibility with test split
     data_split[Split.test] = copy.deepcopy(data_split[Split.val])
@@ -283,9 +284,9 @@ def make_single_split(
         train, val = list(inner_cv.split(dev_stays))[fold_index]
     if polars:
         split = {
-            Split.train: dev_stays[train].to_frame(),
-            Split.val: dev_stays[val].to_frame(),
-            Split.test: stays[test].to_frame(),
+            Split.train: dev_stays[train].cast(pl.datatypes.Int64).to_frame(),
+            Split.val: dev_stays[val].cast(pl.datatypes.Int64).to_frame(),
+            Split.test: stays[test].cast(pl.datatypes.Int64).to_frame(),
         }
     else:
         split = {
@@ -300,7 +301,7 @@ def make_single_split(
         # set sort to true to make sure that IDs are reordered after scrambling earlier
         if polars:
             data_split[fold] = {
-                data_type: split[fold].join(data[data_type], on=id, how="left").sort(by=id) for data_type in data.keys()
+                data_type: split[fold].join(data[data_type].with_columns(pl.col(id).cast(pl.datatypes.Int64)), on=id, how="left").sort(by=id) for data_type in data.keys()
             }
         else:
             data_split[fold] = {
