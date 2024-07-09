@@ -116,10 +116,11 @@ def preprocess_data(
 
     # Apply preprocessing
     # data = {Split.train: data, Split.val: data, Split.test: data}
+
     start = timer()
     data = preprocessor.apply(data, vars)
     end = timer()
-    logging.info(f"Preprocessing took: {end - start}")
+    logging.info(f"Preprocessing took {end - start:.2f} seconds.")
 
     # data[Split.train][Segment.dynamic].to_parquet(data_dir / "preprocessed.parquet")
     # data[Split.train][Segment.outcome].to_parquet(data_dir / "outcome.parquet")

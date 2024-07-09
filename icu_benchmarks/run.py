@@ -182,7 +182,10 @@ def main(my_args=tuple(sys.argv[1:])):
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
     execution_time = datetime.now() - start_time
     log_full_line(f"DURATION: {execution_time}", level=logging.INFO, char="")
-    aggregate_results(run_dir, execution_time)
+    try:
+        aggregate_results(run_dir, execution_time)
+    except Exception as e:
+        logging.error(f"Failed to aggregate results: {e}")
     if args.plot:
         plot_aggregated_results(run_dir, "aggregated_test_metrics.json")
 
