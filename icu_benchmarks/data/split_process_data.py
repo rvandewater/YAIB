@@ -110,20 +110,16 @@ def preprocess_data(
             runmode=runmode,
         )
     else:
-        data = data
         # If full train is set, we use all data for training/validation
-        # data = make_train_val(data, vars, train_size=None, seed=seed, debug=debug, runmode=runmode)
+        data = make_train_val(data, vars, train_size=None, seed=seed, debug=debug, runmode=runmode)
 
     # Apply preprocessing
-    # data = {Split.train: data, Split.val: data, Split.test: data}
 
     start = timer()
     data = preprocessor.apply(data, vars)
     end = timer()
     logging.info(f"Preprocessing took {end - start:.2f} seconds.")
 
-    # data[Split.train][Segment.dynamic].to_parquet(data_dir / "preprocessed.parquet")
-    # data[Split.train][Segment.outcome].to_parquet(data_dir / "outcome.parquet")
 
     # Generate cache
     if generate_cache:
@@ -143,7 +139,8 @@ def make_train_val(
     seed: int = 42,
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
-) -> dict[dict[pd.DataFrame]]:
+    polars: bool = True,
+) -> dict[dict[pl.DataFrame]]:
     """Randomly split the data into training and validation sets for fitting a full model.
 
     Args:
@@ -163,12 +160,19 @@ def make_train_val(
 
     if debug:
         # Only use 1% of the data
-        stays = stays.sample(frac=0.01, random_state=seed)
+        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
+        if polars:
+            data[Segment.outcome] = data[Segment.outcome].sample(fraction=0.01, seed=seed)
+        else:
+            data[Segment.outcome] = data[Segment.outcome].sample(frac=0.01, random_state=seed)
 
     # If there are labels, and the task is classification, use stratified k-fold
-    if Var.label in vars and runmode is RunMode.classification :
-        # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
-        labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+    if Var.label in vars and runmode is RunMode.classification:
+        if polars:
+            labels = data[Segment.outcome].group_by(id).max()[vars[Var.label]]
+        else:
+            # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
+            labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
         if train_size:
             train_val = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
             train, val = list(train_val.split(stays, labels))[0]
@@ -177,21 +181,31 @@ def make_train_val(
         train_val = ShuffleSplit(train_size=train_size, random_state=seed)
         train, val = list(train_val.split(stays))[0]
 
-    split = {Split.train: stays.iloc[train], Split.val: stays.iloc[val]}
+    if polars:
+        split = {Split.train: stays.loc[train], Split.val: stays.loc[val]}
+    else:
+        split = {Split.train: stays.iloc[train], Split.val: stays.iloc[val]}
 
     data_split = {}
 
     for fold in split.keys():  # Loop through splits (train / val / test)
         # Loop through segments (DYNAMIC / STATIC / OUTCOME)
         # set sort to true to make sure that IDs are reordered after scrambling earlier
-        data_split[fold] = {
-            data_type: split[fold].join(data[data_type].with_columns(pl.col(id).cast(pl.datatypes.Int64)), on=id,
-                                        how="left").sort(by=id) for data_type in data.keys()
-        }
+        if polars:
+            data_split[fold] = {
+                data_type: split[fold]
+                .join(data[data_type].with_columns(pl.col(id).cast(pl.datatypes.Int64)), on=id, how="left")
+                .sort(by=id)
+                for data_type in data.keys()
+            }
+        else:
+            data_split[fold] = {
+                data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
+            }
+
     # Maintain compatibility with test split
     data_split[Split.test] = copy.deepcopy(data_split[Split.val])
     return data_split
-
 
 
 def make_single_split(
@@ -206,7 +220,7 @@ def make_single_split(
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
     polars: bool = True,
-) -> dict[dict[pd.DataFrame]]:
+) -> dict[dict[pl.DataFrame]]:
     """Randomly split the data into training, validation, and test set.
 
     Args:
@@ -304,7 +318,10 @@ def make_single_split(
         # set sort to true to make sure that IDs are reordered after scrambling earlier
         if polars:
             data_split[fold] = {
-                data_type: split[fold].join(data[data_type].with_columns(pl.col(id).cast(pl.datatypes.Int64)), on=id, how="left").sort(by=id) for data_type in data.keys()
+                data_type: split[fold]
+                .join(data[data_type].with_columns(pl.col(id).cast(pl.datatypes.Int64)), on=id, how="left")
+                .sort(by=id)
+                for data_type in data.keys()
             }
         else:
             data_split[fold] = {
