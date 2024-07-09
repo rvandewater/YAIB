@@ -5,17 +5,20 @@ command:
   - -d
   - ../data/
   - -t
-  - BinaryClassification
-#  - CassClassification
+#  - BinaryClassification
+  - CassClassification
   - --log-dir
   - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
   - --tune
   - --wandb-sweep
   - -tn
-#  - SSI
-  - Mortality
+  - SSI
+#  - Mortality
   - -n
   - cass
+#  - --hp-checkpoint
+#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/cass/SSI/XGBClassifier/2024-06-28T17-28-04/hyperparameter_tuning_logs.db
+#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/cass/SSI/Transformer/2024-06-26T15-30-53/hyperparameter_tuning_logs.db
 #  - -gc
 #  - -lc
 method: grid
@@ -23,16 +26,22 @@ name: yaib_classification_benchmark
 parameters:
   data_dir:
     values:
-      - /home/vandewrp/projects/YAIB/data/YAIB_Datasets/data/mortality24/miiv
-      #- /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/notes
+#      - /home/vandewrp/projects/YAIB/data/YAIB_Datasets/data/mortality24/miiv
+      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/notes_full
   model:
     values:
 #      - LogisticRegression
-      - TimesNet
+#      - TimesNet
+#      - LGBMClassifier
+#      - XGBClassifier
+#      - CBClassifier
+#      - BRFClassifier
+#       - RUSBClassifier
+#      - RFClassifier
 #      - GRU
 #      - LSTM
 #      - TCN
-#      - Transformer
+      - Transformer
   seed:
     values:
       - 1111
