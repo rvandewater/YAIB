@@ -267,7 +267,7 @@ def choose_and_bind_hyperparameters_optuna(
         highlight = study.trials[-1] == study.best_trial  # highlight if best so far
         log_table_row(header, TUNE)
         log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
-        # wandb_log({"hp-iteration": len(study.trials)})
+        wandb_log({"HP-optimization-iteration": len(study.trials)})
 
     if do_tune:
         log_full_line("STARTING TUNING", level=TUNE, char="=")
