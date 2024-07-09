@@ -180,9 +180,71 @@ class PolarsClassificationPreprocessor(Preprocessor):
             super().to_cache_string()
             + f"_classification_{self.generate_features}_{self.scaling}_{self.imputation_model.__class__.__name__}"
         )
+@gin.configurable("base_regression_preprocessor")
+class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
+    # Override base classification preprocessor
+    def __init__(
+        self,
+        generate_features: bool = True,
+        scaling: bool = True,
+        use_static_features: bool = True,
+        outcome_max=None,
+        outcome_min=None,
+        save_cache=None,
+        load_cache=None,
+    ):
+        """
+        Args:
+            generate_features: Generate features for dynamic data.
+            scaling: Scaling of dynamic and static data.
+            use_static_features: Use static features.
+            max_range: Maximum value in outcome.
+            min_range: Minimum value in outcome.
+            save_cache: Save recipe cache.
+            load_cache: Load recipe cache.
+        Returns:
+            Preprocessed data.
+        """
+        super().__init__(generate_features, scaling, use_static_features, save_cache, load_cache)
+        self.outcome_max = outcome_max
+        self.outcome_min = outcome_min
 
-# @gin.configurable("base_classification_preprocessor")
-class DefaultClassificationPreprocessor(Preprocessor):
+    def apply(self, data, vars):
+        """
+        Args:
+            data: Train, validation and test data dictionary. Further divided in static, dynamic, and outcome.
+            vars: Variables for static, dynamic, outcome.
+        Returns:
+            Preprocessed data.
+        """
+        for split in [Split.train, Split.val, Split.test]:
+            data = self._process_outcome(data, vars, split)
+
+        data = super().apply(data, vars)
+        return data
+
+    def _process_outcome(self, data, vars, split):
+        logging.debug(f"Processing {split} outcome values.")
+        outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"])
+        # If the range is predefined, use predefined transformation function
+        if self.outcome_max is not None and self.outcome_min is not None:
+            outcome_rec.add_step(
+                StepSklearn(
+                    sklearn_transformer=FunctionTransformer(
+                        func=lambda x: ((x - self.outcome_min) / (self.outcome_max - self.outcome_min))
+                    ),
+                    sel=all_outcomes(),
+                )
+            )
+        else:
+            # If the range is not predefined, use MinMaxScaler
+            outcome_rec.add_step(StepSklearn(MinMaxScaler(), sel=all_outcomes()))
+        outcome_rec.prep()
+        data[split][Segment.outcome] = outcome_rec.bake()
+        return data
+
+@gin.configurable("pandas_classification_preprocessor")
+class PandasClassificationPreprocessor(Preprocessor):
     def __init__(
         self,
         generate_features: bool = True,
@@ -312,8 +374,8 @@ class DefaultClassificationPreprocessor(Preprocessor):
         )
 
 
-@gin.configurable("base_regression_preprocessor")
-class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
+@gin.configurable("pandas_regression_preprocessor")
+class PandasRegressionPreprocessor(PandasClassificationPreprocessor):
     # Override base classification preprocessor
     def __init__(
         self,
@@ -377,7 +439,7 @@ class DefaultRegressionPreprocessor(DefaultClassificationPreprocessor):
 
 
 @gin.configurable("base_imputation_preprocessor")
-class DefaultImputationPreprocessor(Preprocessor):
+class PandasImputationPreprocessor(Preprocessor):
     def __init__(
         self,
         scaling: bool = True,
@@ -438,6 +500,7 @@ def apply_recipe_to_splits(
     recipe: Recipe, data: dict[dict[pd.DataFrame]], type: str, save_cache=None, load_cache=None
 ) -> dict[dict[pd.DataFrame]]:
     """Fits and transforms the training features, then transforms the validation and test features with the recipe.
+     Works with both Polars and Pandas versions of recipys.
 
     Args:
         load_cache: Load recipe from cache, for e.g. transfer learning.

@@ -11,7 +11,7 @@ import pickle
 from timeit import default_timer as timer
 from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
 
-from icu_benchmarks.data.preprocessor import Preprocessor, DefaultClassificationPreprocessor, PolarsClassificationPreprocessor
+from icu_benchmarks.data.preprocessor import Preprocessor, PandasClassificationPreprocessor, PolarsClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
 
@@ -75,7 +75,7 @@ def preprocess_data(
 
     logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
     preprocessor = preprocessor(use_static_features=use_static, save_cache=data_dir / "preproc" / (cache_filename + "_recipe"))
-    if isinstance(preprocessor, DefaultClassificationPreprocessor):
+    if isinstance(preprocessor, PandasClassificationPreprocessor):
         preprocessor.set_imputation_model(pretrained_imputation_model)
 
     hash_config = hashlib.md5(f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}".encode("utf-8"))
@@ -280,7 +280,10 @@ def make_single_split(
         inner_cv = KFold(cv_folds, shuffle=True, random_state=seed)
 
         dev, test = list(outer_cv.split(stays))[repetition_index]
-        dev_stays = stays.iloc[dev]
+        if polars:
+            dev_stays = stays[dev]
+        else:
+            dev_stays = stays.iloc[dev]
         train, val = list(inner_cv.split(dev_stays))[fold_index]
     if polars:
         split = {

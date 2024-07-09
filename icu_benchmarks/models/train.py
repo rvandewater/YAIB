@@ -3,7 +3,6 @@ import gin
 import torch
 import logging
 import pandas as pd
-import polars as pl
 from joblib import load
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -11,7 +10,7 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar, LearningRateMonitor
 from pathlib import Path
-from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset, PredictionPolarsDataset
+from icu_benchmarks.data.loader import PredictionPandasDataset, ImputationPandasDataset, PredictionPolarsDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
@@ -51,6 +50,7 @@ def train_common(
     pl_model=True,
     train_only=False,
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
+    polars=True,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -80,11 +80,10 @@ def train_common(
     """
 
     logging.info(f"Training model: {model.__name__}.")
-    # dataset_class = ImputationDataset if mode == RunMode.imputation else PredictionDataset
+    dataset_class = ImputationPandasDataset if mode == RunMode.imputation else PredictionPolarsDataset if polars else PredictionPandasDataset
     # for dict in data.values():
     #     for key,val in dict.items():
     #         dict[key] = pl.from_pandas(val)
-    dataset_class = PredictionPolarsDataset
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
@@ -99,8 +98,8 @@ def train_common(
             f" {len(val_dataset)} samples."
         )
     logging.info(f"Using {num_workers} workers for data loading.")
+    # todo: compare memory pinning
     cpu=True
-    # batch_size=1
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,

@@ -160,8 +160,8 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         else:
             return from_numpy(data), from_numpy(labels)
 
-
-class CommonDataset(Dataset):
+@gin.configurable("CommonPandasDataset")
+class CommonPandasDataset(Dataset):
     """Common dataset: subclass of Torch Dataset that represents the data to learn on.
 
     Args: data: Dict of the different splits of the data. split: Either 'train','val' or 'test'. vars: Contains the names of
@@ -219,8 +219,8 @@ class CommonDataset(Dataset):
         return [cat(value, dim=0) for value in values]
 
 
-@gin.configurable("PredictionDataset")
-class PredictionDataset(CommonDataset):
+@gin.configurable("PredictionPandasDataset")
+class PredictionPandasDataset(CommonPandasDataset):
     """Subclass of common dataset for prediction tasks.
 
     Args:
@@ -311,8 +311,8 @@ class PredictionDataset(CommonDataset):
             return from_numpy(data), from_numpy(labels)
 
 
-@gin.configurable("ImputationDataset")
-class ImputationDataset(CommonDataset):
+@gin.configurable("ImputationPandasDataset")
+class ImputationPandasDataset(CommonPandasDataset):
     """Subclass of Common Dataset that contains data for imputation models."""
 
     def __init__(
