@@ -2,7 +2,7 @@ import os
 import gin
 import torch
 import logging
-import pandas as pd
+import polars as pl
 from joblib import load
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -26,7 +26,7 @@ def assure_minimum_length(dataset):
 
 @gin.configurable("train_common")
 def train_common(
-    data: dict[str, pd.DataFrame],
+    data: dict[str, pl.DataFrame],
     log_dir: Path,
     eval_only: bool = False,
     load_weights: bool = False,
@@ -85,7 +85,6 @@ def train_common(
     logging.info(f"Using dataset class: {dataset_class.__name__}.")
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
-
     train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"])
     val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
