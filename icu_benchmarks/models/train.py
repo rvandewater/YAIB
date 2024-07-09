@@ -80,15 +80,14 @@ def train_common(
     """
 
     logging.info(f"Training model: {model.__name__}.")
+    # todo: add support for polars versions of datasets
     dataset_class = ImputationPandasDataset if mode == RunMode.imputation else PredictionPolarsDataset if polars else PredictionPandasDataset
-    # for dict in data.values():
-    #     for key,val in dict.items():
-    #         dict[key] = pl.from_pandas(val)
+    logging.info(f"Using dataset class: {dataset_class.__name__}.")
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
 
-    train_dataset = dataset_class(data, split=Split.train, ram_cache=False, name=dataset_names["train"])
-    val_dataset = dataset_class(data, split=Split.val, ram_cache=False, name=dataset_names["val"])
+    train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"])
+    val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
 
