@@ -1,0 +1,36 @@
+# COMMON IMPORTS
+include "configs/tasks/common/Imports.gin"
+
+
+# CROSS-VALIDATION
+include "configs/tasks/common/CrossValidation.gin"
+
+# MODE SETTINGS
+Run.mode = "Classification"
+NUM_CLASSES = 2 # Binary classification
+HORIZON = 12
+train_common.weight = "balanced"
+train_common.ram_cache = False
+
+# DEEP LEARNING
+DLPredictionWrapper.loss = @cross_entropy
+
+# SELECTING PREPROCESSOR
+preprocess.preprocessor = @base_classification_preprocessor
+preprocess.vars = %vars
+preprocess.use_static = True
+
+# SELECTING DATASET
+# include "configs/tasks/common/Dataloader.gin"
+# SELECTING DATASET
+PredictionDataset.vars = %vars
+PredictionDataset.ram_cache = True
+
+# DATASET CONFIGURATION
+preprocess.file_names = {
+    "DYNAMIC": "dyn.parquet",
+    "OUTCOME": "outc.parquet",
+    "STATIC": "sta.parquet",
+}
+
+include "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/notes_full/vars.gin"
