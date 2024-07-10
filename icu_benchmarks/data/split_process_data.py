@@ -119,6 +119,23 @@ def preprocess_data(
     data = preprocessor.apply(data, vars)
     end = timer()
     logging.info(f"Preprocessing took {end - start:.2f} seconds.")
+    logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
+    for dict in data.values():
+        for key,val in dict.items():
+            logging.debug(f"Data type: {key}")
+            logging.debug(f"Is NaN:")
+            sel = dict[key].select(pl.selectors.numeric().is_nan().max())
+            logging.info(sel.select(col.name for col in sel if col.item(0)))
+            #logging.info(dict[key].select(pl.all().has_nulls()).sum_horizontal())
+            logging.debug(f"Has nulls:")
+            sel=dict[key].select(pl.all().has_nulls())
+            logging.info(sel.select(col.name for col in sel if col.item(0)))
+            # dict[key] = val[:, [not (s.null_count() > 0) for s in val]]
+            dict[key] = val.fill_null(strategy="zero")
+            dict[key] = val.fill_nan(0)
+            logging.debug(f"Dropping columns with nulls")
+            sel=dict[key].select(pl.all().has_nulls())
+            logging.info(sel.select(col.name for col in sel if col.item(0)))
 
 
     # Generate cache

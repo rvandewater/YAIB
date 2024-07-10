@@ -85,6 +85,7 @@ def train_common(
     logging.info(f"Using dataset class: {dataset_class.__name__}.")
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
+    persistent_workers = False
     train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"])
     val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
@@ -97,7 +98,7 @@ def train_common(
         )
     logging.info(f"Using {num_workers} workers for data loading.")
     # todo: compare memory pinning
-    cpu=True
+    # cpu=True
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -105,6 +106,7 @@ def train_common(
         num_workers=num_workers,
         pin_memory=not cpu,
         drop_last=True,
+        persistent_workers=persistent_workers
     )
     val_loader = DataLoader(
         val_dataset,
@@ -113,6 +115,7 @@ def train_common(
         num_workers=num_workers,
         pin_memory=not cpu,
         drop_last=True,
+        persistent_workers=persistent_workers
     )
 
     data_shape = next(iter(train_loader))[0].shape
@@ -175,6 +178,7 @@ def train_common(
             num_workers=num_workers,
             pin_memory=True,
             drop_last=True,
+            persistent_workers=persistent_workers
         )
         if model.requires_backprop
         else DataLoader([test_dataset.to_tensor()], batch_size=1)

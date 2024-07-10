@@ -22,7 +22,10 @@ class CommonPolarsDataset(Dataset):
             grouping_segment: str = Segment.outcome,
             mps: bool = False,
             name: str = "",
+            *args,
+            **kwargs
     ):
+        # super().__init__(*args, **kwargs)
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment]  #.set_index(self.vars["GROUP"])
