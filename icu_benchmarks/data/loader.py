@@ -40,7 +40,7 @@ class CommonPolarsDataset(Dataset):
         self.mps = mps
         self.name = name
 
-    def ram_cache(self, cache: bool = False):
+    def ram_cache(self, cache: bool = True):
         self._cached_dataset = None
         if cache:
             logging.info(f"Caching {self.split} dataset in ram.")
@@ -75,8 +75,8 @@ class PredictionPolarsDataset(CommonPolarsDataset):
          ram_cache (bool, optional): Whether the complete dataset should be stored in ram. Defaults to True.
      """
 
-    def __init__(self, *args, ram_cache: bool = False, **kwargs):
-        super().__init__(*args, grouping_segment=Segment.outcome, **kwargs)
+    def __init__(self, *args, ram_cache: bool = True, **kwargs):
+        super().__init__(*args, **kwargs)
         self.outcome_df = self.grouping_df
         self.ram_cache(ram_cache)
 

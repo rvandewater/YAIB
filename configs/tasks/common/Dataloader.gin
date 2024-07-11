@@ -1,7 +1,8 @@
 # Prediction
 PredictionPandasDataset.vars = %vars
+PredictionPandasDataset.ram_cache = True
 PredictionPolarsDataset.vars = %vars
-PredictionPandasDataset.ram_cache = False
+PredictionPolarsDataset.ram_cache = True
 # Imputation
 ImputationPandasDataset.vars = %vars
 ImputationPandasDataset.ram_cache = True

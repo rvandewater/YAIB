@@ -10,5 +10,3 @@
 eval "$(conda shell.bash hook)"
 conda activate yaib_req_pl
 wandb agent --count 1 cassandra_hpi/cassandra/"$1"
-
-

@@ -10,7 +10,7 @@ Run.mode = "Classification"
 NUM_CLASSES = 2 # Binary classification
 HORIZON = 12
 train_common.weight = "balanced"
-train_common.ram_cache = False
+train_common.ram_cache = True
 
 # DEEP LEARNING
 DLPredictionWrapper.loss = @cross_entropy
@@ -21,10 +21,10 @@ preprocess.vars = %vars
 preprocess.use_static = True
 
 # SELECTING DATASET
-# include "configs/tasks/common/Dataloader.gin"
+include "configs/tasks/common/Dataloader.gin"
 # SELECTING DATASET
-PredictionDataset.vars = %vars
-PredictionDataset.ram_cache = True
+# PredictionDataset.vars = %vars
+# PredictionDataset.ram_cache = True
 
 # DATASET CONFIGURATION
 preprocess.file_names = {

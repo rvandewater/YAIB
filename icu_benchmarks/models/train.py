@@ -38,7 +38,7 @@ def train_common(
     optimizer: type = Adam,
     precision=32,
     batch_size=1,
-    epochs=1000,
+    epochs=100,
     patience=20,
     min_delta=1e-5,
     test_on: str = Split.test,
@@ -82,10 +82,15 @@ def train_common(
     logging.info(f"Training model: {model.__name__}.")
     # todo: add support for polars versions of datasets
     dataset_class = ImputationPandasDataset if mode == RunMode.imputation else PredictionPolarsDataset if polars else PredictionPandasDataset
+    # dataset_class = ImputationPandasDataset if mode == RunMode.imputation else PredictionPandasDataset
+
     logging.info(f"Using dataset class: {dataset_class.__name__}.")
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
-    persistent_workers = False
+    persistent_workers = None
+    # for dataset in data.values():
+    #     for key, value in dataset.items():
+    #         dataset[key] = value.to_pandas()
     train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"])
     val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
@@ -104,7 +109,7 @@ def train_common(
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=not cpu,
+        # pin_memory=not cpu,
         drop_last=True,
         persistent_workers=persistent_workers
     )
@@ -113,7 +118,7 @@ def train_common(
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=not cpu,
+        # pin_memory=not cpu,
         drop_last=True,
         persistent_workers=persistent_workers
     )
@@ -142,6 +147,7 @@ def train_common(
 
     trainer = Trainer(
         max_epochs=epochs if model.requires_backprop else 1,
+        min_epochs=1,
         callbacks=callbacks,
         precision=precision,
         accelerator="auto" if not cpu else "cpu",
@@ -150,7 +156,7 @@ def train_common(
         benchmark=not reproducible,
         enable_progress_bar=verbose,
         logger=loggers,
-        num_sanity_val_steps=-1,
+        num_sanity_val_steps=2,
         log_every_n_steps=5,
     )
     if not eval_only:
@@ -167,7 +173,7 @@ def train_common(
         logging.info("Finished training full model.")
         save_config_file(log_dir)
         return 0
-    test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"])
+    test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"], ram_cache=ram_cache)
     test_dataset = assure_minimum_length(test_dataset)
     logging.info(f"Testing on {test_dataset.name}  with {len(test_dataset)} samples.")
     test_loader = (
