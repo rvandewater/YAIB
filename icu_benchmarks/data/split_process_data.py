@@ -23,6 +23,8 @@ def preprocess_data(
     preprocessor: Preprocessor = PolarsClassificationPreprocessor,
     use_static: bool = True,
     vars: dict[str] = gin.REQUIRED,
+    modality_mapping: dict[str] = [],
+    selected_modalities: list[str] = ["DYNAMIC", "STATIC"],
     seed: int = 42,
     debug: bool = False,
     cv_repetitions: int = 5,
@@ -35,7 +37,7 @@ def preprocess_data(
     pretrained_imputation_model: str = None,
     complete_train: bool = False,
     runmode: RunMode = RunMode.classification,
-) -> dict[dict[pd.DataFrame]]:
+) -> dict[dict[pl.DataFrame]] or dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
     Args:
@@ -93,6 +95,12 @@ def preprocess_data(
     # Read parquet files into pandas dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
     data = {f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys()}
+
+    if len(modality_mapping) > 0:
+        # Optional modality selection
+        data = modality_selection(data, modality_mapping, selected_modalities, vars)
+
+
     # Generate the splits
     logging.info("Generating splits.")
     # complete_train = True
@@ -148,6 +156,17 @@ def preprocess_data(
 
     return data
 
+def modality_selection(data: dict[pl.DataFrame], modality_mapping: dict[str], selected_modalities: list[str], vars) -> dict[pl.DataFrame]:
+    logging.info(f"Selected modalities: {selected_modalities}")
+    selected_columns =[modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]
+    selected_columns = sum(selected_columns, [])
+    selected_columns.extend([vars[Var.group], vars[Var.label], vars[Var.sequence]])
+    logging.info(f"Selected columns: {selected_columns}")
+    for key in data.keys():
+        sel_col = [col for col in data[key].columns if col in selected_columns]
+        data[key] = data[key].select(sel_col)
+        logging.debug(f"Selected columns in {key}: {data[key].columns}")
+    return data
 
 def make_train_val(
     data: dict[pd.DataFrame],
