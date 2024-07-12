@@ -4,6 +4,7 @@ channels:
 dependencies:
   - python=3.10
   - pip>=24.0
+  - flake8=7.1.0
 #  - pip:
 #      - -r requirements.txt
 
