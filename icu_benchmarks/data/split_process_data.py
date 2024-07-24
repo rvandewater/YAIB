@@ -99,7 +99,7 @@ def preprocess_data(
     if len(modality_mapping) > 0:
         # Optional modality selection
         if not selected_modalities == "all":
-            data = modality_selection(data, modality_mapping, selected_modalities, vars)
+            data, vars = modality_selection(data, modality_mapping, selected_modalities, vars)
         else:
             logging.info(f"Selecting all modalities.")
 
@@ -164,12 +164,15 @@ def modality_selection(data: dict[pl.DataFrame], modality_mapping: dict[str], se
     selected_columns =[modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]
     selected_columns = sum(selected_columns, [])
     selected_columns.extend([vars[Var.group], vars[Var.label], vars[Var.sequence]])
+    for key, value in vars.items():
+        if key not in [Var.group, Var.label, Var.sequence]:
+            vars[key] = [col for col in value if col in selected_columns]
     logging.info(f"Selected columns: {selected_columns}")
     for key in data.keys():
         sel_col = [col for col in data[key].columns if col in selected_columns]
         data[key] = data[key].select(sel_col)
         logging.debug(f"Selected columns in {key}: {data[key].columns}")
-    return data
+    return data, vars
 
 def make_train_val(
     data: dict[pd.DataFrame],

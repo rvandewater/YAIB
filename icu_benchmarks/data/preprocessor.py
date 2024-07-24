@@ -71,7 +71,7 @@ class PolarsClassificationPreprocessor(Preprocessor):
         self.save_cache = save_cache
         self.load_cache = load_cache
 
-    def apply(self, data, vars) -> dict[dict[pd.DataFrame]]:
+    def apply(self, data, vars) -> dict[dict[pl.DataFrame]]:
         """
         Args:
             data: Train, validation and test data dictionary. Further divided in static, dynamic, and outcome.
@@ -82,7 +82,7 @@ class PolarsClassificationPreprocessor(Preprocessor):
         logging.info("Preprocessing dynamic features.")
 
         data = self._process_dynamic(data, vars)
-        if self.use_static_features:
+        if self.use_static_features and len(vars[Segment.static]) > 0:
             logging.info("Preprocessing static features.")
             data = self._process_static(data, vars)
 
