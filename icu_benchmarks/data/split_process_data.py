@@ -24,7 +24,7 @@ def preprocess_data(
     use_static: bool = True,
     vars: dict[str] = gin.REQUIRED,
     modality_mapping: dict[str] = [],
-    selected_modalities: list[str] = ["DYNAMIC", "STATIC"],
+    selected_modalities: list[str] = "all",
     seed: int = 42,
     debug: bool = False,
     cv_repetitions: int = 5,
@@ -98,7 +98,10 @@ def preprocess_data(
 
     if len(modality_mapping) > 0:
         # Optional modality selection
-        data = modality_selection(data, modality_mapping, selected_modalities, vars)
+        if not selected_modalities == "all":
+            data = modality_selection(data, modality_mapping, selected_modalities, vars)
+        else:
+            logging.info(f"Selecting all modalities.")
 
 
     # Generate the splits
