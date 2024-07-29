@@ -96,9 +96,10 @@ def preprocess_data(
     logging.info(f"Loading data from directory {data_dir.absolute()}")
     data = {f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys()}
 
+    logging.debug(f"Modality mapping: {modality_mapping}")
     if len(modality_mapping) > 0:
         # Optional modality selection
-        if not selected_modalities == "all":
+        if not (selected_modalities == "all" or selected_modalities == ["all"] or selected_modalities == None):
             data, vars = modality_selection(data, modality_mapping, selected_modalities, vars)
         else:
             logging.info(f"Selecting all modalities.")
@@ -162,16 +163,25 @@ def preprocess_data(
 def modality_selection(data: dict[pl.DataFrame], modality_mapping: dict[str], selected_modalities: list[str], vars) -> dict[pl.DataFrame]:
     logging.info(f"Selected modalities: {selected_modalities}")
     selected_columns =[modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]
+    if selected_columns == []:
+        logging.info(f"No columns selected. Using all columns.")
+        return data, vars
     selected_columns = sum(selected_columns, [])
     selected_columns.extend([vars[Var.group], vars[Var.label], vars[Var.sequence]])
+    old_columns =[]
+    # Update vars dict
     for key, value in vars.items():
         if key not in [Var.group, Var.label, Var.sequence]:
+            old_columns.extend(value)
             vars[key] = [col for col in value if col in selected_columns]
-    logging.info(f"Selected columns: {selected_columns}")
+    # -3 becaus of standard columns
+    logging.info(f"Selected columns: {len(selected_columns)-3}, old columns: {len(old_columns)}")
+    logging.debug(f"Difference: {set(old_columns) - set(selected_columns)}")
+    # Update data dict
     for key in data.keys():
         sel_col = [col for col in data[key].columns if col in selected_columns]
         data[key] = data[key].select(sel_col)
-        logging.debug(f"Selected columns in {key}: {data[key].columns}")
+        logging.debug(f"Selected columns in {key}: {len(data[key].columns)}")
     return data, vars
 
 def make_train_val(

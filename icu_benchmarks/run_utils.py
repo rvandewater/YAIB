@@ -74,7 +74,12 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
         log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))
     else:
         log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))
-    log_dir_run.mkdir(parents=True)
+    if not log_dir_run.exists():
+        log_dir_run.mkdir(parents=True)
+    else:
+        # Directory clash at last moment
+        log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))
+        log_dir_run.mkdir(parents=True)
     if randomly_searched_params:
         (log_dir_run / randomly_searched_params).touch()
     return log_dir_run
@@ -244,8 +249,10 @@ def get_config_files(config_dir: Path):
     models = glob.glob(os.path.join(config_dir / "prediction_models", '*'))
     tasks = [os.path.splitext(os.path.basename(task))[0] for task in tasks]
     models = [os.path.splitext(os.path.basename(model))[0] for model in models]
-    tasks.remove("common")
-    models.remove("common")
+    if "common" in tasks:
+        tasks.remove("common")
+    if "common" in models:
+        models.remove("common")
     logging.info(f"Found tasks: {tasks}")
     logging.info(f"Found models: {models}")
     return tasks, models
