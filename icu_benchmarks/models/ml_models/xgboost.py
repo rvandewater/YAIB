@@ -28,7 +28,10 @@ class XGBClassifier(MLWrapper):
 
         if wandb.run is not None:
             callbacks.append(wandb_xgb())
-        self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)])
+        self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=False)
+        logging.info(self.model.get_booster().get_score(importance_type='weight'))
+
+        self.log_dict(self.model.get_booster().get_score(importance_type='weight'))
         return mean(self.model.evals_result_["validation_0"]["logloss"])#, callbacks=callbacks)
 
 
@@ -42,3 +45,6 @@ class XGBClassifier(MLWrapper):
         hyperparams = arguments
         logging.debug(f"Creating model with: {hyperparams}.")
         return model(**hyperparams)
+
+    def get_feature_importance(self):
+        return self.model.feature_importances_
