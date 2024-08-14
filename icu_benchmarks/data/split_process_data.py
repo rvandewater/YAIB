@@ -37,6 +37,7 @@ def preprocess_data(
     pretrained_imputation_model: str = None,
     complete_train: bool = False,
     runmode: RunMode = RunMode.classification,
+    label: str = None,
 ) -> dict[dict[pl.DataFrame]] or dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -69,7 +70,13 @@ def preprocess_data(
     if not use_static:
         file_names.pop(Segment.static)
         vars.pop(Segment.static)
-
+    if vars[Var.label]>1:
+        if label is not None:
+            vars[Var.label] = [label]
+        else:
+            logging.debug(f"Multiple labels found and no value provided. Using first label: {vars[Var.label]}")
+            vars[Var.label] = vars[Var.label][0]
+        logging.info(f"Using label: {vars[Var.label]}")
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 
