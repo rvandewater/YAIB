@@ -54,6 +54,7 @@ def build_parser() -> ArgumentParser:
     parser.add_argument("--source-dir", type=Path, help="Directory containing gin and model weights.")
     parser.add_argument("-sa", "--samples", type=int, default=None, help="Number of samples to use for evaluation.")
     parser.add_argument("-mo", "--modalities", nargs="+", help="Modalities to use for evaluation.")
+    parser.add_argument("--label", type=str, help="Label to use for evaluation in case of multiple labels.", default=None)
     return parser
 
 

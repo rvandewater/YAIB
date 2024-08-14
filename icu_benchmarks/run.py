@@ -54,6 +54,8 @@ def main(my_args=tuple(sys.argv[1:])):
     if modalities:
         logging.debug(f"Binding modalities: {modalities}")
         gin.bind_parameter("preprocess.selected_modalities", modalities)
+    if args.label:
+        gin.bind_parameter("preprocess.label", args.label)
     tasks, models = get_config_files(Path("configs"))
 
     if task not in tasks:
