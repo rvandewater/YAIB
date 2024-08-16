@@ -442,7 +442,9 @@ class MLWrapper(BaseModule, ABC):
         test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
-
+        # if self.explainer is not None:
+        #     self.test_shap_values = self.explainer(test_rep)
+        #     logging.info(f"Shap values: {self.test_shap_values}")
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
             self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
