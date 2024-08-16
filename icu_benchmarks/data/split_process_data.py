@@ -70,7 +70,7 @@ def preprocess_data(
     if not use_static:
         file_names.pop(Segment.static)
         vars.pop(Segment.static)
-    if vars[Var.label]>1:
+    if isinstance(vars[Var.label], list) and len(vars[Var.label])>1:
         if label is not None:
             vars[Var.label] = [label]
         else:
