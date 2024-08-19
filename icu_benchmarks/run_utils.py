@@ -17,6 +17,7 @@ from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
 import os
 import glob
+import polars as pl
 
 def build_parser() -> ArgumentParser:
     """Builds an ArgumentParser for the command line.
@@ -107,6 +108,8 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
         execution_time: Overall execution time.
     """
     aggregated = {}
+    shap_values_test = []
+    shap_values_train = []
     for repetition in log_dir.iterdir():
         if repetition.is_dir():
             aggregated[repetition.name] = {}
@@ -125,6 +128,12 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                     with open(fold_iter / "durations.json", "r") as f:
                         result = json.load(f)
                         aggregated[repetition.name][fold_iter.name].update(result)
+                if (fold_iter / "test_shap_values.parquet").is_file():
+                    shap_values_test.append(pl.read_parquet(fold_iter / "test_shap_values.parquet"))
+
+    if shap_values_test:
+        shap_values = pl.concat(shap_values_test)
+        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
 
     # Aggregate results per metric
     list_scores = {}
