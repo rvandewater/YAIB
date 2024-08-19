@@ -14,3 +14,4 @@ model/hyperparameter.scale_pos_weight = [1, 5, 10, 25, 50, 75, 99, 100, 1000]
 model/hyperparameter.min_child_weight = [1, 0.5]
 model/hyperparameter.max_delta_step = [0, 1, 2, 3, 4, 5, 10]
 model/hyperparameter.colsample_bytree = [0.1, 0.25, 0.5, 0.75, 1.0]
+model/hyperparameter.eval_metric = "aucpr"

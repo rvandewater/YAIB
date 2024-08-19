@@ -38,7 +38,9 @@ class XGBClassifier(MLWrapper):
         # shap.summary_plot(shap_values, X_test, feature_names=features)
         # logging.info(self.model.get_booster().get_score(importance_type='weight'))
         # self.log_dict(self.model.get_booster().get_score(importance_type='weight'))
-        return mean(self.model.evals_result_["validation_0"]["logloss"])#, callbacks=callbacks)
+        # Return the first metric we use for validation
+        eval_score = mean(next(iter(self.model.evals_result_["validation_0"].values())))
+        return eval_score #, callbacks=callbacks)
 
     def test_step(self, dataset, _):
         test_rep, test_label = dataset
@@ -47,7 +49,7 @@ class XGBClassifier(MLWrapper):
         test_pred = self.predict(test_rep)
         if self.explainer is not None:
             self.test_shap_values = self.explainer(test_rep)
-            logging.info(f"Shap values: {self.test_shap_values}")
+            # logging.debug(f"Shap values: {self.test_shap_values}")
             # self.log("test/shap_values", self.test_shap_values, sync_dist=True)
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
