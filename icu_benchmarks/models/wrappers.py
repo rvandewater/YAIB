@@ -3,7 +3,7 @@ from abc import ABC
 from typing import Dict, Any, List, Optional, Union
 
 import torchmetrics
-from sklearn.metrics import log_loss, mean_squared_error
+from sklearn.metrics import log_loss, mean_squared_error, average_precision_score, make_scorer
 
 import torch
 from torch.nn import MSELoss, CrossEntropyLoss
@@ -16,7 +16,7 @@ import gin
 import numpy as np
 from ignite.exceptions import NotComputableError
 from icu_benchmarks.models.constants import ImputationInit
-from icu_benchmarks.models.utils import create_optimizer, create_scheduler
+from icu_benchmarks.models.utils import create_optimizer, create_scheduler, scorer_wrapper
 from joblib import dump
 from pytorch_lightning import LightningModule
 
@@ -29,7 +29,7 @@ gin.config.external_configurable(nn.functional.mse_loss, module="torch.nn.functi
 
 gin.config.external_configurable(mean_squared_error, module="sklearn.metrics")
 gin.config.external_configurable(log_loss, module="sklearn.metrics")
-
+gin.config.external_configurable(scorer_wrapper, module="icu_benchmarks.models.utils")
 
 @gin.configurable("BaseModule")
 class BaseModule(LightningModule):
@@ -363,7 +363,7 @@ class MLWrapper(BaseModule, ABC):
     requires_backprop = False
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, *args, run_mode=RunMode.classification, loss=log_loss, patience=10, mps=False, **kwargs):
+    def __init__(self, *args, run_mode=RunMode.classification, loss=scorer_wrapper(average_precision_score), patience=10, mps=False, **kwargs):
         super().__init__()
         self.save_hyperparameters()
         self.scaler = None
@@ -372,6 +372,7 @@ class MLWrapper(BaseModule, ABC):
         self.loss = loss
         self.patience = patience
         self.mps = mps
+        self.loss_weight = None
 
     def set_metrics(self, labels):
         if self.run_mode == RunMode.classification:
@@ -414,6 +415,7 @@ class MLWrapper(BaseModule, ABC):
         train_pred = self.predict(train_rep)
 
         logging.debug(f"Model:{self.model}")
+
         self.log("train/loss", self.loss(train_label, train_pred), sync_dist=True)
         logging.debug(f"Train loss: {self.loss(train_label, train_pred)}")
         self.log("val/loss", val_loss, sync_dist=True)

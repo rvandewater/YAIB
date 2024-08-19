@@ -11,6 +11,7 @@ import torch
 
 from pytorch_lightning.loggers.logger import Logger
 from pytorch_lightning.utilities import rank_zero_only
+from sklearn.metrics import average_precision_score
 from torch.nn import Module
 from torch.optim import Optimizer, Adam, SGD, RAdam
 from typing import Optional, Union
@@ -188,3 +189,22 @@ class JSONMetricsLogger(Logger):
     @rank_zero_only
     def log_hyperparams(self, params):
         pass
+
+class scorer_wrapper():
+    """
+        Wrapper that flattens the binary classification input such that we can use a broader range of sklearn metrics.
+    """
+    def __init__(self, scorer=average_precision_score):
+        self.scorer = scorer
+
+    def __call__(self, y_true, y_pred):
+        if len(np.unique(y_true))<=2 and y_pred.ndim > 1:
+            return self.scorer(y_true, np.argmax(y_pred,axis=1))
+        else:
+            return self.scorer(y_true, y_pred)
+
+    def __name__(self):
+        return "scorer_wrapper"
+
+
+
