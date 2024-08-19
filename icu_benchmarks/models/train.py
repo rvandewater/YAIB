@@ -198,21 +198,25 @@ def train_common(
     return test_loss
 
 def persist_data(trainer, log_dir):
-    if trainer.lightning_module.test_shap_values is not None:
-        shap_values = trainer.lightning_module.test_shap_values
-        # sdf_test = pl.DataFrame({
-        #     'features': trainer.lightning_module.trained_columns,
-        #     'feature_value': np.transpose(shap_values.values.mean(axis=0)),
-        # })
-        shaps_test = pl.DataFrame(schema = trainer.lightning_module.trained_columns,
-                                    data = np.transpose(shap_values.values))
-        shaps_test.write_parquet(log_dir / "shap_values_test.parquet")
-        logging.info(f"Saved shap values to {log_dir / 'test_shap_values.parquet'}")
-    if trainer.lightning_module.train_shap_values is not None:
-        shap_values = trainer.lightning_module.train_shap_values
-        shaps_train = pl.DataFrame(schema = trainer.lightning_module.trained_columns,
-                                    data = np.transpose(shap_values.values))
-        shaps_train.write_parquet(log_dir / "shap_values_train.parquet")
+    try:
+        if trainer.lightning_module.test_shap_values is not None:
+            shap_values = trainer.lightning_module.test_shap_values
+            # sdf_test = pl.DataFrame({
+            #     'features': trainer.lightning_module.trained_columns,
+            #     'feature_value': np.transpose(shap_values.values.mean(axis=0)),
+            # })
+            shaps_test = pl.DataFrame(schema = trainer.lightning_module.trained_columns,
+                                        data = np.transpose(shap_values.values))
+            shaps_test.write_parquet(log_dir / "shap_values_test.parquet")
+            logging.info(f"Saved shap values to {log_dir / 'test_shap_values.parquet'}")
+        if trainer.lightning_module.train_shap_values is not None:
+            shap_values = trainer.lightning_module.train_shap_values
+            shaps_train = pl.DataFrame(schema = trainer.lightning_module.trained_columns,
+                                        data = np.transpose(shap_values.values))
+            shaps_train.write_parquet(log_dir / "shap_values_train.parquet")
+
+    except Exception as e:
+        logging.error(f"Failed to save shap values: {e}")
 
 def load_model(model, source_dir, pl_model=True):
     if source_dir.exists():
