@@ -70,7 +70,7 @@ def preprocess_data(
     if not use_static:
         file_names.pop(Segment.static)
         vars.pop(Segment.static)
-    if isinstance(vars[Var.label], list) and len(vars[Var.label])>1:
+    if isinstance(vars[Var.label], list) and len(vars[Var.label]) > 1:
         if label is not None:
             vars[Var.label] = [label]
         else:
@@ -83,7 +83,16 @@ def preprocess_data(
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
 
     logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
-    preprocessor = preprocessor(use_static_features=use_static, save_cache=data_dir / "preproc" / (cache_filename + "_recipe"))
+    preprocessor = preprocessor(
+        use_static_features=use_static,
+        save_cache=data_dir / "preproc" / (cache_filename + "_recipe"),
+        vars_to_exclude=modality_mapping.get("cat_clinical_notes") + modality_mapping.get("cat_med_embeddings_map")
+        if (
+            modality_mapping.get("cat_clinical_notes") is not None
+            and modality_mapping.get("cat_med_embeddings_map") is not None
+        )
+        else None,
+    )
     if isinstance(preprocessor, PandasClassificationPreprocessor):
         preprocessor.set_imputation_model(pretrained_imputation_model)
 
@@ -110,7 +119,6 @@ def preprocess_data(
             data, vars = modality_selection(data, modality_mapping, selected_modalities, vars)
         else:
             logging.info(f"Selecting all modalities.")
-
 
     # Generate the splits
     logging.info("Generating splits.")
@@ -140,22 +148,21 @@ def preprocess_data(
     logging.info(f"Preprocessing took {end - start:.2f} seconds.")
     logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
     for dict in data.values():
-        for key,val in dict.items():
+        for key, val in dict.items():
             logging.debug(f"Data type: {key}")
             logging.debug(f"Is NaN:")
             sel = dict[key].select(pl.selectors.numeric().is_nan().max())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
-            #logging.info(dict[key].select(pl.all().has_nulls()).sum_horizontal())
+            # logging.info(dict[key].select(pl.all().has_nulls()).sum_horizontal())
             logging.debug(f"Has nulls:")
-            sel=dict[key].select(pl.all().has_nulls())
+            sel = dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
             # dict[key] = val[:, [not (s.null_count() > 0) for s in val]]
             dict[key] = val.fill_null(strategy="zero")
             dict[key] = val.fill_nan(0)
             logging.debug(f"Dropping columns with nulls")
-            sel=dict[key].select(pl.all().has_nulls())
+            sel = dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
-
 
     # Generate cache
     if generate_cache:
@@ -167,22 +174,25 @@ def preprocess_data(
 
     return data
 
-def modality_selection(data: dict[pl.DataFrame], modality_mapping: dict[str], selected_modalities: list[str], vars) -> dict[pl.DataFrame]:
+
+def modality_selection(
+    data: dict[pl.DataFrame], modality_mapping: dict[str], selected_modalities: list[str], vars
+) -> dict[pl.DataFrame]:
     logging.info(f"Selected modalities: {selected_modalities}")
-    selected_columns =[modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]
+    selected_columns = [modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]
     if selected_columns == []:
         logging.info(f"No columns selected. Using all columns.")
         return data, vars
     selected_columns = sum(selected_columns, [])
     selected_columns.extend([vars[Var.group], vars[Var.label], vars[Var.sequence]])
-    old_columns =[]
+    old_columns = []
     # Update vars dict
     for key, value in vars.items():
         if key not in [Var.group, Var.label, Var.sequence]:
             old_columns.extend(value)
             vars[key] = [col for col in value if col in selected_columns]
     # -3 becaus of standard columns
-    logging.info(f"Selected columns: {len(selected_columns)-3}, old columns: {len(old_columns)}")
+    logging.info(f"Selected columns: {len(selected_columns) - 3}, old columns: {len(old_columns)}")
     logging.debug(f"Difference: {set(old_columns) - set(selected_columns)}")
     # Update data dict
     for key in data.keys():
@@ -190,6 +200,7 @@ def modality_selection(data: dict[pl.DataFrame], modality_mapping: dict[str], se
         data[key] = data[key].select(sel_col)
         logging.debug(f"Selected columns in {key}: {len(data[key].columns)}")
     return data, vars
+
 
 def make_train_val(
     data: dict[pd.DataFrame],
@@ -244,7 +255,10 @@ def make_train_val(
         train, val = list(train_val.split(stays))[0]
 
     if polars:
-        split = {Split.train: stays[train].cast(pl.datatypes.Int64).to_frame(), Split.val: stays[val].cast(pl.datatypes.Int64).to_frame()}
+        split = {
+            Split.train: stays[train].cast(pl.datatypes.Int64).to_frame(),
+            Split.val: stays[val].cast(pl.datatypes.Int64).to_frame(),
+        }
     else:
         split = {Split.train: stays.iloc[train], Split.val: stays.iloc[val]}
 

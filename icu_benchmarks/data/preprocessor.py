@@ -32,7 +32,7 @@ import abc
 
 class Preprocessor:
     @abc.abstractmethod
-    def apply(self, data, vars, save_cache=False, load_cache=None):
+    def apply(self, data, vars, save_cache=False, load_cache=None, vars_to_exclude=None):
         return data
 
     @abc.abstractmethod
@@ -48,11 +48,12 @@ class Preprocessor:
 class PolarsClassificationPreprocessor(Preprocessor):
     def __init__(
         self,
-        generate_features: bool = True,
+        generate_features: bool = False,
         scaling: bool = True,
         use_static_features: bool = True,
         save_cache=None,
         load_cache=None,
+        vars_to_exclude=None,
     ):
         """
         Args:
@@ -61,6 +62,7 @@ class PolarsClassificationPreprocessor(Preprocessor):
             use_static_features: Use static features.
             save_cache: Save recipe cache from this path.
             load_cache: Load recipe cache from this path.
+            vars_to_exclude: Variables to exclude from missing indicator/ feature generation.
         Returns:
             Preprocessed data.
         """
@@ -70,6 +72,7 @@ class PolarsClassificationPreprocessor(Preprocessor):
         self.imputation_model = None
         self.save_cache = save_cache
         self.load_cache = load_cache
+        self.vars_to_exclude = vars_to_exclude
 
     def apply(self, data, vars) -> dict[dict[pl.DataFrame]]:
         """
@@ -157,13 +160,18 @@ class PolarsClassificationPreprocessor(Preprocessor):
             dyn_rec.add_step(StepScale())
         if self.imputation_model is not None:
             dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[Segment.dynamic])))
-        dyn_rec.add_step(StepSklearn(MissingIndicator(features="all"), sel=all_of(vars[Segment.dynamic]), in_place=False))
+        if self.vars_to_exclude is not None:
+            # Exclude vars_to_exclude from missing indicator/ feature generation
+            vars_to_apply = list(set(vars[Segment.dynamic]) - set(self.vars_to_exclude))
+        else:
+            vars_to_apply = vars[Segment.dynamic]
+        dyn_rec.add_step(StepSklearn(MissingIndicator(features="all"), sel=all_of(vars_to_apply), in_place=False))
         # dyn_rec.add_step(StepImputeFastForwardFill())
         dyn_rec.add_step(StepImputeFill(strategy="forward"))
         # dyn_rec.add_step(StepImputeFastZeroFill())
         dyn_rec.add_step(StepImputeFill(strategy="zero"))
         if self.generate_features:
-            dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars[Segment.dynamic]))
+            dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars_to_apply))
         data = apply_recipe_to_splits(dyn_rec, data, Segment.dynamic, self.save_cache, self.load_cache)
         return data
 
@@ -185,7 +193,7 @@ class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
     # Override base classification preprocessor
     def __init__(
         self,
-        generate_features: bool = True,
+        generate_features: bool = False,
         scaling: bool = True,
         use_static_features: bool = True,
         outcome_max=None,
