@@ -33,6 +33,9 @@ class CommonPolarsDataset(Dataset):
         # self.features_df = (
         #     data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
         # )
+        # Get the row indicators for the data to be able to match predicted labels
+        self.row_indicators = data[split][Segment.features][self.vars["GROUP"], self.vars["SEQUENCE"]]
+        self.row_indicators = self.row_indicators.with_columns(pl.col(self.vars["SEQUENCE"]).dt.total_hours())
         self.features_df = data[split][Segment.features].drop(self.vars["SEQUENCE"])
         # calculate basic info for the data
         self.num_stays = self.grouping_df[self.vars["GROUP"]].unique().shape[0]
@@ -138,7 +141,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         weights = list((1 / counts) * np.sum(counts) / counts.shape[0])
         return weights
 
-    def get_data_and_labels(self) -> Tuple[np.array, np.array]:
+    def get_data_and_labels(self) -> Tuple[np.array, np.array, np.array]:
         """Function to return all the data and labels aligned at once.
 
         We use this function for the ML methods which don't require an iterator.
@@ -154,14 +157,14 @@ class PredictionPolarsDataset(CommonPolarsDataset):
             rep = rep.group_by(self.vars["GROUP"]).last()
         rep = rep.to_numpy().astype(float)
 
-        return rep, labels
+        return rep, labels, self.row_indicators.to_numpy()
 
     def to_tensor(self):
-        data, labels = self.get_data_and_labels()
+        data, labels, row_indicators = self.get_data_and_labels()
         if self.mps:
             return from_numpy(data).to(float32), from_numpy(labels).to(float32)
         else:
-            return from_numpy(data), from_numpy(labels)
+            return from_numpy(data), from_numpy(labels), row_indicators
 
 @gin.configurable("CommonPandasDataset")
 class CommonPandasDataset(Dataset):
