@@ -206,7 +206,7 @@ class scorer_wrapper():
 
     def __name__(self):
         return "scorer_wrapper"
-
+# Source: https://github.com/ratschlab/tls
 @gin.configurable('get_smoothed_labels')
 def get_smoothed_labels(label, event, smoothing_fn=gin.REQUIRED, h_true=gin.REQUIRED, h_min=gin.REQUIRED,
                         h_max=gin.REQUIRED, delta_h=12, gamma=0.1):
