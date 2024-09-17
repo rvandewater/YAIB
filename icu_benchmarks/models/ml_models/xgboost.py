@@ -3,7 +3,8 @@ import logging
 
 import gin
 import numpy as np
-
+import torch
+import os
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
 import xgboost as xgb
@@ -42,11 +43,23 @@ class XGBClassifier(MLWrapper):
         eval_score = mean(next(iter(self.model.evals_result_["validation_0"].values())))
         return eval_score #, callbacks=callbacks)
 
+
     def test_step(self, dataset, _):
-        test_rep, test_label = dataset
-        test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
+        # Pred indicators indicates the row id, and time in hours
+        test_rep, test_label, pred_indicators = dataset
+        test_rep, test_label, pred_indicators = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy(), pred_indicators.squeeze().cpu().numpy()
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
+        if pred_indicators.shape[1] == test_pred.shape[1]:
+            pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
+            # test_reshaped = test_pred.reshape(-1, 1)
+            pred_indicators = np.hstack((pred_indicators, test_pred))
+            sav = self.logger.save_dir
+            # Save as: id, time (hours), ground truth, prediction 0, prediction 1
+            np.save(os.path.join(self.logger.save_dir,f'pred_indicators.npy'), pred_indicators)
+            logging.debug(f"Saved row indicators to {os.path.join(self.logger.save_dir,f'row_indicators.npy')}")
+            # self.log_numpy_array(row_indicators, "test/pred_labels_windows", self.global_step)
+            # self.log("test/pred_labels_windows", torch.from_numpy(row_indicators), sync_dist=True)
         if self.explainer is not None:
             self.test_shap_values = self.explainer(test_rep)
             # logging.debug(f"Shap values: {self.test_shap_values}")
@@ -58,6 +71,8 @@ class XGBClassifier(MLWrapper):
             self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
             self.log_metrics(test_label, test_pred, "test")
         logging.debug(f"Test loss: {self.loss(test_label, test_pred)}")
+
+
 
     def set_model_args(self, model, *args, **kwargs):
         """XGBoost signature does not include the hyperparams so we need to pass them manually."""

@@ -3,7 +3,7 @@ from abc import ABC
 from typing import Dict, Any, List, Optional, Union
 
 import torchmetrics
-from sklearn.metrics import log_loss, mean_squared_error, average_precision_score, make_scorer
+from sklearn.metrics import log_loss, mean_squared_error, average_precision_score, roc_auc_score
 
 import torch
 from torch.nn import MSELoss, CrossEntropyLoss
@@ -16,6 +16,7 @@ import gin
 import numpy as np
 from ignite.exceptions import NotComputableError
 from icu_benchmarks.models.constants import ImputationInit
+from icu_benchmarks.models.custom_metrics import confusion_matrix
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler, scorer_wrapper
 from joblib import dump
 from pytorch_lightning import LightningModule
@@ -29,7 +30,9 @@ gin.config.external_configurable(nn.functional.mse_loss, module="torch.nn.functi
 
 gin.config.external_configurable(mean_squared_error, module="sklearn.metrics")
 gin.config.external_configurable(log_loss, module="sklearn.metrics")
-gin.config.external_configurable(scorer_wrapper, module="icu_benchmarks.models.utils")
+gin.config.external_configurable(average_precision_score, module="sklearn.metrics")
+gin.config.external_configurable(roc_auc_score, module="sklearn.metrics")
+# gin.config.external_configurable(scorer_wrapper, module="icu_benchmarks.models.utils")
 
 @gin.configurable("BaseModule")
 class BaseModule(LightningModule):
@@ -363,13 +366,16 @@ class MLWrapper(BaseModule, ABC):
     requires_backprop = False
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, *args, run_mode=RunMode.classification, loss=scorer_wrapper(average_precision_score), patience=10, mps=False, **kwargs):
+    def __init__(self, *args, run_mode=RunMode.classification, loss=average_precision_score, patience=10, mps=False, **kwargs):
         super().__init__()
         self.save_hyperparameters()
         self.scaler = None
         self.check_supported_runmode(run_mode)
         self.run_mode = run_mode
-        self.loss = loss
+        if loss.__name__ in ["average_precision_score", "roc_auc_score"]:
+            self.loss = scorer_wrapper(average_precision_score)
+        else:
+            self.loss = self.loss
         self.patience = patience
         self.mps = mps
         self.loss_weight = None
@@ -402,8 +408,8 @@ class MLWrapper(BaseModule, ABC):
 
     def fit(self, train_dataset, val_dataset):
         """Fit the model to the training data."""
-        train_rep, train_label = train_dataset.get_data_and_labels()
-        val_rep, val_label = val_dataset.get_data_and_labels()
+        train_rep, train_label, row_indicators = train_dataset.get_data_and_labels()
+        val_rep, val_label, row_indicators = val_dataset.get_data_and_labels()
 
         self.set_metrics(train_label)
 
@@ -429,7 +435,7 @@ class MLWrapper(BaseModule, ABC):
         return val_loss
 
     def validation_step(self, val_dataset, _):
-        val_rep, val_label = val_dataset.get_data_and_labels()
+        val_rep, val_label, row_indicators = val_dataset.get_data_and_labels()
         val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(val_label)
 
@@ -463,17 +469,18 @@ class MLWrapper(BaseModule, ABC):
 
     def log_metrics(self, label, pred, metric_type):
         """Log metrics to the PL logs."""
-
+        if "Confusion_Matrix" in self.metrics.keys():
+            self.log_dict(confusion_matrix(self.label_transform(label), self.output_transform(pred)), sync_dist=True)
         self.log_dict(
             {
                 # MPS dependent type casting
                 f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred))
                 if not self.mps
                 else metric(self.label_transform(label), self.output_transform(pred))
-                # Fore very metric
+                # For every metric
                 for name, metric in self.metrics.items()
                 # Filter out metrics that return a tuple (e.g. precision_recall_curve)
-                if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
+                if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple) and name != "Confusion_Matrix"
             },
             sync_dist=True,
         )
