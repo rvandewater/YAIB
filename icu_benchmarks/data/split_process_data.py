@@ -91,7 +91,7 @@ def preprocess_data(
             modality_mapping.get("cat_clinical_notes") is not None
             and modality_mapping.get("cat_med_embeddings_map") is not None
         )
-        else None,
+        else None, # Todo: Exclude clinical notes and med embeddings from missing indicator and feature generation
     )
     if isinstance(preprocessor, PandasClassificationPreprocessor):
         preprocessor.set_imputation_model(pretrained_imputation_model)
