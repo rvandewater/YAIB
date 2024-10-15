@@ -1,5 +1,7 @@
 import copy
 import logging
+import os
+
 import gin
 import json
 import hashlib
@@ -9,7 +11,10 @@ import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 from timeit import default_timer as timer
+
+from setuptools.dist import sequence
 from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
+from sqlalchemy import false
 
 from icu_benchmarks.data.preprocessor import Preprocessor, PandasClassificationPreprocessor, PolarsClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
@@ -23,7 +28,7 @@ def preprocess_data(
     preprocessor: Preprocessor = PolarsClassificationPreprocessor,
     use_static: bool = True,
     vars: dict[str] = gin.REQUIRED,
-    modality_mapping: dict[str] = [],
+    modality_mapping: dict[str] = {},
     selected_modalities: list[str] = "all",
     seed: int = 42,
     debug: bool = False,
@@ -38,6 +43,8 @@ def preprocess_data(
     complete_train: bool = False,
     runmode: RunMode = RunMode.classification,
     label: str = None,
+    vars_to_exclude: list[str] = [],
+
 ) -> dict[dict[pl.DataFrame]] or dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -83,15 +90,14 @@ def preprocess_data(
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
 
     logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
+    vars_to_exclude = modality_mapping.get("cat_clinical_notes") + modality_mapping.get("cat_med_embeddings_map") if (
+            modality_mapping.get("cat_clinical_notes") is not None
+            and modality_mapping.get("cat_med_embeddings_map") is not None) else None
+
     preprocessor = preprocessor(
         use_static_features=use_static,
         save_cache=data_dir / "preproc" / (cache_filename + "_recipe"),
-        vars_to_exclude=modality_mapping.get("cat_clinical_notes") + modality_mapping.get("cat_med_embeddings_map")
-        if (
-            modality_mapping.get("cat_clinical_notes") is not None
-            and modality_mapping.get("cat_med_embeddings_map") is not None
-        )
-        else None, # Todo: Exclude clinical notes and med embeddings from missing indicator and feature generation
+        vars_to_exclude=vars_to_exclude,
     )
     if isinstance(preprocessor, PandasClassificationPreprocessor):
         preprocessor.set_imputation_model(pretrained_imputation_model)
@@ -110,7 +116,12 @@ def preprocess_data(
 
     # Read parquet files into pandas dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
-    data = {f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys()}
+    data = {f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys() if os.path.exists(data_dir / file_names[f])}
+    logging.info(f"Loaded data: {list(data.keys())}")
+    data = check_sanitize_data(data, vars)
+
+    if not (Segment.dynamic in data.keys()):
+        logging.warning("No dynamic data found, using only static data.")
 
     logging.debug(f"Modality mapping: {modality_mapping}")
     if len(modality_mapping) > 0:
@@ -175,6 +186,30 @@ def preprocess_data(
     return data
 
 
+def check_sanitize_data(data, vars):
+    """Check for duplicates in the loaded data and remove them."""
+    group = vars[Var.group] if Var.group in vars.keys() else None
+    sequence = vars[Var.sequence] if Var.sequence in vars.keys() else None
+    keep = "last"
+    if Segment.static in data.keys():
+        old_len = len(data[Segment.static])
+        data[Segment.static] = data[Segment.static].unique(subset=group, keep=keep, maintain_order=True)
+        logging.warning(f"Removed {old_len - len(data[Segment.static])} duplicates from static data.")
+    if Segment.dynamic in data.keys():
+        old_len = len(data[Segment.dynamic])
+        data[Segment.dynamic] = data[Segment.dynamic].unique(subset=[group,sequence], keep=keep, maintain_order=True)
+        logging.warning(f"Removed {old_len - len(data[Segment.dynamic])} duplicates from dynamic data.")
+    if Segment.outcome in data.keys():
+        old_len = len(data[Segment.outcome])
+        if sequence in data[Segment.outcome].columns:
+            # We have a dynamic outcome with group and sequence
+            data[Segment.outcome] = data[Segment.outcome].unique(subset=[group,sequence], keep=keep, maintain_order=True)
+        else:
+            data[Segment.outcome] = data[Segment.outcome].unique(subset=[group], keep=keep, maintain_order=True)
+        logging.warning(f"Removed {old_len - len(data[Segment.outcome])} duplicates from outcome data.")
+    return data
+
+
 def modality_selection(
     data: dict[pl.DataFrame], modality_mapping: dict[str], selected_modalities: list[str], vars
 ) -> dict[pl.DataFrame]:
@@ -191,7 +226,7 @@ def modality_selection(
         if key not in [Var.group, Var.label, Var.sequence]:
             old_columns.extend(value)
             vars[key] = [col for col in value if col in selected_columns]
-    # -3 becaus of standard columns
+    # -3 because of standard columns
     logging.info(f"Selected columns: {len(selected_columns) - 3}, old columns: {len(old_columns)}")
     logging.debug(f"Difference: {set(old_columns) - set(selected_columns)}")
     # Update data dict
@@ -403,7 +438,7 @@ def make_single_split(
             data_split[fold] = {
                 data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
             }
-    logging.debug(f"Data split: {data_split}")
+    logging.info(f"Data split: {data_split}")
     return data_split
 
 
