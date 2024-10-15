@@ -1,4 +1,5 @@
 import json
+import pickle
 from datetime import datetime
 import logging
 import gin
@@ -104,7 +105,10 @@ def execute_repeated_cv(
                 runmode=mode,
                 complete_train=complete_train
             )
-
+            # logging.debug(f"{data}")
+            # data_pickle_path = log_dir / "data.pkl"
+            # with open(data_pickle_path, "wb") as f:
+            #     pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
             preprocess_time = datetime.now() - start_time
             start_time = datetime.now()
             agg_loss += train_common(
