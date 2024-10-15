@@ -14,9 +14,12 @@ command:
   - -tn
   - SSI
 #  - Mortality
-  - -n
-  - cass
+#  - --verbose
 #  - --hp-checkpoint
+#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/activity_notes/SSI/XGBClassifier/2024-07-25T14-32-55/hyperparameter_tuning_logs.db
+  - --modalities
+  - "all"
+#  - --verbose
 #  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/cass/SSI/XGBClassifier/2024-06-28T17-28-04/hyperparameter_tuning_logs.db
 #  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/cass/SSI/Transformer/2024-06-26T15-30-53/hyperparameter_tuning_logs.db
 #  - -gc
@@ -26,22 +29,44 @@ name: yaib_classification_benchmark
 parameters:
   data_dir:
     values:
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_segment_1.0_horizon_6:00:00_transfer_3_2024-10-07T23:26:22"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_segment_1.0_horizon_6:00:00_transfer_full_2024-09-27T16:14:05_complication"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_segment_1.0_horizon_6:00:00_transfer_full_2024-09-26T16:26:24"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_x_segment_duration_x_transfer_2024-09-19T13:57:36"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_dynamic_6h_2024-09-18T11:24:23"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_flat_2024-09-17T17:25:20"
 #      - /home/vandewrp/projects/YAIB/data/YAIB_Datasets/data/mortality24/miiv
-      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/notes_full
+#        - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/activity_notes_fixed
+#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/19-08-2024_all_wards
+#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_x_segment_duration_x_transfer_2024-08-26 13:43:20
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_x_segment_duration_x_transfer_2024-09-12T16:22:01"
   model:
     values:
 #      - LogisticRegression
 #      - TimesNet
 #      - LGBMClassifier
-#      - XGBClassifier
+      - XGBClassifier
 #      - CBClassifier
 #      - BRFClassifier
 #       - RUSBClassifier
 #      - RFClassifier
-#      - GRU
+      - GRU
 #      - LSTM
 #      - TCN
       - Transformer
+  modalities:
+    values:
+      - "all"
+#      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_med_embeddings_map, cat_clinical_notes, wearable_activity, wearable_core, static]
+#      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_med_embeddings_map, wearable_activity, wearable_core, static]
+#      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, static] # without wearable data
+#      - [copra_observations, copra_scores, copra_fluid_balance, cat_med_embeddings_map, wearable_activity, wearable_core, static] # without ishmed lab data and clinical notes
+#      - [copra_observations, copra_scores, copra_fluid_balance, cat_med_embeddings_map, static ] # without wearable data and ishmed lab data, clinical notes
+##      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_med_embeddings_map, wearable_activity, wearable_core, static] # without clinical notes
+#      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_clinical_notes, wearable_activity, wearable_core, static] # without med embeddings
+#      - [wearable_activity, wearable_core, static]
+#      - [ishmed_lab_numeric, static]
+#      - [static]
   seed:
     values:
       - 1111
