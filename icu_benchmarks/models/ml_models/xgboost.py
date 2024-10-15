@@ -33,6 +33,8 @@ class XGBClassifier(MLWrapper):
 
         if wandb.run is not None:
             callbacks.append(wandb_xgb())
+        logging.info(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
+        logging.info(train_labels)
         self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=False)
         self.explainer = shap.TreeExplainer(self.model)
         self.train_shap_values = self.explainer(train_data)
@@ -50,20 +52,14 @@ class XGBClassifier(MLWrapper):
         test_rep, test_label, pred_indicators = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy(), pred_indicators.squeeze().cpu().numpy()
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
-        if pred_indicators.shape[1] == test_pred.shape[1]:
+        if len(pred_indicators.shape)>1 and len(test_pred.shape)>1 and pred_indicators.shape[1] == test_pred.shape[1]:
             pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
-            # test_reshaped = test_pred.reshape(-1, 1)
             pred_indicators = np.hstack((pred_indicators, test_pred))
-            sav = self.logger.save_dir
             # Save as: id, time (hours), ground truth, prediction 0, prediction 1
-            np.save(os.path.join(self.logger.save_dir,f'pred_indicators.npy'), pred_indicators)
-            logging.debug(f"Saved row indicators to {os.path.join(self.logger.save_dir,f'row_indicators.npy')}")
-            # self.log_numpy_array(row_indicators, "test/pred_labels_windows", self.global_step)
-            # self.log("test/pred_labels_windows", torch.from_numpy(row_indicators), sync_dist=True)
+            np.savetxt(os.path.join(self.logger.save_dir,f'pred_indicators.csv'), pred_indicators, delimiter=",")
+            logging.debug(f"Saved row indicators to {os.path.join(self.logger.save_dir,f'row_indicators.csv')}")
         if self.explainer is not None:
             self.test_shap_values = self.explainer(test_rep)
-            # logging.debug(f"Shap values: {self.test_shap_values}")
-            # self.log("test/shap_values", self.test_shap_values, sync_dist=True)
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
             self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
