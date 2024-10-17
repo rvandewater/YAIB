@@ -15,8 +15,6 @@ import shutil
 from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
-import os
-import glob
 import polars as pl
 
 
@@ -109,7 +107,6 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     """
     aggregated = {}
     shap_values_test = []
-    # shap_values_train = []
     for repetition in log_dir.iterdir():
         if repetition.is_dir():
             aggregated[repetition.name] = {}
@@ -284,6 +281,7 @@ def get_config_files(config_dir: Path):
     logging.info(f"Found tasks: {tasks}")
     logging.info(f"Found models: {models}")
     return tasks, models
+
 
 def check_required_keys(vars, required_keys):
     """

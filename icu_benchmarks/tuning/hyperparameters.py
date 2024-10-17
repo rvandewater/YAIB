@@ -63,8 +63,9 @@ def choose_and_bind_hyperparameters_scikit_optimize(
     Raises:
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
-    logging.warning("This function is deprecated and will be removed in the future. "
-                    "Use choose_and_bind_hyperparameters_optuna instead.")
+    logging.warning(
+        "This function is deprecated and will be removed in the future. " "Use choose_and_bind_hyperparameters_optuna instead."
+    )
     hyperparams = {}
 
     if len(scopes) == 0 or folds_to_tune_on is None:
@@ -243,6 +244,7 @@ def choose_and_bind_hyperparameters_optuna(
         logging.info(f"Bounds: {hyperparams_bounds}, Names: {hyperparams_names}")
         for name, value in zip(hyperparams_names, hyperparams_bounds):
             if isinstance(value, tuple):
+
                 def suggest_int_param(trial, name, value):
                     return trial.suggest_int(name, value[0], value[1], log=value[2] == "log" if len(value) == 3 else False)
 

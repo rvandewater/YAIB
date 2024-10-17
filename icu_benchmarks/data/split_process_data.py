@@ -318,8 +318,14 @@ def make_train_val(
     data_split[Split.test] = copy.deepcopy(data_split[Split.val])
     return data_split
 
+
 def _get_stays(data, id, polars):
-    return pl.Series(name=id, values=data[Segment.outcome][id].unique()) if polars else pd.Series(data[Segment.outcome][id].unique(), name=id)
+    return (
+        pl.Series(name=id, values=data[Segment.outcome][id].unique())
+        if polars
+        else pd.Series(data[Segment.outcome][id].unique(), name=id)
+    )
+
 
 def _get_labels(data, id, vars, polars):
     # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
@@ -327,6 +333,7 @@ def _get_labels(data, id, vars, polars):
         return data[Segment.outcome].group_by(id).max()[vars[Var.label]]
     else:
         return data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+
 
 # Use these helper functions in both make_train_val and make_single_split
 

@@ -85,15 +85,15 @@ class XGBClassifier(MLWrapper):
     def set_model_args(self, model, *args, **kwargs):
         """XGBoost signature does not include the hyperparams so we need to pass them manually."""
         signature = inspect.signature(model.__init__).parameters
-        possible_hps = list(signature.keys())
-        # Get passed keyword arguments
-        arguments = locals()["kwargs"]
-        # Get valid hyperparameters
-        hyperparams = arguments
-        logging.debug(f"Creating model with: {hyperparams}.")
-        return model(**hyperparams)
+        valid_params = signature.keys()
+
+        # Filter out invalid arguments
+        valid_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+
+        logging.debug(f"Creating model with: {valid_kwargs}.")
+        return model(**valid_kwargs)
 
     def get_feature_importance(self):
-        if not hasattr(self.model, 'feature_importances_'):
+        if not hasattr(self.model, "feature_importances_"):
             raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
         return self.model.feature_importances_

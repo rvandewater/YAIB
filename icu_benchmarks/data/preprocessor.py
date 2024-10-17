@@ -44,8 +44,6 @@ class Preprocessor(abc.ABC):
             update_wandb_config({"imputation_model": self.imputation_model.__class__.__name__})
 
 
-
-
 @gin.configurable("base_classification_preprocessor")
 class PolarsClassificationPreprocessor(Preprocessor):
     def __init__(

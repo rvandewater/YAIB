@@ -261,8 +261,6 @@ class DLPredictionWrapper(DLWrapper):
         self.output_transform = None
         self.loss_weights = None
 
-
-
     def set_metrics(self, *args):
         """Set the evaluation metrics for the prediction model."""
 
@@ -477,9 +475,7 @@ class MLWrapper(BaseModule, ABC):
             self.log_dict(confusion_matrix(self.label_transform(label), self.output_transform(pred)), sync_dist=True)
         self.log_dict(
             {
-                f"{metric_type}/{name}": (
-                    metric(self.label_transform(label), self.output_transform(pred))
-                )
+                f"{metric_type}/{name}": (metric(self.label_transform(label), self.output_transform(pred)))
                 # For every metric
                 for name, metric in self.metrics.items()
                 # Filter out metrics that return a tuple (e.g. precision_recall_curve)
@@ -488,6 +484,7 @@ class MLWrapper(BaseModule, ABC):
             },
             sync_dist=True,
         )
+
     def _explain_model(self, test_rep, test_label):
         if self.explainer is not None:
             self.test_shap_values = self.explainer(test_rep)
@@ -503,6 +500,7 @@ class MLWrapper(BaseModule, ABC):
             logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
         else:
             logging.warning("Could not save row indicators.")
+
     def configure_optimizers(self):
         return None
 

@@ -61,7 +61,8 @@ def main(my_args=tuple(sys.argv[1:])):
     if task not in tasks or model not in models:
         raise ValueError(
             f"Invalid task or model. Task: {task} {'not ' if task not in tasks else ''} found. "
-            f"Model: {model} {'not ' if model not in models else ''}found.")
+            f"Model: {model} {'not ' if model not in models else ''}found."
+        )
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()

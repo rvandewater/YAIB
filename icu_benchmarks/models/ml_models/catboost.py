@@ -9,7 +9,7 @@ class CBClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
 
     def __init__(self, task_type="CPU", *args, **kwargs):
-        model_kwargs = {'task_type': task_type, **kwargs}
+        model_kwargs = {"task_type": task_type, **kwargs}
         self.model = self.set_model_args(cb.CatBoostClassifier, *args, **model_kwargs)
         super().__init__(*args, **kwargs)
 

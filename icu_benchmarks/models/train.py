@@ -145,7 +145,7 @@ def train_common(
 
     trainer = Trainer(
         max_epochs=epochs if model.requires_backprop else 1,
-        min_epochs=1, # We need at least one epoch to get results.
+        min_epochs=1,  # We need at least one epoch to get results.
         callbacks=callbacks,
         precision=precision,
         accelerator="auto" if not cpu else "cpu",
@@ -154,7 +154,7 @@ def train_common(
         benchmark=not reproducible,
         enable_progress_bar=verbose,
         logger=loggers,
-        num_sanity_val_steps=2, # Helps catch errors in the validation loop before training begins.
+        num_sanity_val_steps=2,  # Helps catch errors in the validation loop before training begins.
         log_every_n_steps=5,
     )
     if not eval_only:

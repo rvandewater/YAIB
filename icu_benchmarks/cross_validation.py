@@ -13,6 +13,7 @@ from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import log_full_line
 from icu_benchmarks.constants import RunMode
 
+
 @gin.configurable
 def execute_repeated_cv(
     data_dir: Path,
@@ -139,4 +140,3 @@ def execute_repeated_cv(
         log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)
-

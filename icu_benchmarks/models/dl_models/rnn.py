@@ -13,7 +13,7 @@ class RNNet(DLPredictionWrapper):
 
     def __init__(self, input_size, hidden_dim, layer_dim, num_classes, *args, **kwargs):
         super().__init__(
-            *args, input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes,**kwargs
+            *args, input_size=input_size, hidden_dim=hidden_dim, layer_dim=layer_dim, num_classes=num_classes, **kwargs
         )
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
