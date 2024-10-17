@@ -1,10 +1,8 @@
 import inspect
 import logging
-import os
 from statistics import mean
 
 import gin
-import numpy as np
 import shap
 import wandb
 import xgboost as xgb
