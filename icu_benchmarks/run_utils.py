@@ -55,7 +55,12 @@ def build_parser() -> ArgumentParser:
     parser.add_argument("-sn", "--source-name", type=Path, help="Name of the source dataset.")
     parser.add_argument("--source-dir", type=Path, help="Directory containing gin and model weights.")
     parser.add_argument("-sa", "--samples", type=int, default=None, help="Number of samples to use for evaluation.")
-    parser.add_argument("-mo", "--modalities", nargs="+", help="Modalities to use for evaluation.")
+    parser.add_argument(
+        "-mo",
+        "--modalities",
+        nargs="+",
+        help="Optional modality selection to use. Specify multiple modalities separated by spaces.",
+    )
     parser.add_argument("--label", type=str, help="Label to use for evaluation in case of multiple labels.", default=None)
     return parser
 
@@ -73,16 +78,10 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     Returns:
         Path to the created run log directory.
     """
-    if not (log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))).exists():
-        log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))
-    else:
+    log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))
+    while log_dir_run.exists():
         log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))
-    if not log_dir_run.exists():
-        log_dir_run.mkdir(parents=True)
-    else:
-        # Directory clash at last moment
-        log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))
-        log_dir_run.mkdir(parents=True)
+    log_dir_run.mkdir(parents=True)
     if randomly_searched_params:
         (log_dir_run / randomly_searched_params).touch()
     return log_dir_run
@@ -136,6 +135,11 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
         shap_values = pl.concat(shap_values_test)
         shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
 
+    try:
+        shap_values = pl.concat(shap_values_test)
+        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
+    except Exception as e:
+        logging.error(f"Error aggregating or writing SHAP values: {e}")
     # Aggregate results per metric
     list_scores = {}
     for repetition, folds in aggregated.items():
@@ -256,10 +260,23 @@ def setup_logging(date_format, log_format, verbose):
 
 
 def get_config_files(config_dir: Path):
-    tasks = glob.glob(os.path.join(config_dir / "tasks", "*"))
-    models = glob.glob(os.path.join(config_dir / "prediction_models", "*"))
-    tasks = [os.path.splitext(os.path.basename(task))[0] for task in tasks]
-    models = [os.path.splitext(os.path.basename(model))[0] for model in models]
+    """
+    Get all task and model config files in the specified directory.
+    Args:
+        config_dir: Name of the directory containing the config gin files.
+
+    Returns:
+        tasks: List of task names
+        models: List of model names
+    """
+    try:
+        tasks = list((config_dir / "tasks").glob("*"))
+        models = list((config_dir / "prediction_models").glob("*"))
+        tasks = [task.stem for task in tasks if task.is_file()]
+        models = [model.stem for model in models if model.is_file()]
+    except Exception as e:
+        logging.error(f"Error retrieving config files: {e}")
+        return [], []
     if "common" in tasks:
         tasks.remove("common")
     if "common" in models:

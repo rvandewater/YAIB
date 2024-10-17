@@ -13,7 +13,7 @@ from icu_benchmarks.models.utils import JsonResultLoggingEncoder, log_table_row,
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import log_full_line
 from icu_benchmarks.tuning.gin_utils import get_gin_hyperparameters, bind_gin_params
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 from icu_benchmarks.wandb_utils import wandb_log
 from optuna.visualization import plot_param_importances, plot_optimization_history
 
@@ -235,32 +235,30 @@ def choose_and_bind_hyperparameters_optuna(
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
 
     # Optuna objective function
-    def objective(trail, hyperparams_bounds, hyperparams_names):
+    def objective(trial, hyperparams_bounds, hyperparams_names):
         # Optuna objective function
         hyperparams = {}
         logging.info(f"Bounds: {hyperparams_bounds}, Names: {hyperparams_names}")
         for name, value in zip(hyperparams_names, hyperparams_bounds):
             if isinstance(value, tuple):
-                # Check for range or "list-type" hyperparameter bounds
-                if isinstance(value[0], (int, float)) and isinstance(value[1], (int, float)):
-                    if len(value) == 3 and isinstance(value[2], str):
-                        if isinstance(value[0], int) and isinstance(value[1], int):
-                            hyperparams[name] = trail.suggest_int(name, value[0], value[1], log=value[2] == "log")
-                        elif isinstance(value[0], (int, float)) and isinstance(value[1], (int, float)):
-                            hyperparams[name] = trail.suggest_float(name, value[0], value[1], log=value[2] == "log")
-                        else:
-                            hyperparams[name] = trail.suggest_categorical(name, value)
-                    elif len(value) == 2:
-                        if isinstance(value[0], int) and isinstance(value[1], int):
-                            hyperparams[name] = trail.suggest_int(name, value[0], value[1])
-                        elif isinstance(value[0], (int, float)) and isinstance(value[1], (int, float)):
-                            hyperparams[name] = trail.suggest_float(name, value[0], value[1])
-                        else:
-                            hyperparams[name] = trail.suggest_categorical(name, value)
-                    else:
-                        hyperparams[name] = trail.suggest_categorical(name, value)
+                def suggest_int_param(trial, name, value):
+                    return trial.suggest_int(name, value[0], value[1], log=value[2] == "log" if len(value) == 3 else False)
+
+                def suggest_float_param(trial, name, value):
+                    return trial.suggest_float(name, value[0], value[1], log=value[2] == "log" if len(value) == 3 else False)
+
+                def suggest_categorical_param(trial, name, value):
+                    return trial.suggest_categorical(name, value)
+
+                # Then in the objective function:
+                if isinstance(value[0], int) and isinstance(value[1], int):
+                    hyperparams[name] = suggest_int_param(trial, name, value)
+                elif isinstance(value[0], (int, float)) and isinstance(value[1], (int, float)):
+                    hyperparams[name] = suggest_float_param(trial, name, value)
+                else:
+                    hyperparams[name] = suggest_categorical_param(trial, name, value)
             else:
-                hyperparams[name] = trail.suggest_categorical(name, value)
+                hyperparams[name] = trial.suggest_categorical(name, value)
         return bind_params_and_train(hyperparams)
 
     def tune_step_callback(study: optuna.study.Study, trial: optuna.trial.FrozenTrial):

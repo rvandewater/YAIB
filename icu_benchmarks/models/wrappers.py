@@ -22,7 +22,7 @@ from joblib import dump
 from pytorch_lightning import LightningModule
 
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(nn.functional.cross_entropy, module="torch.nn.functional")

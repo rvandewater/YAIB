@@ -4,7 +4,7 @@ import numpy as np
 import wandb
 from wandb.integration.lightgbm import wandb_callback as wandb_lgbm
 
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
 
 
@@ -36,7 +36,15 @@ class LGBMClassifier(LGBMWrapper):
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
-        """Predicts labels for the given features."""
+        """
+        Predicts class probabilities for the given features.
+
+        Args:
+            features: Input features for prediction.
+
+        Returns:
+            numpy.ndarray: Predicted probabilities for each class.
+        """
         return self.model.predict_proba(features)
 
 

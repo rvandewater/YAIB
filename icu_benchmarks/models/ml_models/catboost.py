@@ -1,6 +1,6 @@
 import gin
 import catboost as cb
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
 
 
@@ -15,5 +15,13 @@ class CBClassifier(MLWrapper):
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
-        """Predicts labels for the given features."""
+        """
+        Predicts class probabilities for the given features.
+
+        Args:
+            features: Input features for prediction.
+
+        Returns:
+            numpy.ndarray: Predicted probabilities for each class.
+        """
         return self.model.predict_proba(features)

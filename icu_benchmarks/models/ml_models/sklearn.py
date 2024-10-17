@@ -1,6 +1,6 @@
 import gin
 from sklearn import linear_model, ensemble, svm, neural_network
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
 
 

@@ -1,5 +1,5 @@
 from imblearn.ensemble import BalancedRandomForestClassifier, RUSBoostClassifier
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
 import gin
 

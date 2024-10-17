@@ -29,7 +29,7 @@ from .constants import DataSplit as Split, DataSegment as Segment
 import abc
 
 
-class Preprocessor:
+class Preprocessor(abc.ABC):
     @abc.abstractmethod
     def apply(self, data, vars, save_cache=False, load_cache=None, vars_to_exclude=None):
         return data

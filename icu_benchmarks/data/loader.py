@@ -1,3 +1,4 @@
+import warnings
 from typing import List
 from pandas import DataFrame
 import gin
@@ -67,10 +68,10 @@ class CommonPolarsDataset(Dataset):
         """
         return self.num_stays
 
-    def get_feature_names(self):
+    def get_feature_names(self) -> List[str]:
         return self.features_df.columns
 
-    def to_tensor(self):
+    def to_tensor(self) -> List[Tensor]:
         values = []
         for entry in self:
             for i, value in enumerate(entry):
@@ -174,7 +175,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         logging.debug(f"labels shape: {labels.shape}")
         return rep, labels, self.row_indicators.to_numpy()
 
-    def to_tensor(self):
+    def to_tensor(self) -> Tuple[Tensor, Tensor, Tensor]:
         data, labels, row_indicators = self.get_data_and_labels()
         if self.mps:
             return from_numpy(data).to(float32), from_numpy(labels).to(float32)
@@ -200,6 +201,7 @@ class CommonPandasDataset(Dataset):
         mps: bool = False,
         name: str = "",
     ):
+        warnings.warn("CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning, stacklevel=2)
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
@@ -228,10 +230,10 @@ class CommonPandasDataset(Dataset):
         """
         return self.num_stays
 
-    def get_feature_names(self):
+    def get_feature_names(self) -> List[str]:
         return self.features_df.columns
 
-    def to_tensor(self):
+    def to_tensor(self) -> List[Tensor]:
         values = []
         for entry in self:
             for i, value in enumerate(entry):

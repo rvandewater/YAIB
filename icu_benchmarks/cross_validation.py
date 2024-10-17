@@ -11,7 +11,7 @@ from icu_benchmarks.data.split_process_data import preprocess_data
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import log_full_line
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 
 
 @gin.configurable

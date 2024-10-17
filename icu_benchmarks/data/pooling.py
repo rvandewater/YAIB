@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from .constants import DataSegment as Segment, VarType as Var
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 import pyarrow.parquet as pq
 
 
@@ -67,7 +67,7 @@ class PooledData:
                 if folder.name in datasets:
                     data[folder.name] = {
                         f: pq.read_table(folder / self.file_names[f]).to_pandas(self_destruct=True)
-                        for f in self.file_names.keys()
+                        for f in self.file_names
                     }
         data = self._pool_datasets(
             datasets=data,

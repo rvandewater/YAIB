@@ -1,30 +1,42 @@
 import inspect
 import logging
+import os
+from statistics import mean
 
 import gin
 import numpy as np
-import os
-from icu_benchmarks.contants import RunMode
-from icu_benchmarks.models.wrappers import MLWrapper
+import shap
+import wandb
 import xgboost as xgb
 from xgboost.callback import EarlyStopping
 from wandb.integration.xgboost import wandb_callback as wandb_xgb
-import wandb
-from statistics import mean
+
+from icu_benchmarks.constants import RunMode
+from icu_benchmarks.models.wrappers import MLWrapper
+
+# Uncomment if needed in the future
 # from optuna.integration import XGBoostPruningCallback
-import shap
 
 
 @gin.configurable
 class XGBClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
+    _explain_values = False
 
     def __init__(self, *args, **kwargs):
         self.model = self.set_model_args(xgb.XGBClassifier, device="cpu", *args, **kwargs)
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
-        """Predicts labels for the given features."""
+        """
+        Predicts class probabilities for the given features.
+
+        Args:
+            features: Input features for prediction.
+
+        Returns:
+            numpy.ndarray: Predicted probabilities for each class.
+        """
         return self.model.predict_proba(features)
 
     def fit_model(self, train_data, train_labels, val_data, val_labels):
@@ -36,8 +48,9 @@ class XGBClassifier(MLWrapper):
         logging.info(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
         logging.info(train_labels)
         self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=False)
-        self.explainer = shap.TreeExplainer(self.model)
-        self.train_shap_values = self.explainer(train_data)
+        if self._explain_values:
+            self.explainer = shap.TreeExplainer(self.model)
+            self.train_shap_values = self.explainer(train_data)
         # shap.summary_plot(shap_values, X_test, feature_names=features)
         # logging.info(self.model.get_booster().get_score(importance_type='weight'))
         # self.log_dict(self.model.get_booster().get_score(importance_type='weight'))
@@ -61,7 +74,7 @@ class XGBClassifier(MLWrapper):
             # Save as: id, time (hours), ground truth, prediction 0, prediction 1
             np.savetxt(os.path.join(self.logger.save_dir, "pred_indicators.csv"), pred_indicators, delimiter=",")
             logging.debug(f"Saved row indicators to {os.path.join(self.logger.save_dir,f'row_indicators.csv')}")
-        if self.explainer is not None:
+        if self._explain_values and self.explainer is not None:
             self.test_shap_values = self.explainer(test_rep)
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
@@ -83,4 +96,6 @@ class XGBClassifier(MLWrapper):
         return model(**hyperparams)
 
     def get_feature_importance(self):
+        if not hasattr(self.model, 'feature_importances_'):
+            raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
         return self.model.feature_importances_

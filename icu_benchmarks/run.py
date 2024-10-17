@@ -20,7 +20,7 @@ from icu_benchmarks.run_utils import (
     name_datasets,
     get_config_files,
 )
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 
 
 @gin.configurable("Run")
@@ -55,13 +55,13 @@ def main(my_args=tuple(sys.argv[1:])):
         logging.debug(f"Binding modalities: {modalities}")
         gin.bind_parameter("preprocess.selected_modalities", modalities)
     if args.label:
+        logging.debug(f"Binding label: {args.label}")
         gin.bind_parameter("preprocess.label", args.label)
     tasks, models = get_config_files(Path("configs"))
-
-    if task not in tasks:
-        raise ValueError(f"Task {task} not found in tasks.")
-    if model not in models:
-        raise ValueError(f"Model {model} not found in models.")
+    if task not in tasks or model not in models:
+        raise ValueError(
+            f"Invalid task or model. Task: {task} {'not ' if task not in tasks else ''} found. "
+            f"Model: {model} {'not ' if model not in models else ''}found.")
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
@@ -192,6 +192,7 @@ def main(my_args=tuple(sys.argv[1:])):
         aggregate_results(run_dir, execution_time)
     except Exception as e:
         logging.error(f"Failed to aggregate results: {e}")
+        logging.debug("Error details:", exc_info=True)
     if args.plot:
         plot_aggregated_results(run_dir, "aggregated_test_metrics.json")
 

@@ -12,7 +12,7 @@ import pickle
 from timeit import default_timer as timer
 from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
 from icu_benchmarks.data.preprocessor import Preprocessor, PandasClassificationPreprocessor, PolarsClassificationPreprocessor
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
 
 
@@ -78,6 +78,8 @@ def preprocess_data(
             logging.debug(f"Multiple labels found and no value provided. Using first label: {vars[Var.label]}")
             vars[Var.label] = vars[Var.label][0]
         logging.info(f"Using label: {vars[Var.label]}")
+    if not vars[Var.label]:
+        raise ValueError("No label selected after filtering.")
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 
@@ -216,6 +218,8 @@ def modality_selection(
 ) -> dict[pl.DataFrame]:
     logging.info(f"Selected modalities: {selected_modalities}")
     selected_columns = [modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]
+    if not any(col in modality_mapping.keys() for col in selected_modalities):
+        raise ValueError("None of the selected modalities found in modality mapping.")
     if selected_columns == []:
         logging.info("No columns selected. Using all columns.")
         return data, vars
@@ -270,18 +274,12 @@ def make_train_val(
             data[Segment.outcome] = data[Segment.outcome].sample(frac=0.01, random_state=seed)
 
     # Get stay IDs from outcome segment
-    if polars:
-        stays = pl.Series(name=id, values=data[Segment.outcome][id].unique())
-    else:
-        stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
+    stays = _get_stays(data, id, polars)
 
     # If there are labels, and the task is classification, use stratified k-fold
     if Var.label in vars and runmode is RunMode.classification:
-        if polars:
-            labels = data[Segment.outcome].group_by(id).max()[vars[Var.label]]
-        else:
-            # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
-            labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+        # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
+        labels = _get_labels(data, id, vars, polars)
         train_val = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
         train, val = list(train_val.split(stays, labels))[0]
 
@@ -318,6 +316,18 @@ def make_train_val(
     # Maintain compatibility with test split
     data_split[Split.test] = copy.deepcopy(data_split[Split.val])
     return data_split
+
+def _get_stays(data, id, polars):
+    return pl.Series(name=id, values=data[Segment.outcome][id].unique()) if polars else pd.Series(data[Segment.outcome][id].unique(), name=id)
+
+def _get_labels(data, id, vars, polars):
+    # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
+    if polars:
+        return data[Segment.outcome].group_by(id).max()[vars[Var.label]]
+    else:
+        return data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+
+# Use these helper functions in both make_train_val and make_single_split
 
 
 def make_single_split(

@@ -1,7 +1,7 @@
 import gin
 from torch import nn as nn
 
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 
 
