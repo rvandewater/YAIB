@@ -42,7 +42,6 @@ class CommonPolarsDataset(Dataset):
             self.features_df = data[split][Segment.features]
             self.features_df = self.features_df.sort([self.vars["GROUP"], self.vars["SEQUENCE"]])
             self.features_df = self.features_df.drop(self.vars["SEQUENCE"])
-            self.grouping_df = self.grouping_df.sort([self.vars["GROUP"], self.vars["SEQUENCE"]])
         else:
             # We have a static dataset
             logging.info("Using static dataset")

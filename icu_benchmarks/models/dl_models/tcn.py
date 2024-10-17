@@ -17,10 +17,10 @@ class TemporalConvNet(DLPredictionWrapper):
 
     def __init__(self, input_size, num_channels, num_classes, *args, max_seq_length=0, kernel_size=2, dropout=0.0, **kwargs):
         super().__init__(
+            *args,
             input_size=input_size,
             num_channels=num_channels,
             num_classes=num_classes,
-            *args,
             max_seq_length=max_seq_length,
             kernel_size=kernel_size,
             dropout=dropout,

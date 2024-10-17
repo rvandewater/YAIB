@@ -1,7 +1,7 @@
 import logging
 from abc import ABC
 from typing import Dict, Any, List, Optional, Union
-
+from pathlib import Path
 import torchmetrics
 from sklearn.metrics import log_loss, mean_squared_error, average_precision_score, roc_auc_score
 
@@ -46,6 +46,8 @@ class BaseModule(LightningModule):
     trained_columns = None
     # Type of run mode
     run_mode = None
+    debug = False
+    explain_features = False
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError()
@@ -62,8 +64,14 @@ class BaseModule(LightningModule):
     def set_trained_columns(self, columns: List[str]):
         self.trained_columns = columns
 
-    def set_weight(self, weight, *args, **kwargs):
-        pass
+    def set_weight(self, weight, dataset):
+        """Set the weight for the loss function."""
+
+        if isinstance(weight, list):
+            weight = FloatTensor(weight).to(self.device)
+        elif weight == "balanced":
+            weight = FloatTensor(dataset.get_balance()).to(self.device)
+        self.loss_weights = weight
 
     def training_step(self, batch, batch_idx):
         return self.step_fn(batch, "train")
@@ -253,14 +261,7 @@ class DLPredictionWrapper(DLWrapper):
         self.output_transform = None
         self.loss_weights = None
 
-    def set_weight(self, weight, dataset):
-        """Set the weight for the loss function."""
 
-        if isinstance(weight, list):
-            weight = FloatTensor(weight).to(self.device)
-        elif weight == "balanced":
-            weight = FloatTensor(dataset.get_balance()).to(self.device)
-        self.loss_weights = weight
 
     def set_metrics(self, *args):
         """Set the evaluation metrics for the prediction model."""
@@ -373,10 +374,6 @@ class MLWrapper(BaseModule, ABC):
         self.scaler = None
         self.check_supported_runmode(run_mode)
         self.run_mode = run_mode
-        # if loss.__name__ in ["average_precision_score", "roc_auc_score"]:
-        #     self.loss = scorer_wrapper(average_precision_score)
-        # else:
-        #     self.loss = self.loss
         self.loss = loss
         self.patience = patience
         self.mps = mps
@@ -448,13 +445,18 @@ class MLWrapper(BaseModule, ABC):
         self.log_metrics(val_label, val_pred, "val")
 
     def test_step(self, dataset, _):
-        test_rep, test_label = dataset
-        test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
+        test_rep, test_label, pred_indicators = dataset
+        test_rep, test_label, pred_indicators = (
+            test_rep.squeeze().cpu().numpy(),
+            test_label.squeeze().cpu().numpy(),
+            pred_indicators.squeeze().cpu().numpy(),
+        )
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
-        # if self.explainer is not None:
-        #     self.test_shap_values = self.explainer(test_rep)
-        #     logging.info(f"Shap values: {self.test_shap_values}")
+        if self.debug:
+            self._save_model_outputs(pred_indicators, test_pred, test_label)
+        if self.explain_features:
+            self.explain_model(test_rep, test_label)
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
             self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
@@ -471,15 +473,12 @@ class MLWrapper(BaseModule, ABC):
 
     def log_metrics(self, label, pred, metric_type):
         """Log metrics to the PL logs."""
-        if "Confusion_Matrix" in self.metrics.keys():
+        if "Confusion_Matrix" in self.metrics:
             self.log_dict(confusion_matrix(self.label_transform(label), self.output_transform(pred)), sync_dist=True)
         self.log_dict(
             {
-                # MPS dependent type casting
                 f"{metric_type}/{name}": (
                     metric(self.label_transform(label), self.output_transform(pred))
-                    if not self.mps
-                    else metric(self.label_transform(label), self.output_transform(pred))
                 )
                 # For every metric
                 for name, metric in self.metrics.items()
@@ -489,7 +488,21 @@ class MLWrapper(BaseModule, ABC):
             },
             sync_dist=True,
         )
+    def _explain_model(self, test_rep, test_label):
+        if self.explainer is not None:
+            self.test_shap_values = self.explainer(test_rep)
+        else:
+            logging.warning("No explainer or explain_features values set.")
 
+    def _save_model_outputs(self, pred_indicators, test_pred, test_label):
+        if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1 and pred_indicators.shape[1] == test_pred.shape[1]:
+            pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
+            pred_indicators = np.hstack((pred_indicators, test_pred))
+            # Save as: id, time (hours), ground truth, prediction 0, prediction 1
+            np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",")
+            logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
+        else:
+            logging.warning("Could not save row indicators.")
     def configure_optimizers(self):
         return None
 

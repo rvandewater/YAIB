@@ -74,8 +74,6 @@ class XGBClassifier(MLWrapper):
             # Save as: id, time (hours), ground truth, prediction 0, prediction 1
             np.savetxt(os.path.join(self.logger.save_dir, "pred_indicators.csv"), pred_indicators, delimiter=",")
             logging.debug(f"Saved row indicators to {os.path.join(self.logger.save_dir,f'row_indicators.csv')}")
-        if self._explain_values and self.explainer is not None:
-            self.test_shap_values = self.explainer(test_rep)
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
             self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")

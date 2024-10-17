@@ -6,26 +6,36 @@ from icu_benchmarks.models.dl_models.layers import PositionalEncoding, Transform
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 
 
-@gin.configurable
-class Transformer(DLPredictionWrapper):
-    """Transformer model as defined by the HiRID-Benchmark (https://github.com/ratschlab/HIRID-ICU-Benchmark)."""
-
+class BaseTransformer(DLPredictionWrapper):
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
+    def forward(self, x):
+        x = self.input_embedding(x)
+        if self.pos_encoder is not None:
+            x = self.pos_encoder(x)
+        x = self.tblocks(x)
+        pred = self.logit(x)
+        return pred
+
+
+@gin.configurable
+class Transformer(BaseTransformer):
+    """Transformer model as defined by the HiRID-Benchmark (https://github.com/ratschlab/HIRID-ICU-Benchmark)."""
+
     def __init__(
-        self,
-        input_size,
-        hidden,
-        heads,
-        ff_hidden_mult,
-        depth,
-        num_classes,
-        *args,
-        dropout=0.0,
-        l1_reg=0,
-        pos_encoding=True,
-        dropout_att=0.0,
-        **kwargs,
+            self,
+            input_size,
+            hidden,
+            heads,
+            ff_hidden_mult,
+            depth,
+            num_classes,
+            dropout=0.0,
+            l1_reg=0,
+            pos_encoding=True,
+            dropout_att=0.0,
+            *args,
+            **kwargs,
     ):
         super().__init__(
             input_size=input_size,
@@ -66,35 +76,26 @@ class Transformer(DLPredictionWrapper):
         self.logit = nn.Linear(hidden, num_classes)
         self.l1_reg = l1_reg
 
-    def forward(self, x):
-        x = self.input_embedding(x)
-        if self.pos_encoder is not None:
-            x = self.pos_encoder(x)
-        x = self.tblocks(x)
-        pred = self.logit(x)
-
-        return pred
-
 
 @gin.configurable
-class LocalTransformer(DLPredictionWrapper):
+class LocalTransformer(BaseTransformer):
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
     def __init__(
-        self,
-        input_size,
-        hidden,
-        heads,
-        ff_hidden_mult,
-        depth,
-        num_classes,
-        *args,
-        dropout=0.0,
-        l1_reg=0,
-        pos_encoding=True,
-        local_context=1,
-        dropout_att=0.0,
-        **kwargs,
+            self,
+            input_size,
+            hidden,
+            heads,
+            ff_hidden_mult,
+            depth,
+            num_classes,
+            *args,
+            dropout=0.0,
+            l1_reg=0,
+            pos_encoding=True,
+            local_context=1,
+            dropout_att=0.0,
+            **kwargs,
     ):
         super().__init__(
             input_size=input_size,
@@ -137,12 +138,3 @@ class LocalTransformer(DLPredictionWrapper):
         self.tblocks = nn.Sequential(*tblocks)
         self.logit = nn.Linear(hidden, num_classes)
         self.l1_reg = l1_reg
-
-    def forward(self, x):
-        x = self.input_embedding(x)
-        if self.pos_encoder is not None:
-            x = self.pos_encoder(x)
-        x = self.tblocks(x)
-        pred = self.logit(x)
-
-        return pred

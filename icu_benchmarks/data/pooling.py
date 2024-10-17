@@ -66,8 +66,7 @@ class PooledData:
             if folder.is_dir():
                 if folder.name in datasets:
                     data[folder.name] = {
-                        f: pq.read_table(folder / self.file_names[f]).to_pandas(self_destruct=True)
-                        for f in self.file_names
+                        f: pq.read_table(folder / self.file_names[f]).to_pandas(self_destruct=True) for f in self.file_names
                     }
         data = self._pool_datasets(
             datasets=data,
@@ -103,9 +102,9 @@ class PooledData:
 
     def _pool_datasets(
         self,
-        datasets={},
+        datasets=None,
         samples=10000,
-        vars=[],
+        vars=None,
         seed=42,
         shuffle=True,
         runmode=RunMode.classification,
@@ -126,6 +125,10 @@ class PooledData:
         Returns:
             pooled dataset
         """
+        if datasets is None:
+            datasets = {}
+        if vars is None:
+            vars = []
         if len(datasets) == 0:
             raise ValueError("No datasets supplied.")
         pooled_data = {Segment.static: [], Segment.dynamic: [], Segment.outcome: []}

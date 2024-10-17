@@ -44,6 +44,8 @@ class Preprocessor(abc.ABC):
             update_wandb_config({"imputation_model": self.imputation_model.__class__.__name__})
 
 
+
+
 @gin.configurable("base_classification_preprocessor")
 class PolarsClassificationPreprocessor(Preprocessor):
     def __init__(
@@ -260,14 +262,17 @@ class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
         outcome_rec = Recipe(data[split][Segment.outcome], vars["LABEL"], [], vars["GROUP"])
         # If the range is predefined, use predefined transformation function
         if self.outcome_max is not None and self.outcome_min is not None:
-            outcome_rec.add_step(
-                StepSklearn(
-                    sklearn_transformer=FunctionTransformer(
-                        func=lambda x: ((x - self.outcome_min) / (self.outcome_max - self.outcome_min))
-                    ),
-                    sel=all_outcomes(),
+            if self.outcome_max == self.outcome_min:
+                logging.warning("outcome_max equals outcome_min. Skipping outcome scaling.")
+            else:
+                outcome_rec.add_step(
+                    StepSklearn(
+                        sklearn_transformer=FunctionTransformer(
+                            func=lambda x: ((x - self.outcome_min) / (self.outcome_max - self.outcome_min))
+                        ),
+                        sel=all_outcomes(),
+                    )
                 )
-            )
         else:
             # If the range is not predefined, use MinMaxScaler
             outcome_rec.add_step(StepSklearn(MinMaxScaler(), sel=all_outcomes()))

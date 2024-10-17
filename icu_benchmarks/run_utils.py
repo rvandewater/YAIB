@@ -284,3 +284,18 @@ def get_config_files(config_dir: Path):
     logging.info(f"Found tasks: {tasks}")
     logging.info(f"Found models: {models}")
     return tasks, models
+
+def check_required_keys(vars, required_keys):
+    """
+    Checks if all required keys are present in the vars dictionary.
+
+    Args:
+        vars (dict): The dictionary to check.
+        required_keys (list): The list of required keys.
+
+    Raises:
+        KeyError: If any required key is missing.
+    """
+    missing_keys = [key for key in required_keys if key not in vars]
+    if missing_keys:
+        raise KeyError(f"Missing required keys in vars: {', '.join(missing_keys)}")

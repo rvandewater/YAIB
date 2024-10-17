@@ -22,7 +22,7 @@ logging.addLevelName(25, "TUNE")
 
 
 @gin.configurable("tune_hyperparameters_deprecated")
-def choose_and_bind_hyperparameters(
+def choose_and_bind_hyperparameters_scikit_optimize(
     do_tune: bool,
     data_dir: Path,
     log_dir: Path,
@@ -63,6 +63,8 @@ def choose_and_bind_hyperparameters(
     Raises:
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
+    logging.warning("This function is deprecated and will be removed in the future. "
+                    "Use choose_and_bind_hyperparameters_optuna instead.")
     hyperparams = {}
 
     if len(scopes) == 0 or folds_to_tune_on is None:

@@ -13,6 +13,7 @@ from timeit import default_timer as timer
 from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
 from icu_benchmarks.data.preprocessor import Preprocessor, PandasClassificationPreprocessor, PolarsClassificationPreprocessor
 from icu_benchmarks.constants import RunMode
+from icu_benchmarks.run_utils import check_required_keys
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
 
 
@@ -38,7 +39,6 @@ def preprocess_data(
     complete_train: bool = False,
     runmode: RunMode = RunMode.classification,
     label: str = None,
-    vars_to_exclude: list[str] = [],
 ) -> dict[dict[pl.DataFrame]] or dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -67,7 +67,8 @@ def preprocess_data(
     """
 
     cache_dir = data_dir / "cache"
-
+    required_keys = ["GROUP", "SEQUENCE", "LABEL"]
+    check_required_keys(vars, required_keys)
     if not use_static:
         file_names.pop(Segment.static)
         vars.pop(Segment.static)

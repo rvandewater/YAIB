@@ -13,7 +13,6 @@ from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import log_full_line
 from icu_benchmarks.constants import RunMode
 
-
 @gin.configurable
 def execute_repeated_cv(
     data_dir: Path,
@@ -104,10 +103,6 @@ def execute_repeated_cv(
                 runmode=mode,
                 complete_train=complete_train,
             )
-            # logging.debug(f"{data}")
-            # data_pickle_path = log_dir / "data.pkl"
-            # with open(data_pickle_path, "wb") as f:
-            #     pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
             preprocess_time = datetime.now() - start_time
             start_time = datetime.now()
             agg_loss += train_common(
@@ -123,8 +118,6 @@ def execute_repeated_cv(
                 verbose=verbose,
                 use_wandb=wandb,
                 train_only=complete_train,
-                epochs=20,
-                patience=5,
             )
             train_time = datetime.now() - start_time
 
@@ -146,3 +139,4 @@ def execute_repeated_cv(
         log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)
+

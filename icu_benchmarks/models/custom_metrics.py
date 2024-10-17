@@ -138,12 +138,8 @@ def confusion_matrix(y_true: ndarray, y_pred: ndarray, normalize=False) -> torch
     confusion = sk_confusion_matrix(y_true, y_pred)
     if normalize:
         confusion = confusion / confusion.sum()
-    # confusion_tensor = torch.tensor(confusion)
-    # confusion = confusion.tolist()
     confusion_dict = {}
     for i in range(confusion.shape[0]):
         for j in range(confusion.shape[1]):
             confusion_dict[f"class_{i}_pred_{j}"] = confusion[i][j]
-    # logging.info(f"Confusion matrix: {confusion_dict}")
-    # dict = {"TP": confusion[0][0], "FP": confusion[0][1], "FN": confusion[1][0], "TN": confusion[1][1]}
     return confusion_dict
