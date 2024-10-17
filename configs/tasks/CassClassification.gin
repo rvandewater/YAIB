@@ -25,7 +25,6 @@ include "configs/tasks/common/Dataloader.gin"
 # SELECTING DATASET
 # PredictionDataset.vars = %vars
 # PredictionDataset.ram_cache = True
-
 # DATASET CONFIGURATION
 preprocess.file_names = {
     "DYNAMIC": "dyn.parquet",
