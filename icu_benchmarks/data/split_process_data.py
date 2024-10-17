@@ -7,15 +7,10 @@ import json
 import hashlib
 import pandas as pd
 import polars as pl
-import pyarrow.parquet as pq
 from pathlib import Path
 import pickle
 from timeit import default_timer as timer
-
-from setuptools.dist import sequence
 from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
-from sqlalchemy import false
-
 from icu_benchmarks.data.preprocessor import Preprocessor, PandasClassificationPreprocessor, PolarsClassificationPreprocessor
 from icu_benchmarks.contants import RunMode
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
@@ -44,7 +39,6 @@ def preprocess_data(
     runmode: RunMode = RunMode.classification,
     label: str = None,
     vars_to_exclude: list[str] = [],
-
 ) -> dict[dict[pl.DataFrame]] or dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -90,9 +84,14 @@ def preprocess_data(
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
 
     logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
-    vars_to_exclude = modality_mapping.get("cat_clinical_notes") + modality_mapping.get("cat_med_embeddings_map") if (
+    vars_to_exclude = (
+        modality_mapping.get("cat_clinical_notes") + modality_mapping.get("cat_med_embeddings_map")
+        if (
             modality_mapping.get("cat_clinical_notes") is not None
-            and modality_mapping.get("cat_med_embeddings_map") is not None) else None
+            and modality_mapping.get("cat_med_embeddings_map") is not None
+        )
+        else None
+    )
 
     preprocessor = preprocessor(
         use_static_features=use_static,
@@ -116,7 +115,9 @@ def preprocess_data(
 
     # Read parquet files into pandas dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
-    data = {f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys() if os.path.exists(data_dir / file_names[f])}
+    data = {
+        f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys() if os.path.exists(data_dir / file_names[f])
+    }
     logging.info(f"Loaded data: {list(data.keys())}")
     data = check_sanitize_data(data, vars)
 
@@ -126,10 +127,10 @@ def preprocess_data(
     logging.debug(f"Modality mapping: {modality_mapping}")
     if len(modality_mapping) > 0:
         # Optional modality selection
-        if not (selected_modalities == "all" or selected_modalities == ["all"] or selected_modalities == None):
+        if selected_modalities not in [None, "all", ["all"]]:
             data, vars = modality_selection(data, modality_mapping, selected_modalities, vars)
         else:
-            logging.info(f"Selecting all modalities.")
+            logging.info("Selecting all modalities.")
 
     # Generate the splits
     logging.info("Generating splits.")
@@ -161,17 +162,17 @@ def preprocess_data(
     for dict in data.values():
         for key, val in dict.items():
             logging.debug(f"Data type: {key}")
-            logging.debug(f"Is NaN:")
+            logging.debug("Is NaN:")
             sel = dict[key].select(pl.selectors.numeric().is_nan().max())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
             # logging.info(dict[key].select(pl.all().has_nulls()).sum_horizontal())
-            logging.debug(f"Has nulls:")
+            logging.debug("Has nulls:")
             sel = dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
             # dict[key] = val[:, [not (s.null_count() > 0) for s in val]]
             dict[key] = val.fill_null(strategy="zero")
             dict[key] = val.fill_nan(0)
-            logging.debug(f"Dropping columns with nulls")
+            logging.debug("Dropping columns with nulls")
             sel = dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
 
@@ -197,13 +198,13 @@ def check_sanitize_data(data, vars):
         logging.warning(f"Removed {old_len - len(data[Segment.static])} duplicates from static data.")
     if Segment.dynamic in data.keys():
         old_len = len(data[Segment.dynamic])
-        data[Segment.dynamic] = data[Segment.dynamic].unique(subset=[group,sequence], keep=keep, maintain_order=True)
+        data[Segment.dynamic] = data[Segment.dynamic].unique(subset=[group, sequence], keep=keep, maintain_order=True)
         logging.warning(f"Removed {old_len - len(data[Segment.dynamic])} duplicates from dynamic data.")
     if Segment.outcome in data.keys():
         old_len = len(data[Segment.outcome])
         if sequence in data[Segment.outcome].columns:
             # We have a dynamic outcome with group and sequence
-            data[Segment.outcome] = data[Segment.outcome].unique(subset=[group,sequence], keep=keep, maintain_order=True)
+            data[Segment.outcome] = data[Segment.outcome].unique(subset=[group, sequence], keep=keep, maintain_order=True)
         else:
             data[Segment.outcome] = data[Segment.outcome].unique(subset=[group], keep=keep, maintain_order=True)
         logging.warning(f"Removed {old_len - len(data[Segment.outcome])} duplicates from outcome data.")
@@ -216,7 +217,7 @@ def modality_selection(
     logging.info(f"Selected modalities: {selected_modalities}")
     selected_columns = [modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]
     if selected_columns == []:
-        logging.info(f"No columns selected. Using all columns.")
+        logging.info("No columns selected. Using all columns.")
         return data, vars
     selected_columns = sum(selected_columns, [])
     selected_columns.extend([vars[Var.group], vars[Var.label], vars[Var.sequence]])

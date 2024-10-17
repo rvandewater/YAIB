@@ -81,9 +81,9 @@ def main(my_args=tuple(sys.argv[1:])):
     # Log imputation model to wandb
     update_wandb_config(
         {
-            "pretrained_imputation_model": pretrained_imputation_model.__class__.__name__
-            if pretrained_imputation_model is not None
-            else "None"
+            "pretrained_imputation_model": (
+                pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"
+            )
         }
     )
 
@@ -131,7 +131,7 @@ def main(my_args=tuple(sys.argv[1:])):
         name_datasets(args.name, args.name, args.name)
         hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
-                Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
+            Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]

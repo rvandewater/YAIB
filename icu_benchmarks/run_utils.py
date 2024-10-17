@@ -19,6 +19,7 @@ import os
 import glob
 import polars as pl
 
+
 def build_parser() -> ArgumentParser:
     """Builds an ArgumentParser for the command line.
 
@@ -109,7 +110,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     """
     aggregated = {}
     shap_values_test = []
-    shap_values_train = []
+    # shap_values_train = []
     for repetition in log_dir.iterdir():
         if repetition.is_dir():
             aggregated[repetition.name] = {}
@@ -255,8 +256,8 @@ def setup_logging(date_format, log_format, verbose):
 
 
 def get_config_files(config_dir: Path):
-    tasks = glob.glob(os.path.join(config_dir / "tasks", '*'))
-    models = glob.glob(os.path.join(config_dir / "prediction_models", '*'))
+    tasks = glob.glob(os.path.join(config_dir / "tasks", "*"))
+    models = glob.glob(os.path.join(config_dir / "prediction_models", "*"))
     tasks = [os.path.splitext(os.path.basename(task))[0] for task in tasks]
     models = [os.path.splitext(os.path.basename(model))[0] for model in models]
     if "common" in tasks:

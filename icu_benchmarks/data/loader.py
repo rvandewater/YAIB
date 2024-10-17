@@ -15,20 +15,20 @@ from .constants import DataSplit as Split
 @gin.configurable("CommonPolarsDataset")
 class CommonPolarsDataset(Dataset):
     def __init__(
-            self,
-            data: dict,
-            split: str = Split.train,
-            vars: Dict[str, str] = gin.REQUIRED,
-            grouping_segment: str = Segment.outcome,
-            mps: bool = False,
-            name: str = "",
-            *args,
-            **kwargs
+        self,
+        data: dict,
+        split: str = Split.train,
+        vars: Dict[str, str] = gin.REQUIRED,
+        grouping_segment: str = Segment.outcome,
+        mps: bool = False,
+        name: str = "",
+        *args,
+        **kwargs,
     ):
         # super().__init__(*args, **kwargs)
         self.split = split
         self.vars = vars
-        self.grouping_df = data[split][grouping_segment]  #.set_index(self.vars["GROUP"])
+        self.grouping_df = data[split][grouping_segment]  # .set_index(self.vars["GROUP"])
         # logging.info(f"data split: {data[split]}")
         # self.features_df = (
         #     data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
@@ -84,9 +84,9 @@ class CommonPolarsDataset(Dataset):
 class PredictionPolarsDataset(CommonPolarsDataset):
     """Subclass of common dataset for prediction tasks.
 
-     Args:
-         ram_cache (bool, optional): Whether the complete dataset should be stored in ram. Defaults to True.
-     """
+    Args:
+        ram_cache (bool, optional): Whether the complete dataset should be stored in ram. Defaults to True.
+    """
 
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
@@ -168,9 +168,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
             rep = rep.group_by(self.vars["GROUP"]).last()
         else:
             # Adding segment count for each stay id and timestep.
-            rep = rep.with_columns(
-                pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter")
-            )
+            rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
         rep = rep.to_numpy().astype(float)
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
@@ -183,6 +181,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         else:
             return from_numpy(data), from_numpy(labels), row_indicators
 
+
 @gin.configurable("CommonPandasDataset")
 class CommonPandasDataset(Dataset):
     """Common dataset: subclass of Torch Dataset that represents the data to learn on.
@@ -193,13 +192,13 @@ class CommonPandasDataset(Dataset):
     """
 
     def __init__(
-            self,
-            data: dict,
-            split: str = Split.train,
-            vars: Dict[str, str] = gin.REQUIRED,
-            grouping_segment: str = Segment.outcome,
-            mps: bool = False,
-            name: str = "",
+        self,
+        data: dict,
+        split: str = Split.train,
+        vars: Dict[str, str] = gin.REQUIRED,
+        grouping_segment: str = Segment.outcome,
+        mps: bool = False,
+        name: str = "",
     ):
         self.split = split
         self.vars = vars
@@ -306,7 +305,7 @@ class PredictionPandasDataset(CommonPandasDataset):
             Weights for each label.
         """
         counts = self.outcome_df[self.vars["LABEL"]].value_counts()
-        weights = list((1 / counts) * np.sum(counts) / counts.shape[0])
+        # weights = list((1 / counts) * np.sum(counts) / counts.shape[0])
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
     def get_data_and_labels(self) -> Tuple[np.array, np.array]:
@@ -339,14 +338,14 @@ class ImputationPandasDataset(CommonPandasDataset):
     """Subclass of Common Dataset that contains data for imputation models."""
 
     def __init__(
-            self,
-            data: Dict[str, DataFrame],
-            split: str = Split.train,
-            vars: Dict[str, str] = gin.REQUIRED,
-            mask_proportion=0.3,
-            mask_method="MCAR",
-            mask_observation_proportion=0.3,
-            ram_cache: bool = True,
+        self,
+        data: Dict[str, DataFrame],
+        split: str = Split.train,
+        vars: Dict[str, str] = gin.REQUIRED,
+        mask_proportion=0.3,
+        mask_method="MCAR",
+        mask_observation_proportion=0.3,
+        ram_cache: bool = True,
     ):
         """
         Args:
@@ -413,11 +412,11 @@ class ImputationPredictionDataset(Dataset):
     """
 
     def __init__(
-            self,
-            data: DataFrame,
-            grouping_column: str = "stay_id",
-            select_columns: List[str] = None,
-            ram_cache: bool = True,
+        self,
+        data: DataFrame,
+        grouping_column: str = "stay_id",
+        select_columns: List[str] = None,
+        ram_cache: bool = True,
     ):
         self.dyn_df = data
 

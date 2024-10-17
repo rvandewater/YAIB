@@ -26,7 +26,7 @@ from icu_benchmarks.models.custom_metrics import (
     MAE,
     JSD,
     BinaryFairnessWrapper,
-    confusion_matrix
+    confusion_matrix,
 )
 
 
@@ -38,7 +38,6 @@ class MLMetrics:
         "PR_Curve": precision_recall_curve,
         "RO_Curve": roc_curve,
         "Confusion_Matrix": confusion_matrix,
-
     }
 
     MULTICLASS_CLASSIFICATION = {
@@ -47,7 +46,6 @@ class MLMetrics:
         "Balanced_Accuracy": balanced_accuracy_score,
         # "PR": average_precision_score,
         "Confusion_Matrix": confusion_matrix,
-
     }
 
     REGRESSION = {

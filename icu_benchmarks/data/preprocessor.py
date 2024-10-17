@@ -6,14 +6,13 @@ import logging
 
 import gin
 import pandas as pd
-import polars.selectors as cs
 import polars as pl
 from recipys.recipe import Recipe
 from recipys.selector import all_numeric_predictors, all_outcomes, has_type, all_of
 from recipys.step import (
     StepScale,
-    # StepImputeFastForwardFill,
-    # StepImputeFastZeroFill,
+    StepImputeFastForwardFill,
+    StepImputeFastZeroFill,
     StepImputeFill,
     StepSklearn,
     StepHistorical,
@@ -43,6 +42,7 @@ class Preprocessor:
         self.imputation_model = imputation_model
         if self.imputation_model is not None:
             update_wandb_config({"imputation_model": self.imputation_model.__class__.__name__})
+
 
 @gin.configurable("base_classification_preprocessor")
 class PolarsClassificationPreprocessor(Preprocessor):
@@ -83,7 +83,11 @@ class PolarsClassificationPreprocessor(Preprocessor):
             Preprocessed data.
         """
         # Check if dynamic features are present
-        if self.use_static_features and all(Segment.static in value for value in data.values()) and len(vars[Segment.static]) > 0:
+        if (
+            self.use_static_features
+            and all(Segment.static in value for value in data.values())
+            and len(vars[Segment.static]) > 0
+        ):
             logging.info("Preprocessing static features.")
             data = self._process_static(data, vars)
         else:
@@ -124,9 +128,13 @@ class PolarsClassificationPreprocessor(Preprocessor):
         logging.debug(data[Split.train][Segment.features].head())
         logging.debug(data[Split.train][Segment.outcome])
         for split in [Split.train, Split.val, Split.test]:
-            if vars["SEQUENCE"] in data[split][Segment.outcome] and len(data[split][Segment.features]) != len(data[split][Segment.outcome]):
-                raise Exception(f"Data and outcome length mismatch in {split} split: "
-                                f"features: {len(data[split][Segment.features])}, outcome: {len(data[split][Segment.outcome])}")
+            if vars["SEQUENCE"] in data[split][Segment.outcome] and len(data[split][Segment.features]) != len(
+                data[split][Segment.outcome]
+            ):
+                raise Exception(
+                    f"Data and outcome length mismatch in {split} split: "
+                    f"features: {len(data[split][Segment.features])}, outcome: {len(data[split][Segment.outcome])}"
+                )
         data[Split.train][Segment.features] = data[Split.train][Segment.features].unique()
         data[Split.val][Segment.features] = data[Split.val][Segment.features].unique()
         data[Split.test][Segment.features] = data[Split.test][Segment.features].unique()
@@ -139,13 +147,13 @@ class PolarsClassificationPreprocessor(Preprocessor):
         sta_rec.add_step(StepSklearn(MissingIndicator(features="all"), sel=all_of(vars[Segment.static]), in_place=False))
         if self.scaling:
             sta_rec.add_step(StepScale())
-        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(),strategy="zero"))
+        sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), strategy="zero"))
         # sta_rec.add_step(StepImputeFastZeroFill(sel=all_numeric_predictors()))
         # if len(data[Split.train][Segment.static].select_dtypes(include=["object"]).columns) > 0:
         types = ["String", "Object", "Categorical"]
         sel = has_type(types)
-        if(len(sel(sta_rec.data))>0):
-        # if len(data[Split.train][Segment.static].select(cs.by_dtype(types)).columns) > 0:
+        if len(sel(sta_rec.data)) > 0:
+            # if len(data[Split.train][Segment.static].select(cs.by_dtype(types)).columns) > 0:
             sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=None, strategy="most_frequent"), sel=has_type(types)))
             sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type(types), columnwise=True))
 
@@ -202,6 +210,8 @@ class PolarsClassificationPreprocessor(Preprocessor):
             super().to_cache_string()
             + f"_classification_{self.generate_features}_{self.scaling}_{self.imputation_model.__class__.__name__}"
         )
+
+
 @gin.configurable("base_regression_preprocessor")
 class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
     # Override base classification preprocessor
@@ -264,6 +274,7 @@ class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
         outcome_rec.prep()
         data[split][Segment.outcome] = outcome_rec.bake()
         return data
+
 
 @gin.configurable("pandas_classification_preprocessor")
 class PandasClassificationPreprocessor(Preprocessor):

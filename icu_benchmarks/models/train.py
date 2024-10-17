@@ -82,7 +82,11 @@ def train_common(
 
     logging.info(f"Training model: {model.__name__}.")
     # todo: add support for polars versions of datasets
-    dataset_class = ImputationPandasDataset if mode == RunMode.imputation else PredictionPolarsDataset if polars else PredictionPandasDataset
+    dataset_class = (
+        ImputationPandasDataset
+        if mode == RunMode.imputation
+        else PredictionPolarsDataset if polars else PredictionPandasDataset
+    )
     # dataset_class = ImputationPandasDataset if mode == RunMode.imputation else PredictionPandasDataset
 
     logging.info(f"Using dataset class: {dataset_class.__name__}.")
@@ -112,7 +116,7 @@ def train_common(
         num_workers=num_workers,
         # pin_memory=not cpu,
         drop_last=True,
-        persistent_workers=persistent_workers
+        persistent_workers=persistent_workers,
     )
     val_loader = DataLoader(
         val_dataset,
@@ -121,7 +125,7 @@ def train_common(
         num_workers=num_workers,
         # pin_memory=not cpu,
         drop_last=True,
-        persistent_workers=persistent_workers
+        persistent_workers=persistent_workers,
     )
 
     data_shape = next(iter(train_loader))[0].shape
@@ -185,7 +189,7 @@ def train_common(
             num_workers=num_workers,
             pin_memory=True,
             drop_last=True,
-            persistent_workers=persistent_workers
+            persistent_workers=persistent_workers,
         )
         if model.requires_backprop
         else DataLoader([test_dataset.to_tensor()], batch_size=1)
@@ -197,6 +201,7 @@ def train_common(
     save_config_file(log_dir)
     return test_loss
 
+
 def persist_data(trainer, log_dir):
     try:
         if trainer.lightning_module.test_shap_values is not None:
@@ -205,18 +210,17 @@ def persist_data(trainer, log_dir):
             #     'features': trainer.lightning_module.trained_columns,
             #     'feature_value': np.transpose(shap_values.values.mean(axis=0)),
             # })
-            shaps_test = pl.DataFrame(schema = trainer.lightning_module.trained_columns,
-                                        data = np.transpose(shap_values.values))
+            shaps_test = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(shap_values.values))
             shaps_test.write_parquet(log_dir / "shap_values_test.parquet")
             logging.info(f"Saved shap values to {log_dir / 'test_shap_values.parquet'}")
         if trainer.lightning_module.train_shap_values is not None:
             shap_values = trainer.lightning_module.train_shap_values
-            shaps_train = pl.DataFrame(schema = trainer.lightning_module.trained_columns,
-                                        data = np.transpose(shap_values.values))
+            shaps_train = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(shap_values.values))
             shaps_train.write_parquet(log_dir / "shap_values_train.parquet")
 
     except Exception as e:
         logging.error(f"Failed to save shap values: {e}")
+
 
 def load_model(model, source_dir, pl_model=True):
     if source_dir.exists():

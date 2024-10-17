@@ -3,24 +3,24 @@ import logging
 
 import gin
 import numpy as np
-import torch
 import os
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
 import xgboost as xgb
-from xgboost.callback import EarlyStopping, LearningRateScheduler
+from xgboost.callback import EarlyStopping
 from wandb.integration.xgboost import wandb_callback as wandb_xgb
 import wandb
 from statistics import mean
-from optuna.integration import XGBoostPruningCallback
+# from optuna.integration import XGBoostPruningCallback
 import shap
+
 
 @gin.configurable
 class XGBClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(xgb.XGBClassifier, device="cpu",*args, **kwargs)
+        self.model = self.set_model_args(xgb.XGBClassifier, device="cpu", *args, **kwargs)
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
@@ -43,20 +43,23 @@ class XGBClassifier(MLWrapper):
         # self.log_dict(self.model.get_booster().get_score(importance_type='weight'))
         # Return the first metric we use for validation
         eval_score = mean(next(iter(self.model.evals_result_["validation_0"].values())))
-        return eval_score #, callbacks=callbacks)
-
+        return eval_score  # , callbacks=callbacks)
 
     def test_step(self, dataset, _):
         # Pred indicators indicates the row id, and time in hours
         test_rep, test_label, pred_indicators = dataset
-        test_rep, test_label, pred_indicators = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy(), pred_indicators.squeeze().cpu().numpy()
+        test_rep, test_label, pred_indicators = (
+            test_rep.squeeze().cpu().numpy(),
+            test_label.squeeze().cpu().numpy(),
+            pred_indicators.squeeze().cpu().numpy(),
+        )
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
-        if len(pred_indicators.shape)>1 and len(test_pred.shape)>1 and pred_indicators.shape[1] == test_pred.shape[1]:
+        if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1 and pred_indicators.shape[1] == test_pred.shape[1]:
             pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
             pred_indicators = np.hstack((pred_indicators, test_pred))
             # Save as: id, time (hours), ground truth, prediction 0, prediction 1
-            np.savetxt(os.path.join(self.logger.save_dir,f'pred_indicators.csv'), pred_indicators, delimiter=",")
+            np.savetxt(os.path.join(self.logger.save_dir, "pred_indicators.csv"), pred_indicators, delimiter=",")
             logging.debug(f"Saved row indicators to {os.path.join(self.logger.save_dir,f'row_indicators.csv')}")
         if self.explainer is not None:
             self.test_shap_values = self.explainer(test_rep)
@@ -67,8 +70,6 @@ class XGBClassifier(MLWrapper):
             self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
             self.log_metrics(test_label, test_pred, "test")
         logging.debug(f"Test loss: {self.loss(test_label, test_pred)}")
-
-
 
     def set_model_args(self, model, *args, **kwargs):
         """XGBoost signature does not include the hyperparams so we need to pass them manually."""

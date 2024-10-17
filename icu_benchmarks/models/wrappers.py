@@ -17,7 +17,7 @@ import numpy as np
 from ignite.exceptions import NotComputableError
 from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.custom_metrics import confusion_matrix
-from icu_benchmarks.models.utils import create_optimizer, create_scheduler, scorer_wrapper
+from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 from joblib import dump
 from pytorch_lightning import LightningModule
 
@@ -33,6 +33,7 @@ gin.config.external_configurable(log_loss, module="sklearn.metrics")
 gin.config.external_configurable(average_precision_score, module="sklearn.metrics")
 gin.config.external_configurable(roc_auc_score, module="sklearn.metrics")
 # gin.config.external_configurable(scorer_wrapper, module="icu_benchmarks.models.utils")
+
 
 @gin.configurable("BaseModule")
 class BaseModule(LightningModule):
@@ -475,13 +476,16 @@ class MLWrapper(BaseModule, ABC):
         self.log_dict(
             {
                 # MPS dependent type casting
-                f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred))
-                if not self.mps
-                else metric(self.label_transform(label), self.output_transform(pred))
+                f"{metric_type}/{name}": (
+                    metric(self.label_transform(label), self.output_transform(pred))
+                    if not self.mps
+                    else metric(self.label_transform(label), self.output_transform(pred))
+                )
                 # For every metric
                 for name, metric in self.metrics.items()
                 # Filter out metrics that return a tuple (e.g. precision_recall_curve)
-                if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple) and name != "Confusion_Matrix"
+                if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
+                and name != "Confusion_Matrix"
             },
             sync_dist=True,
         )

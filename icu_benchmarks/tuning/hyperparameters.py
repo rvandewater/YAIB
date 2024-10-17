@@ -16,6 +16,7 @@ from icu_benchmarks.tuning.gin_utils import get_gin_hyperparameters, bind_gin_pa
 from icu_benchmarks.contants import RunMode
 from icu_benchmarks.wandb_utils import wandb_log
 from optuna.visualization import plot_param_importances, plot_optimization_history
+
 TUNE = 25
 logging.addLevelName(25, "TUNE")
 
@@ -286,8 +287,9 @@ def choose_and_bind_hyperparameters_optuna(
             bind_gin_params(configuration)
             return
         else:
-            logging.log(TUNE, "Choosing hyperparameters randomly from bounds using hp tuning as no earlier checkpoint "
-                              "supplied.")
+            logging.log(
+                TUNE, "Choosing hyperparameters randomly from bounds using hp tuning as no earlier checkpoint " "supplied."
+            )
             n_initial_points = 1
             n_calls = 1
 
@@ -321,14 +323,13 @@ def choose_and_bind_hyperparameters_optuna(
     # Optuna study
     # Attempt checkpoint loading
     if checkpoint and checkpoint.exists():
-            logging.warning(f"Hyperparameter checkpoint {checkpoint} does not exist.")
-            # logging.info("Attempting to find latest checkpoint file.")
-            # checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
+        logging.warning(f"Hyperparameter checkpoint {checkpoint} does not exist.")
+        # logging.info("Attempting to find latest checkpoint file.")
+        # checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
         # Check if we found a checkpoint file
-            logging.info(f"Loading checkpoint at {checkpoint}")
-            study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(checkpoint), sampler=sampler,
-                                      pruner=pruner)
-            n_calls = n_calls - len(study.trials)
+        logging.info(f"Loading checkpoint at {checkpoint}")
+        study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(checkpoint), sampler=sampler, pruner=pruner)
+        n_calls = n_calls - len(study.trials)
     else:
         if checkpoint:
             logging.warning("Checkpoint path given as flag but not found, starting from scratch.")

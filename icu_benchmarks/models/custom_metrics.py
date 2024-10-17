@@ -1,5 +1,3 @@
-import logging
-
 import torch
 from typing import Callable
 import numpy as np
@@ -134,12 +132,13 @@ class BinaryFairnessWrapper(BinaryFairness):
             feature_names = trainer.test_dataloaders.dataset.features
         return feature_names
 
+
 def confusion_matrix(y_true: ndarray, y_pred: ndarray, normalize=False) -> torch.tensor:
     y_pred = np.rint(y_pred).astype(int)
     confusion = sk_confusion_matrix(y_true, y_pred)
     if normalize:
         confusion = confusion / confusion.sum()
-    confusion_tensor = torch.tensor(confusion)
+    # confusion_tensor = torch.tensor(confusion)
     # confusion = confusion.tolist()
     confusion_dict = {}
     for i in range(confusion.shape[0]):

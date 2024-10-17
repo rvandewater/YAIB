@@ -190,26 +190,31 @@ class JSONMetricsLogger(Logger):
     def log_hyperparams(self, params):
         pass
 
-class scorer_wrapper():
+
+class scorer_wrapper:
     """
-        Wrapper that flattens the binary classification input such that we can use a broader range of sklearn metrics.
+    Wrapper that flattens the binary classification input such that we can use a broader range of sklearn metrics.
     """
+
     def __init__(self, scorer=average_precision_score):
         self.scorer = scorer
 
     def __call__(self, y_true, y_pred):
-        if len(np.unique(y_true))<=2 and y_pred.ndim > 1:
-            y_pred_argmax = np.argmax(y_pred,axis=1)
+        if len(np.unique(y_true)) <= 2 and y_pred.ndim > 1:
+            y_pred_argmax = np.argmax(y_pred, axis=1)
             return self.scorer(y_true, y_pred_argmax)
         else:
             return self.scorer(y_true, y_pred)
 
     def __name__(self):
         return "scorer_wrapper"
+
+
 # Source: https://github.com/ratschlab/tls
-@gin.configurable('get_smoothed_labels')
-def get_smoothed_labels(label, event, smoothing_fn=gin.REQUIRED, h_true=gin.REQUIRED, h_min=gin.REQUIRED,
-                        h_max=gin.REQUIRED, delta_h=12, gamma=0.1):
+@gin.configurable("get_smoothed_labels")
+def get_smoothed_labels(
+    label, event, smoothing_fn=gin.REQUIRED, h_true=gin.REQUIRED, h_min=gin.REQUIRED, h_max=gin.REQUIRED, delta_h=12, gamma=0.1
+):
     diffs = np.concatenate([np.zeros(1), event[1:] - event[:-1]], axis=-1)
     pos_event_change_full = np.where((diffs == 1) & (event == 1))[0]
 
@@ -235,7 +240,8 @@ def get_smoothed_labels(label, event, smoothing_fn=gin.REQUIRED, h_true=gin.REQU
 
     # Need to handle the case where the ts was truncatenated at 2016 for HiB
     if ((last_know_label == 1) and (len(pos_event_change_full) == 0)) or (
-            (last_know_label == 1) and (last_know_idx >= pos_event_change_full[-1])):
+        (last_know_label == 1) and (last_know_idx >= pos_event_change_full[-1])
+    ):
         last_know_event = 0
         if len(pos_event_change_full) > 0:
             last_know_event = pos_event_change_full[-1]
@@ -259,13 +265,20 @@ def get_smoothed_labels(label, event, smoothing_fn=gin.REQUIRED, h_true=gin.REQU
     if multihorizon:
         smoothed_labels = []
         for k in range(label.shape[-1]):
-            smoothed_labels.append(np.array(list(
-                map(lambda x: smoothing_fn(x, h_true=h_true[k], h_min=h_min[k], h_max=h_max[k], delta_h=delta_h,
-                                           gamma=gamma), dte))))
+            smoothed_labels.append(
+                np.array(
+                    list(
+                        map(
+                            lambda x: smoothing_fn(
+                                x, h_true=h_true[k], h_min=h_min[k], h_max=h_max[k], delta_h=delta_h, gamma=gamma
+                            ),
+                            dte,
+                        )
+                    )
+                )
+            )
         return np.stack(smoothed_labels, axis=-1)
     else:
         return np.array(
-            list(map(lambda x: smoothing_fn(x, h_true=h_true, h_min=h_min,
-                                            h_max=h_max, delta_h=delta_h, gamma=gamma), dte)))
-
-
+            list(map(lambda x: smoothing_fn(x, h_true=h_true, h_min=h_min, h_max=h_max, delta_h=delta_h, gamma=gamma), dte))
+        )
