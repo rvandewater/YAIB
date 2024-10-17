@@ -199,7 +199,8 @@ def choose_and_bind_hyperparameters_optuna(
     """Choose hyperparameters to tune and bind them to gin. Uses Optuna for hyperparameter optimization.
 
     Args:
-        sampler:
+        plot: Whether to plot hyperparameter importances.
+        sampler: The sampler to use for hyperparameter optimization.
         wandb: Whether we use wandb or not.
         load_cache: Load cached data if available.
         generate_cache: Generate cache data.
