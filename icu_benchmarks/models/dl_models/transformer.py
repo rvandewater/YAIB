@@ -11,21 +11,21 @@ class BaseTransformer(DLPredictionWrapper):
     """Refactored Transformer model as defined by the HiRID-Benchmark (https://github.com/ratschlab/HIRID-ICU-Benchmark)."""
 
     def __init__(
-            self,
-            block_class,
-            input_size,
-            hidden,
-            heads,
-            ff_hidden_mult,
-            depth,
-            num_classes,
-            dropout=0.0,
-            l1_reg=0,
-            pos_encoding=True,
-            dropout_att=0.0,
-            local_context=None,
-            *args,
-            **kwargs,
+        self,
+        block_class,
+        input_size,
+        hidden,
+        heads,
+        ff_hidden_mult,
+        depth,
+        num_classes,
+        dropout=0.0,
+        l1_reg=0,
+        pos_encoding=True,
+        dropout_att=0.0,
+        local_context=None,
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         if local_context is not None and self._get_name() == "Transformer":
@@ -78,4 +78,4 @@ class LocalTransformer(BaseTransformer):
     """Transformer model with local context."""
 
     def __init__(self, *kwargs, **args):
-        super().__init__(LocalBlock, **args, *kwargs)
+        super().__init__(LocalBlock, *kwargs, **args)
