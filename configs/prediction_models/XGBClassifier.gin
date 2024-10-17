@@ -1,0 +1,17 @@
+# Settings for XGBoost classifier.
+
+# Common settings for ML models
+include "configs/prediction_models/common/MLCommon.gin"
+
+# Train params
+train_common.model = @XGBClassifier
+
+model/hyperparameter.class_to_tune = @XGBClassifier
+model/hyperparameter.learning_rate = (0.01, 0.1, "log")
+model/hyperparameter.n_estimators = [50, 100, 250, 500, 750, 1000,1500,2000]
+model/hyperparameter.max_depth = [3, 5, 10, 15]
+model/hyperparameter.scale_pos_weight = [1, 5, 10, 15, 20, 25, 30, 35, 40, 50, 75, 99, 100, 1000]
+model/hyperparameter.min_child_weight = [1, 0.5]
+model/hyperparameter.max_delta_step = [0, 1, 2, 3, 4, 5, 10]
+model/hyperparameter.colsample_bytree = [0.1, 0.25, 0.5, 0.75, 1.0]
+model/hyperparameter.eval_metric = "aucpr"

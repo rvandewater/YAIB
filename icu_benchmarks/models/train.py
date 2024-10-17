@@ -1,8 +1,9 @@
 import os
 import gin
+import numpy as np
 import torch
 import logging
-import pandas as pd
+import polars as pl
 from joblib import load
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -10,9 +11,9 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar, LearningRateMonitor
 from pathlib import Path
-from icu_benchmarks.data.loader import PredictionDataset, ImputationDataset
+from icu_benchmarks.data.loader import PredictionPandasDataset, ImputationPandasDataset, PredictionPolarsDataset
 from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.constants import DataSplit as Split
 
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
@@ -26,7 +27,7 @@ def assure_minimum_length(dataset):
 
 @gin.configurable("train_common")
 def train_common(
-    data: dict[str, pd.DataFrame],
+    data: dict[str, pl.DataFrame],
     log_dir: Path,
     eval_only: bool = False,
     load_weights: bool = False,
@@ -37,8 +38,8 @@ def train_common(
     weight: str = None,
     optimizer: type = Adam,
     precision=32,
-    batch_size=64,
-    epochs=1000,
+    batch_size=1,
+    epochs=100,
     patience=20,
     min_delta=1e-5,
     test_on: str = Split.test,
@@ -50,6 +51,8 @@ def train_common(
     pl_model=True,
     train_only=False,
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
+    polars=True,
+    persistent_workers=None,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -79,11 +82,17 @@ def train_common(
     """
 
     logging.info(f"Training model: {model.__name__}.")
-    dataset_class = ImputationDataset if mode == RunMode.imputation else PredictionDataset
+    # todo: add support for polars versions of datasets
+    dataset_classes = {
+        RunMode.imputation: ImputationPandasDataset,
+        RunMode.classification: PredictionPolarsDataset if polars else PredictionPandasDataset,
+        RunMode.regression: PredictionPolarsDataset if polars else PredictionPandasDataset,
+    }
+    dataset_class = dataset_classes[mode]
 
+    logging.info(f"Using dataset class: {dataset_class.__name__}.")
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
-
     train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"])
     val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
     train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
@@ -95,30 +104,29 @@ def train_common(
             f" {len(val_dataset)} samples."
         )
     logging.info(f"Using {num_workers} workers for data loading.")
-
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=True,
         drop_last=True,
+        persistent_workers=persistent_workers,
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True,
         drop_last=True,
+        persistent_workers=persistent_workers,
     )
 
     data_shape = next(iter(train_loader))[0].shape
 
     if load_weights:
-        model = load_model(model, source_dir, pl_model=pl_model)
+        model = load_model(model, source_dir, pl_model=pl_model, cpu=cpu)
     else:
-        model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode)
+        model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode, cpu=cpu)
 
     model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
@@ -137,6 +145,7 @@ def train_common(
 
     trainer = Trainer(
         max_epochs=epochs if model.requires_backprop else 1,
+        min_epochs=1,  # We need at least one epoch to get results.
         callbacks=callbacks,
         precision=precision,
         accelerator="auto" if not cpu else "cpu",
@@ -145,7 +154,7 @@ def train_common(
         benchmark=not reproducible,
         enable_progress_bar=verbose,
         logger=loggers,
-        num_sanity_val_steps=-1,
+        num_sanity_val_steps=2,  # Helps catch errors in the validation loop before training begins.
         log_every_n_steps=5,
     )
     if not eval_only:
@@ -162,7 +171,7 @@ def train_common(
         logging.info("Finished training full model.")
         save_config_file(log_dir)
         return 0
-    test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"])
+    test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"], ram_cache=ram_cache)
     test_dataset = assure_minimum_length(test_dataset)
     logging.info(f"Testing on {test_dataset.name}  with {len(test_dataset)} samples.")
     test_loader = (
@@ -173,6 +182,7 @@ def train_common(
             num_workers=num_workers,
             pin_memory=True,
             drop_last=True,
+            persistent_workers=persistent_workers,
         )
         if model.requires_backprop
         else DataLoader([test_dataset.to_tensor()], batch_size=1)
@@ -180,8 +190,33 @@ def train_common(
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
+    persist_shap_data(trainer, log_dir)
     save_config_file(log_dir)
     return test_loss
+
+
+def persist_shap_data(trainer: Trainer, log_dir: Path):
+    """
+    Persist shap values to disk.
+    Args:
+        trainer: Pytorch lightning trainer object
+        log_dir: Log directory
+    """
+    try:
+        if trainer.lightning_module.test_shap_values is not None:
+            shap_values = trainer.lightning_module.test_shap_values
+            shaps_test = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(shap_values.values))
+            with (log_dir / "shap_values_test.parquet").open("wb") as f:
+                shaps_test.write_parquet(f)
+            logging.info(f"Saved shap values to {log_dir / 'test_shap_values.parquet'}")
+        if trainer.lightning_module.train_shap_values is not None:
+            shap_values = trainer.lightning_module.train_shap_values
+            shaps_train = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(shap_values.values))
+            with (log_dir / "shap_values_train.parquet").open("wb") as f:
+                shaps_train.write_parquet(f)
+
+    except Exception as e:
+        logging.error(f"Failed to save shap values: {e}")
 
 
 def load_model(model, source_dir, pl_model=True):

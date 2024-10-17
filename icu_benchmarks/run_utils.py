@@ -15,6 +15,7 @@ import shutil
 from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
+import polars as pl
 
 
 def build_parser() -> ArgumentParser:
@@ -52,6 +53,13 @@ def build_parser() -> ArgumentParser:
     parser.add_argument("-sn", "--source-name", type=Path, help="Name of the source dataset.")
     parser.add_argument("--source-dir", type=Path, help="Directory containing gin and model weights.")
     parser.add_argument("-sa", "--samples", type=int, default=None, help="Number of samples to use for evaluation.")
+    parser.add_argument(
+        "-mo",
+        "--modalities",
+        nargs="+",
+        help="Optional modality selection to use. Specify multiple modalities separated by spaces.",
+    )
+    parser.add_argument("--label", type=str, help="Label to use for evaluation in case of multiple labels.", default=None)
     return parser
 
 
@@ -68,9 +76,8 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     Returns:
         Path to the created run log directory.
     """
-    if not (log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))).exists():
-        log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))
-    else:
+    log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))
+    while log_dir_run.exists():
         log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))
     log_dir_run.mkdir(parents=True)
     if randomly_searched_params:
@@ -99,6 +106,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
         execution_time: Overall execution time.
     """
     aggregated = {}
+    shap_values_test = []
     for repetition in log_dir.iterdir():
         if repetition.is_dir():
             aggregated[repetition.name] = {}
@@ -117,7 +125,18 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                     with open(fold_iter / "durations.json", "r") as f:
                         result = json.load(f)
                         aggregated[repetition.name][fold_iter.name].update(result)
+                if (fold_iter / "test_shap_values.parquet").is_file():
+                    shap_values_test.append(pl.read_parquet(fold_iter / "test_shap_values.parquet"))
 
+    if shap_values_test:
+        shap_values = pl.concat(shap_values_test)
+        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
+
+    try:
+        shap_values = pl.concat(shap_values_test)
+        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
+    except Exception as e:
+        logging.error(f"Error aggregating or writing SHAP values: {e}")
     # Aggregate results per metric
     list_scores = {}
     for repetition, folds in aggregated.items():
@@ -235,3 +254,46 @@ def setup_logging(date_format, log_format, verbose):
         for logger in loggers:
             logging.getLogger(logger).setLevel(logging.DEBUG)
         warnings.filterwarnings("default")
+
+
+def get_config_files(config_dir: Path):
+    """
+    Get all task and model config files in the specified directory.
+    Args:
+        config_dir: Name of the directory containing the config gin files.
+
+    Returns:
+        tasks: List of task names
+        models: List of model names
+    """
+    try:
+        tasks = list((config_dir / "tasks").glob("*"))
+        models = list((config_dir / "prediction_models").glob("*"))
+        tasks = [task.stem for task in tasks if task.is_file()]
+        models = [model.stem for model in models if model.is_file()]
+    except Exception as e:
+        logging.error(f"Error retrieving config files: {e}")
+        return [], []
+    if "common" in tasks:
+        tasks.remove("common")
+    if "common" in models:
+        models.remove("common")
+    logging.info(f"Found tasks: {tasks}")
+    logging.info(f"Found models: {models}")
+    return tasks, models
+
+
+def check_required_keys(vars, required_keys):
+    """
+    Checks if all required keys are present in the vars dictionary.
+
+    Args:
+        vars (dict): The dictionary to check.
+        required_keys (list): The list of required keys.
+
+    Raises:
+        KeyError: If any required key is missing.
+    """
+    missing_keys = [key for key in required_keys if key not in vars]
+    if missing_keys:
+        raise KeyError(f"Missing required keys in vars: {', '.join(missing_keys)}")

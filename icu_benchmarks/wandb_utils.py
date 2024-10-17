@@ -30,7 +30,7 @@ def apply_wandb_sweep(args: Namespace) -> Namespace:
     Returns:
         Namespace: arguments with sweep configuration applied (some are applied via hyperparams)
     """
-    wandb.init(allow_val_change=True)
+    wandb.init(allow_val_change=True, dir=args.log_dir)
     sweep_config = wandb.config
     args.__dict__.update(sweep_config)
     if args.hyperparams is None:
@@ -62,7 +62,8 @@ def set_wandb_experiment_name(args, mode):
         data_dir = Path(args.data_dir)
         args.name = data_dir.name
     run_name = f"{mode}_{args.model}_{args.name}"
-
+    if args.modalities:
+        run_name += f"_mods_{args.modalities}"
     if args.fine_tune:
         run_name += f"_source_{args.source_name}_fine-tune_{args.fine_tune}_samples"
     elif args.eval:

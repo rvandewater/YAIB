@@ -11,7 +11,7 @@ from icu_benchmarks.data.split_process_data import preprocess_data
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import log_full_line
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 
 
 @gin.configurable
@@ -37,7 +37,7 @@ def execute_repeated_cv(
     cpu: bool = False,
     verbose: bool = False,
     wandb: bool = False,
-    complete_train: bool = False
+    complete_train: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -81,8 +81,9 @@ def execute_repeated_cv(
 
     else:
         logging.info(f"Starting nested CV with {cv_repetitions_to_train} repetitions of {cv_folds_to_train} folds.")
-
+    # Train model for each repetition (a manner of splitting the folds)
     for repetition in range(cv_repetitions_to_train):
+        # Train model for each fold configuration (i.e, one fold is test fold and the rest are train/val folds)
         for fold_index in range(cv_folds_to_train):
             repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
             repetition_fold_dir.mkdir(parents=True, exist_ok=True)
@@ -101,9 +102,8 @@ def execute_repeated_cv(
                 fold_index=fold_index,
                 pretrained_imputation_model=pretrained_imputation_model,
                 runmode=mode,
-                complete_train=complete_train
+                complete_train=complete_train,
             )
-
             preprocess_time = datetime.now() - start_time
             start_time = datetime.now()
             agg_loss += train_common(
@@ -118,7 +118,7 @@ def execute_repeated_cv(
                 cpu=cpu,
                 verbose=verbose,
                 use_wandb=wandb,
-                train_only=complete_train
+                train_only=complete_train,
             )
             train_time = datetime.now() - start_time
 
@@ -133,7 +133,10 @@ def execute_repeated_cv(
             if wandb:
                 wandb_log({"Iteration": repetition * cv_folds_to_train + fold_index})
             if repetition * cv_folds_to_train + fold_index > 1:
-                aggregate_results(log_dir)
+                try:
+                    aggregate_results(log_dir)
+                except Exception as e:
+                    logging.error(f"Failed to aggregate results: {e}")
         log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)

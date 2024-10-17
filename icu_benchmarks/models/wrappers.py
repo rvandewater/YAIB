@@ -1,9 +1,9 @@
 import logging
 from abc import ABC
 from typing import Dict, Any, List, Optional, Union
-
+from pathlib import Path
 import torchmetrics
-from sklearn.metrics import log_loss, mean_squared_error
+from sklearn.metrics import log_loss, mean_squared_error, average_precision_score, roc_auc_score
 
 import torch
 from torch.nn import MSELoss, CrossEntropyLoss
@@ -16,12 +16,13 @@ import gin
 import numpy as np
 from ignite.exceptions import NotComputableError
 from icu_benchmarks.models.constants import ImputationInit
+from icu_benchmarks.models.custom_metrics import confusion_matrix
 from icu_benchmarks.models.utils import create_optimizer, create_scheduler
 from joblib import dump
 from pytorch_lightning import LightningModule
 
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(nn.functional.cross_entropy, module="torch.nn.functional")
@@ -29,6 +30,9 @@ gin.config.external_configurable(nn.functional.mse_loss, module="torch.nn.functi
 
 gin.config.external_configurable(mean_squared_error, module="sklearn.metrics")
 gin.config.external_configurable(log_loss, module="sklearn.metrics")
+gin.config.external_configurable(average_precision_score, module="sklearn.metrics")
+gin.config.external_configurable(roc_auc_score, module="sklearn.metrics")
+# gin.config.external_configurable(scorer_wrapper, module="icu_benchmarks.models.utils")
 
 
 @gin.configurable("BaseModule")
@@ -42,6 +46,8 @@ class BaseModule(LightningModule):
     trained_columns = None
     # Type of run mode
     run_mode = None
+    debug = False
+    explain_features = False
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError()
@@ -58,8 +64,14 @@ class BaseModule(LightningModule):
     def set_trained_columns(self, columns: List[str]):
         self.trained_columns = columns
 
-    def set_weight(self, weight, *args, **kwargs):
-        pass
+    def set_weight(self, weight, dataset):
+        """Set the weight for the loss function."""
+
+        if isinstance(weight, list):
+            weight = FloatTensor(weight).to(self.device)
+        elif weight == "balanced":
+            weight = FloatTensor(dataset.get_balance()).to(self.device)
+        self.loss_weights = weight
 
     def training_step(self, batch, batch_idx):
         return self.step_fn(batch, "train")
@@ -249,15 +261,6 @@ class DLPredictionWrapper(DLWrapper):
         self.output_transform = None
         self.loss_weights = None
 
-    def set_weight(self, weight, dataset):
-        """Set the weight for the loss function."""
-
-        if isinstance(weight, list):
-            weight = FloatTensor(weight).to(self.device)
-        elif weight == "balanced":
-            weight = FloatTensor(dataset.get_balance()).to(self.device)
-        self.loss_weights = weight
-
     def set_metrics(self, *args):
         """Set the evaluation metrics for the prediction model."""
 
@@ -372,6 +375,7 @@ class MLWrapper(BaseModule, ABC):
         self.loss = loss
         self.patience = patience
         self.mps = mps
+        self.loss_weight = None
 
     def set_metrics(self, labels):
         if self.run_mode == RunMode.classification:
@@ -401,8 +405,8 @@ class MLWrapper(BaseModule, ABC):
 
     def fit(self, train_dataset, val_dataset):
         """Fit the model to the training data."""
-        train_rep, train_label = train_dataset.get_data_and_labels()
-        val_rep, val_label = val_dataset.get_data_and_labels()
+        train_rep, train_label, row_indicators = train_dataset.get_data_and_labels()
+        val_rep, val_label, row_indicators = val_dataset.get_data_and_labels()
 
         self.set_metrics(train_label)
 
@@ -414,6 +418,7 @@ class MLWrapper(BaseModule, ABC):
         train_pred = self.predict(train_rep)
 
         logging.debug(f"Model:{self.model}")
+
         self.log("train/loss", self.loss(train_label, train_pred), sync_dist=True)
         logging.debug(f"Train loss: {self.loss(train_label, train_pred)}")
         self.log("val/loss", val_loss, sync_dist=True)
@@ -427,7 +432,7 @@ class MLWrapper(BaseModule, ABC):
         return val_loss
 
     def validation_step(self, val_dataset, _):
-        val_rep, val_label = val_dataset.get_data_and_labels()
+        val_rep, val_label, row_indicators = val_dataset.get_data_and_labels()
         val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
         self.set_metrics(val_label)
 
@@ -438,11 +443,18 @@ class MLWrapper(BaseModule, ABC):
         self.log_metrics(val_label, val_pred, "val")
 
     def test_step(self, dataset, _):
-        test_rep, test_label = dataset
-        test_rep, test_label = test_rep.squeeze().cpu().numpy(), test_label.squeeze().cpu().numpy()
+        test_rep, test_label, pred_indicators = dataset
+        test_rep, test_label, pred_indicators = (
+            test_rep.squeeze().cpu().numpy(),
+            test_label.squeeze().cpu().numpy(),
+            pred_indicators.squeeze().cpu().numpy(),
+        )
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
-
+        if self.debug:
+            self._save_model_outputs(pred_indicators, test_pred, test_label)
+        if self.explain_features:
+            self.explain_model(test_rep, test_label)
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
             self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
@@ -459,20 +471,35 @@ class MLWrapper(BaseModule, ABC):
 
     def log_metrics(self, label, pred, metric_type):
         """Log metrics to the PL logs."""
-
+        if "Confusion_Matrix" in self.metrics:
+            self.log_dict(confusion_matrix(self.label_transform(label), self.output_transform(pred)), sync_dist=True)
         self.log_dict(
             {
-                # MPS dependent type casting
-                f"{metric_type}/{name}": metric(self.label_transform(label), self.output_transform(pred))
-                if not self.mps
-                else metric(self.label_transform(label), self.output_transform(pred))
-                # Fore very metric
+                f"{metric_type}/{name}": (metric(self.label_transform(label), self.output_transform(pred)))
+                # For every metric
                 for name, metric in self.metrics.items()
                 # Filter out metrics that return a tuple (e.g. precision_recall_curve)
                 if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
+                and name != "Confusion_Matrix"
             },
             sync_dist=True,
         )
+
+    def _explain_model(self, test_rep, test_label):
+        if self.explainer is not None:
+            self.test_shap_values = self.explainer(test_rep)
+        else:
+            logging.warning("No explainer or explain_features values set.")
+
+    def _save_model_outputs(self, pred_indicators, test_pred, test_label):
+        if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1 and pred_indicators.shape[1] == test_pred.shape[1]:
+            pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
+            pred_indicators = np.hstack((pred_indicators, test_pred))
+            # Save as: id, time (hours), ground truth, prediction 0, prediction 1
+            np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",")
+            logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
+        else:
+            logging.warning("Could not save row indicators.")
 
     def configure_optimizers(self):
         return None
@@ -498,6 +525,7 @@ class MLWrapper(BaseModule, ABC):
         # Get passed keyword arguments
         arguments = locals()["kwargs"]
         # Get valid hyperparameters
+        logging.debug(f"Possible hps: {possible_hps}")
         hyperparams = {key: value for key, value in arguments.items() if key in possible_hps}
         logging.debug(f"Creating model with: {hyperparams}.")
         return model(**hyperparams)

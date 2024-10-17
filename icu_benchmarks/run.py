@@ -18,8 +18,9 @@ from icu_benchmarks.run_utils import (
     setup_logging,
     import_preprocessor,
     name_datasets,
+    get_config_files,
 )
-from icu_benchmarks.contants import RunMode
+from icu_benchmarks.constants import RunMode
 
 
 @gin.configurable("Run")
@@ -31,6 +32,7 @@ def get_mode(mode: gin.REQUIRED):
 
 def main(my_args=tuple(sys.argv[1:])):
     args, _ = build_parser().parse_known_args(my_args)
+    # Set arguments for wandb sweep
     if args.wandb_sweep:
         args = apply_wandb_sweep(args)
         set_wandb_experiment_name(args, "run")
@@ -48,10 +50,22 @@ def main(my_args=tuple(sys.argv[1:])):
     evaluate = args.eval
     experiment = args.experiment
     source_dir = args.source_dir
+    modalities = args.modalities
+    if modalities:
+        logging.debug(f"Binding modalities: {modalities}")
+        gin.bind_parameter("preprocess.selected_modalities", modalities)
+    if args.label:
+        logging.debug(f"Binding label: {args.label}")
+        gin.bind_parameter("preprocess.label", args.label)
+    tasks, models = get_config_files(Path("configs"))
+    if task not in tasks or model not in models:
+        raise ValueError(
+            f"Invalid task or model. Task: {task} {'not ' if task not in tasks else ''} found. "
+            f"Model: {model} {'not ' if model not in models else ''}found."
+        )
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
-    # Set arguments for wandb sweep
 
     # Set experiment name
     if name is None:
@@ -68,9 +82,9 @@ def main(my_args=tuple(sys.argv[1:])):
     # Log imputation model to wandb
     update_wandb_config(
         {
-            "pretrained_imputation_model": pretrained_imputation_model.__class__.__name__
-            if pretrained_imputation_model is not None
-            else "None"
+            "pretrained_imputation_model": (
+                pretrained_imputation_model.__class__.__name__ if pretrained_imputation_model is not None else "None"
+            )
         }
     )
 
@@ -118,7 +132,7 @@ def main(my_args=tuple(sys.argv[1:])):
         name_datasets(args.name, args.name, args.name)
         hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
-                Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
+            Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]
@@ -129,10 +143,10 @@ def main(my_args=tuple(sys.argv[1:])):
         log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
         run_dir = create_run_dir(log_dir)
         choose_and_bind_hyperparameters_optuna(
-            args.tune,
-            data_dir,
-            run_dir,
-            args.seed,
+            do_tune=args.tune,
+            data_dir=data_dir,
+            log_dir=run_dir,
+            seed=args.seed,
             run_mode=mode,
             checkpoint=hp_checkpoint,
             debug=args.debug,
@@ -175,7 +189,11 @@ def main(my_args=tuple(sys.argv[1:])):
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
     execution_time = datetime.now() - start_time
     log_full_line(f"DURATION: {execution_time}", level=logging.INFO, char="")
-    aggregate_results(run_dir, execution_time)
+    try:
+        aggregate_results(run_dir, execution_time)
+    except Exception as e:
+        logging.error(f"Failed to aggregate results: {e}")
+        logging.debug("Error details:", exc_info=True)
     if args.plot:
         plot_aggregated_results(run_dir, "aggregated_test_metrics.json")
 
