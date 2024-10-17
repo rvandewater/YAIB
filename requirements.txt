@@ -8,7 +8,7 @@ pytorch-ignite==0.5.0.post2
 # Note: versioning of Pytorch might be dependent on compatible CUDA version.
 # Please check yourself if your Pytorch installation supports cuda (for gpu acceleration)
 torch==2.3.1
-pytorch-lightning==2.3.2
+lightning==2.4.0
 torchmetrics==1.0.3
 #pytorch-cuda==11.8
 lightgbm==4.4.0
