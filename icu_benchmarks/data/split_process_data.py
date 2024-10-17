@@ -39,6 +39,8 @@ def preprocess_data(
     complete_train: bool = False,
     runmode: RunMode = RunMode.classification,
     label: str = None,
+    required_var_types=["GROUP", "SEQUENCE", "LABEL"],
+    required_segments=[Segment.static, Segment.dynamic, Segment.outcome],
 ) -> dict[dict[pl.DataFrame]] or dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
 
@@ -67,8 +69,8 @@ def preprocess_data(
     """
 
     cache_dir = data_dir / "cache"
-    required_keys = ["GROUP", "SEQUENCE", "LABEL"]
-    check_required_keys(vars, required_keys)
+    check_required_keys(vars, required_var_types)
+    check_required_keys(file_names, required_segments)
     if not use_static:
         file_names.pop(Segment.static)
         vars.pop(Segment.static)

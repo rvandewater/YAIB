@@ -14,6 +14,7 @@ from wandb.integration.xgboost import wandb_callback as wandb_xgb
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
 
+
 # Uncomment if needed in the future
 # from optuna.integration import XGBoostPruningCallback
 
@@ -73,7 +74,7 @@ class XGBClassifier(MLWrapper):
             pred_indicators = np.hstack((pred_indicators, test_pred))
             # Save as: id, time (hours), ground truth, prediction 0, prediction 1
             np.savetxt(os.path.join(self.logger.save_dir, "pred_indicators.csv"), pred_indicators, delimiter=",")
-            logging.debug(f"Saved row indicators to {os.path.join(self.logger.save_dir,f'row_indicators.csv')}")
+            logging.debug(f"Saved row indicators to {os.path.join(self.logger.save_dir, f'row_indicators.csv')}")
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
             self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
