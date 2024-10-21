@@ -1,0 +1,18 @@
+# Settings for ImbLearn Balanced Random Forest Classifier.
+
+# Common settings for ML models
+include "configs/prediction_models/common/MLCommon.gin"
+
+# Train params
+train_common.model = @BRFClassifier
+
+model/hyperparameter.class_to_tune = @BRFClassifier
+model/hyperparameter.n_estimators = [50, 100, 250, 500, 750,1000,1500]
+model/hyperparameter.max_depth = [3, 5, 10, 15]
+model/hyperparameter.min_samples_split = (2, 5, 10)
+model/hyperparameter.min_samples_leaf = (1, 2, 4)
+model/hyperparameter.max_features = ['sqrt', 'log2', 1.0]
+model/hyperparameter.bootstrap = [True, False]
+model/hyperparameter.class_weight = [None, 'balanced']
+
+

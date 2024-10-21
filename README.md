@@ -14,8 +14,8 @@
 
 [//]: # (TODO: add coverage once we have some tests )
 
-Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on Intensive Care Unit (
-ICU) EHR data.
+Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on Intensive Care Unit 
+(ICU) EHR data.
 
 We support the following datasets out of the box:
 
@@ -43,7 +43,7 @@ We provide five common tasks for clinical prediction by default:
 | 5   | Length of Stay (LoS)      | Hourly (within 7D)        | Regression            |
 
 New tasks can be easily added.
-For the purposes of getting started right away, we include the eICU and MIMIC-III demo datasets in our repository.
+To get started right away, we include the eICU and MIMIC-III demo datasets in our repository.
 
 The following repositories may be relevant as well:
 
@@ -51,27 +51,25 @@ The following repositories may be relevant as well:
 - [YAIB-models](https://github.com/rvandewater/YAIB-models): Pretrained models for YAIB.
 - [ReciPys](https://github.com/rvandewater/ReciPys): Preprocessing package for YAIB pipelines.
 
-For all YAIB related repositories, please see: https://github.com/stars/rvandewater/lists/yaib.
+For all YAIB-related repositories, please see: https://github.com/stars/rvandewater/lists/yaib.
 
 # 📄Paper
 
-To reproduce the benchmarks in our paper, we refer to: the [ML reproducibility document](PAPER.md).
+To reproduce the benchmarks in our paper, we refer to the [ML reproducibility document](PAPER.md).
 If you use this code in your research, please cite the following publication:
 
 ```
-@article{vandewaterYetAnotherICUBenchmark2023,
-	title = {Yet Another ICU Benchmark: A Flexible Multi-Center Framework for Clinical ML},
-	shorttitle = {Yet Another ICU Benchmark},
-	url = {http://arxiv.org/abs/2306.05109},
-	language = {en},
-	urldate = {2023-06-09},
-	publisher = {arXiv},
-	author = {Robin van de Water and Hendrik Schmidt and Paul Elbers and Patrick Thoral and Bert Arnrich and Patrick Rockenschaub},
-	month = jun,
-	year = {2023},
-	note = {arXiv:2306.05109 [cs]},
-	keywords = {Computer Science - Machine Learning},
+@inproceedings{vandewaterYetAnotherICUBenchmark2024,
+  title = {Yet Another ICU Benchmark: A Flexible Multi-Center Framework for Clinical ML},
+  shorttitle = {Yet Another ICU Benchmark},
+  booktitle = {The Twelfth International Conference on Learning Representations},
+  author = {van de Water, Robin and Schmidt, Hendrik Nils Aurel and Elbers, Paul and Thoral, Patrick and Arnrich, Bert and Rockenschaub, Patrick},
+  year = {2024},
+  month = oct,
+  urldate = {2024-02-19},
+  langid = {english},
 }
+
 ```
 
 This paper can also be found on arxiv [2306.05109](https://arxiv.org/abs/2306.05109)
@@ -182,17 +180,16 @@ load
 existing cache files.
 
 ```
-icu-benchmarks train \
+icu-benchmarks \
     -d demo_data/mortality24/mimic_demo \
     -n mimic_demo \
     -t BinaryClassification \
     -tn Mortality24 \
     -m LGBMClassifier \
     -hp LGBMClassifier.min_child_samples=10 \
-    --generate_cache
+    --generate_cache \
     --load_cache \
     --seed 2222 \
-    -s 2222 \
     -l ../yaib_logs/ \
     --tune
 ```
@@ -224,13 +221,14 @@ wandb agent <sweep_id>
 
 > Note: You will need to have a wandb account and be logged in to run the above commands.
 
-## Evaluate
+## Evaluate or Finetune
 
-It is possible to evaluate a model trained on another dataset. In this case, the source dataset is the demo data from MIMIC and
-the target is the eICU demo:
+It is possible to evaluate a model trained on another dataset and no additional training is done.
+In this case, the source dataset is the demo data from MIMIC and the target is the eICU demo:
 
 ```
-icu-benchmarks evaluate \
+icu-benchmarks \
+    --eval \
     -d demo_data/mortality24/eicu_demo \
     -n eicu_demo \
     -t BinaryClassification \
@@ -241,8 +239,10 @@ icu-benchmarks evaluate \
     -s 2222 \
     -l ../yaib_logs \
     -sn mimic \
-    --source-dir ../yaib_logs/mimic_demo/Mortality24/LGBMClassifier/2022-12-12T15-24-46/fold_0
+    --source-dir ../yaib_logs/mimic_demo/Mortality24/LGBMClassifier/2022-12-12T15-24-46/repetition_0/fold_0
 ```
+
+> A similar syntax is used for finetuning, where a model is loaded and then retrained. To run finetuning, replace `--eval` with `-ft`.
 
 ## Models
 
@@ -275,6 +275,8 @@ We appreciate contributions to the project. Please read the [contribution guidel
 request.
 
 # Acknowledgements
+This project has been developed partially under the funding of “Gemeinsamer Bundesausschuss (G-BA) Innovationsausschuss” in the framework of “CASSANDRA - Clinical ASSist AND aleRt Algorithms”.
+(project number 01VSF20015). We would like to acknowledge the work of Alisher Turubayev, Anna Shopova, Fabian Lange, Mahmut Kamalak, Paul Mattes, and Victoria Ayvasky for adding Pytorch Lightning, Weights and Biases compatibility, and several optional imputation methods to a later version of the benchmark repository. 
 
 We do not own any of the datasets used in this benchmark. This project uses heavily adapted components of
 the [HiRID benchmark](https://github.com/ratschlab/HIRID-ICU-Benchmark/). We thank the authors for providing this codebase and

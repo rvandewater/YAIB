@@ -20,8 +20,7 @@ import torch.nn.functional as F
 class SimpleDiffusionModel(ImputationWrapper):
     """Simple Diffusion Model for Imputation. See https://arxiv.org/abs/2006.11239 for more details."""
 
-    needs_training = True
-    needs_fit = False
+    requires_backprop = True
 
     input_size = []
 

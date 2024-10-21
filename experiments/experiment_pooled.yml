@@ -1,0 +1,60 @@
+# This experiment trains pooled models with pooled data. Note that you have to replace BinaryClassification with Regression for the appropriate dataset.
+command:
+  - ${env}
+  - ${program}
+  - -d
+  - ../data/
+  - -t
+  - BinaryClassification
+  # Manually set for regression tasks
+  #  - Regression
+  - --log-dir
+  - ../yaib_logs_pooled
+  - --tune
+  - --wandb-sweep
+  - --hp-checkpoint
+  - path/to/checkpoint
+  - -gc
+  - -lc
+method: grid
+name: yaib_pooled_benchmark
+parameters:
+  data_dir:
+    values:
+      - ../data/mortality24/aumc_hirid_eicu_10000
+      - ../data/mortality24/hirid_eicu_miiv_10000
+      - ../data/mortality24/aumc_eicu_miiv_10000
+      - ../data/mortality24/aumc_hirid_miiv_10000
+      - ../data/mortality24/aumc_hirid_eicu_miiv_10000
+      - ../data/aki/aumc_hirid_eicu_10000
+      - ../data/aki/hirid_eicu_miiv_10000
+      - ../data/aki/aumc_eicu_miiv_10000
+      - ../data/aki/aumc_hirid_miiv_10000
+      - ../data/aki/aumc_hirid_eicu_miiv_10000
+      - ../data/sepsis/aumc_hirid_eicu_10000
+      - ../data/sepsis/hirid_eicu_miiv_10000
+      - ../data/sepsis/aumc_eicu_miiv_10000
+      - ../data/sepsis/aumc_hirid_miiv_10000
+      - ../data/sepsis/aumc_hirid_eicu_miiv_10000
+      - ../data/kidney_function/aumc_hirid_eicu_10000
+      - ../data/kidney_function/hirid_eicu_miiv_10000
+      - ../data/kidney_function/aumc_eicu_miiv_10000
+      - ../data/kidney_function/aumc_hirid_miiv_10000
+      - ../data/kidney_function/aumc_hirid_eicu_miiv_10000
+      - ../data/los/aumc_hirid_eicu_10000
+      - ../data/los/hirid_eicu_miiv_10000
+      - ../data/los/aumc_eicu_miiv_10000
+      - ../data/los/aumc_hirid_miiv_10000
+      - ../data/los/aumc_hirid_eicu_miiv_10000
+
+  model:
+    values:
+      #      - GRU
+      - Transformer
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks

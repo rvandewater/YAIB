@@ -19,11 +19,10 @@ DLPredictionWrapper.loss = @cross_entropy
 
 # SELECTING PREPROCESSOR
 preprocess.preprocessor = @base_classification_preprocessor
+preprocess.modality_mapping = %modality_mapping
 preprocess.vars = %vars
 preprocess.use_static = True
 
 # SELECTING DATASET
-PredictionDataset.vars = %vars
-PredictionDataset.ram_cache = True
-
+include "configs/tasks/common/Dataloader.gin"
 

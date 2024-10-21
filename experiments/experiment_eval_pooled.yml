@@ -1,0 +1,56 @@
+# This experiment evaluates the pooled models trained in a previous experiment.
+command:
+  - ${env}
+  - ${program}
+  - --eval
+  - -d
+  - ../data/
+  - -t
+  - BinaryClassification
+# Manually set for regression tasks
+#  - Regression
+  - --log-dir
+  - ../yaib_logs
+  - --wandb-sweep
+  - -gc
+  - -lc
+  - --source-dir
+  - path/to/pooled_model
+method: grid
+name: yaib_pooled_eval
+parameters:
+  data_dir:
+    values:
+      - ../data/mortality24/miiv
+      - ../data/mortality24/hirid
+      - ../data/mortality24/eicu
+      - ../data/mortality24/aumc
+      - ../data/aki/miiv
+      - ../data/aki/hirid
+      - ../data/aki/eicu
+      - ../data/aki/aumc
+      - ../data/sepsis/miiv
+      - ../data/sepsis/hirid
+      - ../data/sepsis/eicu
+      - ../data/sepsis/aumc
+      - ../data/los/miiv
+      - ../data/los/hirid
+      - ../data/los/eicu
+      - ../data/los/aumc
+      - ../data/kidney_function/miiv
+      - ../data/kidney_function/hirid
+      - ../data/kidney_function/eicu
+      - ../data/kidney_function/aumc
+  model:
+    values:
+      - GRU
+      - LSTM
+      - TCN
+      - Transformer
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks

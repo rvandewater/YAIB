@@ -301,7 +301,7 @@ class Residual_block(nn.Module):
         cond = self.cond_conv(cond)
         h += cond
 
-        out = torch.tanh(h[:, : self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels:, :])
+        out = torch.tanh(h[:, :self.res_channels, :]) * torch.sigmoid(h[:, self.res_channels:, :])
 
         res = self.res_conv(out)
         assert x.shape == res.shape

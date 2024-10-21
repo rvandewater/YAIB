@@ -1,9 +1,12 @@
+import importlib
+import sys
 import warnings
 from math import sqrt
 
+import gin
 import torch
 import json
-from argparse import ArgumentParser, BooleanOptionalAction
+from argparse import ArgumentParser, BooleanOptionalAction as BOA
 from datetime import datetime, timedelta
 import logging
 from pathlib import Path
@@ -12,6 +15,7 @@ import shutil
 from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
+import polars as pl
 
 
 def build_parser() -> ArgumentParser:
@@ -20,76 +24,42 @@ def build_parser() -> ArgumentParser:
     Returns:
         The configured ArgumentParser.
     """
-    parser = ArgumentParser(description="Benchmark lib for processing and evaluation of deep learning models on ICU data")
+    parser = ArgumentParser(description="Framework for benchmarking ML/DL models on ICU data")
 
-    parent_parser = ArgumentParser(add_help=False)
-    subparsers = parser.add_subparsers(title="Commands", dest="command", required=True)
-
-    # ARGUMENTS FOR ALL COMMANDS
-    general_args = parent_parser.add_argument_group("General arguments")
-    general_args.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
-    general_args.add_argument("-t", "--task", default="BinaryClassification", required=True, help="Name of the task gin.")
-    general_args.add_argument("-n", "--name", required=False, help="Name of the (target) dataset.")
-    general_args.add_argument("-tn", "--task-name", required=False, help="Name of the task, used for naming experiments.")
-    general_args.add_argument("-m", "--model", default="LGBMClassifier", required=False, help="Name of the model gin.")
-    general_args.add_argument("-e", "--experiment", required=False, help="Name of the experiment gin.")
-    general_args.add_argument(
-        "-l", "--log-dir", required=False, default=Path("../yaib_logs/"), type=Path, help="Log directory with model weights."
+    parser.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
+    parser.add_argument("-t", "--task", default="BinaryClassification", required=True, help="Name of the task gin.")
+    parser.add_argument("-n", "--name", help="Name of the (target) dataset.")
+    parser.add_argument("-tn", "--task-name", help="Name of the task, used for naming experiments.")
+    parser.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
+    parser.add_argument("-e", "--experiment", help="Name of the experiment gin.")
+    parser.add_argument("-l", "--log-dir", default=Path("../yaib_logs/"), type=Path, help="Log directory for model weights.")
+    parser.add_argument("-s", "--seed", default=1234, type=int, help="Random seed for processing, tuning and training.")
+    parser.add_argument("-v", "--verbose", default=False, action=BOA, help="Set to log verbosly. Disable for clean logs.")
+    parser.add_argument("--cpu", default=False, action=BOA, help="Set to use CPU.")
+    parser.add_argument("-db", "--debug", default=False, action=BOA, help="Set to load less data.")
+    parser.add_argument("--reproducible", default=True, action=BOA, help="Make torch reproducible.")
+    parser.add_argument("-lc", "--load_cache", default=False, action=BOA, help="Set to load generated data cache.")
+    parser.add_argument("-gc", "--generate_cache", default=False, action=BOA, help="Set to generate data cache.")
+    parser.add_argument("-p", "--preprocessor", type=Path, help="Load custom preprocessor from file.")
+    parser.add_argument("-pl", "--plot", action=BOA, help="Generate common plots.")
+    parser.add_argument("-wd", "--wandb-sweep", action="store_true", help="Activates wandb hyper parameter sweep.")
+    parser.add_argument("-imp", "--pretrained-imputation", type=str, help="Path to pretrained imputation model.")
+    parser.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
+    parser.add_argument("--tune", default=False, action=BOA, help="Find best hyperparameters.")
+    parser.add_argument("--hp-checkpoint", type=Path, help="Use previous hyperparameter checkpoint.")
+    parser.add_argument("--eval", default=False, action=BOA, help="Only evaluate model, skip training.")
+    parser.add_argument("--complete-train", default=False, action=BOA, help="Use all data to train model, skip testing.")
+    parser.add_argument("-ft", "--fine-tune", default=None, type=int, help="Finetune model with amount of train data.")
+    parser.add_argument("-sn", "--source-name", type=Path, help="Name of the source dataset.")
+    parser.add_argument("--source-dir", type=Path, help="Directory containing gin and model weights.")
+    parser.add_argument("-sa", "--samples", type=int, default=None, help="Number of samples to use for evaluation.")
+    parser.add_argument(
+        "-mo",
+        "--modalities",
+        nargs="+",
+        help="Optional modality selection to use. Specify multiple modalities separated by spaces.",
     )
-    general_args.add_argument(
-        "-s", "--seed", required=False, default=1234, type=int, help="Random seed for processing, tuning and training."
-    )
-    general_args.add_argument(
-        "-v",
-        "--verbose",
-        default=False,
-        required=False,
-        action=BooleanOptionalAction,
-        help="Whether to use verbose logging. Disable for clean logs.",
-    )
-    general_args.add_argument("--cpu", default=False, required=False, action=BooleanOptionalAction, help="Set to use CPU.")
-    general_args.add_argument(
-        "-db", "--debug", required=False, default=False, action=BooleanOptionalAction, help="Set to load less data."
-    )
-    general_args.add_argument(
-        "-lc",
-        "--load_cache",
-        required=False,
-        default=False,
-        action=BooleanOptionalAction,
-        help="Set to load generated data cache.",
-    )
-    general_args.add_argument(
-        "-gc",
-        "--generate_cache",
-        required=False,
-        default=False,
-        action=BooleanOptionalAction,
-        help="Set to generate data cache.",
-    )
-    general_args.add_argument("-p", "--preprocessor", required=False, type=Path, help="Load custom preprocessor from file.")
-    general_args.add_argument("-pl", "--plot", required=False, action=BooleanOptionalAction, help="Generate common plots.")
-    general_args.add_argument(
-        "-wd", "--wandb-sweep", required=False, action="store_true", help="Activates wandb hyper parameter sweep."
-    )
-    general_args.add_argument(
-        "-imp", "--pretrained-imputation", required=False, type=str, help="Path to pretrained imputation model."
-    )
-
-    # MODEL TRAINING ARGUMENTS
-    prep_and_train = subparsers.add_parser("train", help="Preprocess features and train model.", parents=[parent_parser])
-    prep_and_train.add_argument(
-        "--reproducible", required=False, default=True, action=BooleanOptionalAction, help="Make torch reproducible."
-    )
-    prep_and_train.add_argument("-hp", "--hyperparams", required=False, nargs="+", help="Hyperparameters for model.")
-    prep_and_train.add_argument("--tune", default=False, action=BooleanOptionalAction, help="Find best hyperparameters.")
-    prep_and_train.add_argument("--checkpoint", required=False, type=Path, help="Use previous checkpoint.")
-
-    # EVALUATION PARSER
-    evaluate = subparsers.add_parser("evaluate", help="Evaluate trained model on data.", parents=[parent_parser])
-    evaluate.add_argument("-sn", "--source-name", required=True, type=Path, help="Name of the source dataset.")
-    evaluate.add_argument("--source-dir", required=True, type=Path, help="Directory containing gin and model weights.")
-
+    parser.add_argument("--label", type=str, help="Label to use for evaluation in case of multiple labels.", default=None)
     return parser
 
 
@@ -107,10 +77,25 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
         Path to the created run log directory.
     """
     log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))
+    while log_dir_run.exists():
+        log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))
     log_dir_run.mkdir(parents=True)
     if randomly_searched_params:
         (log_dir_run / randomly_searched_params).touch()
     return log_dir_run
+
+
+def import_preprocessor(preprocessor_path: str):
+    # Import custom supplied preprocessor
+    log_full_line(f"Importing custom preprocessor from {preprocessor_path}.", logging.INFO)
+    try:
+        spec = importlib.util.spec_from_file_location("CustomPreprocessor", preprocessor_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["preprocessor"] = module
+        spec.loader.exec_module(module)
+        gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
+    except Exception as e:
+        logging.error(f"Could not import custom preprocessor from {preprocessor_path}: {e}")
 
 
 def aggregate_results(log_dir: Path, execution_time: timedelta = None):
@@ -121,6 +106,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
         execution_time: Overall execution time.
     """
     aggregated = {}
+    shap_values_test = []
     for repetition in log_dir.iterdir():
         if repetition.is_dir():
             aggregated[repetition.name] = {}
@@ -139,7 +125,18 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                     with open(fold_iter / "durations.json", "r") as f:
                         result = json.load(f)
                         aggregated[repetition.name][fold_iter.name].update(result)
+                if (fold_iter / "test_shap_values.parquet").is_file():
+                    shap_values_test.append(pl.read_parquet(fold_iter / "test_shap_values.parquet"))
 
+    if shap_values_test:
+        shap_values = pl.concat(shap_values_test)
+        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
+
+    try:
+        shap_values = pl.concat(shap_values_test)
+        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
+    except Exception as e:
+        logging.error(f"Error aggregating or writing SHAP values: {e}")
     # Aggregate results per metric
     list_scores = {}
     for repetition, folds in aggregated.items():
@@ -177,6 +174,11 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     logging.info(f"Accumulated results: {accumulated_metrics}")
 
     wandb_log(json.loads(json.dumps(accumulated_metrics, cls=JsonResultLoggingEncoder)))
+
+
+def name_datasets(train="default", val="default", test="default"):
+    """Names the datasets for logging (optional)."""
+    gin.bind_parameter("train_common.dataset_names", {"train": train, "val": val, "test": test})
 
 
 def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newlines: int = 0):
@@ -252,3 +254,46 @@ def setup_logging(date_format, log_format, verbose):
         for logger in loggers:
             logging.getLogger(logger).setLevel(logging.DEBUG)
         warnings.filterwarnings("default")
+
+
+def get_config_files(config_dir: Path):
+    """
+    Get all task and model config files in the specified directory.
+    Args:
+        config_dir: Name of the directory containing the config gin files.
+
+    Returns:
+        tasks: List of task names
+        models: List of model names
+    """
+    try:
+        tasks = list((config_dir / "tasks").glob("*"))
+        models = list((config_dir / "prediction_models").glob("*"))
+        tasks = [task.stem for task in tasks if task.is_file()]
+        models = [model.stem for model in models if model.is_file()]
+    except Exception as e:
+        logging.error(f"Error retrieving config files: {e}")
+        return [], []
+    if "common" in tasks:
+        tasks.remove("common")
+    if "common" in models:
+        models.remove("common")
+    logging.info(f"Found tasks: {tasks}")
+    logging.info(f"Found models: {models}")
+    return tasks, models
+
+
+def check_required_keys(vars, required_keys):
+    """
+    Checks if all required keys are present in the vars dictionary.
+
+    Args:
+        vars (dict): The dictionary to check.
+        required_keys (list): The list of required keys.
+
+    Raises:
+        KeyError: If any required key is missing.
+    """
+    missing_keys = [key for key in required_keys if key not in vars]
+    if missing_keys:
+        raise KeyError(f"Missing required keys in vars: {', '.join(missing_keys)}")

@@ -9,11 +9,11 @@ train_common.model = @GRUNet
 # Optimizer params
 optimizer/hyperparameter.class_to_tune = @Adam
 optimizer/hyperparameter.weight_decay = 1e-6
-optimizer/hyperparameter.lr = (1e-5, 3e-4)
+optimizer/hyperparameter.lr = (1e-6, 1e-4, "log")
 
 # Encoder params
 model/hyperparameter.class_to_tune = @GRUNet
 model/hyperparameter.num_classes = %NUM_CLASSES
-model/hyperparameter.hidden_dim = (32, 256, "log-uniform", 2)
-model/hyperparameter.layer_dim = (1, 3)
+model/hyperparameter.hidden_dim = (32, 512, "log")
+model/hyperparameter.layer_dim = (1, 10)
 

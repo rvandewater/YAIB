@@ -11,6 +11,7 @@ import torch
 
 from pytorch_lightning.loggers.logger import Logger
 from pytorch_lightning.utilities import rank_zero_only
+from sklearn.metrics import average_precision_score
 from torch.nn import Module
 from torch.optim import Optimizer, Adam, SGD, RAdam
 from typing import Optional, Union
@@ -23,7 +24,7 @@ def save_config_file(log_dir):
         f.write(gin.operative_config_str())
 
 
-def create_optimizer(name: str, model: Module, lr: float, momentum: float) -> Optimizer:
+def create_optimizer(name: str, model: Module, lr: float, momentum: float = 0) -> Optimizer:
     """creates the specified optimizer with the given parameters
 
     Args:
@@ -188,3 +189,96 @@ class JSONMetricsLogger(Logger):
     @rank_zero_only
     def log_hyperparams(self, params):
         pass
+
+
+class scorer_wrapper:
+    """
+    Wrapper that flattens the binary classification input such that we can use a broader range of sklearn metrics.
+    """
+
+    def __init__(self, scorer=average_precision_score):
+        self.scorer = scorer
+
+    def __call__(self, y_true, y_pred):
+        if len(np.unique(y_true)) <= 2 and y_pred.ndim > 1:
+            y_pred_argmax = np.argmax(y_pred, axis=1)
+            return self.scorer(y_true, y_pred_argmax)
+        else:
+            return self.scorer(y_true, y_pred)
+
+    def __name__(self):
+        return "scorer_wrapper"
+
+
+# Source: https://github.com/ratschlab/tls
+@gin.configurable("get_smoothed_labels")
+def get_smoothed_labels(
+    label, event, smoothing_fn=gin.REQUIRED, h_true=gin.REQUIRED, h_min=gin.REQUIRED, h_max=gin.REQUIRED, delta_h=12, gamma=0.1
+):
+    diffs = np.concatenate([np.zeros(1), event[1:] - event[:-1]], axis=-1)
+    pos_event_change_full = np.where((diffs == 1) & (event == 1))[0]
+
+    multihorizon = isinstance(h_true, list)
+    if multihorizon:
+        label_for_event = label[0]
+        h_for_event = h_true[0]
+    else:
+        label_for_event = label
+        h_for_event = h_true
+    diffs_label = np.concatenate([np.zeros(1), label_for_event[1:] - label_for_event[:-1]], axis=-1)
+
+    # Event that occurred after the end of the stay for M3B.
+    # In that case event are equal to the number of hours after the end of stay when the event occured.
+    pos_event_change_delayed = np.where((diffs >= 1) & (event > 1))[0]
+    if len(pos_event_change_delayed) > 0:
+        delays = event[pos_event_change_delayed] - 1
+        pos_event_change_delayed += delays.astype(int)
+        pos_event_change_full = np.sort(np.concatenate([pos_event_change_full, pos_event_change_delayed]))
+
+    last_know_label = label_for_event[np.where(label_for_event != -1)][-1]
+    last_know_idx = np.where(label_for_event == last_know_label)[0][-1]
+
+    # Need to handle the case where the ts was truncatenated at 2016 for HiB
+    if ((last_know_label == 1) and (len(pos_event_change_full) == 0)) or (
+        (last_know_label == 1) and (last_know_idx >= pos_event_change_full[-1])
+    ):
+        last_know_event = 0
+        if len(pos_event_change_full) > 0:
+            last_know_event = pos_event_change_full[-1]
+
+        last_known_stable = 0
+        known_stable = np.where(label_for_event == 0)[0]
+        if len(known_stable) > 0:
+            last_known_stable = known_stable[-1]
+
+        pos_change = np.where((diffs_label >= 1) & (label_for_event == 1))[0]
+        last_pos_change = pos_change[np.where(pos_change > max(last_know_event, last_known_stable))][0]
+        pos_event_change_full = np.concatenate([pos_event_change_full, [last_pos_change + h_for_event]])
+
+    # No event case
+    if len(pos_event_change_full) == 0:
+        pos_event_change_full = np.array([np.inf])
+
+    time_array = np.arange(len(label))
+    dist = pos_event_change_full.reshape(-1, 1) - time_array
+    dte = np.where(dist > 0, dist, np.inf).min(axis=0)
+    if multihorizon:
+        smoothed_labels = []
+        for k in range(label.shape[-1]):
+            smoothed_labels.append(
+                np.array(
+                    list(
+                        map(
+                            lambda x: smoothing_fn(
+                                x, h_true=h_true[k], h_min=h_min[k], h_max=h_max[k], delta_h=delta_h, gamma=gamma
+                            ),
+                            dte,
+                        )
+                    )
+                )
+            )
+        return np.stack(smoothed_labels, axis=-1)
+    else:
+        return np.array(
+            list(map(lambda x: smoothing_fn(x, h_true=h_true, h_min=h_min, h_max=h_max, delta_h=delta_h, gamma=gamma), dte))
+        )
