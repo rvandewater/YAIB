@@ -48,6 +48,7 @@ class CommonPolarsDataset(Dataset):
             self.row_indicators = data[split][Segment.features][self.vars["GROUP"]]
             self.features_df = data[split][Segment.features]
         # calculate basic info for the data
+        self.row_indicators = self.row_indicators.sort([self.vars["GROUP"], self.vars["SEQUENCE"]])
         self.num_stays = self.grouping_df[self.vars["GROUP"]].unique().shape[0]
         self.maxlen = self.features_df.group_by([self.vars["GROUP"]]).len().max().item(0, 1)
         self.mps = mps
@@ -169,6 +170,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         else:
             # Adding segment count for each stay id and timestep.
             rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
+        # rep = rep.sort([self.vars["GROUP"], "counter"])
         rep = rep.to_numpy().astype(float)
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
