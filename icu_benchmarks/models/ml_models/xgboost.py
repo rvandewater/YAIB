@@ -8,6 +8,7 @@ import wandb
 import xgboost as xgb
 from xgboost.callback import EarlyStopping
 from wandb.integration.xgboost import wandb_callback as wandb_xgb
+from sklearn.metrics import log_loss
 
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
@@ -23,7 +24,7 @@ class XGBClassifier(MLWrapper):
     _explain_values = False
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, device="cpu")
+        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu")
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
@@ -46,7 +47,7 @@ class XGBClassifier(MLWrapper):
             callbacks.append(wandb_xgb())
         logging.info(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
         logging.info(train_labels)
-        self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=False)
+        self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)])
         if self._explain_values:
             self.explainer = shap.TreeExplainer(self.model)
             self.train_shap_values = self.explainer(train_data)

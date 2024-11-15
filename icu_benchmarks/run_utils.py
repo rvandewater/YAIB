@@ -16,7 +16,7 @@ from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
 import polars as pl
-
+import random
 
 def build_parser() -> ArgumentParser:
     """Builds an ArgumentParser for the command line.
@@ -76,9 +76,9 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     Returns:
         Path to the created run log directory.
     """
-    log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))
+    log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))
     while log_dir_run.exists():
-        log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))
+        log_dir_run = log_dir_run.with_name(log_dir_run.name + random.randint(1, 10))
     log_dir_run.mkdir(parents=True)
     if randomly_searched_params:
         (log_dir_run / randomly_searched_params).touch()

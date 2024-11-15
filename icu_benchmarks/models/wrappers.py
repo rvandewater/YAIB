@@ -3,6 +3,7 @@ from abc import ABC
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 import torchmetrics
+from ignite.metrics import EpochMetric
 from sklearn.metrics import log_loss, mean_squared_error, average_precision_score, roc_auc_score
 
 import torch
@@ -46,7 +47,7 @@ class BaseModule(LightningModule):
     trained_columns = None
     # Type of run mode
     run_mode = None
-    debug = False
+    debug = True
     explain_features = False
 
     def forward(self, *args, **kwargs):
@@ -423,7 +424,7 @@ class MLWrapper(BaseModule, ABC):
         logging.debug(f"Train loss: {self.loss(train_label, train_pred)}")
         self.log("val/loss", val_loss, sync_dist=True)
         logging.debug(f"Val loss: {val_loss}")
-        self.log_metrics(train_label, train_pred, "train")
+        self.log_metrics(train_label, train_pred, "train", row_indicators)
 
     def fit_model(self, train_data, train_labels, val_data, val_labels):
         """Fit the model to the training data (default SKlearn syntax)"""
@@ -457,10 +458,10 @@ class MLWrapper(BaseModule, ABC):
             self.explain_model(test_rep, test_label)
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
-            self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
+            self.log_metrics(np.float32(test_label), np.float32(test_pred), "test", pred_indicators)
         else:
             self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
-            self.log_metrics(test_label, test_pred, "test")
+            self.log_metrics(test_label, test_pred, "test", pred_indicators)
         logging.debug(f"Test loss: {self.loss(test_label, test_pred)}")
 
     def predict(self, features):
@@ -469,21 +470,42 @@ class MLWrapper(BaseModule, ABC):
         else:  # Classification: return probabilities
             return self.model.predict_proba(features)
 
-    def log_metrics(self, label, pred, metric_type):
+    def log_metrics(self, label, pred, metric_type, pred_indicators):
         """Log metrics to the PL logs."""
-        if "Confusion_Matrix" in self.metrics:
-            self.log_dict(confusion_matrix(self.label_transform(label), self.output_transform(pred)), sync_dist=True)
-        self.log_dict(
-            {
-                f"{metric_type}/{name}": (metric(self.label_transform(label), self.output_transform(pred)))
-                # For every metric
-                for name, metric in self.metrics.items()
-                # Filter out metrics that return a tuple (e.g. precision_recall_curve)
-                if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
-                and name != "Confusion_Matrix"
-            },
-            sync_dist=True,
-        )
+        if pred_indicators is None:
+            if "Confusion_Matrix" in self.metrics:
+                self.log_dict(confusion_matrix(self.label_transform(label), self.output_transform(pred)), sync_dist=True)
+            self.log_dict(
+                {
+                    f"{metric_type}/{name}": (metric(self.label_transform(label), self.output_transform(pred)))
+                    # For every metric
+                    for name, metric in self.metrics.items()
+                    # Filter out metrics that return a tuple (e.g. precision_recall_curve)
+                    if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
+                    and name != "Confusion_Matrix"
+                },
+                sync_dist=True,
+            )
+        else:
+            if len(pred_indicators.shape) > 1 and len(pred.shape) > 1 and pred_indicators.shape[1] == pred.shape[1]:
+                pred_indicators = np.hstack((pred_indicators, label.reshape(-1, 1)))
+                pred_indicators = np.hstack((pred_indicators, pred))
+                # Format: id, time (hours), ground truth, prediction 0, prediction 1
+
+            # TODO: Implement alarm metrics using row indicators
+            if "Confusion_Matrix" in self.metrics:
+                self.log_dict(confusion_matrix(self.label_transform(label), self.output_transform(pred)), sync_dist=True)
+            self.log_dict(
+                {
+                    f"{metric_type}/{name}": (metric(self.label_transform(label), self.output_transform(pred)))
+                    # For every metric
+                    for name, metric in self.metrics.items()
+                    # Filter out metrics that return a tuple (e.g. precision_recall_curve)
+                    if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
+                    and name != "Confusion_Matrix"
+                },
+                sync_dist=True,
+            )
 
     def _explain_model(self, test_rep, test_label):
         if self.explainer is not None:
@@ -496,7 +518,8 @@ class MLWrapper(BaseModule, ABC):
             pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
             pred_indicators = np.hstack((pred_indicators, test_pred))
             # Save as: id, time (hours), ground truth, prediction 0, prediction 1
-            np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",")
+            np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",",
+                       header="id,time,ground_truth,prediction_0,prediction_1", fmt='%d,%d,%.3f,%.3f,%.3f')
             logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
         else:
             logging.warning("Could not save row indicators.")
