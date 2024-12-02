@@ -1,12 +1,13 @@
 import copy
 import logging
 import os
-
+import numpy as np
 import gin
 import json
 import hashlib
 import pandas as pd
 import polars as pl
+import polars.selectors as cs
 from pathlib import Path
 import pickle
 from timeit import default_timer as timer
@@ -15,6 +16,7 @@ from icu_benchmarks.data.preprocessor import Preprocessor, PandasClassificationP
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.run_utils import check_required_keys
 from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
+from .utils import check_sanitize_data, modality_selection
 
 
 @gin.configurable("preprocess")
@@ -26,6 +28,7 @@ def preprocess_data(
     vars: dict[str] = gin.REQUIRED,
     modality_mapping: dict[str] = {},
     selected_modalities: list[str] = "all",
+    exclude_preproc: list[str] = None,
     seed: int = 42,
     debug: bool = False,
     cv_repetitions: int = 5,
@@ -52,6 +55,9 @@ def preprocess_data(
         data_dir: Path to the directory holding the data.
         file_names: Contains the parquet file names in data_dir.
         vars: Contains the names of columns in the data.
+        modality_mapping: Mapping of modalities to column names.
+        selected_modalities: List of selected modalities to use.
+        exclude_preproc: List of modalities to exclude from preprocessing.
         seed: Random seed.
         debug: Load less data if true.
         cv_repetitions: Number of times to repeat cross validation.
@@ -89,19 +95,22 @@ def preprocess_data(
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
 
     logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
-    vars_to_exclude = (
-        modality_mapping.get("cat_clinical_notes") + modality_mapping.get("cat_med_embeddings_map")
-        if (
-            modality_mapping.get("cat_clinical_notes") is not None
-            and modality_mapping.get("cat_med_embeddings_map") is not None
-        )
-        else None
-    )
+
+    excluded_vars = []
+    if exclude_preproc is not None:
+        # Exclude variables from preprocessing based on modality:
+        # useful if modality has already undergone extensive preprocessing.
+        for modality in exclude_preproc:
+            if modality in modality_mapping:
+                excluded_vars.extend(modality_mapping.get(modality))
+            else:
+                logging.warning(f"Modality '{modality}' not found in modality mapping.")
+        logging.info(f"Excluding vars from preprocessing: {excluded_vars}")
 
     preprocessor = preprocessor(
         use_static_features=use_static,
         save_cache=data_dir / "preproc" / (cache_filename + "_recipe"),
-        vars_to_exclude=vars_to_exclude,
+        vars_to_exclude=excluded_vars,
     )
     if isinstance(preprocessor, PandasClassificationPreprocessor):
         preprocessor.set_imputation_model(pretrained_imputation_model)
@@ -180,6 +189,19 @@ def preprocess_data(
             logging.debug("Dropping columns with nulls")
             sel = dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
+            logging.info("Checking for infinite values.")
+            for col in val.select(cs.numeric()).columns:
+                if val[col].is_infinite().any():
+                    logging.info(f"Column '{col}' contains infinite values. Datatype: {val[col].dtype}")
+
+            max_float64 = np.finfo(np.float64).max / 100
+            # Replace infinite values with the maximum value for float64
+            val = val.with_columns([
+                pl.when(pl.col(col).is_infinite()).then(max_float64).otherwise(pl.col(col)).alias(col)
+                for col in val.columns if val[col].dtype == pl.Float64
+            ])
+            dict[key] = val
+
 
     # Generate cache
     if generate_cache:
@@ -190,59 +212,6 @@ def preprocess_data(
     logging.info("Finished preprocessing.")
 
     return data
-
-
-def check_sanitize_data(data, vars):
-    """Check for duplicates in the loaded data and remove them."""
-    group = vars[Var.group] if Var.group in vars.keys() else None
-    sequence = vars[Var.sequence] if Var.sequence in vars.keys() else None
-    keep = "last"
-    if Segment.static in data.keys():
-        old_len = len(data[Segment.static])
-        data[Segment.static] = data[Segment.static].unique(subset=group, keep=keep, maintain_order=True)
-        logging.warning(f"Removed {old_len - len(data[Segment.static])} duplicates from static data.")
-    if Segment.dynamic in data.keys():
-        old_len = len(data[Segment.dynamic])
-        data[Segment.dynamic] = data[Segment.dynamic].unique(subset=[group, sequence], keep=keep, maintain_order=True)
-        logging.warning(f"Removed {old_len - len(data[Segment.dynamic])} duplicates from dynamic data.")
-    if Segment.outcome in data.keys():
-        old_len = len(data[Segment.outcome])
-        if sequence in data[Segment.outcome].columns:
-            # We have a dynamic outcome with group and sequence
-            data[Segment.outcome] = data[Segment.outcome].unique(subset=[group, sequence], keep=keep, maintain_order=True)
-        else:
-            data[Segment.outcome] = data[Segment.outcome].unique(subset=[group], keep=keep, maintain_order=True)
-        logging.warning(f"Removed {old_len - len(data[Segment.outcome])} duplicates from outcome data.")
-    return data
-
-
-def modality_selection(
-    data: dict[pl.DataFrame], modality_mapping: dict[str], selected_modalities: list[str], vars
-) -> dict[pl.DataFrame]:
-    logging.info(f"Selected modalities: {selected_modalities}")
-    selected_columns = [modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]
-    if not any(col in modality_mapping.keys() for col in selected_modalities):
-        raise ValueError("None of the selected modalities found in modality mapping.")
-    if selected_columns == []:
-        logging.info("No columns selected. Using all columns.")
-        return data, vars
-    selected_columns = sum(selected_columns, [])
-    selected_columns.extend([vars[Var.group], vars[Var.label], vars[Var.sequence]])
-    old_columns = []
-    # Update vars dict
-    for key, value in vars.items():
-        if key not in [Var.group, Var.label, Var.sequence]:
-            old_columns.extend(value)
-            vars[key] = [col for col in value if col in selected_columns]
-    # -3 because of standard columns
-    logging.info(f"Selected columns: {len(selected_columns) - 3}, old columns: {len(old_columns)}")
-    logging.debug(f"Difference: {set(old_columns) - set(selected_columns)}")
-    # Update data dict
-    for key in data.keys():
-        sel_col = [col for col in data[key].columns if col in selected_columns]
-        data[key] = data[key].select(sel_col)
-        logging.debug(f"Selected columns in {key}: {len(data[key].columns)}")
-    return data, vars
 
 
 def make_train_val(
@@ -347,7 +316,7 @@ def make_single_split(
     repetition_index: int,
     cv_folds: int,
     fold_index: int,
-    train_size: int = None,
+    train_size: int = 0.80,
     seed: int = 42,
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
@@ -408,8 +377,10 @@ def make_single_split(
             outer_cv = StratifiedShuffleSplit(cv_repetitions, train_size=train_size)
         else:
             outer_cv = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
-        inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
-
+        if cv_folds > 2:
+            inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
+        else:
+            inner_cv = StratifiedShuffleSplit(cv_folds, train_size=0.75, random_state=seed)
         dev, test = list(outer_cv.split(stays, labels))[repetition_index]
         if polars:
             dev_stays = stays[dev]
@@ -423,6 +394,7 @@ def make_single_split(
             outer_cv = ShuffleSplit(cv_repetitions, train_size=train_size)
         else:
             outer_cv = KFold(cv_repetitions, shuffle=True, random_state=seed)
+
         inner_cv = KFold(cv_folds, shuffle=True, random_state=seed)
 
         dev, test = list(outer_cv.split(stays))[repetition_index]
