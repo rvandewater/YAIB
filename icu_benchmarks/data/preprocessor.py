@@ -1,6 +1,7 @@
 import copy
 import pickle
 
+import recipys.constants
 import torch
 import logging
 
@@ -177,14 +178,18 @@ class PolarsClassificationPreprocessor(Preprocessor):
         return data
 
     def _process_dynamic(self, data, vars):
+        # self.vars_to_exclude = ["hr"]
+        old_columns = data[Split.train][Segment.dynamic].columns
         dyn_rec = Recipe(data[Split.train][Segment.dynamic], [], vars[Segment.dynamic], vars["GROUP"], vars["SEQUENCE"])
         if self.scaling:
-            dyn_rec.add_step(StepScale())
+            dyn_rec.add_step(StepScale(sel=all_numeric_predictors(backend=recipys.constants.Backend.POLARS)))
         if self.imputation_model is not None:
             dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[Segment.dynamic])))
         if self.vars_to_exclude is not None:
             # Exclude vars_to_exclude from missing indicator/ feature generation
+            # logging.info(f"Excluding {len(self.vars_to_exclude)} : {self.vars_to_exclude}")
             vars_to_apply = list(set(vars[Segment.dynamic]) - set(self.vars_to_exclude))
+            # logging.info(f"Applying to {len(vars_to_apply)}")
         else:
             vars_to_apply = vars[Segment.dynamic]
         dyn_rec.add_step(StepSklearn(MissingIndicator(features="all"), sel=all_of(vars_to_apply), in_place=False))
@@ -195,6 +200,7 @@ class PolarsClassificationPreprocessor(Preprocessor):
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars_to_apply))
         data = apply_recipe_to_splits(dyn_rec, data, Segment.dynamic, self.save_cache, self.load_cache)
+        # logging.info(f"Data columns: {len(data[Split.train][Segment.dynamic].columns)} -> old columns: {len(old_columns)}, added columns: {set(data[Split.train][Segment.dynamic].columns) - set(old_columns)}")
         return data
 
     def _dynamic_feature_generation(self, data, dynamic_vars):
