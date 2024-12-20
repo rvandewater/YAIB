@@ -100,13 +100,15 @@ def preprocess_data(
     if exclude_preproc is not None:
         # Exclude variables from preprocessing based on modality:
         # useful if modality has already undergone extensive preprocessing.
-        for modality in exclude_preproc:
-            if modality in modality_mapping:
-                excluded_vars.extend(modality_mapping.get(modality))
-            else:
-                logging.warning(f"Modality '{modality}' not found in modality mapping.")
-        logging.info(f"Excluding vars from preprocessing: {excluded_vars}")
-
+        if modality_mapping is not None and len(modality_mapping) > 0:
+            for modality in exclude_preproc:
+                if modality in modality_mapping:
+                    excluded_vars.extend(modality_mapping.get(modality))
+                else:
+                    logging.warning(f"Modality '{modality}' not found in modality mapping.")
+            logging.info(f"Excluding vars from preprocessing: {excluded_vars}")
+        else:
+            logging.warning("No modality mapping provided. Excluding variables from preprocessing will have no effect.")
     preprocessor = preprocessor(
         use_static_features=use_static,
         save_cache=data_dir / "preproc" / (cache_filename + "_recipe"),
@@ -133,7 +135,7 @@ def preprocess_data(
         f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys() if os.path.exists(data_dir / file_names[f])
     }
     logging.info(f"Loaded data: {list(data.keys())}")
-    data = check_sanitize_data(data, vars)
+    data, vars = check_sanitize_data(data, vars)
 
     if not (Segment.dynamic in data.keys()):
         logging.warning("No dynamic data found, using only static data.")
@@ -194,13 +196,14 @@ def preprocess_data(
                 if val[col].is_infinite().any():
                     logging.info(f"Column '{col}' contains infinite values. Datatype: {val[col].dtype}")
 
-            max_float64 = np.finfo(np.float64).max / 100
+            max_float64 = 0
             # Replace infinite values with the maximum value for float64
             val = val.with_columns([
                 pl.when(pl.col(col).is_infinite()).then(max_float64).otherwise(pl.col(col)).alias(col)
                 for col in val.columns if val[col].dtype == pl.Float64
             ])
             dict[key] = val
+            logging.info(f"Amount of columns: {len(val.columns)}")
 
 
     # Generate cache
