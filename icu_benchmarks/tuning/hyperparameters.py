@@ -222,6 +222,9 @@ def choose_and_bind_hyperparameters_optuna(
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
     hyperparams = {}
+    if n_calls <= 0:
+        logging.info(f"Initialized with n_calls: {n_calls} , skipping tuning.")
+        return
 
     if len(scopes) == 0 or folds_to_tune_on is None:
         logging.warning("No scopes and/or folds to tune on, skipping tuning.")
