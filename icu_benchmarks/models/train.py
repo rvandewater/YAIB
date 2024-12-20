@@ -53,6 +53,7 @@ def train_common(
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
     polars=True,
     persistent_workers=None,
+    explain_features=False,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -173,6 +174,8 @@ def train_common(
         return 0
     test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"], ram_cache=ram_cache)
     test_dataset = assure_minimum_length(test_dataset)
+    # Set explainer for testing
+    model.set_explain_features(explain_features)
     logging.info(f"Testing on {test_dataset.name}  with {len(test_dataset)} samples.")
     test_loader = (
         DataLoader(
@@ -190,7 +193,8 @@ def train_common(
 
     model.set_weight("balanced", train_dataset)
     test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
-    persist_shap_data(trainer, log_dir)
+    if explain_features:
+        persist_shap_data(trainer, log_dir)
     save_config_file(log_dir)
     return test_loss
 
@@ -203,16 +207,16 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
         log_dir: Log directory
     """
     try:
-        if trainer.lightning_module.test_shap_values is not None:
-            shap_values = trainer.lightning_module.test_shap_values
-            shaps_test = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(shap_values.values))
-            with (log_dir / "shap_values_test.parquet").open("wb") as f:
+        if trainer.lightning_module.explainer_values_test is not None:
+            explainer_values = trainer.lightning_module.explainer_values_test
+            shaps_test = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(explainer_values.values))
+            with (log_dir / "explainer_values_test.parquet").open("wb") as f:
                 shaps_test.write_parquet(f)
-            logging.info(f"Saved shap values to {log_dir / 'test_shap_values.parquet'}")
-        if trainer.lightning_module.train_shap_values is not None:
-            shap_values = trainer.lightning_module.train_shap_values
-            shaps_train = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(shap_values.values))
-            with (log_dir / "shap_values_train.parquet").open("wb") as f:
+            logging.info(f"Saved explainer values to {log_dir / 'explainer_values_test.parquet'}")
+        if trainer.lightning_module.explainer_values_train is not None:
+            explainer_values = trainer.lightning_module.explainer_values_train
+            shaps_train = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(explainer_values.values))
+            with (log_dir / "explainer_values_train.parquet").open("wb") as f:
                 shaps_train.write_parquet(f)
 
     except Exception as e:

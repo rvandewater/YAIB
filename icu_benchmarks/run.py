@@ -184,6 +184,7 @@ def main(my_args=tuple(sys.argv[1:])):
         cpu=args.cpu,
         wandb=args.wandb_sweep,
         complete_train=args.complete_train,
+        explain_features=True,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)

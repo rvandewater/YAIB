@@ -106,7 +106,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
         execution_time: Overall execution time.
     """
     aggregated = {}
-    shap_values_test = []
+    explainer_values_test = []
     for repetition in log_dir.iterdir():
         if repetition.is_dir():
             aggregated[repetition.name] = {}
@@ -125,16 +125,16 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                     with open(fold_iter / "durations.json", "r") as f:
                         result = json.load(f)
                         aggregated[repetition.name][fold_iter.name].update(result)
-                if (fold_iter / "test_shap_values.parquet").is_file():
-                    shap_values_test.append(pl.read_parquet(fold_iter / "test_shap_values.parquet"))
+                if (fold_iter / "explainer_values_test.parquet").is_file():
+                    explainer_values_test.append(pl.read_parquet(fold_iter / "explainer_values_test.parquet"))
 
-    if shap_values_test:
-        shap_values = pl.concat(shap_values_test)
-        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
+    if explainer_values_test:
+        shap_values = pl.concat(explainer_values_test)
+        shap_values.write_parquet(log_dir / "aggregated_explainer_values.parquet")
 
     try:
-        shap_values = pl.concat(shap_values_test)
-        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
+        shap_values = pl.concat(explainer_values_test)
+        shap_values.write_parquet(log_dir / "aggregated_explainer_values.parquet")
     except Exception as e:
         logging.error(f"Error aggregating or writing SHAP values: {e}")
     # Aggregate results per metric

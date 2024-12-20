@@ -24,7 +24,7 @@ class XGBClassifier(MLWrapper):
     _explain_values = False
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu")
+        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", missing='inf')
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
@@ -48,7 +48,9 @@ class XGBClassifier(MLWrapper):
         logging.info(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
         logging.info(train_labels)
         self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)])
-        if self._explain_values:
+        self.explain_features = True
+        if self.explain_features:
+            logging.info("Explaining features")
             self.explainer = shap.TreeExplainer(self.model)
             self.train_shap_values = self.explainer(train_data)
         # shap.summary_plot(shap_values, X_test, feature_names=features)
@@ -69,7 +71,12 @@ class XGBClassifier(MLWrapper):
         logging.debug(f"Creating model with: {valid_kwargs}.")
         return model(**valid_kwargs)
 
-    def get_feature_importance(self):
+    def explain_model(self, reps, labels):
+        if not hasattr(self.model, "feature_importances_"):
+            raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
+        return self.model.feature_importances_
+
+    def explainer(self, reps):
         if not hasattr(self.model, "feature_importances_"):
             raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
         return self.model.feature_importances_

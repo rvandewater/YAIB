@@ -105,6 +105,8 @@ class BaseModule(LightningModule):
             raise ValueError(f"Runmode {runmode} not supported for {self.__class__.__name__}")
         return True
 
+    def set_explain_features(self, set_explain_features: bool):
+        self.explain_features = set_explain_features
 
 @gin.configurable("DLWrapper")
 class DLWrapper(BaseModule, ABC):
@@ -220,6 +222,8 @@ class DLWrapper(BaseModule, ABC):
             logging.info(f"Model saved to {str(path.resolve())}.")
         except Exception as e:
             logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
+
+
 
 
 @gin.configurable("DLPredictionWrapper")
@@ -428,8 +432,8 @@ class MLWrapper(BaseModule, ABC):
 
     def fit_model(self, train_data, train_labels, val_data, val_labels):
         """Fit the model to the training data (default SKlearn syntax)"""
-        self.model.fit(train_data, train_labels)
-        val_loss = 0.0
+        val_loss = self.model.fit(train_data, train_labels)
+        # val_loss = 0.0
         return val_loss
 
     def validation_step(self, val_dataset, _):
@@ -455,7 +459,8 @@ class MLWrapper(BaseModule, ABC):
         if self.debug:
             self._save_model_outputs(pred_indicators, test_pred, test_label)
         if self.explain_features:
-            self.explain_model(test_rep, test_label)
+            # self.explain_model(test_rep, test_label)
+            self._explain_model(test_rep, test_label)
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
             self.log_metrics(np.float32(test_label), np.float32(test_pred), "test", pred_indicators)
@@ -487,7 +492,8 @@ class MLWrapper(BaseModule, ABC):
                 sync_dist=True,
             )
         else:
-            if len(pred_indicators.shape) > 1 and len(pred.shape) > 1 and pred_indicators.shape[1] == pred.shape[1]:
+            if (len(pred_indicators.shape) > 1 and len(pred.shape) > 1 and pred_indicators.shape[1] == pred.shape[1]
+                    and pred_indicators.shape[0] == pred.shape[0]):
                 pred_indicators = np.hstack((pred_indicators, label.reshape(-1, 1)))
                 pred_indicators = np.hstack((pred_indicators, pred))
                 # Format: id, time (hours), ground truth, prediction 0, prediction 1
@@ -509,12 +515,13 @@ class MLWrapper(BaseModule, ABC):
 
     def _explain_model(self, test_rep, test_label):
         if self.explainer is not None:
-            self.test_shap_values = self.explainer(test_rep)
+            self.explainer_values_test = self.explainer(test_rep)
         else:
             logging.warning("No explainer or explain_features values set.")
 
     def _save_model_outputs(self, pred_indicators, test_pred, test_label):
-        if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1 and pred_indicators.shape[1] == test_pred.shape[1]:
+        if (len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1
+                and pred_indicators.shape[1] == test_pred.shape[1] and pred_indicators.shape[0] == test_pred.shape[0]):
             pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
             pred_indicators = np.hstack((pred_indicators, test_pred))
             # Save as: id, time (hours), ground truth, prediction 0, prediction 1
