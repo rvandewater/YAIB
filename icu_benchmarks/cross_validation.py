@@ -38,6 +38,7 @@ def execute_repeated_cv(
     verbose: bool = False,
     wandb: bool = False,
     complete_train: bool = False,
+    explain_features: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
@@ -72,6 +73,9 @@ def execute_repeated_cv(
         cv_repetitions_to_train = cv_repetitions
     if not cv_folds_to_train:
         cv_folds_to_train = cv_folds
+    elif cv_folds_to_train > cv_folds:
+        raise ValueError(f"cv_folds_to_train is {cv_folds_to_train}, cv_folds is {cv_folds}. "
+                         f" This is likely due to a hyperparameter tuning settings mismatch.")
     agg_loss = 0
     seed_everything(seed, reproducible)
     if complete_train:
@@ -119,6 +123,7 @@ def execute_repeated_cv(
                 verbose=verbose,
                 use_wandb=wandb,
                 train_only=complete_train,
+                explain_features=explain_features,
             )
             train_time = datetime.now() - start_time
 
