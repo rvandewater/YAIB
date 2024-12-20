@@ -69,7 +69,7 @@ class CommonPolarsDataset(Dataset):
         return self.num_stays
 
     def get_feature_names(self) -> List[str]:
-        return self.features_df.columns
+        return [col for col in self.features_df.columns if col != self.vars["GROUP"]]
 
     def to_tensor(self) -> List[Tensor]:
         values = []
@@ -172,6 +172,8 @@ class PredictionPolarsDataset(CommonPolarsDataset):
             rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
         # rep = rep.sort([self.vars["GROUP"], "counter"])
         rep = rep.to_numpy().astype(float)
+        # Remove the first column from the rep array (group column)
+        rep = rep[:, 1:]
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
         return rep, labels, self.row_indicators.to_numpy()
@@ -179,7 +181,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
     def to_tensor(self) -> Tuple[Tensor, Tensor, Tensor]:
         data, labels, row_indicators = self.get_data_and_labels()
         if self.mps:
-            return from_numpy(data).to(float32), from_numpy(labels).to(float32)
+            return from_numpy(data).to(float32), from_numpy(labels).to(float32), row_indicators
         else:
             return from_numpy(data), from_numpy(labels), row_indicators
 
