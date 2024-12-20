@@ -2,9 +2,9 @@
 #SBATCH --job-name=yaib_experiment
 #SBATCH --partition=compute # -p
 #SBATCH --cpus-per-task=16 # -c
-#SBATCH --mem=100gb
+#SBATCH --mem=250gb
 #SBATCH --output=logs/classification_%a_%j.log # %j is job id
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 
 source /etc/profile.d/conda.sh
 
