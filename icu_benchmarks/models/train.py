@@ -206,21 +206,31 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
         trainer: Pytorch lightning trainer object
         log_dir: Log directory
     """
+    logging.info("Persisting explainer values to disk.")
     try:
+        trained_columns = trainer.lightning_module.trained_columns
+
+        if "stay_id" in trainer.lightning_module.trained_columns:
+            trained_columns.remove("stay_id")
+        logging.info(f"Saving SHAPS")
         if trainer.lightning_module.explainer_values_test is not None:
+            # todo: abs values
             explainer_values = trainer.lightning_module.explainer_values_test
-            shaps_test = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(explainer_values.values))
+            # logging.info(f"{explainer_values.values.shape}")
+            # shaps_test = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(explainer_values.values))
+            shaps_test = pl.DataFrame(schema=trained_columns, data=explainer_values)
             with (log_dir / "explainer_values_test.parquet").open("wb") as f:
                 shaps_test.write_parquet(f)
             logging.info(f"Saved explainer values to {log_dir / 'explainer_values_test.parquet'}")
         if trainer.lightning_module.explainer_values_train is not None:
             explainer_values = trainer.lightning_module.explainer_values_train
-            shaps_train = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(explainer_values.values))
+            # shaps_train = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(explainer_values.values))
+            shaps_train = pl.DataFrame(schema=trained_columns, data=explainer_values.values)
             with (log_dir / "explainer_values_train.parquet").open("wb") as f:
                 shaps_train.write_parquet(f)
 
     except Exception as e:
-        logging.error(f"Failed to save shap values: {e}")
+        logging.error(f"Failed to save explainer values: {e}")
 
 
 def load_model(model, source_dir, pl_model=True):

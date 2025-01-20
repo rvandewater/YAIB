@@ -69,7 +69,7 @@ class CommonPolarsDataset(Dataset):
         return self.num_stays
 
     def get_feature_names(self) -> List[str]:
-        return [col for col in self.features_df.columns if col != self.vars["GROUP"]]
+        return [col for col in self.features_df.columns ]#if col != self.vars["GROUP"] and col != self.vars["SEQUENCE"]]
 
     def to_tensor(self) -> List[Tensor]:
         values = []

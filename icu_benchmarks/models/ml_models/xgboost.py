@@ -3,6 +3,7 @@ import logging
 from statistics import mean
 
 import gin
+import numpy as np
 import shap
 import wandb
 import xgboost as xgb
@@ -71,12 +72,15 @@ class XGBClassifier(MLWrapper):
         logging.debug(f"Creating model with: {valid_kwargs}.")
         return model(**valid_kwargs)
 
-    def explain_model(self, reps, labels):
+    def _explain_model(self, reps, labels):
         if not hasattr(self.model, "feature_importances_"):
             raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
-        return self.model.feature_importances_
+        feature_importances = self.model.feature_importances_
+        shap_values = self.explainer.shap_values(reps)
+        # feature_importances = np.abs(shap_values).mean(axis=1)
+        return shap_values
 
-    def explainer(self, reps):
-        if not hasattr(self.model, "feature_importances_"):
-            raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
-        return self.model.feature_importances_
+    # def explainer(self, reps):
+    #     if not hasattr(self.model, "feature_importances_"):
+    #         raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
+    #     return self.model.feature_importances_

@@ -63,6 +63,7 @@ class BaseModule(LightningModule):
         self.metrics = {}
 
     def set_trained_columns(self, columns: List[str]):
+        logging.info(f"Setting trained columns: {columns}")
         self.trained_columns = columns
 
     def set_weight(self, weight, dataset):
@@ -460,7 +461,7 @@ class MLWrapper(BaseModule, ABC):
             self._save_model_outputs(pred_indicators, test_pred, test_label)
         if self.explain_features:
             # self.explain_model(test_rep, test_label)
-            self._explain_model(test_rep, test_label)
+            self.explainer_values_test = self._explain_model(test_rep, test_label)
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
             self.log_metrics(np.float32(test_label), np.float32(test_pred), "test", pred_indicators)
@@ -513,11 +514,12 @@ class MLWrapper(BaseModule, ABC):
                 sync_dist=True,
             )
 
-    def _explain_model(self, test_rep, test_label):
-        if self.explainer is not None:
-            self.explainer_values_test = self.explainer(test_rep)
-        else:
-            logging.warning("No explainer or explain_features values set.")
+    # def _explain_model(self, test_rep, test_label):
+    #     if self.explainer is not None:
+    #         logging.info(f"Explaining features for {self}")
+    #         self.explainer_values_test = self.explainer(test_rep)
+    #     else:
+    #         logging.warning("No explainer or explain_features values set.")
 
     def _save_model_outputs(self, pred_indicators, test_pred, test_label):
         if (len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1
