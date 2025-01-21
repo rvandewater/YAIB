@@ -362,7 +362,7 @@ def make_single_split(
     if Var.label in vars and runmode is RunMode.classification:
         # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
         if polars:
-            labels = data[Segment.outcome].group_by(id).max()[vars[Var.label]]
+            labels = data[Segment.outcome].group_by(id).max().sort(id)[vars[Var.label]]
             if labels.value_counts().min().item(0, 1) < cv_folds:
                 raise Exception(
                     f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
