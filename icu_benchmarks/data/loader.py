@@ -42,13 +42,16 @@ class CommonPolarsDataset(Dataset):
             self.features_df = data[split][Segment.features]
             self.features_df = self.features_df.sort([self.vars["GROUP"], self.vars["SEQUENCE"]])
             self.features_df = self.features_df.drop(self.vars["SEQUENCE"])
+            self.row_indicators = self.row_indicators.sort([self.vars["GROUP"], self.vars["SEQUENCE"]])
+
         else:
             # We have a static dataset
             logging.info("Using static dataset")
             self.row_indicators = data[split][Segment.features][self.vars["GROUP"]]
             self.features_df = data[split][Segment.features]
+            # Series with unique values
+            self.row_indicators = self.row_indicators.sort()
         # calculate basic info for the data
-        self.row_indicators = self.row_indicators.sort([self.vars["GROUP"], self.vars["SEQUENCE"]])
         self.num_stays = self.grouping_df[self.vars["GROUP"]].unique().shape[0]
         self.maxlen = self.features_df.group_by([self.vars["GROUP"]]).len().max().item(0, 1)
         self.mps = mps

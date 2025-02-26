@@ -128,14 +128,17 @@ class PolarsClassificationPreprocessor(Preprocessor):
         logging.debug("Data head")
         logging.debug(data[Split.train][Segment.features].head())
         logging.debug(data[Split.train][Segment.outcome])
-        for split in [Split.train, Split.val, Split.test]:
-            if vars["SEQUENCE"] in data[split][Segment.outcome] and len(data[split][Segment.features]) != len(
-                data[split][Segment.outcome]
-            ):
-                raise Exception(
-                    f"Data and outcome length mismatch in {split} split: "
-                    f"features: {len(data[split][Segment.features])}, outcome: {len(data[split][Segment.outcome])}"
-                )
+        # If sequence is in data
+        if "SEQUENCE" in vars:
+            for split in [Split.train, Split.val, Split.test]:
+                # Check if we have sequence in the outcome and the data and outcome length match
+                if vars["SEQUENCE"] in data[split][Segment.outcome] and len(data[split][Segment.features]) != len(
+                    data[split][Segment.outcome]
+                ):
+                    raise Exception(
+                        f"Data and outcome length mismatch in {split} split: "
+                        f"features: {len(data[split][Segment.features])}, outcome: {len(data[split][Segment.outcome])}"
+                    )
         data[Split.train][Segment.features] = data[Split.train][Segment.features].unique()
         data[Split.val][Segment.features] = data[Split.val][Segment.features].unique()
         data[Split.test][Segment.features] = data[Split.test][Segment.features].unique()

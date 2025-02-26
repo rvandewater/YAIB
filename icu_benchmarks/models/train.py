@@ -210,7 +210,8 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
     try:
         trained_columns = trainer.lightning_module.trained_columns
 
-        if "stay_id" in trainer.lightning_module.trained_columns:
+        if ("stay_id" in trainer.lightning_module.trained_columns and
+                len(trainer.lightning_module.trained_columns) != trainer.lightning_module.explainer_values_test.shape[1]):
             trained_columns.remove("stay_id")
         logging.info(f"Saving SHAPS")
         if trainer.lightning_module.explainer_values_test is not None:
@@ -219,9 +220,10 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
             # logging.info(f"{explainer_values.values.shape}")
             # shaps_test = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(explainer_values.values))
             shaps_test = pl.DataFrame(schema=trained_columns, data=explainer_values)
+            shaps_test = shaps_test.select(pl.all().mean())
             with (log_dir / "explainer_values_test.parquet").open("wb") as f:
                 shaps_test.write_parquet(f)
-            logging.info(f"Saved explainer values to {log_dir / 'explainer_values_test.parquet'}")
+            logging.debug(f"Saved explainer values to {log_dir / 'explainer_values_test.parquet'}")
         if trainer.lightning_module.explainer_values_train is not None:
             explainer_values = trainer.lightning_module.explainer_values_train
             # shaps_train = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(explainer_values.values))

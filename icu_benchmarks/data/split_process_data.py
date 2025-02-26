@@ -26,7 +26,7 @@ def preprocess_data(
     preprocessor: Preprocessor = PolarsClassificationPreprocessor,
     use_static: bool = True,
     vars: dict[str] = gin.REQUIRED,
-    modality_mapping: dict[str] = {},
+    modality_mapping: dict[str] = None,
     selected_modalities: list[str] = "all",
     exclude_preproc: list[str] = None,
     seed: int = 42,
@@ -42,7 +42,7 @@ def preprocess_data(
     complete_train: bool = False,
     runmode: RunMode = RunMode.classification,
     label: str = None,
-    required_var_types=["GROUP", "SEQUENCE", "LABEL"],
+    required_var_types=["GROUP", "LABEL"],
     required_segments=[Segment.static, Segment.dynamic, Segment.outcome],
 ) -> dict[dict[pl.DataFrame]] or dict[dict[pd.DataFrame]]:
     """Perform loading, splitting, imputing and normalising of task data.
