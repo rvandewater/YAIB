@@ -83,7 +83,7 @@ def choose_and_bind_hyperparameters_scikit_optimize(
     configuration, evaluation = None, None
     if checkpoint:
         checkpoint_path = checkpoint / checkpoint_file
-        if not checkpoint_path.exists():
+        if not checkpoint_path.isfile():
             logging.warning(f"Hyperparameter checkpoint {checkpoint_path} does not exist.")
             logging.info("Attempting to find latest checkpoint file.")
             checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
