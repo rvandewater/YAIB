@@ -10,7 +10,7 @@ pytorch-ignite==0.5.1
 torch==2.4
 lightning==2.4.0
 torchmetrics==1.0.3
-lightgbm==4.4.0
+lightgbm==4.6.0
 xgboost==2.1.0
 imbalanced-learn==0.12.3
 catboost==1.2.5
