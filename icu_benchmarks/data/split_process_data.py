@@ -106,7 +106,7 @@ def preprocess_data(
                     excluded_vars.extend(modality_mapping.get(modality))
                 else:
                     logging.warning(f"Modality '{modality}' not found in modality mapping.")
-            logging.info(f"Excluding vars from preprocessing: {excluded_vars}")
+            logging.info(f"Excluding modalities in {exclude_preproc}. Total vars excluded from preprocessing: {len(excluded_vars)}")
         else:
             logging.warning("No modality mapping provided. Excluding variables from preprocessing will have no effect.")
     preprocessor = preprocessor(
@@ -434,7 +434,7 @@ def make_single_split(
             data_split[fold] = {
                 data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
             }
-    logging.info(f"Data split: {data_split}")
+    # logging.info(f"Data split: {data_split}")
     return data_split
 
 
