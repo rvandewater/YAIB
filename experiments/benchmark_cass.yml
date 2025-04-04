@@ -13,6 +13,12 @@ command:
   - --wandb-sweep
   - -tn
   - SSI
+#  - --hp-checkpoint
+#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/dataset_baseline_flat_2025-02-20T10:40:52/SSI/XGBClassifier/2025-02-20T11-29-27.323418/hyperparameter_tuning_logs.db
+#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/dataset_baseline_retro_2025-02-25/SSI/XGBClassifier/2025-02-25T10-52-44.899424/hyperparameter_tuning_logs.db
+#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/selected_ids_2025-01-15_17:38:58/SSI/XGBClassifier/2025-01-15T19-24-30.343814/hyperparameter_tuning_logs.db
+#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/selected_ids_2025-01-15_17:38:58/SSI/XGBClassifier/2025-01-15T19-24-33.047304/hyperparameter_tuning_logs.db
+#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/selected_ids_2025-01-15_17:38:58/SSI/XGBClassifier/2025-01-15T19-24-30.343814/hyperparameter_tuning_logs.db
 #  - Mortality
 #  - --verbose
   - --modalities
@@ -27,7 +33,18 @@ name: yaib_classification_benchmark
 parameters:
   data_dir:
     values:
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/selected_ids_2025-01-15_17:38:58"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-03-13T14:53:05"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/static_2025-03-11T09:47:15"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_flat_2025-03-10T16:17:59"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-03-07T12:51:24_wearable_cut_off_0.75"
+#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-03-06T19:55:44_wearable_cut_off_0.75
+#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_retro_2025-02-25
+#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_flat_2025-02-20T10:40:52
+#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/ICU_SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-02-14T17:21:43
+#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-01-26T20:14:47_wearable_cut_off_0.75
+#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-01-21T18:56:10_wearable_cut_off_0.75
+#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-01-21T18:44:35_wearable_cut_off_0.75
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/selected_ids_2025-01-15_17:38:58"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/selected_ids_2025-01-15_11:50:05"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/selected_ids_2024-12-13_16:24:38"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2024-11-28T14:02:51"
