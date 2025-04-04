@@ -13,10 +13,13 @@ def infinite_removal(val):
 
     max_float64 = np.finfo(np.float64).max / 100
     # Replace infinite values with the maximum value for float64
-    val = val.with_columns([
-        pl.when(pl.col(col).is_infinite()).then(max_float64).otherwise(pl.col(col)).alias(col)
-        for col in val.columns if val[col].dtype == pl.Float64
-    ])
+    val = val.with_columns(
+        [
+            pl.when(pl.col(col).is_infinite()).then(max_float64).otherwise(pl.col(col)).alias(col)
+            for col in val.columns
+            if val[col].dtype == pl.Float64
+        ]
+    )
     return val
 
 

@@ -19,6 +19,7 @@ from icu_benchmarks.wandb_utils import wandb_log
 import polars as pl
 import random
 
+
 def build_parser() -> ArgumentParser:
     """Builds an ArgumentParser for the command line.
 

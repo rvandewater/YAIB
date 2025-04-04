@@ -25,7 +25,9 @@ class XGBClassifier(MLWrapper):
     _explain_values = False
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", missing='inf', verbosity=0)
+        self.model = self.set_model_args(
+            xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", missing="inf", verbosity=0
+        )
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
@@ -50,8 +52,9 @@ class XGBClassifier(MLWrapper):
         logging.info(train_labels)
         self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=0)
         # if self.explain_features:
-        self.explainer = shap.TreeExplainer(self.model, train_data, feature_perturbation="interventional",
-                                            model_output="probability")
+        self.explainer = shap.TreeExplainer(
+            self.model, train_data, feature_perturbation="interventional", model_output="probability"
+        )
         if self.explain_features:
             logging.info("Explaining features")
             self.train_shap_values = self.explainer.shap_values(train_data)

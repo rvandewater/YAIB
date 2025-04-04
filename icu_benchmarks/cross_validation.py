@@ -74,8 +74,10 @@ def execute_repeated_cv(
     if not cv_folds_to_train:
         cv_folds_to_train = cv_folds
     elif cv_folds_to_train > cv_folds:
-        raise ValueError(f"cv_folds_to_train is {cv_folds_to_train}, cv_folds is {cv_folds}. "
-                         f" This is likely due to a hyperparameter tuning settings mismatch.")
+        raise ValueError(
+            f"cv_folds_to_train is {cv_folds_to_train}, cv_folds is {cv_folds}. "
+            f" This is likely due to a hyperparameter tuning settings mismatch."
+        )
     agg_loss = 0
     seed_everything(seed, reproducible)
     if complete_train:

@@ -210,8 +210,10 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
     try:
         trained_columns = trainer.lightning_module.trained_columns
 
-        if (any(x in ["stay_id", "id"] for x in trained_columns) and
-                len(trained_columns) != trainer.lightning_module.explainer_values_test.shape[1]):
+        if (
+            any(x in ["stay_id", "id"] for x in trained_columns)
+            and len(trained_columns) != trainer.lightning_module.explainer_values_test.shape[1]
+        ):
             trained_columns.remove("stay_id" if "stay_id" in trained_columns else "id")
         logging.info(f"Saving SHAPS")
         if trainer.lightning_module.explainer_values_test is not None:

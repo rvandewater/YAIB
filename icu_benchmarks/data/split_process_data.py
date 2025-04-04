@@ -106,7 +106,9 @@ def preprocess_data(
                     excluded_vars.extend(modality_mapping.get(modality))
                 else:
                     logging.warning(f"Modality '{modality}' not found in modality mapping.")
-            logging.info(f"Excluding modalities in {exclude_preproc}. Total vars excluded from preprocessing: {len(excluded_vars)}")
+            logging.info(
+                f"Excluding modalities in {exclude_preproc}. Total vars excluded from preprocessing: {len(excluded_vars)}"
+            )
         else:
             logging.warning("No modality mapping provided. Excluding variables from preprocessing will have no effect.")
     preprocessor = preprocessor(
@@ -198,13 +200,15 @@ def preprocess_data(
 
             max_float64 = 0
             # Replace infinite values with the maximum value for float64
-            val = val.with_columns([
-                pl.when(pl.col(col).is_infinite()).then(max_float64).otherwise(pl.col(col)).alias(col)
-                for col in val.columns if val[col].dtype == pl.Float64
-            ])
+            val = val.with_columns(
+                [
+                    pl.when(pl.col(col).is_infinite()).then(max_float64).otherwise(pl.col(col)).alias(col)
+                    for col in val.columns
+                    if val[col].dtype == pl.Float64
+                ]
+            )
             dict[key] = val
             logging.info(f"Amount of columns: {len(val.columns)}")
-
 
     # Generate cache
     if generate_cache:

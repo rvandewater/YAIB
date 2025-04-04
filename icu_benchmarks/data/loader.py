@@ -16,15 +16,15 @@ from .constants import DataSplit as Split
 @gin.configurable("CommonPolarsDataset")
 class CommonPolarsDataset(Dataset):
     def __init__(
-            self,
-            data: dict,
-            split: str = Split.train,
-            vars: Dict[str, str] = gin.REQUIRED,
-            grouping_segment: str = Segment.outcome,
-            mps: bool = False,
-            name: str = "",
-            *args,
-            **kwargs,
+        self,
+        data: dict,
+        split: str = Split.train,
+        vars: Dict[str, str] = gin.REQUIRED,
+        grouping_segment: str = Segment.outcome,
+        mps: bool = False,
+        name: str = "",
+        *args,
+        **kwargs,
     ):
         # super().__init__(*args, **kwargs)
         self.split = split
@@ -72,7 +72,7 @@ class CommonPolarsDataset(Dataset):
         return self.num_stays
 
     def get_feature_names(self) -> List[str]:
-        return [col for col in self.features_df.columns ]#if col != self.vars["GROUP"] and col != self.vars["SEQUENCE"]]
+        return [col for col in self.features_df.columns]  # if col != self.vars["GROUP"] and col != self.vars["SEQUENCE"]]
 
     def to_tensor(self) -> List[Tensor]:
         values = []
@@ -116,10 +116,10 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         # slice to make sure to always return a DF
         # window = self.features_df.loc[stay_id:stay_id].to_numpy()
         # labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
-        window = self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id).select(
-            pl.exclude(self.vars["GROUP"])).to_numpy()
-        labels = self.outcome_df.filter(pl.col(self.vars["GROUP"]) == stay_id)[self.vars["LABEL"]].to_numpy().astype(
-            float)
+        window = (
+            self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id).select(pl.exclude(self.vars["GROUP"])).to_numpy()
+        )
+        labels = self.outcome_df.filter(pl.col(self.vars["GROUP"]) == stay_id)[self.vars["LABEL"]].to_numpy().astype(float)
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -202,16 +202,15 @@ class CommonPandasDataset(Dataset):
     """
 
     def __init__(
-            self,
-            data: dict,
-            split: str = Split.train,
-            vars: Dict[str, str] = gin.REQUIRED,
-            grouping_segment: str = Segment.outcome,
-            mps: bool = False,
-            name: str = "",
+        self,
+        data: dict,
+        split: str = Split.train,
+        vars: Dict[str, str] = gin.REQUIRED,
+        grouping_segment: str = Segment.outcome,
+        mps: bool = False,
+        name: str = "",
     ):
-        warnings.warn("CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning,
-                      stacklevel=2)
+        warnings.warn("CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning, stacklevel=2)
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
@@ -350,14 +349,14 @@ class ImputationPandasDataset(CommonPandasDataset):
     """Subclass of Common Dataset that contains data for imputation models."""
 
     def __init__(
-            self,
-            data: Dict[str, DataFrame],
-            split: str = Split.train,
-            vars: Dict[str, str] = gin.REQUIRED,
-            mask_proportion=0.3,
-            mask_method="MCAR",
-            mask_observation_proportion=0.3,
-            ram_cache: bool = True,
+        self,
+        data: Dict[str, DataFrame],
+        split: str = Split.train,
+        vars: Dict[str, str] = gin.REQUIRED,
+        mask_proportion=0.3,
+        mask_method="MCAR",
+        mask_observation_proportion=0.3,
+        ram_cache: bool = True,
     ):
         """
         Args:
@@ -424,11 +423,11 @@ class ImputationPredictionDataset(Dataset):
     """
 
     def __init__(
-            self,
-            data: DataFrame,
-            grouping_column: str = "stay_id",
-            select_columns: List[str] = None,
-            ram_cache: bool = True,
+        self,
+        data: DataFrame,
+        grouping_column: str = "stay_id",
+        select_columns: List[str] = None,
+        ram_cache: bool = True,
     ):
         self.dyn_df = data
 

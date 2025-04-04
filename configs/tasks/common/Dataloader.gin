@@ -7,3 +7,4 @@ PredictionPolarsDataset.mps = True
 # Imputation
 ImputationPandasDataset.vars = %vars
 ImputationPandasDataset.ram_cache = True
+PredictionPolarsDataset.mps = True

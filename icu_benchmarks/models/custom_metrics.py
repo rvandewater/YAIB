@@ -63,7 +63,7 @@ class MAE(EpochMetric):
         invert_transform: Callable = lambda x: x,
     ) -> None:
         super(MAE, self).__init__(
-            lambda x, y: mae_with_invert_compute_fn(x, y, invert_transform),
+            lambda x, y: self.mae_with_invert_compute_fn(x, y, invert_transform),
             output_transform=output_transform,
             check_compute_fn=check_compute_fn,
         )
@@ -152,6 +152,7 @@ class Sensitivity(EpochMetric):
             self.sensitivity_compute, output_transform=output_transform, check_compute_fn=check_compute_fn
         )
 
+
 def sensitivity(y_preds: torch.Tensor | ndarray, y_targets: torch.Tensor | ndarray) -> float:
     if isinstance(y_preds, torch.Tensor):
         y_preds = y_preds.numpy()
@@ -162,11 +163,13 @@ def sensitivity(y_preds: torch.Tensor | ndarray, y_targets: torch.Tensor | ndarr
     tn, fp, fn, tp = sk_confusion_matrix(y_true, y_pred).ravel()
     return tp / (tp + fn)
 
+
 class Specificity(EpochMetric):
     def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
         super(Specificity, self).__init__(
             self.specificity_compute, output_transform=output_transform, check_compute_fn=check_compute_fn
         )
+
 
 def specificity(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
     if isinstance(y_preds, torch.Tensor):
@@ -178,6 +181,7 @@ def specificity(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
     tn, fp, fn, tp = sk_confusion_matrix(y_true, y_pred).ravel()
     return tn / (tn + fp)
 
+
 def positive_predictive_value(y_preds: torch.Tensor | np.ndarray, y_targets: torch.Tensor | np.ndarray) -> float:
     if isinstance(y_preds, torch.Tensor):
         y_preds = y_preds.numpy()
@@ -187,6 +191,7 @@ def positive_predictive_value(y_preds: torch.Tensor | np.ndarray, y_targets: tor
     y_pred = np.rint(y_preds).astype(int)
     tn, fp, fn, tp = sk_confusion_matrix(y_true, y_pred).ravel()
     return tp / (tp + fp)
+
 
 # from torchmetrics.classification import Specificity as TorchMetricsSpecificity
 #
@@ -206,6 +211,3 @@ def positive_predictive_value(y_preds: torch.Tensor | np.ndarray, y_targets: tor
 #             y_targets = torch.tensor(y_targets)
 #         self.metric.update(y_preds, y_targets)
 #         return self.metric.compute().item()
-
-
-

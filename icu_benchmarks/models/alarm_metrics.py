@@ -28,6 +28,7 @@ def convert_to_alarm(ground_truth, predictions, grace_horizon=12, silencing_leng
     filled_predictions = fill_gaps(silenced_predictions, grace_horizon)
     return filled_predictions, ground_truth
 
+
 def silence_positives(ground_truth, predictions, grace_horizon=12, silencing_length=6):
     """Silence positive predictions in the predictions array based on the grace horizon and silencing length."""
     # Find all positive indices in the rounded predictions
@@ -43,7 +44,7 @@ def silence_positives(ground_truth, predictions, grace_horizon=12, silencing_len
             # print(f"Already silenced: {positive_index}")
             positive_indices = positive_indices[1:]
             continue
-        silence_array[positive_index + 1:positive_index + silencing_length] = 0
+        silence_array[positive_index + 1 : positive_index + silencing_length] = 0
         positive_indices = positive_indices[1:]
     # print(predictions)
     # print(silence_array)
@@ -53,7 +54,7 @@ def silence_positives(ground_truth, predictions, grace_horizon=12, silencing_len
 
 
 def fill_gaps(predictions, ground_truth, grace_horizon=12):
-    """ Fill gaps in the predictions by taking the maximum value between ground truth and predictions."""
+    """Fill gaps in the predictions by taking the maximum value between ground truth and predictions."""
     if grace_horizon > len(predictions):
         grace_horizon = len(predictions)
     # Take the last grace_horizon values
