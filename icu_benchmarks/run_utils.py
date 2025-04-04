@@ -1,4 +1,5 @@
 import importlib
+import math
 import sys
 import warnings
 from math import sqrt
@@ -143,6 +144,9 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
         for fold, result in folds.items():
             for metric, score in result.items():
                 if isinstance(score, (float, int)):
+                    if math.isnan(score):
+                        logging.warning(f"Score for metric {metric} is NaN, adding 0 instead.")
+                        score = 0
                     list_scores[metric] = list_scores.setdefault(metric, [])
                     list_scores[metric].append(score)
 
