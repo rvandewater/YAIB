@@ -317,6 +317,7 @@ def choose_and_bind_hyperparameters_optuna(
                 debug=debug,
                 verbose=verbose,
                 wandb=wandb,
+                explain_features=False
             )
             logging.info(f"Score: {score}")
             return score

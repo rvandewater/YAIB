@@ -25,7 +25,7 @@ class XGBClassifier(MLWrapper):
     _explain_values = False
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", missing='inf')
+        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", missing='inf', verbosity=0)
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
@@ -48,12 +48,13 @@ class XGBClassifier(MLWrapper):
             callbacks.append(wandb_xgb())
         logging.info(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
         logging.info(train_labels)
-        self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)])
-        self.explain_features = True
+        self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=0)
+        # if self.explain_features:
+        self.explainer = shap.TreeExplainer(self.model, train_data, feature_perturbation="interventional",
+                                            model_output="probability")
         if self.explain_features:
             logging.info("Explaining features")
-            self.explainer = shap.TreeExplainer(self.model)
-            self.train_shap_values = self.explainer(train_data)
+            self.train_shap_values = self.explainer.shap_values(train_data)
         # shap.summary_plot(shap_values, X_test, feature_names=features)
         # logging.info(self.model.get_booster().get_score(importance_type='weight'))
         # self.log_dict(self.model.get_booster().get_score(importance_type='weight'))
@@ -75,7 +76,7 @@ class XGBClassifier(MLWrapper):
     def _explain_model(self, reps, labels):
         if not hasattr(self.model, "feature_importances_"):
             raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
-        feature_importances = self.model.feature_importances_
+        # feature_importances = self.model.feature_importances_
         shap_values = self.explainer.shap_values(reps)
         # feature_importances = np.abs(shap_values).mean(axis=1)
         return shap_values

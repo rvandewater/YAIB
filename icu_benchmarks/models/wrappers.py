@@ -63,7 +63,7 @@ class BaseModule(LightningModule):
         self.metrics = {}
 
     def set_trained_columns(self, columns: List[str]):
-        logging.info(f"Setting trained columns: {columns}")
+        logging.info(f"Setting trained columns: {len(columns)}")
         self.trained_columns = columns
 
     def set_weight(self, weight, dataset):
