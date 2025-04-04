@@ -241,7 +241,7 @@ def check_sanitize_data(data, vars):
             data[Segment.outcome] = data[Segment.outcome].unique(subset=[group], keep=keep, maintain_order=True)
         if old_len != len(data[Segment.outcome]):
             logging.warning(f"Removed {old_len - len(data[Segment.outcome])} duplicates from outcome data.")
-    return data
+    return data, vars
 
 
 def modality_selection(
