@@ -15,17 +15,13 @@ command:
   - SSI
 #  - --hp-checkpoint
 #  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/dataset_baseline_flat_2025-02-20T10:40:52/SSI/XGBClassifier/2025-02-20T11-29-27.323418/hyperparameter_tuning_logs.db
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/dataset_baseline_retro_2025-02-25/SSI/XGBClassifier/2025-02-25T10-52-44.899424/hyperparameter_tuning_logs.db
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/selected_ids_2025-01-15_17:38:58/SSI/XGBClassifier/2025-01-15T19-24-30.343814/hyperparameter_tuning_logs.db
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/selected_ids_2025-01-15_17:38:58/SSI/XGBClassifier/2025-01-15T19-24-33.047304/hyperparameter_tuning_logs.db
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/selected_ids_2025-01-15_17:38:58/SSI/XGBClassifier/2025-01-15T19-24-30.343814/hyperparameter_tuning_logs.db
 #  - Mortality
 #  - --verbose
   - --modalities
   - "all"
+  - --file-names
+  - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc.parquet","STATIC":"sta.parquet"'
 #  - --verbose
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/cass/SSI/XGBClassifier/2024-06-28T17-28-04/hyperparameter_tuning_logs.db
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/cass/SSI/Transformer/2024-06-26T15-30-53/hyperparameter_tuning_logs.db
 #  - -gc
 #  - -lc
 method: grid
@@ -33,38 +29,12 @@ name: yaib_classification_benchmark
 parameters:
   data_dir:
     values:
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-03-13T14:53:05"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/static_2025-03-11T09:47:15"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_flat_2025-03-10T16:17:59"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-03-07T12:51:24_wearable_cut_off_0.75"
-#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-03-06T19:55:44_wearable_cut_off_0.75
-#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_retro_2025-02-25
-#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_flat_2025-02-20T10:40:52
-#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/ICU_SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-02-14T17:21:43
-#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-01-26T20:14:47_wearable_cut_off_0.75
-#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-01-21T18:56:10_wearable_cut_off_0.75
-#      - /sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-01-21T18:44:35_wearable_cut_off_0.75
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/selected_ids_2025-01-15_17:38:58"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/selected_ids_2025-01-15_11:50:05"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/selected_ids_2024-12-13_16:24:38"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2024-11-28T14:02:51"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/combined_endpoints_segment_1.0_horizon_6:00:00_transfer_3_2024-11-25T17:56:08"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_segment_1.0_horizon_6:00:00_transfer_3_2024-11-22T13:19:53"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_segment_1.0_horizon_6:00:00_transfer_3_2024-11-11T16:03:12"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_segment_1.0_horizon_6:00:00_transfer_3_2024-11-11T11:17:09/"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-04-15T12:42:04"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-04-07T15:35:16"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/1/"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/2/"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/3/"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/4/"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_segment_1.0_horizon_6:00:00_transfer_3_2024-11-08T12:45:05/"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_segment_1.0_horizon_6:00:00_transfer_3_2024-10-07T23:26:22"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_icu_segment_1.0_horizon_6:00:00_transfer_3_2024-10-30T14:51:38/"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_segment_1.0_horizon_6:00:00_transfer_3_2024-10-07T23:26:22"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_segment_1.0_horizon_6:00:00_transfer_full_2024-09-27T16:14:05_complication"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_segment_1.0_horizon_6:00:00_transfer_full_2024-09-26T16:26:24"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_x_segment_duration_x_transfer_2024-09-19T13:57:36"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_dynamic_6h_2024-09-18T11:24:23"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_flat_2024-09-17T17:25:20"
   model:
     values:
 #      - LogisticRegression
@@ -82,7 +52,7 @@ parameters:
   modalities:
     values:
       - "all"
-      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_med_embeddings_map, cat_clinical_notes, static]
+#      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_med_embeddings_map, cat_clinical_notes, static]
 #      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_med_embeddings_map, wearable_activity, wearable_core, static]
 #      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, static] #, wearable_activity, wearable_core] # without wearable data
 #      - [copra_observations, copra_scores, copra_fluid_balance, cat_med_embeddings_map, wearable_activity, wearable_core, static] # without ishmed lab data and clinical notes
@@ -92,6 +62,14 @@ parameters:
 #      - [wearable_activity, wearable_core, static]
 #      - [ishmed_lab_numeric, static]
 #      - [static]
+  file_names:
+    values:
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_3.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_12.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_18.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_24.parquet","STATIC":"sta.parquet"'
   seed:
     values:
       - 1111

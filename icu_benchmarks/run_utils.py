@@ -4,7 +4,7 @@ import math
 import sys
 import warnings
 from math import sqrt
-
+import re
 import gin
 import torch
 import json
@@ -16,7 +16,6 @@ import scipy.stats as stats
 import shutil
 from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
-from icu_benchmarks.wandb_utils import wandb_log
 import polars as pl
 import random
 
@@ -70,19 +69,31 @@ def build_parser() -> ArgumentParser:
     parser.add_argument(
         "--file_names",
         type=parse_dict,
-        help="Dictionary of file names to use in data_dir (e.g., 'DYNAMIC:dyno.parquet,OUTCOME:outco.parquet,STATIC:sta.parquet')",
+        help="Dictionary of file names to use in data_dir "
+             "(e.g., 'DYNAMIC:dyno.parquet,OUTCOME:outco.parquet,STATIC:sta.parquet')",
         default=None,
     )
     return parser
 
 
 def parse_dict(arg):
-    """Parses a string in the format 'key1:value1,key2:value2' into a dictionary."""
+    """
+    Parses a string into a dictionary. Handles both:
+    - Unquoted format: 'key1:value1,key2:value2'
+    - JSON-like quoted format: '"key1":"value1","key2":"value2"'
+    """
     try:
-        return dict(item.split(":") for item in arg.split(","))
-    except ValueError:
-        raise argparse.ArgumentTypeError("Invalid dictionary format. Use 'key1:value1,key2:value2'.")
-
+        # Check if the input is in JSON-like format
+        if ":" in arg and '"' in arg:
+            # Wrap in curly braces to make it valid JSON
+            json_string = f"{{{arg}}}"
+            return json.loads(json_string)
+        else:
+            # Handle unquoted format
+            pairs = arg.split(',')
+            return {key.strip(): value.strip() for key, value in (pair.split(':', 1) for pair in pairs)}
+    except Exception as e:
+        raise argparse.ArgumentTypeError(f"Invalid dictionary format: {e}")
 
 def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     """Creates a log directory with the current time as name.

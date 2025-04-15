@@ -18,7 +18,7 @@ from icu_benchmarks.run_utils import (
     setup_logging,
     import_preprocessor,
     name_datasets,
-    get_config_files,
+    get_config_files, parse_dict,
 )
 from icu_benchmarks.constants import RunMode
 
@@ -149,7 +149,16 @@ def main(my_args=tuple(sys.argv[1:])):
 
         # manually bind dataset files
         if args.file_names:
-            gin.bind_parameter("preprocess.file_names", args.file_names)
+            if isinstance(args.file_names, dict):
+                logging.info(f"Will load data from {args.file_names}")
+                gin.bind_parameter("preprocess.file_names", args.file_names)
+            elif isinstance(args.file_names, str):
+                file_names = parse_dict(args.file_names)
+                logging.info(f"Will load data from {args.file_names}")
+                gin.bind_parameter("preprocess.file_names", file_names)
+            else:
+                return ValueError(f"Please provide a dictionary type for the file names, got {args.file_names}, "
+                                  f"type: {type(args.file_names)}")
 
         choose_and_bind_hyperparameters_optuna(
             do_tune=args.tune,

@@ -182,6 +182,8 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         # needs to still be in there?
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
+        rep = rep.to_numpy().astype(float)
+
         return rep, labels, self.row_indicators.to_numpy()
 
     def to_tensor(self) -> Tuple[Tensor, Tensor, Tensor]:

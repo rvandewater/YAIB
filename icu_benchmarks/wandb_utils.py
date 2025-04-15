@@ -4,6 +4,8 @@ from pathlib import Path
 
 import wandb
 
+from icu_benchmarks.run_utils import parse_dict
+
 
 def wandb_running() -> bool:
     """Check if wandb is running."""
@@ -72,6 +74,9 @@ def set_wandb_experiment_name(args, mode):
         run_name += f"_train_size_{args.samples}_samples"
     elif args.complete_train:
         run_name += "_complete_training"
+    elif args.file_names:
+        file_names = parse_dict(args.file_names)
+        run_name += f"_outcome_{file_names['OUTCOME'].removesuffix('.parquet')}"
 
     if wandb_running():
         wandb.config.update({"run-name": run_name})
