@@ -24,7 +24,7 @@ preprocess.vars = %vars
 preprocess.use_static = True
 preprocess.required_segments = ["OUTCOME", "STATIC"]
 preprocess.file_names = {
-#    "DYNAMIC": "dyn.parquet",
+    "DYNAMIC": "dyn.parquet",
     "OUTCOME": "outc.parquet",
     "STATIC": "sta.parquet",
 }

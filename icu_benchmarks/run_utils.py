@@ -1,3 +1,4 @@
+import argparse
 import importlib
 import math
 import sys
@@ -34,9 +35,11 @@ def build_parser() -> ArgumentParser:
     parser.add_argument("-tn", "--task-name", help="Name of the task, used for naming experiments.")
     parser.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     parser.add_argument("-e", "--experiment", help="Name of the experiment gin.")
-    parser.add_argument("-l", "--log-dir", default=Path("../yaib_logs/"), type=Path, help="Log directory for model weights.")
+    parser.add_argument("-l", "--log-dir", default=Path("../yaib_logs/"), type=Path,
+                        help="Log directory for model weights.")
     parser.add_argument("-s", "--seed", default=1234, type=int, help="Random seed for processing, tuning and training.")
-    parser.add_argument("-v", "--verbose", default=False, action=BOA, help="Set to log verbosly. Disable for clean logs.")
+    parser.add_argument("-v", "--verbose", default=False, action=BOA,
+                        help="Set to log verbosly. Disable for clean logs.")
     parser.add_argument("--cpu", default=False, action=BOA, help="Set to use CPU.")
     parser.add_argument("-db", "--debug", default=False, action=BOA, help="Set to load less data.")
     parser.add_argument("--reproducible", default=True, action=BOA, help="Make torch reproducible.")
@@ -50,7 +53,8 @@ def build_parser() -> ArgumentParser:
     parser.add_argument("--tune", default=False, action=BOA, help="Find best hyperparameters.")
     parser.add_argument("--hp-checkpoint", type=Path, help="Use previous hyperparameter checkpoint.")
     parser.add_argument("--eval", default=False, action=BOA, help="Only evaluate model, skip training.")
-    parser.add_argument("--complete-train", default=False, action=BOA, help="Use all data to train model, skip testing.")
+    parser.add_argument("--complete-train", default=False, action=BOA,
+                        help="Use all data to train model, skip testing.")
     parser.add_argument("-ft", "--fine-tune", default=None, type=int, help="Finetune model with amount of train data.")
     parser.add_argument("-sn", "--source-name", type=Path, help="Name of the source dataset.")
     parser.add_argument("--source-dir", type=Path, help="Directory containing gin and model weights.")
@@ -61,8 +65,23 @@ def build_parser() -> ArgumentParser:
         nargs="+",
         help="Optional modality selection to use. Specify multiple modalities separated by spaces.",
     )
-    parser.add_argument("--label", type=str, help="Label to use for evaluation in case of multiple labels.", default=None)
+    parser.add_argument("--label", type=str, help="Label to use for evaluation in case of multiple labels.",
+                        default=None)
+    parser.add_argument(
+        "--file_names",
+        type=parse_dict,
+        help="Dictionary of file names to use in data_dir (e.g., 'DYNAMIC:dyno.parquet,OUTCOME:outco.parquet,STATIC:sta.parquet')",
+        default=None,
+    )
     return parser
+
+
+def parse_dict(arg):
+    """Parses a string in the format 'key1:value1,key2:value2' into a dictionary."""
+    try:
+        return dict(item.split(":") for item in arg.split(","))
+    except ValueError:
+        raise argparse.ArgumentTypeError("Invalid dictionary format. Use 'key1:value1,key2:value2'.")
 
 
 def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
@@ -199,7 +218,8 @@ def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newl
     reserved_chars = len(logging.getLevelName(level)) + 28
     logging.log(
         level,
-        "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars),
+        "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char,
+                                       width=terminal_size.columns - reserved_chars),
     )
 
 
@@ -218,7 +238,8 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
         pretrained_imputation_model_checkpoint = torch.load(use_pretrained_imputation, map_location=torch.device("cpu"))
         if isinstance(pretrained_imputation_model_checkpoint, dict):
             imputation_model_class = pretrained_imputation_model_checkpoint["class"]
-            pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
+            pretrained_imputation_model = imputation_model_class(
+                **pretrained_imputation_model_checkpoint["hyper_parameters"])
             pretrained_imputation_model.set_trained_columns(pretrained_imputation_model_checkpoint["trained_columns"])
             pretrained_imputation_model.load_state_dict(pretrained_imputation_model_checkpoint["state_dict"])
         else:
