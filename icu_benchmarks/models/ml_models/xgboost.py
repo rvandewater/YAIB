@@ -26,7 +26,7 @@ class XGBClassifier(MLWrapper):
 
     def __init__(self, *args, **kwargs):
         self.model = self.set_model_args(
-            xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", missing="inf", verbosity=0
+            xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", verbosity=0
         )
         super().__init__(*args, **kwargs)
 
