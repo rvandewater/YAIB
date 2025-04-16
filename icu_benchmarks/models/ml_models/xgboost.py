@@ -67,12 +67,13 @@ class XGBClassifier(MLWrapper):
 
     def set_model_args(self, model, *args, **kwargs):
         """XGBoost signature does not include the hyperparams so we need to pass them manually."""
-        signature = inspect.signature(model.__init__).parameters
-        valid_params = signature.keys()
-
+        # signature = inspect.signature(model.__init__).parameters
+        # valid_params = signature.keys()
+        valid_params = model().get_params().keys()
         # Filter out invalid arguments
         valid_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
-
+        if len(valid_kwargs) == 0:
+            logging.warning("No valid arguments passed to XGBoost")
         logging.debug(f"Creating model with: {valid_kwargs}.")
         return model(**valid_kwargs)
 

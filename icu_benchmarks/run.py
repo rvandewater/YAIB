@@ -149,6 +149,7 @@ def main(my_args=tuple(sys.argv[1:])):
 
         # manually bind dataset files
         if args.file_names:
+            logging.info(f"Attempting to bind dataset files: {args.file_names}, type: {type(args.file_names)}")
             if isinstance(args.file_names, dict):
                 logging.info(f"Will load data from {args.file_names}")
                 gin.bind_parameter("preprocess.file_names", args.file_names)
