@@ -18,6 +18,7 @@ from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 import polars as pl
 import random
+from icu_benchmarks.wandb_utils import wandb_log
 
 
 def build_parser() -> ArgumentParser:
