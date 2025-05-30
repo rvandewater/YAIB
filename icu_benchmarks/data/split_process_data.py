@@ -1,10 +1,12 @@
 import copy
 import logging
 import os
+import pickle
+from pathlib import Path
+from timeit import default_timer as timer
+from typing import Any, Iterable, Optional, Union
 
 import gin
-import json
-import hashlib
 import pandas as pd
 import polars as pl
 from pathlib import Path
@@ -13,8 +15,14 @@ from timeit import default_timer as timer
 from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
 from icu_benchmarks.data.preprocessor import Preprocessor, PandasClassificationPreprocessor, PolarsClassificationPreprocessor
 from icu_benchmarks.constants import RunMode
-from icu_benchmarks.run_utils import check_required_keys
-from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
+from icu_benchmarks.data.preprocessor import (
+    PandasClassificationPreprocessor,
+    PolarsClassificationPreprocessor,
+    PolarsRegressionPreprocessor,
+    Preprocessor,
+)
+
+from .constants import DataSegment, DataSplit, VarType
 
 
 @gin.configurable("preprocess")
@@ -189,39 +197,57 @@ def preprocess_data(
 
     logging.info("Finished preprocessing.")
 
-    return data
+    return sanatized_data
 
 
-def check_sanitize_data(data, vars):
+def flatten_column_names(*args: object) -> list[str]:
+    result: list[str] = []
+    for arg in args:
+        if isinstance(arg, str):
+            result.append(arg)
+        elif isinstance(arg, Iterable) and not isinstance(arg, (str, bytes)):
+            result.extend([a for a in arg if isinstance(a, str)])
+    return result
+
+
+def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | list[str]]) -> dict[str, pl.DataFrame]:
     """Check for duplicates in the loaded data and remove them."""
-    group = vars[Var.group] if Var.group in vars.keys() else None
-    sequence = vars[Var.sequence] if Var.sequence in vars.keys() else None
+    group: Optional[Union[str, list[str]]] = vars.get(VarType.group)
+    sequence: Optional[Union[str, list[str]]] = vars.get(VarType.sequence)
     keep = "last"
-    if Segment.static in data.keys():
-        old_len = len(data[Segment.static])
-        data[Segment.static] = data[Segment.static].unique(subset=group, keep=keep, maintain_order=True)
-        if old_len != len(data[Segment.static]):
-            logging.warning(f"Removed {old_len - len(data[Segment.static])} duplicates from static data.")
-    if Segment.dynamic in data.keys():
-        old_len = len(data[Segment.dynamic])
-        data[Segment.dynamic] = data[Segment.dynamic].unique(subset=[group, sequence], keep=keep, maintain_order=True)
-        if old_len != len(data[Segment.dynamic]):
-            logging.warning(f"Removed {old_len - len(data[Segment.dynamic])} duplicates from dynamic data.")
-    if Segment.outcome in data.keys():
-        old_len = len(data[Segment.outcome])
-        if sequence in data[Segment.outcome].columns:
+    if DataSegment.static in data.keys():
+        old_len = len(data[DataSegment.static])
+        data[DataSegment.static] = data[DataSegment.static].unique(subset=group, keep=keep, maintain_order=True)
+        if old_len != len(data[DataSegment.static]):
+            logging.warning(f"Removed {old_len - len(data[DataSegment.static])} duplicates from static data.")
+    if DataSegment.dynamic in data.keys():
+        old_len = len(data[DataSegment.dynamic])
+
+        data[DataSegment.dynamic] = data[DataSegment.dynamic].unique(
+            subset=flatten_column_names(group, sequence), keep=keep, maintain_order=True
+        )
+        if old_len != len(data[DataSegment.dynamic]):
+            logging.warning(f"Removed {old_len - len(data[DataSegment.dynamic])} duplicates from dynamic data.")
+    if DataSegment.outcome in data.keys():
+        old_len = len(data[DataSegment.outcome])
+        if sequence in data[DataSegment.outcome].columns:
             # We have a dynamic outcome with group and sequence
-            data[Segment.outcome] = data[Segment.outcome].unique(subset=[group, sequence], keep=keep, maintain_order=True)
+            data[DataSegment.outcome] = data[DataSegment.outcome].unique(
+                subset=flatten_column_names(group, sequence), keep=keep, maintain_order=True
+            )
         else:
-            data[Segment.outcome] = data[Segment.outcome].unique(subset=[group], keep=keep, maintain_order=True)
-        if old_len != len(data[Segment.outcome]):
-            logging.warning(f"Removed {old_len - len(data[Segment.outcome])} duplicates from outcome data.")
+            data[DataSegment.outcome] = data[DataSegment.outcome].unique(subset=group, keep=keep, maintain_order=True)
+        if old_len != len(data[DataSegment.outcome]):
+            logging.warning(f"Removed {old_len - len(data[DataSegment.outcome])} duplicates from outcome data.")
     return data
 
 
 def modality_selection(
-    data: dict[pl.DataFrame], modality_mapping: dict[str], selected_modalities: list[str], vars
-) -> dict[pl.DataFrame]:
+    data: dict[str, pl.DataFrame],
+    modality_mapping: dict[str, list[str]],
+    selected_modalities: list[str],
+    vars: dict[str, Union[str, list[str]]],
+) -> tuple[dict[str, pl.DataFrame], dict[str, Union[str, list[str]]]]:
     logging.info(f"Selected modalities: {selected_modalities}")
     selected_columns = [modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]
     if not any(col in modality_mapping.keys() for col in selected_modalities):
@@ -229,12 +255,19 @@ def modality_selection(
     if selected_columns == []:
         logging.info("No columns selected. Using all columns.")
         return data, vars
-    selected_columns = sum(selected_columns, [])
-    selected_columns.extend([vars[Var.group], vars[Var.label], vars[Var.sequence]])
+    selected_columns = [col for cols in selected_columns for col in cols]
+
+    group_val = vars[VarType.group]
+    label_val = vars[VarType.label]
+    sequence_val = vars[VarType.sequence]
+    assert isinstance(group_val, str)
+    assert isinstance(label_val, str)
+    assert isinstance(sequence_val, str)
+    selected_columns.extend([group_val, label_val, sequence_val])
     old_columns = []
     # Update vars dict
     for key, value in vars.items():
-        if key not in [Var.group, Var.label, Var.sequence]:
+        if key not in [VarType.group, VarType.label, VarType.sequence]:
             old_columns.extend(value)
             vars[key] = [col for col in value if col in selected_columns]
     # -3 because of standard columns
@@ -248,119 +281,308 @@ def modality_selection(
     return data, vars
 
 
+def make_train_val_pandas(
+    data: dict[str, pd.DataFrame],
+    vars: dict[str, Union[str, list[str]]],
+    train_size: Optional[float] = 0.8,
+    seed: int = 42,
+    debug: bool = False,
+    runmode: RunMode = RunMode.classification,
+) -> dict[str, dict[str, pd.DataFrame]]:
+    _id = vars[VarType.group]
+    label = vars[VarType.label]
+    assert isinstance(_id, str)
+    assert isinstance(label, str)
+
+    if debug:
+        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
+        data[DataSegment.outcome] = data[DataSegment.outcome].sample(frac=0.01, random_state=seed)
+
+    stays = data[DataSegment.outcome][_id].unique()
+
+    if VarType.label in vars and runmode is RunMode.classification:
+        labels = data[DataSegment.outcome].groupby(_id)[label].max()
+        train_val_splitter = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
+        train_indices, val_indices = list(train_val_splitter.split(stays, labels))[0]
+    else:
+        train_val_splitter = ShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
+        train_indices, val_indices = list(train_val_splitter.split(stays))[0]
+
+    split_ids = {
+        DataSplit.train: pd.DataFrame({_id: stays[train_indices]}),
+        DataSplit.val: pd.DataFrame({_id: stays[val_indices]}),
+    }
+
+    data_split: dict[str, dict[str, pd.DataFrame]] = {}
+
+    for fold in split_ids.keys():
+        data_split[fold] = {}
+        for data_type in data.keys():
+            merged_df = data[data_type].merge(split_ids[fold], on=_id, how="right", sort=True)
+            data_split[fold][data_type] = merged_df
+
+    data_split[DataSplit.test] = copy.deepcopy(data_split[DataSplit.val])
+    return data_split
+
+
+def make_train_val_polars(
+    data: dict[str, pl.DataFrame],
+    vars: dict[str, Union[str, list[str]]],
+    train_size: Optional[float] = 0.8,
+    seed: int = 42,
+    debug: bool = False,
+    runmode: RunMode = RunMode.classification,
+) -> dict[str, dict[str, pl.DataFrame]]:
+    """
+    Randomly splits the data into training and validation sets for fitting a full model,
+    specifically designed for Polars DataFrames.
+    """
+    _id = vars[VarType.group]
+    label = vars[VarType.label]
+    assert isinstance(_id, str)
+    assert isinstance(label, str)
+
+    if debug:
+        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
+        data[DataSegment.outcome] = data[DataSegment.outcome].sample(fraction=0.01, seed=seed)
+
+    stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique())
+
+    if VarType.label in vars and runmode is RunMode.classification:
+        labels = data[DataSegment.outcome].group_by(_id).max()[label]
+        train_val_splitter = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
+        train_indices, val_indices = list(train_val_splitter.split(stays, labels))[0]
+    else:
+        train_val_splitter = ShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
+        train_indices, val_indices = list(train_val_splitter.split(stays))[0]
+
+    split = {
+        DataSplit.train: stays[train_indices].cast(pl.datatypes.Int64).to_frame(),
+        DataSplit.val: stays[val_indices].cast(pl.datatypes.Int64).to_frame(),
+    }
+
+    data_split: dict[str, dict[str, pl.DataFrame]] = {}
+
+    for fold in split.keys():
+        data_split[fold] = {
+            data_type: split[fold]
+            .join(data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)), on=_id, how="left")
+            .sort(by=_id)
+            for data_type in data.keys()
+        }
+
+    data_split[DataSplit.test] = copy.deepcopy(data_split[DataSplit.val])
+    return data_split
+
+
 def make_train_val(
-    data: dict[pd.DataFrame],
-    vars: dict[str],
-    train_size=0.8,
+    data: dict[str, Union[pd.DataFrame, pl.DataFrame]],
+    vars: dict[str, Union[str, list[str]]],
+    train_size: Optional[float] = 0.8,
     seed: int = 42,
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
     polars: bool = True,
-) -> dict[dict[pl.DataFrame]]:
-    """Randomly split the data into training and validation sets for fitting a full model.
+) -> dict[str, dict[str, Union[pd.DataFrame, pl.DataFrame]]]:
+    """
+    Randomly splits the data into training and validation sets for fitting a full model.
+    Dispatches to either a Polars or Pandas backend based on the 'polars' flag.
 
     Args:
-        data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
-        vars: Contains the names of columns in the data.
-        train_size: Fixed size of train split (including validation data).
-        seed: Random seed.
-        debug: Load less data if true.
+        data: A dictionary containing DataFrames (either Pandas or Polars),
+              divided into segments like OUTCOME, STATIC, and DYNAMIC.
+        vars: A dictionary containing the names of columns (variables) in the data.
+        train_size: The proportion of the dataset to include in the train split.
+        seed: Random seed for reproducibility.
+        debug: If True, uses only a small fraction (1%) of the data for debugging.
+        runmode: The type of machine learning task (e.g., classification, regression).
+        polars: If True, uses the Polars backend; otherwise, uses the Pandas backend.
+
     Returns:
-        Input data divided into 'train', 'val', and 'test'.
+        A dictionary containing the input data divided into 'train', 'val', and 'test'
+        splits. Each split is itself a dictionary of DataFrames (Pandas or Polars)
+        corresponding to the original data segments.
     """
-    # ID variable
-    id = vars[Var.group]
-
-    if debug:
-        # Only use 1% of the data
-        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
-        if polars:
-            data[Segment.outcome] = data[Segment.outcome].sample(fraction=0.01, seed=seed)
-        else:
-            data[Segment.outcome] = data[Segment.outcome].sample(frac=0.01, random_state=seed)
-
-    # Get stay IDs from outcome segment
-    stays = _get_stays(data, id, polars)
-
-    # If there are labels, and the task is classification, use stratified k-fold
-    if Var.label in vars and runmode is RunMode.classification:
-        # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
-        labels = _get_labels(data, id, vars, polars)
-        train_val = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
-        train, val = list(train_val.split(stays, labels))[0]
-
-    else:
-        # If there are no labels, use random split
-        train_val = ShuffleSplit(train_size=train_size, random_state=seed)
-        train, val = list(train_val.split(stays))[0]
-
     if polars:
-        split = {
-            Split.train: stays[train].cast(pl.datatypes.Int64).to_frame(),
-            Split.val: stays[val].cast(pl.datatypes.Int64).to_frame(),
-        }
+        polars_data = {k: v if isinstance(v, pl.DataFrame) else pl.DataFrame(v) for k, v in data.items()}
+        return make_train_val_polars(polars_data, vars, train_size, seed, debug, runmode)
     else:
-        split = {Split.train: stays.iloc[train], Split.val: stays.iloc[val]}
-
-    data_split = {}
-
-    for fold in split.keys():  # Loop through splits (train / val / test)
-        # Loop through segments (DYNAMIC / STATIC / OUTCOME)
-        # set sort to true to make sure that IDs are reordered after scrambling earlier
-        if polars:
-            data_split[fold] = {
-                data_type: split[fold]
-                .join(data[data_type].with_columns(pl.col(id).cast(pl.datatypes.Int64)), on=id, how="left")
-                .sort(by=id)
-                for data_type in data.keys()
-            }
-        else:
-            data_split[fold] = {
-                data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
-            }
-
-    # Maintain compatibility with test split
-    data_split[Split.test] = copy.deepcopy(data_split[Split.val])
-    return data_split
-
-
-def _get_stays(data, id, polars):
-    return (
-        pl.Series(name=id, values=data[Segment.outcome][id].unique())
-        if polars
-        else pd.Series(data[Segment.outcome][id].unique(), name=id)
-    )
-
-
-def _get_labels(data, id, vars, polars):
-    # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
-    if polars:
-        return data[Segment.outcome].group_by(id).max()[vars[Var.label]]
-    else:
-        return data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+        pandas_data = {k: v if isinstance(v, pd.DataFrame) else v.to_pandas() for k, v in data.items()}
+        return make_train_val_pandas(pandas_data, vars, train_size, seed, debug, runmode)
 
 
 # Use these helper functions in both make_train_val and make_single_split
-
-
-def make_single_split(
-    data: dict[pd.DataFrame],
-    vars: dict[str],
+def make_single_split_pandas(
+    data: dict[str, pd.DataFrame],
+    vars: dict[str, Union[str, list[str]]],
     cv_repetitions: int,
     repetition_index: int,
     cv_folds: int,
     fold_index: int,
-    train_size: int = None,
+    train_size: Optional[float] = None,
+    seed: int = 42,
+    debug: bool = False,
+    runmode: RunMode = RunMode.classification,
+) -> dict[str, dict[str, pd.DataFrame]]:
+    """
+    Randomly splits the data into training, validation, and test sets,
+    specifically designed for Pandas DataFrames.
+    """
+    _id = vars[VarType.group]
+    label = vars[VarType.label]
+    assert isinstance(_id, str)
+    assert isinstance(label, str)
+
+    if debug:
+        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
+        data[DataSegment.outcome] = data[DataSegment.outcome].sample(frac=0.01, random_state=seed)
+
+    stays = data[DataSegment.outcome][_id].unique()
+
+    if VarType.label in vars and runmode is RunMode.classification:
+        labels = data[DataSegment.outcome].groupby(_id)[label].max().reset_index(drop=True)
+        if labels.value_counts().min() < cv_folds:
+            raise Exception(
+                f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
+                f"but {cv_folds} folds are requested. Reduce the number of folds or use more data."
+            )
+
+        if train_size:
+            outer_cv = StratifiedShuffleSplit(cv_repetitions, train_size=train_size, random_state=seed)
+        else:
+            outer_cv = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
+        inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
+
+        dev_indices, test_indices = list(outer_cv.split(stays, labels))[repetition_index]
+        dev_stays = stays[dev_indices]
+        train_indices, val_indices = list(inner_cv.split(dev_stays, labels[dev_indices]))[fold_index]
+    else:
+        if train_size:
+            outer_cv = ShuffleSplit(cv_repetitions, train_size=train_size, random_state=seed)
+        else:
+            outer_cv = KFold(cv_repetitions, shuffle=True, random_state=seed)
+        inner_cv = KFold(cv_folds, shuffle=True, random_state=seed)
+
+        dev_indices, test_indices = list(outer_cv.split(stays))[repetition_index]
+        dev_stays = stays[dev_indices]
+        train_indices, val_indices = list(inner_cv.split(dev_stays))[fold_index]
+
+    split_ids = {
+        DataSplit.train: pd.DataFrame({_id: dev_stays[train_indices]}),
+        DataSplit.val: pd.DataFrame({_id: dev_stays[val_indices]}),
+        DataSplit.test: pd.DataFrame({_id: stays[test_indices]}),
+    }
+
+    data_split: dict[str, dict[str, pd.DataFrame]] = {}
+
+    for fold in split_ids.keys():
+        data_split[fold] = {}
+        for data_type in data.keys():
+            merged_df = data[data_type].merge(split_ids[fold], on=_id, how="right", sort=True)
+            data_split[fold][data_type] = merged_df
+
+    logging.debug(f"Data split: {data_split}")
+    return data_split
+
+
+def make_single_split_polars(
+    data: dict[str, pl.DataFrame],
+    vars: dict[str, Union[str, list[str]]],
+    cv_repetitions: int,
+    repetition_index: int,
+    cv_folds: int,
+    fold_index: int,
+    train_size: Optional[float] = None,
+    seed: int = 42,
+    debug: bool = False,
+    runmode: RunMode = RunMode.classification,
+) -> dict[str, dict[str, pl.DataFrame]]:
+    """
+    Randomly splits the data into training, validation, and test set,
+    specifically designed for Polars DataFrames.
+    """
+    # ID variable
+    id = vars[VarType.group]
+    if debug:
+        # Only use 1% of the data
+        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
+        data[DataSegment.outcome] = data[DataSegment.outcome].sample(fraction=0.01, seed=seed)
+
+    # Get stay IDs from outcome segment
+    stays = pl.Series(name=id, values=data[DataSegment.outcome][id].unique())
+    # If there are labels, and the task is classification, use stratified k-fold
+    if VarType.label in vars and runmode is RunMode.classification:
+        # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
+        labels: pl.Series = data[DataSegment.outcome].group_by(id).max().sort(id)[vars[VarType.label]]
+        if labels.value_counts().min().item(0, 1) < cv_folds:
+            raise Exception(
+                f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
+                f"but {cv_folds} folds are requested. Reduce the number of folds or use more data."
+            )
+
+        if train_size:
+            outer_cv = StratifiedShuffleSplit(cv_repetitions, train_size=train_size)
+        else:
+            outer_cv = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
+
+        inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
+        dev, test = list(outer_cv.split(stays, labels))[repetition_index]
+        dev_stays = stays[dev]
+        train, val = list(inner_cv.split(dev_stays, labels[dev]))[fold_index]
+
+    else:
+        # If there are no labels, or the task is regression, use regular k-fold.
+        if train_size:
+            outer_cv = ShuffleSplit(cv_repetitions, train_size=train_size)
+        else:
+            outer_cv = KFold(cv_repetitions, shuffle=True, random_state=seed)
+        inner_cv = KFold(cv_folds, shuffle=True, random_state=seed)
+        dev, test = list(outer_cv.split(stays))[repetition_index]
+        dev_stays = stays[dev]
+        train, val = list(inner_cv.split(dev_stays))[fold_index]
+
+    split = {
+        DataSplit.train: dev_stays[train].cast(pl.datatypes.Int64).to_frame(),
+        DataSplit.val: dev_stays[val].cast(pl.datatypes.Int64).to_frame(),
+        DataSplit.test: stays[test].cast(pl.datatypes.Int64).to_frame(),
+    }
+
+    data_split = {}
+    for fold in split.keys():  # Loop through splits (train / val / test)
+        # Loop through segments (DYNAMIC / STATIC / OUTCOME)
+        # set sort to true to make sure that IDs are reordered after scrambling earlier
+        data_split[fold] = {
+            data_type: split[fold]
+            .join(data[data_type].with_columns(pl.col(id).cast(pl.datatypes.Int64)), on=id, how="left")
+            .sort(by=id)
+            for data_type in data.keys()
+        }
+
+    logging.debug(f"Data split: {data_split}")
+
+    return data_split
+
+
+def make_single_split(
+    data: dict[str, Union[pd.DataFrame, pl.DataFrame]],
+    vars: dict[str, Union[str, list[str]]],
+    cv_repetitions: int,
+    repetition_index: int,
+    cv_folds: int,
+    fold_index: int,
+    train_size: Optional[float] = None,
     seed: int = 42,
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
     polars: bool = True,
-) -> dict[dict[pl.DataFrame]]:
-    """Randomly split the data into training, validation, and test set.
+) -> dict[str, dict[str, Union[pd.DataFrame, pl.DataFrame]]]:
+    """
+    Randomly splits the data into training, validation, and test sets.
+    Dispatches to either a Polars or Pandas backend based on the 'polars' flag.
 
     Args:
-        runmode: Run mode. Can be one of the values of RunMode
-        data: dictionary containing data divided int OUTCOME, STATIC, and DYNAMIC.
+        data: A dictionary containing DataFrames (either Pandas or Polars),
+              divided into segments like OUTCOME, STATIC, and DYNAMIC.
         vars: Contains the names of columns in the data.
         cv_repetitions: Number of times to repeat cross validation.
         repetition_index: Index of the repetition to return.
@@ -369,101 +591,22 @@ def make_single_split(
         train_size: Fixed size of train split (including validation data).
         seed: Random seed.
         debug: Load less data if true.
+        runmode: Run mode. Can be one of the values of RunMode
+        polars: If True, uses the Polars backend; otherwise, uses the Pandas backend.
 
     Returns:
         Input data divided into 'train', 'val', and 'test'.
     """
-    # ID variable
-    id = vars[Var.group]
-
-    if debug:
-        # Only use 1% of the data
-        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
-        if polars:
-            data[Segment.outcome] = data[Segment.outcome].sample(fraction=0.01, seed=seed)
-        else:
-            data[Segment.outcome] = data[Segment.outcome].sample(frac=0.01, random_state=seed)
-    # Get stay IDs from outcome segment
     if polars:
-        stays = pl.Series(name=id, values=data[Segment.outcome][id].unique())
+        polars_data = {k: v if isinstance(v, pl.DataFrame) else pl.DataFrame(v) for k, v in data.items()}
+        return make_single_split_polars(
+            polars_data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, train_size, seed, debug, runmode
+        )
     else:
-        stays = pd.Series(data[Segment.outcome][id].unique(), name=id)
-
-    # If there are labels, and the task is classification, use stratified k-fold
-    if Var.label in vars and runmode is RunMode.classification:
-        # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
-        if polars:
-            labels = data[Segment.outcome].group_by(id).max().sort(id)[vars[Var.label]]
-            if labels.value_counts().min().item(0, 1) < cv_folds:
-                raise Exception(
-                    f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
-                    f"but {cv_folds} folds are requested. Reduce the number of folds or use more data."
-                )
-        else:
-            labels = data[Segment.outcome].groupby(id).max()[vars[Var.label]].reset_index(drop=True)
-            if labels.value_counts().min() < cv_folds:
-                raise Exception(
-                    f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
-                    f"but {cv_folds} folds are requested. Reduce the number of folds or use more data."
-                )
-
-        if train_size:
-            outer_cv = StratifiedShuffleSplit(cv_repetitions, train_size=train_size)
-        else:
-            outer_cv = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
-        inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
-
-        dev, test = list(outer_cv.split(stays, labels))[repetition_index]
-        if polars:
-            dev_stays = stays[dev]
-            train, val = list(inner_cv.split(dev_stays, labels[dev]))[fold_index]
-        else:
-            dev_stays = stays.iloc[dev]
-            train, val = list(inner_cv.split(dev_stays, labels.iloc[dev]))[fold_index]
-    else:
-        # If there are no labels, or the task is regression, use regular k-fold.
-        if train_size:
-            outer_cv = ShuffleSplit(cv_repetitions, train_size=train_size)
-        else:
-            outer_cv = KFold(cv_repetitions, shuffle=True, random_state=seed)
-        inner_cv = KFold(cv_folds, shuffle=True, random_state=seed)
-
-        dev, test = list(outer_cv.split(stays))[repetition_index]
-        if polars:
-            dev_stays = stays[dev]
-        else:
-            dev_stays = stays.iloc[dev]
-        train, val = list(inner_cv.split(dev_stays))[fold_index]
-    if polars:
-        split = {
-            Split.train: dev_stays[train].cast(pl.datatypes.Int64).to_frame(),
-            Split.val: dev_stays[val].cast(pl.datatypes.Int64).to_frame(),
-            Split.test: stays[test].cast(pl.datatypes.Int64).to_frame(),
-        }
-    else:
-        split = {
-            Split.train: dev_stays.iloc[train],
-            Split.val: dev_stays.iloc[val],
-            Split.test: stays.iloc[test],
-        }
-    data_split = {}
-
-    for fold in split.keys():  # Loop through splits (train / val / test)
-        # Loop through segments (DYNAMIC / STATIC / OUTCOME)
-        # set sort to true to make sure that IDs are reordered after scrambling earlier
-        if polars:
-            data_split[fold] = {
-                data_type: split[fold]
-                .join(data[data_type].with_columns(pl.col(id).cast(pl.datatypes.Int64)), on=id, how="left")
-                .sort(by=id)
-                for data_type in data.keys()
-            }
-        else:
-            data_split[fold] = {
-                data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
-            }
-    logging.debug(f"Data split: {data_split}")
-    return data_split
+        pandas_data = {k: v if isinstance(v, pd.DataFrame) else v.to_pandas() for k, v in data.items()}
+        return make_single_split_pandas(
+            pandas_data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, train_size, seed, debug, runmode
+        )
 
 
 def caching(cache_dir, cache_file, data, use_cache, overwrite=True):
