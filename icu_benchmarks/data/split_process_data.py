@@ -474,3 +474,19 @@ def caching(cache_dir, cache_file, data, use_cache, overwrite=True):
         with open(cache_file, "wb") as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
         logging.info(f"Cached data in {cache_file}.")
+
+
+def check_required_keys(vars, required_keys):
+    """
+    Checks if all required keys are present in the vars dictionary.
+
+    Args:
+        vars (dict): The dictionary to check.
+        required_keys (list): The list of required keys.
+
+    Raises:
+        KeyError: If any required key is missing.
+    """
+    missing_keys = [key for key in required_keys if key not in vars]
+    if missing_keys:
+        raise KeyError(f"Missing required keys in vars: {', '.join(missing_keys)}")
