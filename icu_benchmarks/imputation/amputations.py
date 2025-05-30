@@ -173,7 +173,7 @@ def MNAR_logistic_mask(X, p, p_params=0.3, exclude_inputs=True):
     return mask
 
 
-def pick_coeffs(X, idxs_obs=None, idxs_nas=None):
+def pick_coeffs(X, idxs_obs, idxs_nas):
     d_obs = len(idxs_obs)
     d_na = len(idxs_nas)
     coeffs = torch.randn(d_obs, d_na)
@@ -184,13 +184,13 @@ def pick_coeffs(X, idxs_obs=None, idxs_nas=None):
 
 def fit_intercepts(X, coeffs, p):
     d_obs, d_na = coeffs.shape
-    intercepts = torch.zeros(d_na)
+    intercepts: torch.Tensor = torch.zeros(d_na)
     for j in range(d_na):
 
         def f(x):
             return torch.sigmoid(X.mv(coeffs[:, j]) + x).mean().item() - p
 
-        intercepts[j] = optimize.bisect(f, -50, 50)
+        intercepts[j] = torch.Tensor(optimize.bisect(f, -50, 50))
     return intercepts
 
 
@@ -219,6 +219,7 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
     logging.info(f"Applying {mechanism} amputation.")
     X = torch.tensor(data.values.astype(np.float32))
 
+    mask = torch.ones_like(data)
     if mechanism == "MAR":
         mask = MAR_logistic_mask(X, p_miss, p_obs)
     elif mechanism == "MNAR":
