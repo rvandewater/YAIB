@@ -1,4 +1,6 @@
 import copy
+import hashlib
+import json
 import logging
 import os
 import pickle
@@ -9,11 +11,8 @@ from typing import Any, Iterable, Optional, Union
 import gin
 import pandas as pd
 import polars as pl
-from pathlib import Path
-import pickle
-from timeit import default_timer as timer
-from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
-from icu_benchmarks.data.preprocessor import Preprocessor, PandasClassificationPreprocessor, PolarsClassificationPreprocessor
+from sklearn.model_selection import KFold, ShuffleSplit, StratifiedKFold, StratifiedShuffleSplit
+
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.preprocessor import (
     PandasClassificationPreprocessor,
@@ -28,29 +27,32 @@ from .constants import DataSegment, DataSplit, VarType
 @gin.configurable("preprocess")
 def preprocess_data(
     data_dir: Path,
-    file_names: dict[str] = gin.REQUIRED,
-    preprocessor: Preprocessor = PolarsClassificationPreprocessor,
+    file_names: dict[str, str] | Any = gin.REQUIRED,
+    preprocessor: type[
+        PolarsClassificationPreprocessor | PolarsRegressionPreprocessor
+    ] = PolarsClassificationPreprocessor,
     use_static: bool = True,
-    vars: dict[str] = gin.REQUIRED,
-    modality_mapping: dict[str] = {},
-    selected_modalities: list[str] = "all",
+    vars: dict[str, str | list[str]] | Any = gin.REQUIRED,
+    modality_mapping: dict[str, list[str]] = {},
+    selected_modalities: list[str] = ["all"],
     seed: int = 42,
     debug: bool = False,
     cv_repetitions: int = 5,
     repetition_index: int = 0,
     cv_folds: int = 5,
-    train_size: int = None,
+    train_size: Optional[float] = None,
     load_cache: bool = False,
     generate_cache: bool = False,
     fold_index: int = 0,
-    pretrained_imputation_model: str = None,
+    pretrained_imputation_model: Optional[str] = None,
     complete_train: bool = False,
     runmode: RunMode = RunMode.classification,
-    label: str = None,
-    required_var_types=["GROUP", "SEQUENCE", "LABEL"],
-    required_segments=[Segment.static, Segment.dynamic, Segment.outcome],
-) -> dict[dict[pl.DataFrame]] or dict[dict[pd.DataFrame]]:
-    """Perform loading, splitting, imputing and normalising of task data.
+    label: Optional[str] = None,
+    required_var_types: list[str] = ["GROUP", "SEQUENCE", "LABEL"],
+    required_segments: list[str] = [DataSegment.static, DataSegment.dynamic, DataSegment.outcome],
+) -> dict[str, dict[str, pl.DataFrame]]:
+    """
+    Perform loading, splitting, imputing and normalising of task data.
 
     Args:
         use_static: Whether to use static features (for DL models).
@@ -76,45 +78,49 @@ def preprocess_data(
             nested within split (train/val/test).
     """
 
-    cache_dir = data_dir / "cache"
     check_required_keys(vars, required_var_types)
     check_required_keys(file_names, required_segments)
+
     if not use_static:
-        file_names.pop(Segment.static)
-        vars.pop(Segment.static)
-    if isinstance(vars[Var.label], list) and len(vars[Var.label]) > 1:
+        file_names.pop(DataSegment.static)
+        vars.pop(DataSegment.static)
+
+    if isinstance(vars[VarType.label], list) and len(vars[VarType.label]) > 1:
         if label is not None:
-            vars[Var.label] = [label]
+            vars[VarType.label] = [label]
         else:
-            logging.debug(f"Multiple labels found and no value provided. Using first label: {vars[Var.label]}")
-            vars[Var.label] = vars[Var.label][0]
-        logging.info(f"Using label: {vars[Var.label]}")
-    if not vars[Var.label]:
+            logging.debug(f"Multiple labels found and no value provided. Using first label: {vars[VarType.label]}")
+            vars[VarType.label] = vars[VarType.label][0]
+        logging.info(f"Using label: {vars[VarType.label]}")
+
+    if not vars[VarType.label]:
         raise ValueError("No label selected after filtering.")
+
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
 
+    logging.info(f"Using preprocessor: {preprocessor.__name__}")
+
+    cat_clinical_notes = modality_mapping.get("cat_clinical_notes")
+    cat_med_embeddings_map = modality_mapping.get("cat_med_embeddings_map")
+    if cat_clinical_notes is not None and cat_med_embeddings_map is not None:
+        vars_to_exclude = cat_clinical_notes + cat_med_embeddings_map
+    else:
+        vars_to_exclude = None
+
+    cache_dir = data_dir / "cache"
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
-
-    logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
-    vars_to_exclude = (
-        modality_mapping.get("cat_clinical_notes") + modality_mapping.get("cat_med_embeddings_map")
-        if (
-            modality_mapping.get("cat_clinical_notes") is not None
-            and modality_mapping.get("cat_med_embeddings_map") is not None
-        )
-        else None
-    )
-
-    preprocessor = preprocessor(
+    preprocessor_instance: Preprocessor = preprocessor(
         use_static_features=use_static,
         save_cache=data_dir / "preproc" / (cache_filename + "_recipe"),
         vars_to_exclude=vars_to_exclude,
     )
-    if isinstance(preprocessor, PandasClassificationPreprocessor):
-        preprocessor.set_imputation_model(pretrained_imputation_model)
+    if isinstance(preprocessor_instance, PandasClassificationPreprocessor):
+        preprocessor_instance.set_imputation_model(pretrained_imputation_model)
 
-    hash_config = hashlib.md5(f"{preprocessor.to_cache_string()}{dumped_file_names}{dumped_vars}".encode("utf-8"))
+    hash_config = hashlib.md5(
+        f"{preprocessor_instance.to_cache_string()}{dumped_file_names}{dumped_vars}".encode("utf-8")
+    )
     cache_filename += f"_{hash_config.hexdigest()}"
     cache_file = cache_dir / cache_filename
 
@@ -126,31 +132,33 @@ def preprocess_data(
         else:
             logging.info(f"No cached data found in {cache_file}, loading raw features.")
 
-    # Read parquet files into pandas dataframes and remove the parquet file from memory
+    # Read parquet files into dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
-    data = {
-        f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys() if os.path.exists(data_dir / file_names[f])
+    data: dict[str, pl.DataFrame] = {
+        f: pl.read_parquet(data_dir / file_names[f])
+        for f in file_names.keys()
+        if os.path.exists(data_dir / file_names[f])
     }
-    logging.info(f"Loaded data: {list(data.keys())}")
-    data = check_sanitize_data(data, vars)
 
-    if not (Segment.dynamic in data.keys()):
+    logging.info(f"Loaded data: {list(data.keys())}")
+    sanatized_data = check_sanitize_data(data, vars)
+
+    if DataSegment.dynamic not in sanatized_data.keys():
         logging.warning("No dynamic data found, using only static data.")
 
     logging.debug(f"Modality mapping: {modality_mapping}")
     if len(modality_mapping) > 0:
         # Optional modality selection
         if selected_modalities not in [None, "all", ["all"]]:
-            data, vars = modality_selection(data, modality_mapping, selected_modalities, vars)
+            data, vars = modality_selection(sanatized_data, modality_mapping, selected_modalities, vars)
         else:
             logging.info("Selecting all modalities.")
 
     # Generate the splits
     logging.info("Generating splits.")
-    # complete_train = True
     if not complete_train:
-        data = make_single_split(
-            data,
+        sanatized_data = make_single_split_polars(
+            sanatized_data,
             vars,
             cv_repetitions,
             repetition_index,
@@ -163,30 +171,27 @@ def preprocess_data(
         )
     else:
         # If full train is set, we use all data for training/validation
-        data = make_train_val(data, vars, train_size=None, seed=seed, debug=debug, runmode=runmode)
+        sanatized_data = make_train_val_polars(data, vars, train_size=None, seed=seed, debug=debug, runmode=runmode)
 
     # Apply preprocessing
-
     start = timer()
-    data = preprocessor.apply(data, vars)
+    # data = preprocessor_instance.apply(data, vars)
     end = timer()
     logging.info(f"Preprocessing took {end - start:.2f} seconds.")
     logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
-    for dict in data.values():
-        for key, val in dict.items():
+    for _dict in sanatized_data.values():
+        for key, val in _dict.items():
             logging.debug(f"Data type: {key}")
             logging.debug("Is NaN:")
-            sel = dict[key].select(pl.selectors.numeric().is_nan().max())
+            sel = _dict[key].select(pl.selectors.numeric().is_nan().max())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
-            # logging.info(dict[key].select(pl.all().has_nulls()).sum_horizontal())
             logging.debug("Has nulls:")
-            sel = dict[key].select(pl.all().has_nulls())
+            sel = _dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
-            # dict[key] = val[:, [not (s.null_count() > 0) for s in val]]
-            dict[key] = val.fill_null(strategy="zero")
-            dict[key] = val.fill_nan(0)
+            _dict[key] = val.fill_null(strategy="zero")
+            _dict[key] = val.fill_nan(0)
             logging.debug("Dropping columns with nulls")
-            sel = dict[key].select(pl.all().has_nulls())
+            sel = _dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
 
     # Generate cache
