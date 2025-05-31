@@ -33,8 +33,8 @@ def preprocess_data(
     ] = PolarsClassificationPreprocessor,
     use_static: bool = True,
     vars: dict[str, str | list[str]] | Any = gin.REQUIRED,
-    modality_mapping: dict[str, list[str]] = {},
-    selected_modalities: list[str] = ["all"],
+    modality_mapping: Optional[dict[str, list[str]]] = None,
+    selected_modalities: Optional[list[str] ]= None,
     seed: int = 42,
     debug: bool = False,
     cv_repetitions: int = 5,
@@ -48,8 +48,8 @@ def preprocess_data(
     complete_train: bool = False,
     runmode: RunMode = RunMode.classification,
     label: Optional[str] = None,
-    required_var_types: list[str] = ["GROUP", "SEQUENCE", "LABEL"],
-    required_segments: list[str] = [DataSegment.static, DataSegment.dynamic, DataSegment.outcome],
+    required_var_types: Optional[list[str]] = None,
+    required_segments: Optional[list[str]] = None,
 ) -> dict[str, dict[str, pl.DataFrame]]:
     """
     Perform loading, splitting, imputing and normalising of task data.
@@ -77,6 +77,14 @@ def preprocess_data(
         Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC) / DYNAMIC/ OUTCOME
             nested within split (train/val/test).
     """
+    if modality_mapping is None:
+        modality_mapping = {}
+    if selected_modalities is None:
+        selected_modalities = ["all"]
+    if required_var_types is None:
+        required_var_types = ["GROUP", "SEQUENCE", "LABEL"]
+    if required_segments is None:
+        required_segments = [DataSegment.static, DataSegment.dynamic, DataSegment.outcome]
 
     check_required_keys(vars, required_var_types)
     check_required_keys(file_names, required_segments)
@@ -175,7 +183,7 @@ def preprocess_data(
 
     # Apply preprocessing
     start = timer()
-    # data = preprocessor_instance.apply(data, vars)
+    data = preprocessor_instance.apply(data, vars)
     end = timer()
     logging.info(f"Preprocessing took {end - start:.2f} seconds.")
     logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
