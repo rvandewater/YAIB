@@ -48,7 +48,7 @@ def train_common(
     patience: int = 20,
     min_delta: float = 1e-5,
     test_on: str = DataSplit.test,
-    dataset_names: dict = {},
+    dataset_names: Optional[dict] = None,
     use_wandb: bool = False,
     cpu: bool = False,
     verbose: bool = False,
@@ -85,6 +85,8 @@ def train_common(
         pl_model: Loading a pytorch lightning model.
         num_workers: Number of workers to use for data loading.
     """
+    if dataset_names is None:
+        dataset_names = {}
 
     logging.info(f"Training model: {model.__name__}.")
     # TODO: add support for polars versions of datasets
