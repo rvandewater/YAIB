@@ -194,7 +194,8 @@ class PolarsClassificationPreprocessor(Preprocessor):
         return data
 
     def _model_impute(self, data: pd.DataFrame, group: Optional[str] = None):
-        assert self.imputation_model, "No Imputation Model provided. Aborting..."
+        if not self.imputation_model:
+            raise ValueError("No Imputation Model provided! Aborting...")
         dataset = ImputationPredictionDataset(data, group, self.imputation_model.trained_columns)
         input_data = torch.cat([data_point.unsqueeze(0) for data_point in dataset], dim=0)
         self.imputation_model.eval()
