@@ -190,7 +190,7 @@ def fit_intercepts(X, coeffs, p):
         def f(x):
             return torch.sigmoid(X.mv(coeffs[:, j]) + x).mean().item() - p
 
-        intercepts[j] = torch.Tensor(optimize.bisect(f, -50, 50))
+        intercepts[j] = torch.tensor(optimize.bisect(f, -50, 50))
     return intercepts
 
 
@@ -219,7 +219,7 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
     logging.info(f"Applying {mechanism} amputation.")
     X = torch.tensor(data.values.astype(np.float32))
 
-    mask = torch.ones_like(data)
+    mask = torch.zeros_like(data)
     if mechanism == "MAR":
         mask = MAR_logistic_mask(X, p_miss, p_obs)
     elif mechanism == "MNAR":
@@ -229,7 +229,8 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
     elif mechanism == "BO":
         mask = BO_mask(X, p_miss)
     else:
-        logging.error("Not a valid amputation mechanism. Missing-data mechanisms to be used are MCAR, MAR or MNAR.")
+        logging.error("Not a valid amputation mechanism. Missing-data mechanisms to be used are MAR, MCAR, MNAR or BO.")
+        raise ValueError(f"Invalid amputation mechanism: {mechanism}")
 
     amputed_data = data.mask(mask)
     return amputed_data, mask
