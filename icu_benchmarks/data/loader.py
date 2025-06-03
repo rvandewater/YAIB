@@ -26,12 +26,14 @@ class CommonPolarsDataset(Dataset):
         mps: bool = False,
         name: str = "",
     ):
-        assert isinstance(vars, dict)
+        if not isinstance(vars, dict):
+            raise ValueError(f'Expected vars to be of type dict, got {type(vars)} instead')
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment]
         # Get the row indicators for the data to be able to match predicted labels
-        assert isinstance(vars["SEQUENCE"], str)
+        if not isinstance(vars["SEQUENCE"], str):
+            raise ValueError(f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead')
         if "SEQUENCE" in self.vars and self.vars["SEQUENCE"] in data[split][DataSegment.features].columns:
             # We have a time series dataset
             self.row_indicators = data[split][DataSegment.features][self.vars["GROUP"], self.vars["SEQUENCE"]]
@@ -202,7 +204,8 @@ class CommonPandasDataset(Dataset):
         warnings.warn(
             "CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning, stacklevel=2
         )
-        assert isinstance(vars, dict)
+        if not isinstance(vars, dict):
+            raise ValueError(f'Expected vars to be of type dict, got {type(vars)} instead')
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
@@ -359,7 +362,8 @@ class ImputationPandasDataset(CommonPandasDataset):
             ram_cache (bool, optional): if the dataset should be completely stored in ram and not generated on the fly during
                 training. Defaults to True.
         """
-        assert isinstance(vars, dict)
+        if not isinstance(vars, dict):
+            raise ValueError(f'Expected vars to be of type dict, got {type(vars)} instead')
         super().__init__(data, split, vars, grouping_segment=DataSegment.static)
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion

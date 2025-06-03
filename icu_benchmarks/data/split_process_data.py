@@ -273,9 +273,11 @@ def modality_selection(
     group_val = vars[VarType.group]
     label_val = vars[VarType.label]
     sequence_val = vars[VarType.sequence]
-    assert isinstance(group_val, str)
-    assert isinstance(label_val, str)
-    assert isinstance(sequence_val, str)
+    
+    if not (isinstance(group_val, str) and isinstance(label_val, str) and isinstance(sequence_val, str)):
+        raise TypeError(f'Expected keys "{VarType.group}", "{VarType.label}" and "{VarType.sequence}" to be of type str, ' 
+                         f'got {type(group_val)}, {type(label_val)} and {type(sequence_val)} instead.')
+    
     selected_columns.extend([group_val, label_val, sequence_val])
     old_columns = []
     # Update vars dict
@@ -304,8 +306,9 @@ def make_train_val_pandas(
 ) -> dict[str, dict[str, pd.DataFrame]]:
     _id = vars[VarType.group]
     label = vars[VarType.label]
-    assert isinstance(_id, str)
-    assert isinstance(label, str)
+    if not (isinstance(_id, str) and isinstance(label, str)):
+        raise TypeError(f'Expected keys "{VarType.group}" and "{VarType.label}" to be of type str, ' 
+                        f'got {type(_id)} and {type(label)} instead.')
 
     if debug:
         logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
@@ -352,8 +355,9 @@ def make_train_val_polars(
     """
     _id = vars[VarType.group]
     label = vars[VarType.label]
-    assert isinstance(_id, str)
-    assert isinstance(label, str)
+    if not (isinstance(_id, str) and isinstance(label, str)):
+        raise TypeError(f'Expected keys "{VarType.group}" and "{VarType.label}" to be of type str, ' 
+                         f'got {type(_id)} and {type(label)} instead.')
 
     if debug:
         logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
@@ -443,8 +447,10 @@ def make_single_split_pandas(
     """
     _id = vars[VarType.group]
     label = vars[VarType.label]
-    assert isinstance(_id, str)
-    assert isinstance(label, str)
+
+    if not (isinstance(_id, str) and isinstance(label, str)):
+        raise TypeError(f'Expected keys "{VarType.group}" and "{VarType.label}" to be of type str, ' 
+                         f'got {type(_id)} and {type(label)} instead.')
 
     if debug:
         logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")

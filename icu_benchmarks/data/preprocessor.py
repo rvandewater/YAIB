@@ -157,7 +157,9 @@ class PolarsClassificationPreprocessor(Preprocessor):
         logging.debug(data[DataSplit.train][DataSegment.features].head())
         logging.debug(data[DataSplit.train][DataSegment.outcome])
 
-        assert isinstance(vars["SEQUENCE"], str)
+        if not isinstance(vars["SEQUENCE"], str):
+            raise TypeError(f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead')
+
         for split in [DataSplit.train, DataSplit.val, DataSplit.test]:
             if vars["SEQUENCE"] in data[split][DataSegment.outcome] and len(data[split][DataSegment.features]) != len(
                 data[split][DataSegment.outcome]
@@ -424,7 +426,8 @@ class PandasClassificationPreprocessor(Preprocessor):
         return data
 
     def _model_impute(self, data: pd.DataFrame, group: Optional[str] = None) -> pd.DataFrame:
-        assert self.imputation_model, "No Imputation Model provided. Aborting..."
+        if not self.imputation_model:
+            raise TypeError("No Imputation Model provided. Aborting...")
         dataset = ImputationPredictionDataset(data, group, self.imputation_model.trained_columns)
         input_data = torch.cat([data_point.unsqueeze(0) for data_point in dataset], dim=0)
         self.imputation_model.eval()
@@ -583,7 +586,8 @@ class PandasImputationPreprocessor(Preprocessor):
             dyn_rec.add_step(StepScale())
         data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
 
-        assert isinstance(vars["GROUP"], str) and isinstance(vars["SEQUENCE"], str)
+        if not (isinstance(vars["GROUP"], str) and isinstance(vars["SEQUENCE"], str)):
+            raise TypeError(f'Expected keys "GROUP" and "SEQUENCE" to be of type str, got {type(vars["GROUP"])} and {type(vars["SEQUENCE"])} instead.')
         selected_vars: list[str] = [str(item) for item in vars[DataSegment.dynamic]] + [vars["GROUP"], vars["SEQUENCE"]]
         data[DataSplit.train][DataSegment.features] = (
             data[DataSplit.train].pop(DataSegment.dynamic).loc[:, selected_vars]
