@@ -177,18 +177,14 @@ class PolarsClassificationPreprocessor(Preprocessor):
 
     def _process_static(self, data: dict[str, dict[str, pl.DataFrame]], vars: dict[str, Union[str, list[str]]]):
         sta_rec = Recipe(data[DataSplit.train][DataSegment.static], [], vars[DataSegment.static])
-        sta_rec.add_step(
-            StepSklearn(MissingIndicator(features="all"), sel=all_of(vars[DataSegment.static]), in_place=False)
-        )
+        sta_rec.add_step(StepSklearn(MissingIndicator(features="all"), sel=all_of(vars[DataSegment.static]), in_place=False))
         if self.scaling:
             sta_rec.add_step(StepScale())
         sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), strategy="zero"))
         types = ["String", "Object", "Categorical"]
         sel = has_type(types)
         if len(sel(sta_rec.data)) > 0:
-            sta_rec.add_step(
-                StepSklearn(SimpleImputer(missing_values=np_nan, strategy="most_frequent"), sel=has_type(types))
-            )
+            sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=np_nan, strategy="most_frequent"), sel=has_type(types)))
             sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type(types), columnwise=True))
 
         data = apply_recipe_to_splits(sta_rec, data, DataSegment.static, self.save_cache, self.load_cache)
@@ -374,9 +370,7 @@ class PandasClassificationPreprocessor(Preprocessor):
             data = self._process_static(data, vars)
 
             # Set index to grouping variable
-            data[DataSplit.train][DataSegment.static] = data[DataSplit.train][DataSegment.static].set_index(
-                vars["GROUP"]
-            )
+            data[DataSplit.train][DataSegment.static] = data[DataSplit.train][DataSegment.static].set_index(vars["GROUP"])
             data[DataSplit.val][DataSegment.static] = data[DataSplit.val][DataSegment.static].set_index(vars["GROUP"])
             data[DataSplit.test][DataSegment.static] = data[DataSplit.test][DataSegment.static].set_index(vars["GROUP"])
 
@@ -587,11 +581,11 @@ class PandasImputationPreprocessor(Preprocessor):
         data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
 
         if not (isinstance(vars["GROUP"], str) and isinstance(vars["SEQUENCE"], str)):
-            raise TypeError(f'Expected keys "GROUP" and "SEQUENCE" to be of type str, got {type(vars["GROUP"])} and {type(vars["SEQUENCE"])} instead.')
+            raise TypeError(
+                f'Expected keys "GROUP" and "SEQUENCE" to be of type str, got {type(vars["GROUP"])} and {type(vars["SEQUENCE"])} instead.'
+            )
         selected_vars: list[str] = [str(item) for item in vars[DataSegment.dynamic]] + [vars["GROUP"], vars["SEQUENCE"]]
-        data[DataSplit.train][DataSegment.features] = (
-            data[DataSplit.train].pop(DataSegment.dynamic).loc[:, selected_vars]
-        )
+        data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(DataSegment.dynamic).loc[:, selected_vars]
         data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(DataSegment.dynamic).loc[:, selected_vars]
         data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(DataSegment.dynamic).loc[:, selected_vars]
         return data
@@ -603,9 +597,7 @@ class PandasImputationPreprocessor(Preprocessor):
         if self.filter_missing_values:
             rows_to_remove = data[DataSegment.dynamic][vars[DataSegment.dynamic]].isna().sum(axis=1) != 0
             ids_to_remove = data[DataSegment.dynamic].loc[rows_to_remove][vars["GROUP"]].unique()
-            data = {
-                table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()
-            }
+            data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
             logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
         return data
 

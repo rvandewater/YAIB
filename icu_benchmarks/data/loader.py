@@ -27,7 +27,7 @@ class CommonPolarsDataset(Dataset):
         name: str = "",
     ):
         if not isinstance(vars, dict):
-            raise ValueError(f'Expected vars to be of type dict, got {type(vars)} instead')
+            raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment]
@@ -109,13 +109,9 @@ class PredictionPolarsDataset(CommonPolarsDataset):
 
         # slice to make sure to always return a DF
         window = (
-            self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id)
-            .select(pl.exclude(self.vars["GROUP"]))
-            .to_numpy()
+            self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id).select(pl.exclude(self.vars["GROUP"])).to_numpy()
         )
-        labels = (
-            self.outcome_df.filter(pl.col(self.vars["GROUP"]) == stay_id)[self.vars["LABEL"]].to_numpy().astype(float)
-        )
+        labels = self.outcome_df.filter(pl.col(self.vars["GROUP"]) == stay_id)[self.vars["LABEL"]].to_numpy().astype(float)
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -201,11 +197,9 @@ class CommonPandasDataset(Dataset):
         mps: bool = False,
         name: str = "",
     ):
-        warnings.warn(
-            "CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning, stacklevel=2
-        )
+        warnings.warn("CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning, stacklevel=2)
         if not isinstance(vars, dict):
-            raise ValueError(f'Expected vars to be of type dict, got {type(vars)} instead')
+            raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
@@ -363,7 +357,7 @@ class ImputationPandasDataset(CommonPandasDataset):
                 training. Defaults to True.
         """
         if not isinstance(vars, dict):
-            raise ValueError(f'Expected vars to be of type dict, got {type(vars)} instead')
+            raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
         super().__init__(data, split, vars, grouping_segment=DataSegment.static)
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion
