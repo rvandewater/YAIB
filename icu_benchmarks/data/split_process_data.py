@@ -118,7 +118,7 @@ def preprocess_data(
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
     preprocessor_instance: Preprocessor = preprocessor(
         use_static_features=use_static,
-        save_cache=data_dir / "preproc" / (cache_filename + "_recipe"),
+        save_cache=data_dir / "preproc" / (cache_filename + "_recipe") if generate_cache else None,
         vars_to_exclude=vars_to_exclude,
     )
     if isinstance(preprocessor_instance, PandasClassificationPreprocessor):
