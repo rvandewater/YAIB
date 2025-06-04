@@ -16,7 +16,6 @@ from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.preprocessor import (
     PandasClassificationPreprocessor,
     PolarsClassificationPreprocessor,
-    PolarsRegressionPreprocessor,
     Preprocessor,
 )
 
@@ -110,31 +109,23 @@ def preprocess_data(
     dumped_vars = json.dumps(vars, sort_keys=True)
 
     logging.info(f"Using preprocessor: {preprocessor.__name__}")
-
-    cat_clinical_notes = modality_mapping.get("cat_clinical_notes")
-    cat_med_embeddings_map = modality_mapping.get("cat_med_embeddings_map")
-    if cat_clinical_notes is not None and cat_med_embeddings_map is not None:
-        vars_to_exclude = cat_clinical_notes + cat_med_embeddings_map
-    else:
-        vars_to_exclude = None
-
     cache_dir = data_dir / "cache"
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
 
     logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
 
-    excluded_vars = []
+    vars_to_exclude = []
     if exclude_preproc is not None:
         # Exclude variables from preprocessing based on modality:
         # useful if modality has already undergone extensive preprocessing.
         if modality_mapping is not None and len(modality_mapping) > 0:
             for modality in exclude_preproc:
                 if modality in modality_mapping:
-                    excluded_vars.extend(modality_mapping.get(modality))
+                    vars_to_exclude.extend(modality_mapping.get(modality))
                 else:
                     logging.warning(f"Modality '{modality}' not found in modality mapping.")
             logging.info(
-                f"Excluding modalities in {exclude_preproc}. Total vars excluded from preprocessing: {len(excluded_vars)}"
+                f"Excluding modalities in {exclude_preproc}. Total vars excluded from preprocessing: {len(vars_to_exclude)}"
             )
         else:
             logging.warning("No modality mapping provided. Excluding variables from preprocessing will have no effect.")
