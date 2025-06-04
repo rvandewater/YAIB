@@ -216,7 +216,7 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
         ):
             trained_columns.remove("stay_id" if "stay_id" in trained_columns else "id")
         logging.info(f"Saving SHAPS")
-        if trainer.lightning_module.explainer_values_test is not None:
+        if hasattr(trainer.lightning_module, "explainer_values_test"):
             # todo: abs values
             explainer_values = trainer.lightning_module.explainer_values_test
             # logging.info(f"{explainer_values.values.shape}")
@@ -225,13 +225,17 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
             shaps_test = shaps_test.select(pl.all().mean())
             with (log_dir / "explainer_values_test.parquet").open("wb") as f:
                 shaps_test.write_parquet(f)
-            logging.debug(f"Saved explainer values to {log_dir / 'explainer_values_test.parquet'}")
-        if trainer.lightning_module.explainer_values_train is not None:
+            logging.debug(f"Saved test explainer values to {log_dir / 'explainer_values_test.parquet'}")
+        else:
+            logging.warning("No explainer values for test set found. Skipping saving.")
+        if hasattr(trainer.lightning_module, "explainer_values_train"):
             explainer_values = trainer.lightning_module.explainer_values_train
             # shaps_train = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(explainer_values.values))
-            shaps_train = pl.DataFrame(schema=trained_columns, data=explainer_values.values)
+            shaps_train = pl.DataFrame(schema=trained_columns, data=explainer_values)
             with (log_dir / "explainer_values_train.parquet").open("wb") as f:
                 shaps_train.write_parquet(f)
+        else:
+            logging.warning("No explainer values for train set found. Skipping saving.")
 
     except Exception as e:
         logging.error(f"Failed to save explainer values: {e}")

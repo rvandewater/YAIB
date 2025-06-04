@@ -48,6 +48,7 @@ class BaseModule(LightningModule):
     # Type of run mode
     run_mode = None
     debug = True
+    # We do not want to explain features by default as it is expensive (and not needed during hp tuning)
     explain_features = False
 
     def forward(self, *args, **kwargs):
@@ -419,6 +420,9 @@ class MLWrapper(BaseModule, ABC):
             self.model.set_params(class_weight=self.weight)
 
         val_loss = self.fit_model(train_rep, train_label, val_rep, val_label)
+
+        if self.explain_features:
+            self.explainer_values_train = self._explain_model(train_rep, train_label)
 
         train_pred = self.predict(train_rep)
 

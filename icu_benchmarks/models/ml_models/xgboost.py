@@ -55,9 +55,9 @@ class XGBClassifier(MLWrapper):
         self.explainer = shap.TreeExplainer(
             self.model, train_data, feature_perturbation="interventional", model_output="probability"
         )
-        if self.explain_features:
-            logging.info("Explaining features")
-            self.train_shap_values = self.explainer.shap_values(train_data)
+        # if self.explain_features:
+        #     logging.info("Explaining features")
+        #     self.train_shap_values = self.explainer.shap_values(train_data)
         # shap.summary_plot(shap_values, X_test, feature_names=features)
         # logging.info(self.model.get_booster().get_score(importance_type='weight'))
         # self.log_dict(self.model.get_booster().get_score(importance_type='weight'))
