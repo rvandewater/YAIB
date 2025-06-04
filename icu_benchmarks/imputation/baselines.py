@@ -1,4 +1,5 @@
 """Baseline imputation methods. These methods imported from other frameworks and are used as baselines for comparison."""
+
 import torch
 from hyperimpute.plugins.imputers import Imputers as HyperImpute
 from sklearn.experimental import enable_iterative_imputer  # noqa: F401
@@ -242,7 +243,7 @@ class SAITSImputation(ImputationWrapper):
             d_k=d_k,
             d_v=d_v,
             dropout=dropout,
-            **kwargs
+            **kwargs,
         )
         self.imputer = SAITS(
             n_steps=input_size[1],
@@ -292,7 +293,7 @@ class AttentionImputation(ImputationWrapper):
             d_k=d_k,
             d_v=d_v,
             dropout=dropout,
-            **kwargs
+            **kwargs,
         )
         self.imputer = Transformer(
             n_steps=input_size[1],
