@@ -204,7 +204,7 @@ def preprocess_data(
     logging.info(f"Preprocessing took {end - start:.2f} seconds.")
     logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
     for _dict in sanitized_data.values():
-        for key, val in _dict.items():
+        for key, dataframe in _dict.items():
             logging.debug(f"Data type: {key}")
             logging.debug("Is NaN:")
             sel = _dict[key].select(pl.selectors.numeric().is_nan().max())
@@ -212,27 +212,27 @@ def preprocess_data(
             logging.debug("Has nulls:")
             sel = _dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
-            _dict[key] = val.fill_null(strategy="zero")
-            _dict[key] = val.fill_nan(0)
+            _dict[key] = dataframe.fill_null(strategy="zero")
+            _dict[key] = dataframe.fill_nan(0)
             logging.debug("Dropping columns with nulls")
             sel = _dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
             logging.info("Checking for infinite values.")
-            for col in val.select(cs.numeric()).columns:
-                if val[col].is_infinite().any():
-                    logging.info(f"Column '{col}' contains infinite values. Datatype: {val[col].dtype}")
+            for col in dataframe.select(cs.numeric()).columns:
+                if dataframe[col].is_infinite().any():
+                    logging.info(f"Column '{col}' contains infinite values. Datatype: {dataframe[col].dtype}")
 
             max_float64 = 0
             # Replace infinite values with the maximum value for float64
-            val = val.with_columns(
+            dataframe = dataframe.with_columns(
                 [
                     pl.when(pl.col(col).is_infinite()).then(max_float64).otherwise(pl.col(col)).alias(col)
-                    for col in val.columns
-                    if val[col].dtype == pl.Float64
+                    for col in dataframe.columns
+                    if dataframe[col].dtype == pl.Float64
                 ]
             )
-            dict[key] = val
-            logging.info(f"Amount of columns: {len(val.columns)}")
+            _dict[key] = dataframe
+            logging.info(f"Amount of columns: {len(dataframe.columns)}")
 
     # Generate cache
     if generate_cache:
