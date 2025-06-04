@@ -3,7 +3,6 @@ from abc import ABC
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 import torchmetrics
-from ignite.metrics import EpochMetric
 from sklearn.metrics import log_loss, mean_squared_error, average_precision_score, roc_auc_score
 
 import torch
@@ -547,7 +546,7 @@ class MLWrapper(BaseModule, ABC):
                     header="id,time,ground_truth,prediction_0,prediction_1",
                     fmt="%d,%d,%.3f,%.3f,%.3f",
                 )
-                logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
+                logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
                 # else:
                 #     # Flat/static dataset
                 #     np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",",
@@ -568,7 +567,7 @@ class MLWrapper(BaseModule, ABC):
                     header="id,ground_truth,prediction_0,prediction_1",
                     fmt="%d,%d,%0.3f,%0.3f",
                 )
-                logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
+                logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
 
                 # logging.warning("Could not save row indicators; no support for temporal dataset with single outcomes yet.")
         # if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1 and pred_indicators.shape[1] == test_pred.shape[1]:

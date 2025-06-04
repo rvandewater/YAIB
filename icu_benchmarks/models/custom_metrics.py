@@ -1,4 +1,3 @@
-import numpy
 import torch
 from typing import Callable
 import numpy as np
@@ -12,7 +11,7 @@ from sklearn.metrics import (
 )
 from sklearn.calibration import calibration_curve
 from scipy.spatial.distance import jensenshannon
-from torchmetrics.classification import BinaryFairness, Specificity
+from torchmetrics.classification import BinaryFairness
 
 """"
 This file contains custom metrics that can be added to YAIB.
@@ -175,11 +174,11 @@ def sensitivity(y_preds: torch.Tensor | ndarray, y_targets: torch.Tensor | ndarr
     return tp / (tp + fn)
 
 
-class Specificity(EpochMetric):
-    def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
-        super(Specificity, self).__init__(
-            self.specificity_compute, output_transform=output_transform, check_compute_fn=check_compute_fn
-        )
+# class Specificity(EpochMetric):
+#     def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
+#         super(Specificity, self).__init__(
+#             self.specificity_compute, output_transform=output_transform, check_compute_fn=check_compute_fn
+#         )
 
 
 def specificity(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:

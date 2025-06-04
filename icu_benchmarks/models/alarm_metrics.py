@@ -1,7 +1,4 @@
 import numpy as np
-from numpy import ndarray
-import torch
-from sklearn.metrics import precision_score
 
 # def convert_to_alarm(y_true: ndarray, y_pred: ndarray, normalize=False) -> torch.tensor:
 #     y_pred = np.rint(y_pred).astype(int)

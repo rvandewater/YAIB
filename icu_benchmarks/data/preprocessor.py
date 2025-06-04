@@ -182,7 +182,7 @@ class PolarsClassificationPreprocessor(Preprocessor):
 
     def _process_dynamic(self, data, vars):
         # self.vars_to_exclude = ["hr"]
-        old_columns = data[Split.train][Segment.dynamic].columns
+        # old_columns = data[Split.train][Segment.dynamic].columns
         dyn_rec = Recipe(data[Split.train][Segment.dynamic], [], vars[Segment.dynamic], vars["GROUP"], vars["SEQUENCE"])
         if self.scaling:
             dyn_rec.add_step(StepScale(sel=all_numeric_predictors(backend=recipys.constants.Backend.POLARS)))

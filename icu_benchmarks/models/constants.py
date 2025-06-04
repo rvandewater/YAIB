@@ -11,16 +11,13 @@ from sklearn.metrics import (
     roc_curve,
     r2_score,
     mean_squared_error,
-    matthews_corrcoef,
 )
-from torchmetrics import MatthewsCorrCoef
 from torchmetrics.classification import (
     AUROC,
     AveragePrecision as TorchMetricsAveragePrecision,
     PrecisionRecallCurve as TorchMetricsPrecisionRecallCurve,
     CalibrationError,
     F1Score,
-    MatthewsCorrCoef,
 )
 from enum import Enum
 from icu_benchmarks.models.custom_metrics import (

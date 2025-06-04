@@ -1,7 +1,6 @@
 import copy
 import logging
 import os
-import numpy as np
 import gin
 import json
 import hashlib
@@ -221,7 +220,7 @@ def preprocess_data(
     return data
 
 
-def check_sanitize_data(data, vars):
+def check_sanitize_data(data, vars): # noqa: F811
     """Check for duplicates in the loaded data and remove them."""
     group = vars[Var.group] if Var.group in vars.keys() else None
     sequence = vars[Var.sequence] if Var.sequence in vars.keys() else None
@@ -248,8 +247,8 @@ def check_sanitize_data(data, vars):
     return data, vars
 
 
-def modality_selection(
-    data: dict[pl.DataFrame], modality_mapping: dict[str], selected_modalities: list[str], vars
+def modality_selection( # noqa: F811
+ data: dict[pl.DataFrame], modality_mapping: dict[str], selected_modalities: list[str], vars
 ) -> dict[pl.DataFrame]:
     logging.info(f"Selected modalities: {selected_modalities}")
     selected_columns = [modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]

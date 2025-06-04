@@ -1,9 +1,7 @@
-import inspect
 import logging
 from statistics import mean
 
 import gin
-import numpy as np
 import shap
 import wandb
 import xgboost as xgb
@@ -144,7 +142,7 @@ class XGBClassifierGPU(MLWrapper):
         self.model.train(self.params, train_data=dtrain, evals=evals, callbacks=callbacks)
         # self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=0)
 
-        shap_interaction_values = self.model.predict(dtrain)
+        # shap_interaction_values = self.model.predict(dtrain)
         # self.explainer = shap.TreeExplainer(
         #     self.model, dtrain, feature_perturbation="interventional", model_output="probability"
         # )

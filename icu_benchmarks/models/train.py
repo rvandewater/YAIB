@@ -1,6 +1,5 @@
 import os
 import gin
-import numpy as np
 import torch
 import logging
 import polars as pl
@@ -215,7 +214,7 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
             and len(trained_columns) != trainer.lightning_module.explainer_values_test.shape[1]
         ):
             trained_columns.remove("stay_id" if "stay_id" in trained_columns else "id")
-        logging.info(f"Saving SHAPS")
+        logging.info("Saving SHAPS")
         if hasattr(trainer.lightning_module, "explainer_values_test"):
             # todo: abs values
             explainer_values = trainer.lightning_module.explainer_values_test
