@@ -10,27 +10,35 @@ on:
     branches:
       - main
       - development
-
-jobs:
-  build:
-
-    runs-on: ubuntu-latest
-
-    # needed for miniconda
-    defaults:
-      run:
-        shell: bash -l {0}
-
-    steps:
-      - uses: actions/checkout@v3
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          activate-environment: yaib
-          environment-file: environment.yml
-          auto-activate-base: false
-      - name: Lint with flake8
-        run: |
-          ruff check --line-length 127 --statistics
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  # Ruff version.
+  rev: v0.11.12
+  hooks:
+    # Run the linter.
+    - id: ruff
+      args: [ --fix ]
+    # Run the formatter.
+    - id: ruff-format
+#jobs:
+#  build:
+#
+#    runs-on: ubuntu-latest
+#
+#    # needed for miniconda
+#    defaults:
+#      run:
+#        shell: bash -l {0}
+#
+#    steps:
+#      - uses: actions/checkout@v3
+#      - uses: conda-incubator/setup-miniconda@v2
+#        with:
+#          activate-environment: yaib
+#          environment-file: environment.yml
+#          auto-activate-base: false
+#      - name: Lint with flake8
+#        run: |
+#          ruff check --line-length 127 --statistics
 #          # stop the build if there are Python syntax errors or undefined names
 #          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 #          # the GitHub editor is 127 chars wide
