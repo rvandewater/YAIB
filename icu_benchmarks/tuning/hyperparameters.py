@@ -1,4 +1,6 @@
 import json
+import shutil
+
 import gin
 import logging
 from logging import NOTSET
@@ -330,12 +332,14 @@ def choose_and_bind_hyperparameters_optuna(
     # Optuna study
     # Attempt checkpoint loading
     if checkpoint and checkpoint.exists():
-        logging.warning(f"Hyperparameter checkpoint {checkpoint} does not exist.")
+        # logging.warning(f"Hyperparameter checkpoint {checkpoint} does not exist.")
         # logging.info("Attempting to find latest checkpoint file.")
         # checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
-        # Check if we found a checkpoint file
-        logging.info(f"Loading checkpoint at {checkpoint}")
-        study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(checkpoint), sampler=sampler, pruner=pruner)
+        # Check if we found a checkpoint file and copy it.
+        logging.info(f"Copying checkpoint and loading checkpoint at {checkpoint}")
+        local_path = log_dir / checkpoint_file
+        shutil.copy(str(checkpoint), local_path)
+        study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(local_path), sampler=sampler, pruner=pruner)
         n_calls = n_calls - len(study.trials)
     else:
         if checkpoint:
