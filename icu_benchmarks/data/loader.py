@@ -112,7 +112,9 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         # slice to make sure to always return a DF
         # window = self.features_df.loc[stay_id:stay_id].to_numpy()
         # labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
-        window = self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id).to_numpy()
+        window = (
+            self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id).select(pl.exclude(self.vars["GROUP"])).to_numpy()
+        )
         labels = self.outcome_df.filter(pl.col(self.vars["GROUP"]) == stay_id)[self.vars["LABEL"]].to_numpy().astype(float)
 
         if len(labels) == 1:
@@ -177,7 +179,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
     def to_tensor(self) -> Tuple[Tensor, Tensor, Tensor]:
         data, labels, row_indicators = self.get_data_and_labels()
         if self.mps:
-            return from_numpy(data).to(float32), from_numpy(labels).to(float32)
+            return from_numpy(data).to(float32), from_numpy(labels).to(float32), from_numpy(row_indicators).to(float32)
         else:
             return from_numpy(data), from_numpy(labels), row_indicators
 

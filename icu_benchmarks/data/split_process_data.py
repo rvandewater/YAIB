@@ -126,7 +126,7 @@ def preprocess_data(
     logging.info(f"Loaded data: {list(data.keys())}")
     data = check_sanitize_data(data, vars)
 
-    if not (Segment.dynamic in data.keys()):
+    if (Segment.dynamic not in data.keys()):
         logging.warning("No dynamic data found, using only static data.")
 
     logging.debug(f"Modality mapping: {modality_mapping}")
@@ -200,11 +200,13 @@ def check_sanitize_data(data, vars):
     if Segment.static in data.keys():
         old_len = len(data[Segment.static])
         data[Segment.static] = data[Segment.static].unique(subset=group, keep=keep, maintain_order=True)
-        logging.warning(f"Removed {old_len - len(data[Segment.static])} duplicates from static data.")
+        if old_len != len(data[Segment.static]):
+            logging.warning(f"Removed {old_len - len(data[Segment.static])} duplicates from static data.")
     if Segment.dynamic in data.keys():
         old_len = len(data[Segment.dynamic])
         data[Segment.dynamic] = data[Segment.dynamic].unique(subset=[group, sequence], keep=keep, maintain_order=True)
-        logging.warning(f"Removed {old_len - len(data[Segment.dynamic])} duplicates from dynamic data.")
+        if old_len != len(data[Segment.dynamic]):
+            logging.warning(f"Removed {old_len - len(data[Segment.dynamic])} duplicates from dynamic data.")
     if Segment.outcome in data.keys():
         old_len = len(data[Segment.outcome])
         if sequence in data[Segment.outcome].columns:
@@ -212,7 +214,8 @@ def check_sanitize_data(data, vars):
             data[Segment.outcome] = data[Segment.outcome].unique(subset=[group, sequence], keep=keep, maintain_order=True)
         else:
             data[Segment.outcome] = data[Segment.outcome].unique(subset=[group], keep=keep, maintain_order=True)
-        logging.warning(f"Removed {old_len - len(data[Segment.outcome])} duplicates from outcome data.")
+        if old_len != len(data[Segment.outcome]):
+            logging.warning(f"Removed {old_len - len(data[Segment.outcome])} duplicates from outcome data.")
     return data
 
 
@@ -390,7 +393,7 @@ def make_single_split(
     if Var.label in vars and runmode is RunMode.classification:
         # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
         if polars:
-            labels = data[Segment.outcome].group_by(id).max()[vars[Var.label]]
+            labels = data[Segment.outcome].group_by(id).max().sort(id)[vars[Var.label]]
             if labels.value_counts().min().item(0, 1) < cv_folds:
                 raise Exception(
                     f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
@@ -459,7 +462,7 @@ def make_single_split(
             data_split[fold] = {
                 data_type: data[data_type].merge(split[fold], on=id, how="right", sort=True) for data_type in data.keys()
             }
-    logging.info(f"Data split: {data_split}")
+    logging.debug(f"Data split: {data_split}")
     return data_split
 
 

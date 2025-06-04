@@ -44,8 +44,8 @@ class XGBClassifier(MLWrapper):
 
         if wandb.run is not None:
             callbacks.append(wandb_xgb())
-        logging.info(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
-        logging.info(train_labels)
+        logging.debug(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
+        logging.debug(train_labels)
         self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=False)
         if self._explain_values:
             self.explainer = shap.TreeExplainer(self.model)
