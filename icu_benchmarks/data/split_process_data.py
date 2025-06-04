@@ -28,7 +28,7 @@ from .utils import check_sanitize_data, modality_selection
 def preprocess_data(
     data_dir: Path,
     file_names: dict[str, str] | Any = gin.REQUIRED,
-    preprocessor: type[PolarsClassificationPreprocessor | PolarsRegressionPreprocessor] = PolarsClassificationPreprocessor,
+    preprocessor: type[Preprocessor] = PolarsClassificationPreprocessor,
     use_static: bool = True,
     vars: dict[str, str | list[str]] | Any = gin.REQUIRED,
     modality_mapping: Optional[dict[str, list[str]]] = None,
