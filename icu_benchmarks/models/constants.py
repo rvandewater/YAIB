@@ -11,13 +11,16 @@ from sklearn.metrics import (
     roc_curve,
     r2_score,
     mean_squared_error,
+    matthews_corrcoef
 )
+from torchmetrics import MatthewsCorrCoef
 from torchmetrics.classification import (
     AUROC,
     AveragePrecision as TorchMetricsAveragePrecision,
     PrecisionRecallCurve as TorchMetricsPrecisionRecallCurve,
     CalibrationError,
     F1Score,
+    MatthewsCorrCoef
 )
 from enum import Enum
 from icu_benchmarks.models.custom_metrics import (
@@ -30,6 +33,7 @@ from icu_benchmarks.models.custom_metrics import (
     sensitivity,
     specificity,
     positive_predictive_value,
+    binary_incidence
 )
 
 
@@ -46,6 +50,8 @@ class MLMetrics:
         # "Recall": recall_score,
         "Specificity": specificity,
         "PPV": positive_predictive_value,
+        # "MCC": matthews_corrcoef,
+        "Incidence": binary_incidence,
     }
 
     MULTICLASS_CLASSIFICATION = {
@@ -71,6 +77,7 @@ class DLMetrics:
         "PR": AveragePrecision,
         "PR_Curve": PrecisionRecallCurve,
         "RO_Curve": RocCurve,
+        # "MCC": MatthewsCorrCoef
     }
 
     BINARY_CLASSIFICATION_TORCHMETRICS = {
