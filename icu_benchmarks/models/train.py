@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Literal, Optional
 
 import gin
-import numpy as np
 import polars as pl
 import torch
 from joblib import load
@@ -59,7 +58,6 @@ def train_common(
     polars: bool = True,
     persistent_workers: bool = False,
     explain_features: bool = False,
-
 ):
     """Common wrapper to train all benchmarked models.
 

@@ -27,8 +27,6 @@ from icu_benchmarks.data.preprocessor import (
 )
 
 from .constants import DataSegment, DataSplit, VarType
-from icu_benchmarks.run_utils import check_required_keys
-from .constants import DataSplit as Split, DataSegment as Segment, VarType as Var
 from .utils import check_sanitize_data, modality_selection
 
 
@@ -173,7 +171,7 @@ def preprocess_data(
     }
 
     logging.info(f"Loaded data: {list(data.keys())}")
-    sanitized_data = check_sanitize_data(data, vars)
+    sanitized_data, vars = check_sanitize_data(data, vars)
 
     if DataSegment.dynamic not in sanitized_data.keys():
         logging.warning("No dynamic data found, using only static data.")
@@ -263,7 +261,7 @@ def flatten_column_names(*args: object) -> list[str]:
     return result
 
 
-def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | list[str]]) -> dict[str, pl.DataFrame]:
+def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | list[str]]) -> dict[str, pl.DataFrame]: # noqa: F811
     """Check for duplicates in the loaded data and remove them."""
     group: Optional[Union[str, list[str]]] = vars.get(VarType.group)
     sequence: Optional[Union[str, list[str]]] = vars.get(VarType.sequence)
@@ -295,7 +293,7 @@ def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | lis
     return data, vars
 
 
-def modality_selection( # noqa: F811
+def modality_selection(  # noqa: F811
     data: dict[str, pl.DataFrame],
     modality_mapping: dict[str, list[str]],
     selected_modalities: list[str],
