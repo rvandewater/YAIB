@@ -108,6 +108,18 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         stay_id = self.outcome_df[self.vars["GROUP"]].unique()[idx]  # [self.vars["GROUP"]]
 
         # slice to make sure to always return a DF
+<<<<<<< HEAD
+||||||| 2339e68
+        # window = self.features_df.loc[stay_id:stay_id].to_numpy()
+        # labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
+        window = self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id).select(
+            pl.exclude(self.vars["GROUP"])).to_numpy()
+        labels = self.outcome_df.filter(pl.col(self.vars["GROUP"]) == stay_id)[self.vars["LABEL"]].to_numpy().astype(
+            float)
+=======
+        # window = self.features_df.loc[stay_id:stay_id].to_numpy()
+        # labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
+>>>>>>> upstream/development
         window = (
             self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id).select(pl.exclude(self.vars["GROUP"])).to_numpy()
         )
@@ -191,15 +203,35 @@ class CommonPandasDataset(Dataset):
     def __init__(
         self,
         data: dict,
+<<<<<<< HEAD
         split: str = DataSplit.train,
         vars: dict[str, Union[str, list[str]]] | object = gin.REQUIRED,
         grouping_segment: str = DataSegment.outcome,
+||||||| 2339e68
+            self,
+            data: dict,
+            split: str = Split.train,
+            vars: Dict[str, str] = gin.REQUIRED,
+            grouping_segment: str = Segment.outcome,
+            mps: bool = False,
+            name: str = "",
+=======
+        split: str = Split.train,
+        vars: Dict[str, str] = gin.REQUIRED,
+        grouping_segment: str = Segment.outcome,
+>>>>>>> upstream/development
         mps: bool = False,
         name: str = "",
     ):
         warnings.warn("CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning, stacklevel=2)
+<<<<<<< HEAD
         if not isinstance(vars, dict):
             raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
+||||||| 2339e68
+        warnings.warn("CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning,
+                      stacklevel=2)
+=======
+>>>>>>> upstream/development
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
@@ -337,9 +369,24 @@ class ImputationPandasDataset(CommonPandasDataset):
 
     def __init__(
         self,
+<<<<<<< HEAD
         data: dict[str, DataFrame],
         split: str = DataSplit.train,
         vars: dict[str, Union[str, list[str]]] | object = gin.REQUIRED,
+||||||| 2339e68
+            self,
+            data: Dict[str, DataFrame],
+            split: str = Split.train,
+            vars: Dict[str, str] = gin.REQUIRED,
+            mask_proportion=0.3,
+            mask_method="MCAR",
+            mask_observation_proportion=0.3,
+            ram_cache: bool = True,
+=======
+        data: Dict[str, DataFrame],
+        split: str = Split.train,
+        vars: Dict[str, str] = gin.REQUIRED,
+>>>>>>> upstream/development
         mask_proportion=0.3,
         mask_method="MCAR",
         mask_observation_proportion=0.3,
@@ -414,8 +461,19 @@ class ImputationPredictionDataset(Dataset):
     def __init__(
         self,
         data: DataFrame,
+<<<<<<< HEAD
         grouping_column: Optional[str] = "stay_id",
         select_columns: Optional[list[str]] = None,
+||||||| 2339e68
+            self,
+            data: DataFrame,
+            grouping_column: str = "stay_id",
+            select_columns: List[str] = None,
+            ram_cache: bool = True,
+=======
+        grouping_column: str = "stay_id",
+        select_columns: List[str] = None,
+>>>>>>> upstream/development
         ram_cache: bool = True,
     ):
         self.dyn_df = data

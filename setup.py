@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """The setup script."""
+
 from pathlib import Path
 from setuptools import setup, find_packages
 

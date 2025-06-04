@@ -29,7 +29,7 @@ class NPImputation(ImputationWrapper):
         test_sample_times,
         predict_sample_times,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(
             input_size=input_size,
@@ -44,7 +44,7 @@ class NPImputation(ImputationWrapper):
             test_sample_times=test_sample_times,
             predict_sample_times=predict_sample_times,
             *args,
-            **kwargs
+            **kwargs,
         )
 
         self.x_dim = input_size[2]
