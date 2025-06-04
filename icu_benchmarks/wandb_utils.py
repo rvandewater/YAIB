@@ -4,7 +4,7 @@ from pathlib import Path
 
 import wandb
 
-from icu_benchmarks.run_utils import parse_dict
+from .utils import parse_dict
 
 
 def wandb_running() -> bool:
