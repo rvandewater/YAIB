@@ -18,8 +18,8 @@ from icu_benchmarks.run_utils import (
     setup_logging,
     import_preprocessor,
     name_datasets,
-    get_config_files, parse_dict,
-)
+    get_config_files, )
+from icu_benchmarks.utils import parse_dict
 from icu_benchmarks.constants import RunMode
 
 
@@ -134,7 +134,7 @@ def main(my_args=tuple(sys.argv[1:])):
         name_datasets(args.name, args.name, args.name)
         hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
-                Path("configs") / (
+            Path("configs") / (
             "imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
         gin_config_files = (
