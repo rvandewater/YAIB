@@ -1,24 +1,36 @@
-name: CI
+name: Ruff CI
 
 on:
-  workflow_dispatch:
   push:
-    branches: 
+    branches:
       - main
       - development
   pull_request:
     branches:
       - main
       - development
-- repo: https://github.com/astral-sh/ruff-pre-commit
-  # Ruff version.
-  rev: v0.11.12
-  hooks:
-    # Run the linter.
-    - id: ruff
-      args: [ --fix ]
-    # Run the formatter.
-    - id: ruff-format
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+
+      - name: Run Ruff
+        run: |
+          ruff . --line-length 127 --show-source --statistics
 #jobs:
 #  build:
 #
