@@ -139,7 +139,7 @@ def preprocess_data(
     logging.info(f"Loaded data: {list(data.keys())}")
     data, vars = check_sanitize_data(data, vars)
 
-    if not (Segment.dynamic in data.keys()):
+    if (Segment.dynamic not in data.keys()):
         logging.warning("No dynamic data found, using only static data.")
 
     logging.debug(f"Modality mapping: {modality_mapping}")

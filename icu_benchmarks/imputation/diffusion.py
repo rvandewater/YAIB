@@ -32,7 +32,7 @@ class SimpleDiffusionModel(ImputationWrapper):
             max_noise=max_noise,
             noise_scheduler=noise_scheduler,
             *args,
-            **kwargs
+            **kwargs,
         )
 
         self.n_onedirectional_conv = n_onedirectional_conv

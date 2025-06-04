@@ -571,6 +571,12 @@ class MLWrapper(BaseModule, ABC):
                 logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
 
                 # logging.warning("Could not save row indicators; no support for temporal dataset with single outcomes yet.")
+        if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1 and pred_indicators.shape[1] == test_pred.shape[1]:
+            pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
+            pred_indicators = np.hstack((pred_indicators, test_pred))
+            # Save as: id, time (hours), ground truth, prediction 0, prediction 1
+            np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",")
+            logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
         else:
             pred_indicators = np.hstack((pred_indicators.reshape(-1, 1), test_label.reshape(-1, 1)))
             logging.info(pred_indicators.shape)

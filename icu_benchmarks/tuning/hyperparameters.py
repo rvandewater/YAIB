@@ -66,7 +66,7 @@ def choose_and_bind_hyperparameters_scikit_optimize(
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
     logging.warning(
-        "This function is deprecated and will be removed in the future. " "Use choose_and_bind_hyperparameters_optuna instead."
+        "This function is deprecated and will be removed in the future. Use choose_and_bind_hyperparameters_optuna instead."
     )
     hyperparams = {}
 
@@ -282,7 +282,7 @@ def choose_and_bind_hyperparameters_optuna(
         log_full_line("STARTING TUNING", level=TUNE, char="=")
         logging.log(
             TUNE,
-            f"Applying {sampler} from {n_initial_points} points in {n_calls} " f"iterations on {folds_to_tune_on} folds.",
+            f"Applying {sampler} from {n_initial_points} points in {n_calls} iterations on {folds_to_tune_on} folds.",
         )
         log_table_row(header, TUNE)
     else:
@@ -296,7 +296,7 @@ def choose_and_bind_hyperparameters_optuna(
             return
         else:
             logging.log(
-                TUNE, "Choosing hyperparameters randomly from bounds using hp tuning as no earlier checkpoint " "supplied."
+                TUNE, "Choosing hyperparameters randomly from bounds using hp tuning as no earlier checkpoint supplied."
             )
             n_initial_points = 1
             n_calls = 1
