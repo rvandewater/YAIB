@@ -28,13 +28,11 @@ from .constants import DataSegment, DataSplit, VarType
 def preprocess_data(
     data_dir: Path,
     file_names: dict[str, str] | Any = gin.REQUIRED,
-    preprocessor: type[
-        PolarsClassificationPreprocessor | PolarsRegressionPreprocessor
-    ] = PolarsClassificationPreprocessor,
+    preprocessor: type[PolarsClassificationPreprocessor | PolarsRegressionPreprocessor] = PolarsClassificationPreprocessor,
     use_static: bool = True,
     vars: dict[str, str | list[str]] | Any = gin.REQUIRED,
     modality_mapping: Optional[dict[str, list[str]]] = None,
-    selected_modalities: Optional[list[str] ]= None,
+    selected_modalities: Optional[list[str]] = None,
     seed: int = 42,
     debug: bool = False,
     cv_repetitions: int = 5,
@@ -126,9 +124,7 @@ def preprocess_data(
     if isinstance(preprocessor_instance, PandasClassificationPreprocessor):
         preprocessor_instance.set_imputation_model(pretrained_imputation_model)
 
-    hash_config = hashlib.md5(
-        f"{preprocessor_instance.to_cache_string()}{dumped_file_names}{dumped_vars}".encode("utf-8")
-    )
+    hash_config = hashlib.md5(f"{preprocessor_instance.to_cache_string()}{dumped_file_names}{dumped_vars}".encode("utf-8"))
     cache_filename += f"_{hash_config.hexdigest()}"
     cache_file = cache_dir / cache_filename
 
@@ -143,9 +139,7 @@ def preprocess_data(
     # Read parquet files into dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
     data: dict[str, pl.DataFrame] = {
-        f: pl.read_parquet(data_dir / file_names[f])
-        for f in file_names.keys()
-        if os.path.exists(data_dir / file_names[f])
+        f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys() if os.path.exists(data_dir / file_names[f])
     }
 
     logging.info(f"Loaded data: {list(data.keys())}")
@@ -273,11 +267,13 @@ def modality_selection(
     group_val = vars[VarType.group]
     label_val = vars[VarType.label]
     sequence_val = vars[VarType.sequence]
-    
+
     if not (isinstance(group_val, str) and isinstance(label_val, str) and isinstance(sequence_val, str)):
-        raise TypeError(f'Expected keys "{VarType.group}", "{VarType.label}" and "{VarType.sequence}" to be of type str, ' 
-                         f'got {type(group_val)}, {type(label_val)} and {type(sequence_val)} instead.')
-    
+        raise TypeError(
+            f'Expected keys "{VarType.group}", "{VarType.label}" and "{VarType.sequence}" to be of type str, '
+            f"got {type(group_val)}, {type(label_val)} and {type(sequence_val)} instead."
+        )
+
     selected_columns.extend([group_val, label_val, sequence_val])
     old_columns = []
     # Update vars dict
@@ -304,11 +300,19 @@ def make_train_val_pandas(
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
 ) -> dict[str, dict[str, pd.DataFrame]]:
+    """
+    Randomly splits the data into training and validation sets for fitting a full model,
+    specifically designed for Pandas DataFrames.
+
+    For a more detailed documentation refer to make_train_val(...)
+    """
     _id = vars[VarType.group]
     label = vars[VarType.label]
     if not (isinstance(_id, str) and isinstance(label, str)):
-        raise TypeError(f'Expected keys "{VarType.group}" and "{VarType.label}" to be of type str, ' 
-                        f'got {type(_id)} and {type(label)} instead.')
+        raise TypeError(
+            f'Expected keys "{VarType.group}" and "{VarType.label}" to be of type str, '
+            f"got {type(_id)} and {type(label)} instead."
+        )
 
     if debug:
         logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
@@ -352,12 +356,16 @@ def make_train_val_polars(
     """
     Randomly splits the data into training and validation sets for fitting a full model,
     specifically designed for Polars DataFrames.
+
+    For a more detailed documentation refer to make_train_val(...)
     """
     _id = vars[VarType.group]
     label = vars[VarType.label]
     if not (isinstance(_id, str) and isinstance(label, str)):
-        raise TypeError(f'Expected keys "{VarType.group}" and "{VarType.label}" to be of type str, ' 
-                         f'got {type(_id)} and {type(label)} instead.')
+        raise TypeError(
+            f'Expected keys "{VarType.group}" and "{VarType.label}" to be of type str, '
+            f"got {type(_id)} and {type(label)} instead."
+        )
 
     if debug:
         logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
@@ -400,7 +408,7 @@ def make_train_val(
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
     polars: bool = True,
-) -> dict[str, dict[str, Union[pd.DataFrame, pl.DataFrame]]]:
+) -> dict[str, dict[str, pl.DataFrame]] | dict[str, dict[str, pd.DataFrame]]:
     """
     Randomly splits the data into training and validation sets for fitting a full model.
     Dispatches to either a Polars or Pandas backend based on the 'polars' flag.
@@ -444,13 +452,17 @@ def make_single_split_pandas(
     """
     Randomly splits the data into training, validation, and test sets,
     specifically designed for Pandas DataFrames.
+
+    For a more detailed documentation refer to make_single_splits(...)
     """
     _id = vars[VarType.group]
     label = vars[VarType.label]
 
     if not (isinstance(_id, str) and isinstance(label, str)):
-        raise TypeError(f'Expected keys "{VarType.group}" and "{VarType.label}" to be of type str, ' 
-                         f'got {type(_id)} and {type(label)} instead.')
+        raise TypeError(
+            f'Expected keys "{VarType.group}" and "{VarType.label}" to be of type str, '
+            f"got {type(_id)} and {type(label)} instead."
+        )
 
     if debug:
         logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
@@ -519,6 +531,8 @@ def make_single_split_polars(
     """
     Randomly splits the data into training, validation, and test set,
     specifically designed for Polars DataFrames.
+
+    For a more detailed documentation refer to make_single_splits(...)
     """
     # ID variable
     id = vars[VarType.group]
@@ -594,7 +608,7 @@ def make_single_split(
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
     polars: bool = True,
-) -> dict[str, dict[str, Union[pd.DataFrame, pl.DataFrame]]]:
+) -> dict[str, dict[str, pl.DataFrame]] | dict[str, dict[str, pd.DataFrame]]:
     """
     Randomly splits the data into training, validation, and test sets.
     Dispatches to either a Polars or Pandas backend based on the 'polars' flag.
