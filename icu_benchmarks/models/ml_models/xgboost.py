@@ -89,3 +89,70 @@ class XGBClassifier(MLWrapper):
     #     if not hasattr(self.model, "feature_importances_"):
     #         raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
     #     return self.model.feature_importances_
+
+@gin.configurable
+class XGBClassifierGPU(MLWrapper):
+    _supported_run_modes = [RunMode.classification]
+    _explain_values = False
+
+    def __init__(self, *args, **kwargs):
+        # self.model = self.set_model_args(
+        #     xgb, *args, **kwargs, eval_metric="logloss", tree_method="hist", device="cuda", verbosity=0
+        # )
+        self.model = xgb
+        self.params = {
+            "eval_metric": "logloss",
+            "tree_method": "hist",
+            "device": "cuda",
+            "verbosity": 0,
+            **kwargs,
+        }
+        super().__init__(*args, **kwargs)
+
+    def predict(self, features):
+        """
+        Predicts class probabilities for the given features.
+
+        Args:
+            features: Input features for prediction.
+
+        Returns:
+            numpy.ndarray: Predicted probabilities for each class.
+        """
+        return self.model.predict(xgb.DMatrix(features))
+
+    def fit_model(self, train_data, train_labels, val_data, val_labels):
+        """
+        Train the model using the XGBoost `train` method.
+
+        Args:
+            train_data: Training features.
+            train_labels: Training labels.
+            val_data: Validation features.
+            val_labels: Validation labels.
+
+        Returns:
+            float: Evaluation score on the validation set.
+        """
+        dtrain = xgb.DMatrix(train_data, label=train_labels)
+        dval = xgb.DMatrix(val_data, label=val_labels)
+        evals = [(dtrain, "train"), (dval, "validation")]
+
+        callbacks = [EarlyStopping(self.hparams.patience)]
+
+        if wandb.run is not None:
+            callbacks.append(wandb_xgb())
+        self.model.train( self.params,train_data=dtrain,evals=evals, callbacks=callbacks)
+        # self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=0)
+
+
+        shap_interaction_values = self.model.predict(dtrain)
+        # self.explainer = shap.TreeExplainer(
+        #     self.model, dtrain, feature_perturbation="interventional", model_output="probability"
+        # )
+        # if self.explain_features:
+        #     logging.info("Explaining features")
+        #     self.train_shap_values = self.explainer.shap_values(dtrain)
+
+        eval_score = mean(next(iter(self.model.evals_result()["validation"].values())))
+        return eval_score
