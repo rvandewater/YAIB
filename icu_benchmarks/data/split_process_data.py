@@ -143,24 +143,24 @@ def preprocess_data(
     }
 
     logging.info(f"Loaded data: {list(data.keys())}")
-    sanatized_data = check_sanitize_data(data, vars)
+    sanitized_data = check_sanitize_data(data, vars)
 
-    if DataSegment.dynamic not in sanatized_data.keys():
+    if DataSegment.dynamic not in sanitized_data.keys():
         logging.warning("No dynamic data found, using only static data.")
 
     logging.debug(f"Modality mapping: {modality_mapping}")
     if len(modality_mapping) > 0:
         # Optional modality selection
         if selected_modalities not in [None, "all", ["all"]]:
-            data, vars = modality_selection(sanatized_data, modality_mapping, selected_modalities, vars)
+            data, vars = modality_selection(sanitized_data, modality_mapping, selected_modalities, vars)
         else:
             logging.info("Selecting all modalities.")
 
     # Generate the splits
     logging.info("Generating splits.")
     if not complete_train:
-        sanatized_data = make_single_split_polars(
-            sanatized_data,
+        sanitized_data = make_single_split_polars(
+            sanitized_data,
             vars,
             cv_repetitions,
             repetition_index,
@@ -173,15 +173,15 @@ def preprocess_data(
         )
     else:
         # If full train is set, we use all data for training/validation
-        sanatized_data = make_train_val_polars(data, vars, train_size=None, seed=seed, debug=debug, runmode=runmode)
+        sanitized_data = make_train_val_polars(data, vars, train_size=None, seed=seed, debug=debug, runmode=runmode)
 
     # Apply preprocessing
     start = timer()
-    data = preprocessor_instance.apply(data, vars)
+    sanitized_data = preprocessor_instance.apply(sanitized_data, vars)
     end = timer()
     logging.info(f"Preprocessing took {end - start:.2f} seconds.")
     logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
-    for _dict in sanatized_data.values():
+    for _dict in sanitized_data.values():
         for key, val in _dict.items():
             logging.debug(f"Data type: {key}")
             logging.debug("Is NaN:")
@@ -204,7 +204,7 @@ def preprocess_data(
 
     logging.info("Finished preprocessing.")
 
-    return sanatized_data
+    return sanitized_data
 
 
 def flatten_column_names(*args: object) -> list[str]:
