@@ -30,7 +30,7 @@ jobs:
 
       - name: Run Ruff
         run: |
-          ruff --line-length 127 --show-source --statistics
+          ruff check --line-length 127 --statistics
 #jobs:
 #  build:
 #
