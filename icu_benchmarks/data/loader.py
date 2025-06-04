@@ -178,11 +178,11 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         # rep = rep.sort([self.vars["GROUP"], "counter"])
         # rep = rep.to_numpy().astype(float)
         # Remove the first column from the rep array (group column)
-        # rep = rep[:, 1:]
         # needs to still be in there?
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
         rep = rep.to_numpy().astype(float)
+        rep = rep[:, 1:]
 
         return rep, labels, self.row_indicators.to_numpy()
 
