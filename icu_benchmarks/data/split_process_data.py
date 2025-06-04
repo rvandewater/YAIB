@@ -3,21 +3,15 @@ import hashlib
 import json
 import logging
 import os
-import pickle
-from pathlib import Path
 from timeit import default_timer as timer
 from typing import Any, Iterable, Optional, Union
-
 import gin
 import pandas as pd
 import polars as pl
 from sklearn.model_selection import KFold, ShuffleSplit, StratifiedKFold, StratifiedShuffleSplit
-
 import polars.selectors as cs
 from pathlib import Path
 import pickle
-from timeit import default_timer as timer
-from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.preprocessor import (
     PandasClassificationPreprocessor,
@@ -261,7 +255,7 @@ def flatten_column_names(*args: object) -> list[str]:
     return result
 
 
-def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | list[str]]) -> dict[str, pl.DataFrame]: # noqa: F811
+def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | list[str]]) -> dict[str, pl.DataFrame]:  # noqa: F811
     """Check for duplicates in the loaded data and remove them."""
     group: Optional[Union[str, list[str]]] = vars.get(VarType.group)
     sequence: Optional[Union[str, list[str]]] = vars.get(VarType.sequence)
