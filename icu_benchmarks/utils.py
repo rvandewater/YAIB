@@ -16,7 +16,7 @@ def parse_dict(arg):
             return json.loads(json_string)
         else:
             # Handle unquoted format
-            pairs = arg.split(',')
-            return {key.strip(): value.strip() for key, value in (pair.split(':', 1) for pair in pairs)}
+            pairs = arg.split(",")
+            return {key.strip(): value.strip() for key, value in (pair.split(":", 1) for pair in pairs)}
     except Exception as e:
         raise argparse.ArgumentTypeError(f"Invalid dictionary format: {e}")

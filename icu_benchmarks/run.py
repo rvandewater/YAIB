@@ -18,7 +18,8 @@ from icu_benchmarks.run_utils import (
     setup_logging,
     import_preprocessor,
     name_datasets,
-    get_config_files, )
+    get_config_files,
+)
 from icu_benchmarks.utils import parse_dict
 from icu_benchmarks.constants import RunMode
 
@@ -102,8 +103,7 @@ def main(my_args=tuple(sys.argv[1:])):
             log_full_line(f"Available GPU {name}: {torch.cuda.get_device_name(name)}", level=logging.INFO)
     else:
         log_full_line(
-            "No GPUs available: please check your device and Torch,Cuda installation if unintended.",
-            level=logging.WARNING
+            "No GPUs available: please check your device and Torch,Cuda installation if unintended.", level=logging.WARNING
         )
 
     if args.preprocessor:
@@ -120,8 +120,7 @@ def main(my_args=tuple(sys.argv[1:])):
             name_datasets(args.name, args.name, args.name)
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
-        logging.info(
-            f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
+        logging.info(f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
         gin.parse_config_file(source_dir / "train_config.gin")
     elif args.samples and args.source_dir is not None:  # Train model with limited samples and bind existing config
         logging.info("Binding train gin-config. Note: this might override your config.")
@@ -134,8 +133,7 @@ def main(my_args=tuple(sys.argv[1:])):
         name_datasets(args.name, args.name, args.name)
         hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
         model_path = (
-            Path("configs") / (
-            "imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
+            Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
         )
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]
@@ -158,8 +156,10 @@ def main(my_args=tuple(sys.argv[1:])):
                 logging.info(f"Will load data from {args.file_names}")
                 gin.bind_parameter("preprocess.file_names", file_names)
             else:
-                return ValueError(f"Please provide a dictionary type for the file names, got {args.file_names}, "
-                                  f"type: {type(args.file_names)}")
+                return ValueError(
+                    f"Please provide a dictionary type for the file names, got {args.file_names}, "
+                    f"type: {type(args.file_names)}"
+                )
 
         choose_and_bind_hyperparameters_optuna(
             do_tune=args.tune,

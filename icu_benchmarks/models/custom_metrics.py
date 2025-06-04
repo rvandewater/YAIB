@@ -4,8 +4,12 @@ from typing import Callable
 import numpy as np
 from ignite.metrics import EpochMetric
 from numpy import ndarray
-from sklearn.metrics import (balanced_accuracy_score, mean_absolute_error, confusion_matrix as sk_confusion_matrix,
-                             matthews_corrcoef)
+from sklearn.metrics import (
+    balanced_accuracy_score,
+    mean_absolute_error,
+    confusion_matrix as sk_confusion_matrix,
+    matthews_corrcoef,
+)
 from sklearn.calibration import calibration_curve
 from scipy.spatial.distance import jensenshannon
 from torchmetrics.classification import BinaryFairness, Specificity
@@ -146,10 +150,12 @@ def confusion_matrix(y_true: ndarray, y_pred: ndarray, normalize=False) -> torch
             confusion_dict[f"class_{i}_pred_{j}"] = confusion[i][j]
     return confusion_dict
 
-def matthews_correlation_coefficient(y_true: ndarray, y_pred:ndarray, normalize=False) -> float:
+
+def matthews_correlation_coefficient(y_true: ndarray, y_pred: ndarray, normalize=False) -> float:
     if y_pred.ndim == 2:
         y_pred = np.argmax(y_pred, axis=-1)
     return matthews_corrcoef()
+
 
 class Sensitivity(EpochMetric):
     def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
@@ -197,6 +203,7 @@ def positive_predictive_value(y_preds: torch.Tensor | np.ndarray, y_targets: tor
     tn, fp, fn, tp = sk_confusion_matrix(y_true, y_pred).ravel()
     return tp / (tp + fp)
 
+
 def binary_incidence(y_preds, y_targets):
     """
     Computes the binary incidence (proportion of positive labels).
@@ -209,6 +216,8 @@ def binary_incidence(y_preds, y_targets):
     """
     y_true = np.rint(y_targets).astype(int)  # Ensure binary labels
     return np.sum(y_true)
+
+
 # from torchmetrics.classification import Specificity as TorchMetricsSpecificity
 #
 # class Specificity(EpochMetric):

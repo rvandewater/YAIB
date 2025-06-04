@@ -25,9 +25,7 @@ class XGBClassifier(MLWrapper):
     _explain_values = False
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(
-            xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", verbosity=0
-        )
+        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", verbosity=0)
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
@@ -90,6 +88,7 @@ class XGBClassifier(MLWrapper):
     #         raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
     #     return self.model.feature_importances_
 
+
 @gin.configurable
 class XGBClassifierGPU(MLWrapper):
     _supported_run_modes = [RunMode.classification]
@@ -142,9 +141,8 @@ class XGBClassifierGPU(MLWrapper):
 
         if wandb.run is not None:
             callbacks.append(wandb_xgb())
-        self.model.train( self.params,train_data=dtrain,evals=evals, callbacks=callbacks)
+        self.model.train(self.params, train_data=dtrain, evals=evals, callbacks=callbacks)
         # self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=0)
-
 
         shap_interaction_values = self.model.predict(dtrain)
         # self.explainer = shap.TreeExplainer(
