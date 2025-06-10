@@ -70,6 +70,7 @@ def build_parser() -> ArgumentParser:
         "(e.g., 'DYNAMIC:dyno.parquet,OUTCOME:outco.parquet,STATIC:sta.parquet')",
         default=None,
     )
+    parser.add_argument("--explain_features", default=False, action=BOA, help="Enable feature explanation.")
     return parser
 
 
