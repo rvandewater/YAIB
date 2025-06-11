@@ -109,7 +109,7 @@ def import_preprocessor(preprocessor_path: str):
         logging.error(f"Could not import custom preprocessor from {preprocessor_path}: {e}")
 
 
-def aggregate_results(log_dir: Path, execution_time: timedelta = None):
+def aggregate_results(log_dir: Path, execution_time: timedelta = None, explain_features: bool = False):
     """Aggregates results from all folds and writes to JSON file.
 
     Args:
@@ -139,15 +139,16 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                 if (fold_iter / "explainer_values_test.parquet").is_file():
                     explainer_values_test.append(pl.read_parquet(fold_iter / "explainer_values_test.parquet"))
 
-    if explainer_values_test:
-        shap_values = pl.concat(explainer_values_test)
-        shap_values.write_parquet(log_dir / "aggregated_explainer_values.parquet")
 
-    try:
-        shap_values = pl.concat(explainer_values_test)
-        shap_values.write_parquet(log_dir / "aggregated_explainer_values.parquet")
-    except Exception as e:
-        logging.error(f"Error aggregating or writing SHAP values: {e}")
+    if explain_features:
+        if explainer_values_test:
+            shap_values = pl.concat(explainer_values_test)
+            shap_values.write_parquet(log_dir / "aggregated_explainer_values.parquet")
+        try:
+            shap_values = pl.concat(explainer_values_test)
+            shap_values.write_parquet(log_dir / "aggregated_explainer_values.parquet")
+        except Exception as e:
+            logging.error(f"Error aggregating or writing SHAP values: {e}")
     # Aggregate results per metric
     list_scores = {}
     for repetition, folds in aggregated.items():
