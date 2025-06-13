@@ -214,7 +214,7 @@ def binary_incidence(y_preds, y_targets):
         float: Proportion of positive labels.
     """
     y_true = np.rint(y_targets).astype(int)  # Ensure binary labels
-    return np.sum(y_true)
+    return np.sum(y_true) / len(y_true)
 
 
 # from torchmetrics.classification import Specificity as TorchMetricsSpecificity

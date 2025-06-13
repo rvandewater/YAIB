@@ -139,7 +139,6 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None, explain_f
                 if (fold_iter / "explainer_values_test.parquet").is_file():
                     explainer_values_test.append(pl.read_parquet(fold_iter / "explainer_values_test.parquet"))
 
-
     if explain_features:
         if explainer_values_test:
             shap_values = pl.concat(explainer_values_test)

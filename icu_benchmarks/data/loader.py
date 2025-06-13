@@ -179,9 +179,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         rep = rep.to_numpy().astype(float)
         rep = rep[:, 1:]
         if self.vars["SEQUENCE"] in self.row_indicators:
-            self.row_indicators = self.row_indicators.with_columns(
-                pl.col(self.vars["SEQUENCE"]).dt.total_hours()
-            )
+            self.row_indicators = self.row_indicators.with_columns(pl.col(self.vars["SEQUENCE"]).dt.total_hours())
         return rep, labels, self.row_indicators.to_numpy()
 
     def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], Union[Tensor, np.ndarray], Union[Tensor, np.ndarray]]:
