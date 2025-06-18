@@ -14,14 +14,13 @@ command:
   - -tn
   - SSI
   - --hp-checkpoint
-  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-05-09T19:19:33_wearable_cut_off_0.75/SSI/XGBClassifier/2025-05-12T17-24-38.032040/hyperparameter_tuning_logs.db
+  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-05-27T23:34:00/SSI/XGBClassifier/2025-06-02T12-50-42.447250/hyperparameter_tuning_logs.db
 #  - Mortality
 #  - --verbose
   - --modalities
   - "all"
   - --file-names
   - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
-#  - --verbose
 #  - -gc
 #  - -lc
 method: grid
@@ -29,14 +28,7 @@ name: yaib_classification_benchmark
 parameters:
   data_dir:
     values:
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-05-09T19:19:33_wearable_cut_off_0.75"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/ICU_and_normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-04-22T21:19:32"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-04-15T12:42:04"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-04-07T15:35:16"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/1/"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/2/"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/3/"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/4/"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-05-27T23:34:00"
   model:
     values:
 #      - LogisticRegression
@@ -54,20 +46,15 @@ parameters:
   modalities:
     values:
       - "all"
-#      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_med_embeddings_map, cat_clinical_notes, static]
-#      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_med_embeddings_map, wearable_activity, wearable_core, static]
 #      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, static] #, wearable_activity, wearable_core] # without wearable data
-#      - [copra_observations, copra_scores, copra_fluid_balance, cat_med_embeddings_map, wearable_activity, wearable_core, static] # without ishmed lab data and clinical notes
-#      - [copra_observations, copra_scores, copra_fluid_balance, cat_med_embeddings_map, static ] # without wearable data and ishmed lab data, clinical notes
-##      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_med_embeddings_map, wearable_activity, wearable_core, static] # without clinical notes
-#      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_clinical_notes, wearable_activity, wearable_core, static] # without med embeddings
-#      - [wearable_activity, wearable_core, static]
-#      - [ishmed_lab_numeric, static]
-#      - [static]
+
   file_names:
     values:
-#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_3.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_1.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_3.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_4.parquet","STATIC":"sta.parquet"'
       - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_8.parquet","STATIC":"sta.parquet"'
       - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
       - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_12.parquet","STATIC":"sta.parquet"'
       - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_18.parquet","STATIC":"sta.parquet"'
