@@ -174,7 +174,7 @@ class PolarsClassificationPreprocessor(Preprocessor):
         data[DataSplit.val][DataSegment.features] = data[DataSplit.val][DataSegment.features].unique()
         data[DataSplit.test][DataSegment.features] = data[DataSplit.test][DataSegment.features].unique()
 
-        logging.info(f"Generate features: {self.generate_features}")
+        logging.debug(f"Generate features in preprocessing: {self.generate_features}")
         return data
 
     def _process_static(self, data: dict[str, dict[str, pl.DataFrame]], vars: dict[str, Union[str, list[str]]]):
@@ -402,7 +402,7 @@ class PandasClassificationPreprocessor(Preprocessor):
         logging.debug("Data head")
         logging.debug(data[DataSplit.train][DataSegment.features].head())
         logging.debug(data[DataSplit.train][DataSegment.outcome].head())
-        logging.info(f"Generate features: {self.generate_features}")
+        logging.debug(f"Generate features: {self.generate_features}")
         return data
 
     def _process_static(
