@@ -338,7 +338,7 @@ def choose_and_bind_hyperparameters_optuna(
         # Check if we found a checkpoint file and copy it.
         logging.info(f"Copying checkpoint and loading checkpoint at {checkpoint}")
         local_path = log_dir / checkpoint_file
-        if not str(local_path).endswith('.db'):
+        if not str(local_path).endswith(".db"):
             local_path = local_path / "hyperparameter_tuning_logs.db"
             logging.warning(f"Checkpoint file {checkpoint_file} does not end with .db, trying {local_path} instead.")
         shutil.copy(str(checkpoint), local_path)

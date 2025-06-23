@@ -230,14 +230,18 @@ def preprocess_data(
     val_incidence = sanitized_data[DataSplit.val][DataSegment.outcome][vars[VarType.label]]
     test_incidence = sanitized_data[DataSplit.test][DataSegment.outcome][vars[VarType.label]]
     total_samples = train_samples + val_samples + test_samples
-    logging.info(f"Train segments: {train_samples} ({train_samples/total_samples:.1%}), "
-                     f"Val segments: {val_samples} ({val_samples/total_samples:.1%}), "
-                     f"Test segments: {test_samples} ({test_samples/total_samples:.1%})")
-   # Define the number of decimal places for rounding
+    logging.info(
+        f"Train segments: {train_samples} ({train_samples / total_samples:.1%}), "
+        f"Val segments: {val_samples} ({val_samples / total_samples:.1%}), "
+        f"Test segments: {test_samples} ({test_samples / total_samples:.1%})"
+    )
+    # Define the number of decimal places for rounding
     decimal_places = 4  #
-    logging.info(f"Train incidence: {train_incidence.mean():.{decimal_places}f}, STD {train_incidence.std():.{decimal_places}f}| "
-                 f"Val incidence: {val_incidence.mean():.{decimal_places}f}, STD {val_incidence.std():.{decimal_places}f}| "
-                 f"Test incidence: {test_incidence.mean():.{decimal_places}f}, STD {test_incidence.std():.{decimal_places}f}")
+    logging.info(
+        f"Train incidence: {train_incidence.mean():.{decimal_places}f}, STD {train_incidence.std():.{decimal_places}f}| "
+        f"Val incidence: {val_incidence.mean():.{decimal_places}f}, STD {val_incidence.std():.{decimal_places}f}| "
+        f"Test incidence: {test_incidence.mean():.{decimal_places}f}, STD {test_incidence.std():.{decimal_places}f}"
+    )
 
     # logging.info(f"{len(ou)}")
     # Generate cache

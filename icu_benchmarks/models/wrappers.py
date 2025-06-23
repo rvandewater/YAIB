@@ -488,10 +488,11 @@ class MLWrapper(BaseModule, ABC):
             if isinstance(result, tuple):
                 # Vertical stacking for saving to file
                 # result = tuple(arr.reshape(-1, 1) for arr in result)
-                log_single_metric_to_file(metric_name=name,
-                                          data_points=result,
-                                          output_file=Path(self.logger.save_dir) / f"{metric_type}_metrics_{name}.csv",
-                                          )
+                log_single_metric_to_file(
+                    metric_name=name,
+                    data_points=result,
+                    output_file=Path(self.logger.save_dir) / f"{metric_type}_metrics_{name}.csv",
+                )
 
     def log_metrics(self, label, pred, metric_type, pred_indicators):
         """Log metrics to the PL logs."""
@@ -534,8 +535,6 @@ class MLWrapper(BaseModule, ABC):
                 },
                 sync_dist=True,
             )
-
-
 
     # def _explain_model(self, test_rep, test_label):
     #     if self.explainer is not None:
