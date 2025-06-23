@@ -112,8 +112,6 @@ def preprocess_data(
     cache_dir = data_dir / "cache"
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
 
-    logging.log(logging.INFO, f"Using preprocessor: {preprocessor.__name__}")
-
     vars_to_exclude = []
     if exclude_preproc is not None:
         # Exclude variables from preprocessing based on modality:
@@ -155,7 +153,7 @@ def preprocess_data(
         f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys() if os.path.exists(data_dir / file_names[f])
     }
 
-    logging.info(f"Loaded data: {list(data.keys())}")
+    logging.info(f"Loaded datasets: {list(data.keys())}")
     sanitized_data, vars = check_sanitize_data(data, vars)
 
     if DataSegment.dynamic not in sanitized_data.keys():
@@ -193,7 +191,7 @@ def preprocess_data(
     sanitized_data = preprocessor_instance.apply(sanitized_data, vars)
     end = timer()
     logging.info(f"Preprocessing took {end - start:.2f} seconds.")
-    logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
+    logging.debug(f"Checking for NaNs and nulls in {data.keys()}.")
     for _dict in sanitized_data.values():
         for key, dataframe in _dict.items():
             logging.debug(f"Data type: {key}")
@@ -208,10 +206,10 @@ def preprocess_data(
             logging.debug("Dropping columns with nulls")
             sel = _dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
-            logging.info("Checking for infinite values.")
+            logging.debug("Checking for infinite values.")
             for col in dataframe.select(cs.numeric()).columns:
                 if dataframe[col].is_infinite().any():
-                    logging.info(f"Column '{col}' contains infinite values. Datatype: {dataframe[col].dtype}")
+                    logging.warning(f"Column '{col}' contains infinite values. Datatype: {dataframe[col].dtype}")
 
             max_float64 = 0
             # Replace infinite values with the maximum value for float64
@@ -223,8 +221,25 @@ def preprocess_data(
                 ]
             )
             _dict[key] = dataframe
-            logging.info(f"Amount of columns: {len(dataframe.columns)}")
+            logging.debug(f"Amount of columns: {len(dataframe.columns)}")
+    logging.info(f"{len(sanitized_data[DataSplit.train][DataSegment.features].columns)} columns in dynamic data.")
+    train_samples = len(sanitized_data[DataSplit.train][DataSegment.outcome])
+    val_samples = len(sanitized_data[DataSplit.val][DataSegment.outcome])
+    test_samples = len(sanitized_data[DataSplit.test][DataSegment.outcome])
+    train_incidence = sanitized_data[DataSplit.test][DataSegment.outcome][vars[VarType.label]]
+    val_incidence = sanitized_data[DataSplit.val][DataSegment.outcome][vars[VarType.label]]
+    test_incidence = sanitized_data[DataSplit.test][DataSegment.outcome][vars[VarType.label]]
+    total_samples = train_samples + val_samples + test_samples
+    logging.info(f"Train segments: {train_samples} ({train_samples/total_samples:.1%}), "
+                     f"Val segments: {val_samples} ({val_samples/total_samples:.1%}), "
+                     f"Test segments: {test_samples} ({test_samples/total_samples:.1%})")
+   # Define the number of decimal places for rounding
+    decimal_places = 4  #
+    logging.info(f"Train incidence: {train_incidence.mean():.{decimal_places}f}, STD {train_incidence.std():.{decimal_places}f}| "
+                 f"Val incidence: {val_incidence.mean():.{decimal_places}f}, STD {val_incidence.std():.{decimal_places}f}| "
+                 f"Test incidence: {test_incidence.mean():.{decimal_places}f}, STD {test_incidence.std():.{decimal_places}f}")
 
+    # logging.info(f"{len(ou)}")
     # Generate cache
     if generate_cache:
         caching(cache_dir, cache_file, data, load_cache)
