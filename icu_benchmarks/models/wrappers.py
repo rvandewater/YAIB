@@ -17,7 +17,7 @@ import numpy as np
 from ignite.exceptions import NotComputableError
 from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.custom_metrics import confusion_matrix
-from icu_benchmarks.models.utils import create_optimizer, create_scheduler
+from icu_benchmarks.models.utils import create_optimizer, create_scheduler, log_single_metric_to_file
 from joblib import dump
 from pytorch_lightning import LightningModule
 
@@ -467,6 +467,7 @@ class MLWrapper(BaseModule, ABC):
         if self.explain_features:
             # self.explain_model(test_rep, test_label)
             self.explainer_values_test = self._explain_model(test_rep, test_label)
+        self.log_curves(test_label, test_pred, "test", pred_indicators)
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
             self.log_metrics(np.float32(test_label), np.float32(test_pred), "test", pred_indicators)
@@ -480,6 +481,17 @@ class MLWrapper(BaseModule, ABC):
             return self.model.predict(features)
         else:  # Classification: return probabilities
             return self.model.predict_proba(features)
+
+    def log_curves(self, label, pred, metric_type, pred_indicators):
+        for name, metric in self.metrics.items():
+            result = metric(self.label_transform(label), self.output_transform(pred))
+            if isinstance(result, tuple):
+                # Vertical stacking for saving to file
+                # result = tuple(arr.reshape(-1, 1) for arr in result)
+                log_single_metric_to_file(metric_name=name,
+                                          data_points=result,
+                                          output_file=Path(self.logger.save_dir) / f"{metric_type}_metrics_{name}.csv",
+                                          )
 
     def log_metrics(self, label, pred, metric_type, pred_indicators):
         """Log metrics to the PL logs."""
@@ -522,6 +534,8 @@ class MLWrapper(BaseModule, ABC):
                 },
                 sync_dist=True,
             )
+
+
 
     # def _explain_model(self, test_rep, test_label):
     #     if self.explainer is not None:
