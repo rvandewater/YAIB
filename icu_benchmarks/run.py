@@ -52,6 +52,8 @@ def main(my_args=tuple(sys.argv[1:])):
     experiment = args.experiment
     source_dir = args.source_dir
     modalities = args.modalities
+    load_data_vars = args.load_data_vars
+
     if modalities:
         logging.debug(f"Binding modalities: {modalities}")
         gin.bind_parameter("preprocess.selected_modalities", modalities)
@@ -65,6 +67,16 @@ def main(my_args=tuple(sys.argv[1:])):
             f"Model: {model} {'not ' if model not in models else ''}found."
         )
     # Load task config
+    if load_data_vars:
+        logging.info(f"Loading variables from {task} from {data_dir} configuration")
+        if (data_dir / "vars.gin").exists():
+            # Open the task config file in append mode and add a line
+            with open(f"configs/tasks/{task}.gin", "a") as config_file:
+                config_file.write("\n# Added automatically by run.py\n")
+                config_file.write(f"# Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                config_file.write(f'include "{data_dir}/vars.gin"\n')
+        else:
+            logging.warning(f"No vars.gin file found in {data_dir}. Please ensure the file exists.")
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
 
