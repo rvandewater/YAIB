@@ -8,6 +8,7 @@ import gin
 import logging
 import numpy as np
 import torch
+import csv
 
 from pytorch_lightning.loggers.logger import Logger
 from pytorch_lightning.utilities import rank_zero_only
@@ -284,7 +285,6 @@ def get_smoothed_labels(
         )
 
 
-import csv
 
 
 def log_single_metric_to_file(metric_name: str, data_points: tuple[np.ndarray], output_file: Path) -> None:
