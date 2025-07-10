@@ -67,6 +67,24 @@ class Preprocessor(ABC):
 
             update_wandb_config({"imputation_model": self.imputation_model.__class__.__name__})
 
+    def vars_selection(self, input_variables, segment: str) -> Union[str, list[str]]:
+        if input_variables[segment] is None or len(input_variables[segment]) == 0:
+            logging.warning("No dynamic variables provided. Skipping dynamic preprocessing.")
+            return []  # Return empty list if no variables are provided
+        vars_to_apply: Union[str, list[str]]
+        if self.vars_to_exclude is not None:
+            # Exclude vars_to_exclude from missing indicator/ feature generation
+            vars_to_apply = list(set(input_variables[segment]) - set(self.vars_to_exclude))
+            logging.info(f"Excluding {len(self.vars_to_exclude)} : "
+            f"{self.vars_to_exclude if len(self.vars_to_exclude) < 10 else f'{self.vars_to_exclude[:10]}...'}...")
+            if len(vars_to_apply) == 0:
+                logging.warning(
+                    f"No variables left after excluding vars_to_exclude: {self.vars_to_exclude} for segment {segment}. "
+                    "Skipping preprocessing for this segment."
+                )
+        else:
+            vars_to_apply = input_variables[segment]
+        return vars_to_apply
 
 @gin.configurable("base_classification_preprocessor")
 class PolarsClassificationPreprocessor(Preprocessor):
@@ -178,6 +196,9 @@ class PolarsClassificationPreprocessor(Preprocessor):
         return data
 
     def _process_static(self, data: dict[str, dict[str, pl.DataFrame]], vars: dict[str, Union[str, list[str]]]):
+        vars_to_apply = self.vars_selection(input_variables=vars, segment=DataSegment.dynamic)
+        if len(vars_to_apply) == 0:
+            return data
         sta_rec = Recipe(data[DataSplit.train][DataSegment.static], [], vars[DataSegment.static])
         sta_rec.add_step(StepSklearn(MissingIndicator(features="all"), sel=all_of(vars[DataSegment.static]), in_place=False))
         if self.scaling:
@@ -211,6 +232,9 @@ class PolarsClassificationPreprocessor(Preprocessor):
         return data
 
     def _process_dynamic(self, data: dict[str, dict[str, pl.DataFrame]], vars: dict[str, Union[str, list[str]]]):
+        vars_to_apply = self.vars_selection(input_variables=vars, segment=DataSegment.dynamic)
+        if len(vars_to_apply) == 0:
+            return data
         dyn_rec = Recipe(
             data[DataSplit.train][DataSegment.dynamic], [], vars[DataSegment.dynamic], vars["GROUP"], vars["SEQUENCE"]
         )
@@ -218,14 +242,6 @@ class PolarsClassificationPreprocessor(Preprocessor):
             dyn_rec.add_step(StepScale(sel=all_numeric_predictors(backend=recipys.constants.Backend.POLARS)))
         if self.imputation_model is not None:
             dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[DataSegment.dynamic])))
-
-        vars_to_apply: Union[str, list[str]]
-        if self.vars_to_exclude is not None:
-            # Exclude vars_to_exclude from missing indicator/ feature generation
-            vars_to_apply = list(set(vars[DataSegment.dynamic]) - set(self.vars_to_exclude))
-            # logging.info(f"Excluding {len(self.vars_to_exclude)} : {self.vars_to_exclude}")
-        else:
-            vars_to_apply = vars[DataSegment.dynamic]
         dyn_rec.add_step(StepSklearn(MissingIndicator(features="all"), sel=all_of(vars_to_apply), in_place=False))
         dyn_rec.add_step(StepImputeFill(strategy="forward"))
         dyn_rec.add_step(StepImputeFill(strategy="zero"))
@@ -234,6 +250,8 @@ class PolarsClassificationPreprocessor(Preprocessor):
         data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
         # logging.info(f"Data columns: {len(data[Split.train][Segment.dynamic].columns)} -> old columns: {len(old_columns)}, added columns: {set(data[Split.train][Segment.dynamic].columns) - set(old_columns)}")
         return data
+
+
 
     def _dynamic_feature_generation(self, data, dynamic_vars):
         logging.debug("Adding dynamic feature generation.")
@@ -408,6 +426,9 @@ class PandasClassificationPreprocessor(Preprocessor):
     def _process_static(
         self, data: dict[str, dict[str, pd.DataFrame]], vars: dict[str, Union[str, list[str]]]
     ) -> dict[str, dict[str, pd.DataFrame]]:
+        vars_to_apply = self.vars_selection(input_variables=vars, segment=DataSegment.static)
+        if len(vars_to_apply) == 0:
+            return data
         sta_rec = Recipe(data[DataSplit.train][DataSegment.static], [], vars[DataSegment.static])
         if self.scaling:
             sta_rec.add_step(StepScale())
@@ -443,9 +464,15 @@ class PandasClassificationPreprocessor(Preprocessor):
     def _process_dynamic(
         self, data: dict[str, dict[str, pd.DataFrame]], vars: dict[str, Union[str, list[str]]]
     ) -> dict[str, dict[str, pd.DataFrame]]:
+        vars_to_apply = self.vars_selection(input_variables=vars, segment=DataSegment.dynamic)
+        if len(vars_to_apply) == 0:
+            return data
         dyn_rec = Recipe(
             data[DataSplit.train][DataSegment.dynamic], [], vars[DataSegment.dynamic], vars["GROUP"], vars["SEQUENCE"]
         )
+        vars_to_apply = self.vars_selection(input_variables=vars, segment=DataSegment.dynamic)
+        if len(vars_to_apply) == 0:
+            return data
         if self.scaling:
             dyn_rec.add_step(StepScale())
         if self.imputation_model is not None:
