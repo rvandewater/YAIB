@@ -149,6 +149,8 @@ def preprocess_data(
 
     # Read parquet files into dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
+    if not data_dir.exists():
+        raise FileNotFoundError(f"Data directory {data_dir} does not exist. Please check the path.")
     data: dict[str, pl.DataFrame] = {
         f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys() if os.path.exists(data_dir / file_names[f])
     }
