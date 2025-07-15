@@ -70,8 +70,9 @@ def modality_selection(
             old_columns.extend(value)
             vars[key] = [col for col in value if col in selected_columns]
     # -3 because of standard columns
-    logging.info(f"Selected columns: {len(selected_columns) - 3}, old columns: {len(old_columns)}")
-    logging.debug(f"Difference: {set(old_columns) - set(selected_columns)}")
+    logging.info(f"Selected columns: {len(selected_columns) - 3}, original columns: {len(old_columns)}, "
+                 f"not using: {len(set(old_columns) - set(selected_columns))} columns")
+    logging.debug(f"Not using columns: {set(old_columns) - set(selected_columns)}")
     # Update data dict
     for key in data.keys():
         sel_col = [col for col in data[key].columns if col in selected_columns]
