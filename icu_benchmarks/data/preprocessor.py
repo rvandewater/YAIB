@@ -68,7 +68,7 @@ class Preprocessor(ABC):
             update_wandb_config({"imputation_model": self.imputation_model.__class__.__name__})
 
     def vars_selection(self, input_variables, segment: str) -> Union[str, list[str]]:
-        if input_variables[segment] is None or len(input_variables[segment]) == 0:
+        if input_variables.get(segment, None) is None or len(input_variables[segment]) == 0:
             logging.warning("No dynamic variables provided. Skipping dynamic preprocessing.")
             return []  # Return empty list if no variables are provided
         vars_to_apply: Union[str, list[str]]
