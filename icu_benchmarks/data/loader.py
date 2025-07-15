@@ -32,9 +32,10 @@ class CommonPolarsDataset(Dataset):
         self.vars = vars
         self.grouping_df = data[split][grouping_segment]
         # Get the row indicators for the data to be able to match predicted labels
-        if not isinstance(vars["SEQUENCE"], str):
-            raise ValueError(f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead')
+
         if "SEQUENCE" in self.vars and self.vars["SEQUENCE"] in data[split][DataSegment.features].columns:
+            if not isinstance(vars["SEQUENCE"], str):
+                raise ValueError(f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead')
             # We have a time series dataset
             self.row_indicators = data[split][DataSegment.features][self.vars["GROUP"], self.vars["SEQUENCE"]]
 
@@ -167,19 +168,24 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         if len(labels) == self.num_stays:
             # order of groups could be random, we make sure not to change it
             rep = rep.group_by(self.vars["GROUP"]).last()
-        else:
-            # Adding segment count for each stay id and timestep.
-            rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
+        # else:
+        #     # Adding segment count for each stay id and timestep.
+        #     rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
         # rep = rep.sort([self.vars["GROUP"], "counter"])
         # rep = rep.to_numpy().astype(float)
         # Remove the first column from the rep array (group column)
         # needs to still be in there?
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
+        # if self.vars["SEQUENCE"] in rep.columns:
+        #     rep = rep.select(pl.exclude(self.vars["SEQUENCE"]))
+        #     logging.info(f"Removed sequence column {self.vars['SEQUENCE']} from features_df.")
         rep = rep.to_numpy().astype(float)
         rep = rep[:, 1:]
-        if self.vars["SEQUENCE"] in self.row_indicators and self.row_indicators[self.vars["SEQUENCE"]].dtype == pl.Duration:
+        if ("SEQUENCE" in self.vars and self.vars["SEQUENCE"] in self.row_indicators
+                and self.row_indicators[self.vars["SEQUENCE"]].dtype == pl.Duration):
             self.row_indicators = self.row_indicators.with_columns(pl.col(self.vars["SEQUENCE"]).dt.total_hours())
+        # Todo: check if row indicators introduce information loss
         return rep, labels, self.row_indicators.to_numpy()
 
     def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], Union[Tensor, np.ndarray], Union[Tensor, np.ndarray]]:

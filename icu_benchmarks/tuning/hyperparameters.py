@@ -190,6 +190,7 @@ def choose_and_bind_hyperparameters_optuna(
     n_calls: int = 20,
     sampler=optuna.samplers.GPSampler,
     folds_to_tune_on: int = None,
+    repetitions_to_tune_on: int = 1,
     checkpoint_file: str = "hyperparameter_tuning_logs.db",
     generate_cache: bool = False,
     load_cache: bool = False,
@@ -201,6 +202,7 @@ def choose_and_bind_hyperparameters_optuna(
     """Choose hyperparameters to tune and bind them to gin. Uses Optuna for hyperparameter optimization.
 
     Args:
+        repetitions_to_tune_on: Repetitions to tune on. If None, 1 repetitions are trained on.
         plot: Whether to plot hyperparameter importances.
         sampler: The sampler to use for hyperparameter optimization.
         wandb: Whether we use wandb or not.
@@ -311,7 +313,7 @@ def choose_and_bind_hyperparameters_optuna(
                 Path(temp_dir),
                 seed,
                 mode=run_mode,
-                cv_repetitions_to_train=1,
+                cv_repetitions_to_train=repetitions_to_tune_on,
                 cv_folds_to_train=folds_to_tune_on,
                 generate_cache=generate_cache,
                 load_cache=load_cache,
