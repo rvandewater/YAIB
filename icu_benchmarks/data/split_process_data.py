@@ -198,7 +198,7 @@ def preprocess_data(
 
     # Generate cache
     if generate_cache:
-        caching(cache_dir, cache_file, data, load_cache)
+        caching(cache_dir, cache_file, sanitized_data, load_cache)
     else:
         logging.info("Cache will not be saved.")
 
