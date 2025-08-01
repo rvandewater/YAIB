@@ -18,7 +18,7 @@ from icu_benchmarks.run_utils import (
     setup_logging,
     import_preprocessor,
     name_datasets,
-    get_config_files,
+    get_config_files, append_predictions_foldwise,
 )
 from icu_benchmarks.utils import parse_dict
 from icu_benchmarks.constants import RunMode
@@ -223,6 +223,8 @@ def main(my_args=tuple(sys.argv[1:])):
     log_full_line(f"DURATION: {execution_time}", level=logging.INFO, char="")
     try:
         aggregate_results(run_dir, execution_time)
+        append_predictions_foldwise(run_dir, "pred_indicators.csv")
+
     except Exception as e:
         logging.error(f"Failed to aggregate results: {e}")
         logging.debug("Error details:", exc_info=True)
