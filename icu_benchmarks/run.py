@@ -168,10 +168,16 @@ def main(my_args=tuple(sys.argv[1:])):
                 logging.info(f"Will load data from {args.file_names}")
                 gin.bind_parameter("preprocess.file_names", file_names)
             else:
-                return ValueError(
+                raise ValueError(
                     f"Please provide a dictionary type for the file names, got {args.file_names}, "
                     f"type: {type(args.file_names)}"
                 )
+
+        update_wandb_config({
+            "data_dir": data_dir.resolve(),
+            "task": task,
+            "run_dir": run_dir.resolve(),
+        })
 
         choose_and_bind_hyperparameters_optuna(
             do_tune=args.tune,
