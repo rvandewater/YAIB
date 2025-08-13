@@ -94,6 +94,14 @@ class PredictionPolarsDataset(CommonPolarsDataset):
 
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
+        if "SEQUENCE" in self.vars:
+            if self.row_indicators[self.vars["SEQUENCE"]].dtype.is_temporal():
+                self.row_indicators = self.row_indicators.with_columns(pl.col(self.vars["SEQUENCE"]).dt.total_hours())
+            else:
+                self.row_indicators = self.row_indicators.with_columns(pl.col(self.vars["SEQUENCE"]))
+        else:
+            logging.info("Using static dataset")
+            self.row_indicators = self.grouping_df[self.vars["GROUP"]].to_frame(self.vars["GROUP"])
         self.outcome_df = self.grouping_df
         self.ram_cache(ram_cache)
 
@@ -121,6 +129,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         if len(labels) == 1:
             # only one label per stay, align with window
             labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
+        row_inds = self.row_indicators.filter(pl.col(self.vars["GROUP"]) == stay_id).to_numpy()
 
         length_diff = self.maxlen - window.shape[0]
         pad_mask = np.ones(window.shape[0])
@@ -131,7 +140,9 @@ class PredictionPolarsDataset(CommonPolarsDataset):
             window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
             labels = np.concatenate([labels, np.ones(length_diff) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
-
+            # row_inds = np.concatenate([row_inds, np.ones(length_diff, row_inds.shape[1]) * pad_value], axis=0)
+            row_inds = np.concatenate([row_inds, np.ones((length_diff, row_inds.shape[1])) * pad_value], axis=0)
+        row_inds = row_inds.astype(np.float32)
         not_labeled = np.argwhere(np.isnan(labels))
         if len(not_labeled) > 0:
             labels[not_labeled] = -1
@@ -140,8 +151,8 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         pad_mask = pad_mask.astype(bool)
         labels = labels.astype(np.float32)
         data = window.astype(np.float32)
-
-        return from_numpy(data), from_numpy(labels), from_numpy(pad_mask)
+        # if self.vars"SEQUENCE" in self.vars:
+        return from_numpy(data), from_numpy(labels), from_numpy(pad_mask), from_numpy(row_inds)
 
     def get_balance(self) -> list:
         """Return the weight balance for the split of interest.

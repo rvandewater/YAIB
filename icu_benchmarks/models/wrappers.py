@@ -109,6 +109,67 @@ class BaseModule(LightningModule):
     def set_explain_features(self, set_explain_features: bool):
         self.explain_features = set_explain_features
 
+    def _save_model_outputs(self, pred_indicators, test_pred, test_label):
+        if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1:
+            # Temporal dataset
+            if pred_indicators.shape[1] == test_pred.shape[1] and pred_indicators.shape[0] == test_pred.shape[0]:
+                # One outcome per dataset
+                pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
+                pred_indicators = np.hstack((pred_indicators, test_pred))
+                # Save as: id, time (hours), ground truth, prediction 0, prediction 1
+                # if pred_indicators.shape(1) == 5:
+                np.savetxt(
+                    Path(self.logger.save_dir) / "pred_indicators.csv",
+                    pred_indicators,
+                    delimiter=",",
+                    header="id,time,ground_truth,prediction_0,prediction_1",
+                    fmt="%d,%d,%.3f,%.3f,%.3f",
+                )
+                logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
+                # else:
+                #     # Flat/static dataset
+                #     np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",",
+                #                 header="id,ground_truth,prediction_0,prediction_1", fmt='%d,%d,%.3f,%.3f,%.3f')
+                # np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",",
+                #            header="id,time,ground_truth,prediction_0,prediction_1", fmt='%d,%d,%.3f,%.3f,%.3f')
+                # logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
+            else:
+                logging.info(np.unique(pred_indicators[:, 0]))
+                pred_indicators = np.unique(pred_indicators[:, 0])
+                pred_indicators = np.hstack((pred_indicators.reshape(-1, 1), test_label.reshape(-1, 1)))
+                pred_indicators = np.hstack((pred_indicators, test_pred))
+
+                np.savetxt(
+                    Path(self.logger.save_dir) / "pred_indicators.csv",
+                    pred_indicators,
+                    delimiter=",",
+                    header="id,ground_truth,prediction_0,prediction_1",
+                    fmt="%d,%d,%0.3f,%0.3f",
+                )
+                logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
+
+                # logging.warning("Could not save row indicators; no support for temporal dataset with single outcomes yet.")
+        # if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1 and pred_indicators.shape[1] == test_pred.shape[1]:
+        #     pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
+        #     pred_indicators = np.hstack((pred_indicators, test_pred))
+        #     # Save as: id, time (hours), ground truth, prediction 0, prediction 1
+        #     np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",")
+        #     logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
+        else:
+            pred_indicators = np.hstack((pred_indicators.reshape(-1, 1), test_label.reshape(-1, 1)))
+            logging.info(pred_indicators.shape)
+            pred_indicators = np.hstack((pred_indicators, test_pred))
+            np.savetxt(
+                Path(self.logger.save_dir) / "pred_indicators.csv",
+                pred_indicators,
+                delimiter=",",
+                header="id,ground_truth,prediction_0,prediction_1",
+                fmt="%d,%d,%0.3f,%0.3f",
+            )
+            logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
+
+        # else:
+        #     logging.warning("Could not save row indicators.")
 
 @gin.configurable("DLWrapper")
 class DLWrapper(BaseModule, ABC):
@@ -311,8 +372,8 @@ class DLPredictionWrapper(DLWrapper):
             step_prefix (str): Step type, by default: test, train, val.
         """
 
-        if len(element) == 2:
-            data, labels = element[0], element[1].to(self.device)
+        if len(element) == 3:
+            data, labels, indicators = element[0], element[1].to(self.device), element[2]
             if isinstance(data, list):
                 for i in range(len(data)):
                     data[i] = data[i].float().to(self.device)
@@ -320,8 +381,8 @@ class DLPredictionWrapper(DLWrapper):
                 data = data.float().to(self.device)
             mask = torch.ones_like(labels).bool()
 
-        elif len(element) == 3:
-            data, labels, mask = element[0], element[1].to(self.device), element[2].to(self.device)
+        elif len(element) == 4:
+            data, labels, mask, indicators = element[0], element[1].to(self.device), element[2].to(self.device), element[3]
             if isinstance(data, list):
                 for i in range(len(data)):
                     data[i] = data[i].float().to(self.device)
@@ -340,6 +401,18 @@ class DLPredictionWrapper(DLWrapper):
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
         target = torch.masked_select(labels, mask).to(self.device)
 
+        valid_idx = mask.detach().cpu().numpy().astype(bool)
+
+        # valid_idx is (batch, seq_len) boolean mask
+        valid_idx = mask.detach().cpu().numpy().astype(bool)
+
+        # indicators is (batch, seq_len, ...) or (batch, seq_len, 2)
+        indicators_np = indicators.detach().cpu().numpy()[valid_idx]
+        predictors = prediction.detach().cpu()
+        target_np = target.detach().cpu().numpy()
+        transformed_predictors = torch.softmax(predictors, dim=1)
+        transformed_predictors = transformed_predictors.numpy()
+
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
             loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
@@ -350,6 +423,9 @@ class DLPredictionWrapper(DLWrapper):
         else:
             raise ValueError(f"Run mode {self.run_mode} not yet supported. Please implement it.")
         transformed_output = self.output_transform((prediction, target))
+
+        # Save predictions to file
+        self._save_model_outputs(indicators_np, transformed_predictors, target_np)
 
         for key, value in self.metrics[step_prefix].items():
             if isinstance(value, torchmetrics.Metric):
@@ -435,8 +511,9 @@ class MLWrapper(BaseModule, ABC):
 
     def fit_model(self, train_data, train_labels, val_data, val_labels):
         """Fit the model to the training data (default SKlearn syntax)"""
-        val_loss = self.model.fit(train_data, train_labels)
-        # val_loss = 0.0
+        self.model.fit(train_data, train_labels)
+        val_pred = self.predict(val_data)
+        val_loss = self.loss(val_labels, val_pred)
         return val_loss
 
     def validation_step(self, val_dataset, _):
@@ -543,67 +620,7 @@ class MLWrapper(BaseModule, ABC):
     #     else:
     #         logging.warning("No explainer or explain_features values set.")
 
-    def _save_model_outputs(self, pred_indicators, test_pred, test_label):
-        if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1:
-            # Temporal dataset
-            if pred_indicators.shape[1] == test_pred.shape[1] and pred_indicators.shape[0] == test_pred.shape[0]:
-                # One outcome per dataset
-                pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
-                pred_indicators = np.hstack((pred_indicators, test_pred))
-                # Save as: id, time (hours), ground truth, prediction 0, prediction 1
-                # if pred_indicators.shape(1) == 5:
-                np.savetxt(
-                    Path(self.logger.save_dir) / "pred_indicators.csv",
-                    pred_indicators,
-                    delimiter=",",
-                    header="id,time,ground_truth,prediction_0,prediction_1",
-                    fmt="%d,%d,%.3f,%.3f,%.3f",
-                )
-                logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
-                # else:
-                #     # Flat/static dataset
-                #     np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",",
-                #                 header="id,ground_truth,prediction_0,prediction_1", fmt='%d,%d,%.3f,%.3f,%.3f')
-                # np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",",
-                #            header="id,time,ground_truth,prediction_0,prediction_1", fmt='%d,%d,%.3f,%.3f,%.3f')
-                # logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
-            else:
-                logging.info(np.unique(pred_indicators[:, 0]))
-                pred_indicators = np.unique(pred_indicators[:, 0])
-                pred_indicators = np.hstack((pred_indicators.reshape(-1, 1), test_label.reshape(-1, 1)))
-                pred_indicators = np.hstack((pred_indicators, test_pred))
 
-                np.savetxt(
-                    Path(self.logger.save_dir) / "pred_indicators.csv",
-                    pred_indicators,
-                    delimiter=",",
-                    header="id,ground_truth,prediction_0,prediction_1",
-                    fmt="%d,%d,%0.3f,%0.3f",
-                )
-                logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
-
-                # logging.warning("Could not save row indicators; no support for temporal dataset with single outcomes yet.")
-        # if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1 and pred_indicators.shape[1] == test_pred.shape[1]:
-        #     pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
-        #     pred_indicators = np.hstack((pred_indicators, test_pred))
-        #     # Save as: id, time (hours), ground truth, prediction 0, prediction 1
-        #     np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",")
-        #     logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
-        # else:
-        #     pred_indicators = np.hstack((pred_indicators.reshape(-1, 1), test_label.reshape(-1, 1)))
-        #     logging.info(pred_indicators.shape)
-        #     pred_indicators = np.hstack((pred_indicators, test_pred))
-        #     np.savetxt(
-        #         Path(self.logger.save_dir) / "pred_indicators.csv",
-        #         pred_indicators,
-        #         delimiter=",",
-        #         header="id,ground_truth,prediction_0,prediction_1",
-        #         fmt="%d,%d,%0.3f,%0.3f",
-        #     )
-        #     logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
-
-        # else:
-        #     logging.warning("Could not save row indicators.")
 
     def configure_optimizers(self):
         return None
