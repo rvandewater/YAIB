@@ -13,11 +13,16 @@ project = 'Yet Another ICU Benchmark'
 copyright = '2025, Robin P. van de Water, Hendrik Schmidt, Patrick Rockenschaub, MIT License'
 author = 'Robin P. van de Water, Hendrik Schmidt, Patrick Rockenschaub'
 release = '1.0'
-
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon',  # For Google/NumPy style docstrings
+    'sphinx_immaterial'
+]
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx.ext.autodoc']
 
 templates_path = ['_templates']
 exclude_patterns = []
@@ -28,36 +33,35 @@ exclude_patterns = []
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 # Theme configuration
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'sphinx_immaterial'
 # Logo configuration
 html_logo = '../figures/yaib_logo.png'  # Path to your logo file
 html_favicon = '../figures/yaib_logo.png'  # Optional: favicon
 # Theme options
-html_theme_options = {
-    'canonical_url': '',
-    'analytics_id': '',
-    'logo_only': False,
-    'display_version': True,
-    'prev_next_buttons_location': 'bottom',
-    'style_external_links': False,
-    'vcs_pageview_mode': '',
-    'style_nav_header_background': 'white',
-    # Toc options
-    'collapse_navigation': True,
-    'sticky_navigation': True,
-    'navigation_depth': 4,
-    'includehidden': True,
-    'titles_only': False
-}
+# html_theme_options = {
+#     'canonical_url': '',
+#     'analytics_id': '',
+#     'logo_only': False,
+#     'display_version': True,
+#     'prev_next_buttons_location': 'bottom',
+#     'style_external_links': False,
+#     'vcs_pageview_mode': '',
+#     'style_nav_header_background': 'white',
+#     # Toc options
+#     'collapse_navigation': True,
+#     'sticky_navigation': True,
+#     'navigation_depth': 4,
+#     'includehidden': True,
+#     'titles_only': False,
+#     'body_max_width': 'none',
+#     'page_width': 'auto',
+# }
+# sphinx_immaterial theme options
+
 
 html_static_path = ['_static']
 
-extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon',  # For Google/NumPy style docstrings
-]
+
 
 # Autodoc settings
 autodoc_default_options = {
