@@ -108,8 +108,13 @@ class BaseModule(LightningModule):
 
     def set_explain_features(self, set_explain_features: bool):
         self.explain_features = set_explain_features
+        self.persist_reps = set_explain_features
+
+    def _explain_model(self, reps, labels):
+        raise NotImplementedError(f"Model {self.__class__.__name__} does not currently support feature explanation.")
 
     def _save_model_outputs(self, pred_indicators, test_pred, test_label):
+        "Save model outputs to CSV file for further post-hoc analysis"
         if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1:
             # Temporal dataset
             if pred_indicators.shape[1] == test_pred.shape[1] and pred_indicators.shape[0] == test_pred.shape[0]:
@@ -499,6 +504,7 @@ class MLWrapper(BaseModule, ABC):
         if self.explain_features:
             self.explainer_values_train = self._explain_model(train_rep, train_label)
 
+
         train_pred = self.predict(train_rep)
 
         logging.debug(f"Model:{self.model}")
@@ -536,15 +542,15 @@ class MLWrapper(BaseModule, ABC):
         )
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
+        self.log_curves(test_label, test_pred, "test", pred_indicators)
         if self.debug:
-            # try:
             self._save_model_outputs(pred_indicators, test_pred, test_label)
-            # except Exception as e:
-            #     logging.warning(f"Could not save model outputs: {e}")
         if self.explain_features:
             # self.explain_model(test_rep, test_label)
             self.explainer_values_test = self._explain_model(test_rep, test_label)
-        self.log_curves(test_label, test_pred, "test", pred_indicators)
+        if self.persist_reps:
+            self.rep_test = test_rep
+            self.label_test = test_label
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
             self.log_metrics(np.float32(test_label), np.float32(test_pred), "test", pred_indicators)
@@ -613,12 +619,6 @@ class MLWrapper(BaseModule, ABC):
                 sync_dist=True,
             )
 
-    # def _explain_model(self, test_rep, test_label):
-    #     if self.explainer is not None:
-    #         logging.info(f"Explaining features for {self}")
-    #         self.explainer_values_test = self.explainer(test_rep)
-    #     else:
-    #         logging.warning("No explainer or explain_features values set.")
 
 
 

@@ -207,7 +207,7 @@ def train_common(
     return test_loss
 
 
-def persist_shap_data(trainer: Trainer, log_dir: Path):
+def persist_shap_data(trainer: Trainer, log_dir: Path, save_full_valuesets=True) -> None:
     """
     Persist shap values to disk.
     Args:
@@ -227,9 +227,22 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
         if hasattr(trainer.lightning_module, "explainer_values_test"):
             # todo: abs values
             explainer_values = trainer.lightning_module.explainer_values_test
+            shaps_test = pl.DataFrame(schema=trained_columns, data=explainer_values)
+            # reps_test = pl.DataFrame(schema=trained_columns, data=trainer.lightning_module.representations_test)
+            if save_full_valuesets:
+                with (log_dir / "full_explainer_values_test.parquet").open("wb") as f:
+                    shaps_test.write_parquet(f)
+                # with (log_dir / "explainer_reps_test.parquet").open("wb") as f:
+                #     reps_test.write_parquet(f)
+                if hasattr(trainer.lightning_module, "rep_test"):
+                    reps_test = pl.DataFrame(schema=trained_columns, data=trainer.lightning_module.rep_test)
+                    with (log_dir / "explainer_rep_test.parquet").open("wb") as f:
+                        reps_test.write_parquet(f)
+                    labels = pl.DataFrame(schema=["label"], data=trainer.lightning_module.label_test)
+                    with (log_dir / "explainer_label_test.parquet").open("wb") as f:
+                        labels.write_parquet(f)
             # logging.info(f"{explainer_values.values.shape}")
             # shaps_test = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(explainer_values.values))
-            shaps_test = pl.DataFrame(schema=trained_columns, data=explainer_values)
             shaps_test = shaps_test.select(pl.all().mean())
             with (log_dir / "explainer_values_test.parquet").open("wb") as f:
                 shaps_test.write_parquet(f)

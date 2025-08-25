@@ -77,15 +77,9 @@ class XGBClassifier(MLWrapper):
         if not hasattr(self.model, "feature_importances_"):
             raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
         # feature_importances = self.model.feature_importances_
-        shap_values = self.explainer.shap_values(reps)
+        shap_values = self.explainer.shap_values(reps, labels)
         # feature_importances = np.abs(shap_values).mean(axis=1)
         return shap_values
-
-    # def explainer(self, reps):
-    #     if not hasattr(self.model, "feature_importances_"):
-    #         raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
-    #     return self.model.feature_importances_
-
 
 @gin.configurable
 class XGBClassifierGPU(MLWrapper):
