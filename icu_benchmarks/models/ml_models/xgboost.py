@@ -5,6 +5,7 @@ import gin
 import shap
 import wandb
 import xgboost as xgb
+import numpy as np
 from xgboost.callback import EarlyStopping
 from wandb.integration.xgboost import wandb_callback as wandb_xgb
 from sklearn.metrics import log_loss
@@ -20,7 +21,6 @@ from icu_benchmarks.models.wrappers import MLWrapper
 @gin.configurable
 class XGBClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
-    _explain_values = False
 
     def __init__(self, *args, **kwargs):
         self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", verbosity=0)
@@ -47,9 +47,11 @@ class XGBClassifier(MLWrapper):
         logging.info(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
         logging.info(train_labels)
         self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=0)
-        # if self.explain_features:
+        n_samples = min(1000, len(train_data))
+        indices = np.random.choice(len(train_data), size=n_samples, replace=False)
+        background_sample = train_data[indices]
         self.explainer = shap.TreeExplainer(
-            self.model, train_data, feature_perturbation="interventional", model_output="probability"
+            self.model, background_sample, feature_perturbation="interventional", model_output="probability"
         )
         # if self.explain_features:
         #     logging.info("Explaining features")
