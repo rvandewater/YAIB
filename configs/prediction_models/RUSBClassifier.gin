@@ -1,4 +1,4 @@
-# Settings for ImbLearn Balanced Random Forest Classifier.
+# Settings for ImbLearn RUSBoost Classifier (Random Under-sampling with Boosting)
 
 # Common settings for ML models
 include "configs/prediction_models/common/MLCommon.gin"
@@ -6,9 +6,23 @@ include "configs/prediction_models/common/MLCommon.gin"
 # Train params
 train_common.model = @RUSBClassifier
 
+# Hyperparameter tuning configuration
 model/hyperparameter.class_to_tune = @RUSBClassifier
-model/hyperparameter.n_estimators = (10, 50, 100, 200, 500)
-model/hyperparameter.learning_rate = (0.005, 1, "log")
-model/hyperparameter.sampling_strategy = "auto"
 
+# Number of estimators (boosting rounds)
+model/hyperparameter.n_estimators = (50, 100, 200, 300, 500)
+
+# Learning rate for boosting
+model/hyperparameter.learning_rate = (0.01, 2.0, "log")
+
+# Sampling strategy for random under-sampling
+model/hyperparameter.sampling_strategy = ["auto", "majority", "not minority"]
+
+# Base estimator parameters (typically DecisionTreeClassifier)
+model/hyperparameter.base_estimator__max_depth = [1, 2, 3, 4, 5, 6]
+model/hyperparameter.base_estimator__min_samples_split = [2, 5, 10, 20]
+model/hyperparameter.base_estimator__min_samples_leaf = [1, 2, 5, 10]
+
+# Replacement strategy for under-sampling
+model/hyperparameter.replacement = [True, False]
 

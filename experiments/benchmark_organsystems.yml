@@ -9,44 +9,29 @@ command:
   - CassClassification
   - --log-dir
   - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
-  - --tune
+#  - --tune
   - --wandb-sweep
   - -tn
   - SSI
-#  - --hp-checkpoint
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-06-03T16:05:00/SSI/XGBClassifier/2025-06-04T17-09-19.640244/hyperparameter_tuning_logs.db
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-05-27T23:34:00/SSI/XGBClassifier/2025-05-28T18-35-20.907325/hyperparameter_tuning_logs.db
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-05-09T19:19:33_wearable_cut_off_0.75/SSI/XGBClassifier/2025-05-12T17-24-38.032040/hyperparameter_tuning_logs.db
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-05-09T19:19:33_wearable_cut_off_0.75/SSI/XGBClassifier/2025-05-16T18-15-39.225575/hyperparameter_tuning_logs.db
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-05-09T19:19:33_wearable_cut_off_0.75/SSI/XGBClassifier/2025-05-16T18-15-39.225575/
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-04-24T21:24:01_wearable_cut_off_0.75/SSI/XGBClassifier/2025-04-25T10-06-24.947526/hyperparameter_tuning_logs.db
-#  - Mortality
+  - --hp-checkpoint
+  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
 #  - --verbose
   - --modalities
   - "all"
   - --file-names
   - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+#  - --explain_features
 #  - --verbose
-#  - -gc
-#  - -lc
+  - --load_data_vars
 method: grid
-name: yaib_classification_benchmark
+name: organ_system_benchmark
 parameters:
   data_dir:
     values:
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_real_life_normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-06-03T16:05:00/Pancreas"
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_real_life_normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-06-03T16:05:00/Liver"
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_real_life_normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-06-03T16:05:00/Upper_GI"
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_real_life_normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-06-03T16:05:00/Colorectal"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-05-27T23:34:00"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-05-09T19:19:33_wearable_cut_off_0.75"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/ICU_and_normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-04-22T21:19:32"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-04-15T12:42:04"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/normal_ward_SSI-3_POPF_heamatoma_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-04-07T15:35:16"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/1/"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/2/"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/3/"
-#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/cohort_separation/4/"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/Pancreas"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/Liver"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/Upper_GI"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/Colorectal"
   model:
     values:
 #      - LogisticRegression
@@ -66,12 +51,8 @@ parameters:
       - "all"
   file_names:
     values:
-#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_3.parquet","STATIC":"sta.parquet"'
-      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
-#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
-#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_12.parquet","STATIC":"sta.parquet"'
-#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_18.parquet","STATIC":"sta.parquet"'
-#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_24.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
   seed:
     values:
       - 1111
