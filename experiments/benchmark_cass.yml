@@ -9,11 +9,20 @@ command:
   - CassClassification
   - --log-dir
   - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
-#  - --tune
+  - --tune
   - --wandb-sweep
   - -tn
   - SSI
   - --hp-checkpoint
+  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-23T09-42-04.806320/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-07-16T14:02:27/SSI/XGBClassifier/2025-07-20T18-32-19.553702/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-16T14:58:54/SSI/XGBClassifier/2025-07-16T19-51-45.484723/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-07-16T14:02:27/SSI/XGBClassifier/2025-07-16T19-41-44.887611/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-16T19-39-58.063736/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-14T17-02-09.569252/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-14T13-49-47.629185/hyperparameter_tuning_logs.db"
 #  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-06-27T14:38:43/SSI/XGBClassifier/2025-06-27T17-13-28.076070/hyperparameter_tuning_logs.db"
 #  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-06-27T13:36:02/SSI/XGBClassifier/2025-06-27T17-12-03.184584/hyperparameter_tuning_logs.db"
 #  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-06-27T14:45:50/SSI/XGBClassifier/2025-06-27T17-08-55.389121/hyperparameter_tuning_logs.db"
@@ -26,7 +35,7 @@ command:
   - "all"
   - --file-names
   - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
-#  - --explain_features
+  - --explain_features
 #  - --verbose
   - --load_data_vars
 method: grid
@@ -34,7 +43,26 @@ name: yaib_classification_benchmark
 parameters:
   data_dir:
     values:
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-07-09T16:09:03"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-21T17:08:54"
+        - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-09T13:30:00"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-05T12:24:09"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-06T10:34:13"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-05T12:05:19"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-05T17:02:14"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-05T12:24:09"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-07-31T11:05:22"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-07-30T10:54:08"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-29T12:10:11"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-27T13:50:45"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-25T17:15:01"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-16T14:58:54"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-07-16T14:02:27"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-12T16:49:25"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-10T21:42:32"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-07-10T14:16:29"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-07-09T16:09:03"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-08T15:24:29"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-08T12:12:15"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-07T19:04:46"
@@ -75,9 +103,9 @@ parameters:
 #      - TimesNet
 #      - LGBMClassifier
       - XGBClassifier
+#      - RUSBClassifier
 #      - CBClassifier
 #      - BRFClassifier
-#       - RUSBClassifier
 #      - RFClassifier
 #      - GRU
 #      - LSTM
@@ -85,8 +113,10 @@ parameters:
 #      - Transformer
   modalities:
     values:
-#      - "all"
-#      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_clinical_notes, cat_clinical_notes, static]
+      - "all"
+#        - [ top_features ]
+#      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding, static, static_retro_icu, static_retro_pre_intra ] # missing:hour
+      #      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_clinical_notes, cat_clinical_notes, static]
 #      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_clinical_notes, wearable_activity, wearable_core, static]
 #      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, static] #, wearable_activity, wearable_core] # without wearable data
 #      - [copra_observations, copra_scores, copra_fluid_balance, cat_clinical_notes, wearable_activity, wearable_core, static] # without ishmed lab data and clinical notes
@@ -97,26 +127,19 @@ parameters:
 #      - [ishmed_lab_numeric, static]
 #      - [static]
       # 1 missing modality
-      - "all"
-#      - [ wearable_ppgembedding, static ]
+#      - [ wearable_ppgembedding, core, wearable_ppgfeature, static ]
 #      - [ wearable_activity, static ]
 #      - [ wearable_ppgfeature, static ]
 #      - [ wearable_core, static]
-#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, static, static_retro_icu, static_retro_pre_intra ] # missing: wearable (activity, ppgfeature, ppgembedding)
-#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes,
-#          wearable_activity, wearable_ppgfeature, wearable_ppgembedding, wearable_core, static_retro_icu,
-#          static_retro_pre_intra, static ] # not missing any
-#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_clinical_notes, wearable_core, static ] # missing: wearable (activity, ppgfeature, ppgembedding)
-#      - [ ishmed_lab_numeric, cat_clinical_notes, wearable_activity, wearable_ppgfeature, wearable_ppgembedding, wearable_core, static ] # missing: copra
-#      - [ copra_observations, copra_scores, copra_fluid_balance, cat_clinical_notes, wearable_activity, wearable_ppgfeature, wearable_ppgembedding, wearable_core, static ] # 1 missing: ishmed (lab)
-#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, wearable_activity, wearable_ppgfeature, wearable_ppgembedding, wearable_core, static ] # missing cat (notes, med embeddings)
-#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_clinical_notes, wearable_activity, wearable_ppgfeature, wearable_ppgembedding, static ] # 1 missing: wearable_core
-#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_clinical_notes, cat_medications, wearable_activity, wearable_ppgfeature, wearable_ppgembedding, wearable_core, static_retro_icu, static_retro_pre_intra] # 1 missing: static
+#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, static, static_retro_icu, static_retro_pre_intra, wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding, cat_medications, cat_clinical_notes] #hour ] # missing:notes, medications
+#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, static, static_retro_icu, static_retro_pre_intra, wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding, hour ] # missing:notes, medications
+#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, static, static_retro_icu, static_retro_pre_intra, hour ] # missing: wearable (activity, ppgfeature, ppgembedding)
+      - [static, hour, cat_clinical_notes]
   file_names:
     values:
 #      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_3.parquet","STATIC":"sta.parquet"'
-      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
-#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
 #      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_12.parquet","STATIC":"sta.parquet"'
 #      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_18.parquet","STATIC":"sta.parquet"'
 #      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_24.parquet","STATIC":"sta.parquet"'

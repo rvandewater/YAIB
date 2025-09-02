@@ -1,0 +1,73 @@
+command:
+  - ${env}
+  - ${program}
+  - train
+  - -d
+  - ../data/
+  - -t
+#  - BinaryClassification
+  - CassClassification
+  - --log-dir
+  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
+#  - --tune
+  - --wandb-sweep
+  - -tn
+  - SSI
+  - --hp-checkpoint
+  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
+#  - --verbose
+  - --modalities
+  - "all"
+  - --file-names
+  - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+#  - --explain_features
+#  - --verbose
+  - --load_data_vars
+method: grid
+name: yaib_classification_benchmark
+parameters:
+  data_dir:
+    values:
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-05T12:24:09"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31"
+  model:
+    values:
+#      - LogisticRegression
+#      - TimesNet
+#      - LGBMClassifier
+      - XGBClassifier
+#      - CBClassifier
+#      - BRFClassifier
+#       - RUSBClassifier
+#      - RFClassifier
+#      - GRU
+#      - LSTM
+#      - TCN
+#      - Transformer
+  modalities:
+    values:
+#      - "all"
+      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding, static, static_retro_icu, static_retro_pre_intra, hour ]
+      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, wearable_activity, wearable_core, wearable_ppgfeature, static, static_retro_icu, static_retro_pre_intra, hour ] # missing:wearable_ppgembedding
+      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, wearable_activity, wearable_ppgfeature, wearable_ppgembedding, static, static_retro_icu, static_retro_pre_intra, hour ] # missing:wearable_core
+      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, wearable_activity, wearable_core, wearable_ppgembedding, static, static_retro_icu, static_retro_pre_intra, hour ] # missing:wearable_ppgfeature
+      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, wearable_core, wearable_ppgfeature, wearable_ppgembedding, static, static_retro_icu, static_retro_pre_intra, hour ] # missing:wearable_activity
+#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, static, static_retro_icu, static_retro_pre_intra, hour ] # missing:wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding
+#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, static, static_retro_icu, static_retro_pre_intra, hour, wearable_core ] # missing:wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding
+#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, static, static_retro_icu, static_retro_pre_intra, hour, wearable_ppgfeature ] # missing:wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding
+#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, static, static_retro_icu, static_retro_pre_intra, hour, wearable_activity ] # missing:wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding
+#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, static, static_retro_icu, static_retro_pre_intra, hour, wearable_ppgembedding ] # missing:wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding
+#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding, static, static_retro_icu, static_retro_pre_intra ] # missing:hour
+#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding, static, static_retro_icu, static_retro_pre_intra, hour ] # missing:cat_medications, cat_clinical_notes
+#      - [ copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding, static, hour ] # missing:static_retro_icu, static_retro_pre_intra
+  file_names:
+    values:
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks
