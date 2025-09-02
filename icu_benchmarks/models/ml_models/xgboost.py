@@ -26,17 +26,17 @@ class XGBClassifier(MLWrapper):
         self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", verbosity=0)
         super().__init__(*args, **kwargs)
 
-    def predict(self, features):
-        """
-        Predicts class probabilities for the given features.
-
-        Args:
-            features: Input features for prediction.
-
-        Returns:
-            numpy.ndarray: Predicted probabilities for each class.
-        """
-        return self.model.predict_proba(features)
+    # def predict(self, features):
+    #     """
+    #     Predicts class probabilities for the given features.
+    #
+    #     Args:
+    #         features: Input features for prediction.
+    #
+    #     Returns:
+    #         numpy.ndarray: Predicted probabilities for each class.
+    #     """
+    #     return self.model.predict_proba(features)
 
     def fit_model(self, train_data, train_labels, val_data, val_labels):
         """Fit the model to the training data (default SKlearn syntax)"""
@@ -47,6 +47,7 @@ class XGBClassifier(MLWrapper):
         logging.info(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
         logging.info(train_labels)
         self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=0)
+
         n_samples = min(1000, len(train_data))
         indices = np.random.choice(len(train_data), size=n_samples, replace=False)
         background_sample = train_data[indices]
@@ -77,7 +78,7 @@ class XGBClassifier(MLWrapper):
 
     def _explain_model(self, reps, labels):
         if not hasattr(self.model, "feature_importances_"):
-            raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
+                raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
         # feature_importances = self.model.feature_importances_
         shap_values = self.explainer.shap_values(reps, labels)
         # feature_importances = np.abs(shap_values).mean(axis=1)

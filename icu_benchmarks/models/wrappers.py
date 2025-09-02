@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 import torchmetrics
 from sklearn.metrics import log_loss, mean_squared_error, average_precision_score, roc_auc_score
+from sklearn.calibration import CalibratedClassifierCV
 
 import torch
 from torch.nn import MSELoss, CrossEntropyLoss
@@ -489,6 +490,42 @@ class MLWrapper(BaseModule, ABC):
                 self.label_transform = lambda x: x
             self.metrics = MLMetrics.REGRESSION
 
+    def setup_calibration(self, val_data, val_labels, method='isotonic'):
+        """
+        Setup model calibration using validation data for better probability estimates.
+
+        Args:
+            val_data: Validation features for calibration
+            val_labels: Validation labels for calibration
+            method: 'isotonic' or 'sigmoid' calibration method
+
+        Returns:
+            float: Validation loss after calibration
+        """
+        if self.run_mode != RunMode.classification:
+            logging.warning("Calibration only supported for classification tasks")
+            return None
+
+        logging.info(f"Applying {method} calibration using validation data")
+
+        # Create calibrated version using validation data as holdout set
+        self.calibrated_model = CalibratedClassifierCV(
+            self.model,
+            method=method,
+            cv='prefit'  # Use prefit model with holdout validation set
+        )
+        self.calibrated_model.fit(val_data, val_labels)
+
+        # Calculate calibrated validation score
+        cal_val_pred = self.calibrated_model.predict_proba(val_data)
+        cal_val_loss = self.loss(val_labels, cal_val_pred)
+
+        logging.info(f"Calibration complete. Original val loss: {self.loss(val_labels, self.predict(val_data)):.4f}, "
+                     f"Calibrated val loss: {cal_val_loss:.4f}")
+
+        return cal_val_loss
+
+
     def fit(self, train_dataset, val_dataset):
         """Fit the model to the training data."""
         train_rep, train_label, row_indicators = train_dataset.get_data_and_labels()
@@ -500,6 +537,13 @@ class MLWrapper(BaseModule, ABC):
             self.model.set_params(class_weight=self.weight)
 
         val_loss = self.fit_model(train_rep, train_label, val_rep, val_label)
+        calibrate = True
+        method = "isotonic"
+        # Apply calibration if desired
+        calibrate = True
+        if calibrate and self.run_mode == RunMode.classification:
+            cal_val_loss = self.setup_calibration(val_rep, val_label, method='isotonic')
+            logging.info(f"Model calibrated. val loss {val_loss} Calibrated val loss: {cal_val_loss}")
 
         if self.explain_features:
             self.explainer_values_train = self._explain_model(train_rep, train_label)
@@ -542,6 +586,7 @@ class MLWrapper(BaseModule, ABC):
         )
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
+        test_pred_uncalibrated = self.predict(test_rep, use_calibrated=False)
         self.log_curves(test_label, test_pred, "test", pred_indicators)
         if self.debug:
             self._save_model_outputs(pred_indicators, test_pred, test_label)
@@ -557,14 +602,21 @@ class MLWrapper(BaseModule, ABC):
         else:
             self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
             self.log_metrics(test_label, test_pred, "test", pred_indicators)
-        logging.debug(f"Test loss: {self.loss(test_label, test_pred)}")
+        logging.info(f"Test loss: {self.loss(test_label, test_pred)}, "
+                     f"uncalibrated {self.loss(test_label,test_pred_uncalibrated)}")
 
-    def predict(self, features):
-        if self.run_mode == RunMode.regression:
-            return self.model.predict(features)
-        else:  # Classification: return probabilities
-            return self.model.predict_proba(features)
-
+    def predict(self, features, use_calibrated=True):
+        """Predict using calibrated model if available, otherwise use base model."""
+        if hasattr(self, 'calibrated_model') and use_calibrated:
+            if self.run_mode == RunMode.regression:
+                return self.calibrated_model.predict(features)
+            else:
+                return self.calibrated_model.predict_proba(features)
+        else:
+            if self.run_mode == RunMode.regression:
+                return self.model.predict(features)
+            else:
+                return self.model.predict_proba(features)
     def log_curves(self, label, pred, metric_type, pred_indicators):
         for name, metric in self.metrics.items():
             result = metric(self.label_transform(label), self.output_transform(pred))
