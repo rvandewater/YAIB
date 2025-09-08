@@ -48,6 +48,9 @@ def preprocess_data(
     label: Optional[str] = None,
     required_var_types: Optional[list[str]] = None,
     required_segments: Optional[list[str]] = None,
+    reduce_sequence_steps: int = 0,
+    remove_short_stays: bool = True,
+    min_remaining_steps: int = 1,
 ) -> dict[str, dict[str, pl.DataFrame]]:
     """
     Perform loading, splitting, imputing and normalising of task data.
@@ -73,7 +76,9 @@ def preprocess_data(
         generate_cache: Generate cached preprocessed data if true.
         fold_index: Index of the fold to return.
         pretrained_imputation_model: pretrained imputation model to use. if None, standard imputation is used.
-
+        reduce_sequence_steps: Number of steps to reduce sequence length.
+        remove_short_stays: Whether to remove stays that are shorter than reduce_sequence_steps.
+        min_remaining_steps: Minimum number of remaining steps after reduction to keep a stay.
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC) / DYNAMIC/ OUTCOME
             nested within split (train/val/test).
@@ -169,6 +174,16 @@ def preprocess_data(
         else:
             logging.info("Selecting all modalities.")
 
+    # Reduce stays by sequence steps if requested
+    if reduce_sequence_steps > 0:
+        logging.info(f"Reducing stays by {reduce_sequence_steps} sequence steps")
+        sanitized_data = reduce_stays_by_steps(
+            sanitized_data,
+            vars,
+            reduce_sequence_steps,
+            remove_short_stays,
+            min_remaining_steps
+        )
     # Generate the splits
     logging.info("Generating splits.")
     if not complete_train:
@@ -719,3 +734,137 @@ def check_required_keys(vars, required_keys):
     missing_keys = [key for key in required_keys if key not in vars]
     if missing_keys:
         raise KeyError(f"Missing required keys in vars: {', '.join(missing_keys)}")
+
+
+def reduce_stays_by_steps(
+        data: dict[str, pl.DataFrame],
+        vars: dict[str, Union[str, list[str]]],
+        steps_to_remove: int,
+        remove_short_stays: bool = True,
+        min_remaining_steps: int = 1
+) -> dict[str, pl.DataFrame]:
+    """
+    Reduce stays by removing the last x sequence steps from each stay.
+
+    Args:
+        data: Dictionary containing DataFrames for different segments (DYNAMIC, STATIC, OUTCOME)
+        vars: Dictionary containing variable names including GROUP and SEQUENCE
+        steps_to_remove: Number of sequence steps to remove from the end of each stay
+        remove_short_stays: Whether to remove stays that have fewer steps than steps_to_remove
+        min_remaining_steps: Minimum number of steps that must remain after reduction
+
+    Returns:
+        Modified data dictionary with reduced stays
+    """
+    if steps_to_remove <= 0:
+        logging.warning("steps_to_remove must be positive. No changes made.")
+        return data
+
+    group_var = vars[VarType.group]
+    sequence_var = vars[VarType.sequence]
+
+    if not isinstance(group_var, str) or not isinstance(sequence_var, str):
+        raise TypeError(f"GROUP and SEQUENCE variables must be strings, got {type(group_var)} and {type(sequence_var)}")
+
+    # Check if we have dynamic data with sequences
+    if DataSegment.dynamic not in data:
+        logging.warning("No dynamic data found. Cannot reduce stays by sequence steps.")
+        return data
+
+    dynamic_data = data[DataSegment.dynamic]
+
+    # Get stay lengths from dynamic data
+    stay_lengths = dynamic_data.group_by(group_var).len().sort(group_var)
+    total_stays = stay_lengths.height
+
+    stays_to_remove = []
+    stays_modified = 0
+
+    # Identify stays that are too short
+    short_stays = stay_lengths.filter(pl.col("len") <= steps_to_remove)
+    if short_stays.height > 0:
+        short_stay_ids = short_stays[group_var].to_list()
+        if remove_short_stays:
+            stays_to_remove.extend(short_stay_ids)
+            logging.info(f"Removing {len(short_stay_ids)} stays with <= {steps_to_remove} steps: {short_stay_ids}")
+        else:
+            logging.warning(
+                f"Found {len(short_stay_ids)} stays with <= {steps_to_remove} steps. Keeping them unchanged.")
+
+    # Identify stays that would have too few remaining steps
+    insufficient_stays = stay_lengths.filter(
+        (pl.col("len") > steps_to_remove) &
+        (pl.col("len") - steps_to_remove < min_remaining_steps)
+    )
+    if insufficient_stays.height > 0:
+        insufficient_stay_ids = insufficient_stays[group_var].to_list()
+        if remove_short_stays:
+            stays_to_remove.extend(insufficient_stay_ids)
+            logging.info(
+                f"Removing {len(insufficient_stay_ids)} stays that would have < {min_remaining_steps} steps after reduction: {insufficient_stay_ids}")
+        else:
+            logging.warning(
+                f"Found {len(insufficient_stay_ids)} stays that would have < {min_remaining_steps} steps after reduction. Keeping them unchanged.")
+
+    # Remove identified stays from all data segments
+    if stays_to_remove:
+        for segment in data:
+            original_length = data[segment].height
+            data[segment] = data[segment].filter(~pl.col(group_var).is_in(stays_to_remove))
+            removed_count = original_length - data[segment].height
+            logging.info(f"Removed {removed_count} rows from {segment} segment")
+
+    # Reduce remaining stays by removing last steps from dynamic data
+    valid_stays = stay_lengths.filter(
+        (pl.col("len") > steps_to_remove) &
+        (pl.col("len") - steps_to_remove >= min_remaining_steps) &
+        (~pl.col(group_var).is_in(stays_to_remove))
+    )[group_var].to_list()
+
+    if valid_stays:
+        # For dynamic data: keep only the first (total_length - steps_to_remove) rows per stay
+        reduced_dynamic_parts = []
+        unchanged_dynamic = data[DataSegment.dynamic].filter(~pl.col(group_var).is_in(valid_stays + stays_to_remove))
+
+        for stay_id in valid_stays:
+            stay_data = data[DataSegment.dynamic].filter(pl.col(group_var) == stay_id)
+            current_length = stay_data.height
+            keep_length = current_length - steps_to_remove
+
+            # Sort by sequence and keep first keep_length rows
+            reduced_stay = stay_data.sort(sequence_var).head(keep_length)
+            reduced_dynamic_parts.append(reduced_stay)
+            stays_modified += 1
+
+        # Reconstruct dynamic data
+        if reduced_dynamic_parts:
+            data[DataSegment.dynamic] = pl.concat([unchanged_dynamic] + reduced_dynamic_parts).sort(
+                [group_var, sequence_var])
+
+        # Handle outcome data if it has sequence information (sequence-to-sequence case)
+        if DataSegment.outcome in data and sequence_var in data[DataSegment.outcome].columns:
+            logging.info("Outcome data has sequence information. Reducing outcome sequences to match dynamic data.")
+
+            reduced_outcome_parts = []
+            unchanged_outcome = data[DataSegment.outcome].filter(
+                ~pl.col(group_var).is_in(valid_stays + stays_to_remove))
+
+            for stay_id in valid_stays:
+                stay_outcome = data[DataSegment.outcome].filter(pl.col(group_var) == stay_id)
+                current_length = stay_outcome.height
+                keep_length = current_length - steps_to_remove
+
+                # Sort by sequence and keep first keep_length rows
+                reduced_outcome = stay_outcome.sort(sequence_var).head(keep_length)
+                reduced_outcome_parts.append(reduced_outcome)
+
+            # Reconstruct outcome data
+            if reduced_outcome_parts:
+                data[DataSegment.outcome] = pl.concat([unchanged_outcome] + reduced_outcome_parts).sort(
+                    [group_var, sequence_var])
+
+    logging.info(f"Stay reduction complete: {stays_modified} stays modified, "
+                 f"{len(stays_to_remove)} stays removed, "
+                 f"{total_stays - len(stays_to_remove)} stays remaining")
+
+    return data
