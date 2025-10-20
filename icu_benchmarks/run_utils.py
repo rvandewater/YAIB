@@ -77,6 +77,12 @@ def build_parser() -> ArgumentParser:
         action=BOA,
         help="Load data variables from the dataset directory. Avoids having to manually add the path in the task.gin",
     )
+    parser.add_argument(
+        "--reduce_stay_steps",
+        default=None,
+        type=int,
+        help="Reduce the stay length dynamically",
+    )
     return parser
 
 

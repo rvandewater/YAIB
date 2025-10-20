@@ -177,6 +177,8 @@ def preprocess_data(
     # Reduce stays by sequence steps if requested
     if reduce_sequence_steps > 0:
         logging.info(f"Reducing stays by {reduce_sequence_steps} sequence steps")
+        if remove_short_stays:
+            logging.info(f"Removing stays with less than {min_remaining_steps} remaining steps after reduction.")
         sanitized_data = reduce_stays_by_steps(
             sanitized_data,
             vars,
