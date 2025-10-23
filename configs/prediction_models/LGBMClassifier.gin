@@ -6,11 +6,54 @@ include "configs/prediction_models/common/MLCommon.gin"
 # Train params
 train_common.model = @LGBMClassifier
 
+# Hyperparameter tuning configuration
 model/hyperparameter.class_to_tune = @LGBMClassifier
-model/hyperparameter.colsample_bytree = (0.33, 1.0)
-model/hyperparameter.max_depth = (3, 7)
-model/hyperparameter.min_child_samples = 1000
-model/hyperparameter.n_estimators = 100000
-model/hyperparameter.num_leaves = (8, 128, "log", 2)
-model/hyperparameter.subsample = (0.33, 1.0)
-model/hyperparameter.subsample_freq = 1
+
+# Core tree parameters
+model/hyperparameter.n_estimators = (500, 2000, 5000, 10000, 100000)
+model/hyperparameter.max_depth = (3, 5, 7, 10, 15)
+model/hyperparameter.num_leaves = (8, 16, 31, 64, 128, 256, "log", 2)
+model/hyperparameter.min_child_samples = (10, 20, 50, 100, 500, 1000)
+model/hyperparameter.min_child_weight = (1e-3, 10.0, "log")
+
+# Learning rate and regularization
+model/hyperparameter.learning_rate = (0.01, 0.3, "log")
+model/hyperparameter.reg_alpha = (1e-6, 1.0, "log")
+model/hyperparameter.reg_lambda = (1e-6, 1.0, "log")
+
+# Sampling parameters
+model/hyperparameter.subsample = (0.4, 1.0)
+model/hyperparameter.subsample_freq = (0, 1, 5, 10)
+model/hyperparameter.colsample_bytree = (0.4, 1.0)
+model/hyperparameter.colsample_bynode = (0.4, 1.0)
+
+# Boosting parameters
+model/hyperparameter.boosting_type = ["gbdt", "dart"]
+
+# Advanced DART parameters (active when boosting_type="dart")
+model/hyperparameter.drop_rate = (0.1, 0.5)
+model/hyperparameter.max_drop = (10, 50)
+model/hyperparameter.skip_drop = (0.1, 0.9)
+
+# GOSS parameters (active when boosting_type="goss")
+model/hyperparameter.top_rate = (0.1, 0.5)
+model/hyperparameter.other_rate = (0.05, 0.2)
+
+# Performance and stability
+model/hyperparameter.feature_fraction = (0.4, 1.0)
+model/hyperparameter.bagging_fraction = (0.4, 1.0)
+model/hyperparameter.bagging_freq = (0, 1, 5, 10)
+model/hyperparameter.min_split_gain = (1e-6, 1.0, "log")
+
+# Categorical handling
+model/hyperparameter.cat_smooth = (1.0, 100.0, "log")
+model/hyperparameter.cat_l2 = (1.0, 100.0, "log")
+
+# Early stopping and validation
+model/hyperparameter.early_stopping_rounds = 100
+model/hyperparameter.eval_metric = ["binary_logloss", "auc", "binary_error"]
+
+# Class imbalance handling
+model/hyperparameter.is_unbalance = [True, False]
+model/hyperparameter.scale_pos_weight = (0.1, 10.0, "log")
+

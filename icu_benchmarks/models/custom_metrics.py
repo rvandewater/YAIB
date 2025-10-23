@@ -3,7 +3,12 @@ from typing import Callable
 import numpy as np
 from ignite.metrics import EpochMetric
 from numpy import ndarray
-from sklearn.metrics import balanced_accuracy_score, mean_absolute_error, confusion_matrix as sk_confusion_matrix
+from sklearn.metrics import (
+    balanced_accuracy_score,
+    mean_absolute_error,
+    confusion_matrix as sk_confusion_matrix,
+    matthews_corrcoef,
+)
 from sklearn.calibration import calibration_curve
 from scipy.spatial.distance import jensenshannon
 from torchmetrics.classification import BinaryFairness
@@ -62,15 +67,15 @@ class MAE(EpochMetric):
         invert_transform: Callable = lambda x: x,
     ) -> None:
         super(MAE, self).__init__(
-            lambda x, y: mae_with_invert_compute_fn(x, y, invert_transform),
+            lambda x, y: self.mae_with_invert_compute_fn(x, y, invert_transform),
             output_transform=output_transform,
             check_compute_fn=check_compute_fn,
         )
 
-        def mae_with_invert_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, invert_fn=Callable) -> float:
-            y_true = invert_fn(y_targets.numpy().reshape(-1, 1))[:, 0]
-            y_pred = invert_fn(y_preds.numpy().reshape(-1, 1))[:, 0]
-            return mean_absolute_error(y_true, y_pred)
+    def mae_with_invert_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, invert_fn=Callable) -> float:
+        y_true = invert_fn(y_targets.numpy().reshape(-1, 1))[:, 0]
+        y_pred = invert_fn(y_preds.numpy().reshape(-1, 1))[:, 0]
+        return mean_absolute_error(y_true, y_pred)
 
 
 class JSD(EpochMetric):
@@ -143,3 +148,90 @@ def confusion_matrix(y_true: ndarray, y_pred: ndarray, normalize=False) -> torch
         for j in range(confusion.shape[1]):
             confusion_dict[f"class_{i}_pred_{j}"] = confusion[i][j]
     return confusion_dict
+
+
+def matthews_correlation_coefficient(y_true: ndarray, y_pred: ndarray, normalize=False) -> float:
+    if y_pred.ndim == 2:
+        y_pred = np.argmax(y_pred, axis=-1)
+    return matthews_corrcoef()
+
+
+class Sensitivity(EpochMetric):
+    def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
+        super(Sensitivity, self).__init__(
+            self.sensitivity_compute, output_transform=output_transform, check_compute_fn=check_compute_fn
+        )
+
+
+def sensitivity(y_preds: torch.Tensor | ndarray, y_targets: torch.Tensor | ndarray) -> float:
+    if isinstance(y_preds, torch.Tensor):
+        y_preds = y_preds.numpy()
+    if isinstance(y_targets, torch.Tensor):
+        y_targets = y_targets.numpy()
+    y_true = np.rint(y_targets).astype(int)
+    y_pred = np.rint(y_preds).astype(int)
+    tn, fp, fn, tp = sk_confusion_matrix(y_true, y_pred).ravel()
+    return tp / (tp + fn)
+
+
+# class Specificity(EpochMetric):
+#     def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
+#         super(Specificity, self).__init__(
+#             self.specificity_compute, output_transform=output_transform, check_compute_fn=check_compute_fn
+#         )
+
+
+def specificity(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
+    if isinstance(y_preds, torch.Tensor):
+        y_preds = y_preds.numpy()
+    if isinstance(y_targets, torch.Tensor):
+        y_targets = y_targets.numpy()
+    y_true = np.rint(y_targets).astype(int)
+    y_pred = np.rint(y_preds).astype(int)
+    tn, fp, fn, tp = sk_confusion_matrix(y_true, y_pred).ravel()
+    return tn / (tn + fp)
+
+
+def positive_predictive_value(y_preds: torch.Tensor | np.ndarray, y_targets: torch.Tensor | np.ndarray) -> float:
+    if isinstance(y_preds, torch.Tensor):
+        y_preds = y_preds.numpy()
+    if isinstance(y_targets, torch.Tensor):
+        y_targets = y_targets.numpy()
+    y_true = np.rint(y_targets).astype(int)
+    y_pred = np.rint(y_preds).astype(int)
+    tn, fp, fn, tp = sk_confusion_matrix(y_true, y_pred).ravel()
+    return tp / (tp + fp)
+
+
+def binary_incidence(y_preds, y_targets):
+    """
+    Computes the binary incidence (proportion of positive labels).
+
+    Args:
+        y_true (numpy.ndarray): Ground truth binary labels (0 or 1).
+
+    Returns:
+        float: Proportion of positive labels.
+    """
+    y_true = np.rint(y_targets).astype(int)  # Ensure binary labels
+    return np.sum(y_true) / len(y_true)
+
+
+# from torchmetrics.classification import Specificity as TorchMetricsSpecificity
+#
+# class Specificity(EpochMetric):
+#     def __init__(self, task="binary", output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
+#         super(Specificity, self).__init__(
+#             self.specificity_compute, output_transform=output_transform, check_compute_fn=check_compute_fn
+#         )
+#         if isinstance(task, np.ndarray):
+#             task = task.item()
+#         self.metric = TorchMetricsSpecificity(task=task)
+#
+#     def specificity_compute(self, y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
+#         if isinstance(y_preds, np.ndarray):
+#             y_preds = torch.tensor(y_preds)
+#         if isinstance(y_targets, np.ndarray):
+#             y_targets = torch.tensor(y_targets)
+#         self.metric.update(y_preds, y_targets)
+#         return self.metric.compute().item()

@@ -1,0 +1,62 @@
+command:
+  - ${env}
+  - ${program}
+  - train
+  - -d
+  - ../data/
+  - -t
+#  - BinaryClassification
+  - CassClassification
+  - --log-dir
+  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
+#  - --tune
+  - --wandb-sweep
+  - -tn
+  - SSI
+  - --hp-checkpoint
+  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
+#  - --verbose
+  - --modalities
+  - "all"
+  - --file-names
+  - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+#  - --explain_features
+#  - --verbose
+  - --load_data_vars
+method: grid
+name: organ_system_benchmark
+parameters:
+  data_dir:
+    values:
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/Pancreas"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/Liver"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/Upper_GI"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/organ_cohorts_lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/Colorectal"
+  model:
+    values:
+#      - LogisticRegression
+#      - TimesNet
+#      - LGBMClassifier
+      - XGBClassifier
+#      - CBClassifier
+#      - BRFClassifier
+#       - RUSBClassifier
+#      - RFClassifier
+#      - GRU
+#      - LSTM
+#      - TCN
+#      - Transformer
+  modalities:
+    values:
+      - "all"
+  file_names:
+    values:
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks

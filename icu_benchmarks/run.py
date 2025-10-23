@@ -18,8 +18,9 @@ from icu_benchmarks.run_utils import (
     setup_logging,
     import_preprocessor,
     name_datasets,
-    get_config_files,
+    get_config_files, append_predictions_foldwise,
 )
+from icu_benchmarks.utils import parse_dict
 from icu_benchmarks.constants import RunMode
 
 
@@ -51,6 +52,8 @@ def main(my_args=tuple(sys.argv[1:])):
     experiment = args.experiment
     source_dir = args.source_dir
     modalities = args.modalities
+    load_data_vars = args.load_data_vars
+
     if modalities:
         logging.debug(f"Binding modalities: {modalities}")
         gin.bind_parameter("preprocess.selected_modalities", modalities)
@@ -64,6 +67,16 @@ def main(my_args=tuple(sys.argv[1:])):
             f"Model: {model} {'not ' if model not in models else ''}found."
         )
     # Load task config
+    if load_data_vars:
+        logging.info(f"Loading variables from {task} from {data_dir} configuration")
+        if (data_dir / "vars.gin").exists():
+            # Open the task config file in append mode and add a line
+            with open(f"configs/tasks/{task}.gin", "a") as config_file:
+                config_file.write("\n# Added automatically by run.py\n")
+                config_file.write(f"# Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                config_file.write(f'include "{data_dir}/vars.gin"\n')
+        else:
+            logging.warning(f"No vars.gin file found in {data_dir}. Please ensure the file exists.")
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
 
@@ -139,9 +152,33 @@ def main(my_args=tuple(sys.argv[1:])):
             if args.experiment
             else [model_path, Path(f"configs/tasks/{task}.gin")]
         )
+
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
         run_dir = create_run_dir(log_dir)
+
+        # manually bind dataset files
+        if args.file_names:
+            logging.info(f"Attempting to bind dataset files: {args.file_names}, type: {type(args.file_names)}")
+            if isinstance(args.file_names, dict):
+                logging.info(f"Will load data from {args.file_names}")
+                gin.bind_parameter("preprocess.file_names", args.file_names)
+            elif isinstance(args.file_names, str):
+                file_names = parse_dict(args.file_names)
+                logging.info(f"Will load data from {args.file_names}")
+                gin.bind_parameter("preprocess.file_names", file_names)
+            else:
+                raise ValueError(
+                    f"Please provide a dictionary type for the file names, got {args.file_names}, "
+                    f"type: {type(args.file_names)}"
+                )
+
+        update_wandb_config({
+            "data_dir": data_dir.resolve(),
+            "task": task,
+            "run_dir": run_dir.resolve(),
+        })
+
         choose_and_bind_hyperparameters_optuna(
             do_tune=args.tune,
             data_dir=data_dir,
@@ -184,6 +221,7 @@ def main(my_args=tuple(sys.argv[1:])):
         cpu=args.cpu,
         wandb=args.wandb_sweep,
         complete_train=args.complete_train,
+        explain_features=args.explain_features,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
@@ -191,6 +229,8 @@ def main(my_args=tuple(sys.argv[1:])):
     log_full_line(f"DURATION: {execution_time}", level=logging.INFO, char="")
     try:
         aggregate_results(run_dir, execution_time)
+        append_predictions_foldwise(run_dir, "pred_indicators.csv")
+
     except Exception as e:
         logging.error(f"Failed to aggregate results: {e}")
         logging.debug("Error details:", exc_info=True)

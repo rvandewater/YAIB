@@ -27,6 +27,10 @@ from icu_benchmarks.models.custom_metrics import (
     JSD,
     BinaryFairnessWrapper,
     confusion_matrix,
+    sensitivity,
+    specificity,
+    positive_predictive_value,
+    binary_incidence,
 )
 
 
@@ -38,6 +42,13 @@ class MLMetrics:
         "PR_Curve": precision_recall_curve,
         "RO_Curve": roc_curve,
         "Confusion_Matrix": confusion_matrix,
+        "Sensitivity": sensitivity,
+        # "Precision": precision_score,
+        # "Recall": recall_score,
+        "Specificity": specificity,
+        "PPV": positive_predictive_value,
+        # "MCC": matthews_corrcoef,
+        "Incidence": binary_incidence,
     }
 
     MULTICLASS_CLASSIFICATION = {
@@ -63,6 +74,7 @@ class DLMetrics:
         "PR": AveragePrecision,
         "PR_Curve": PrecisionRecallCurve,
         "RO_Curve": RocCurve,
+        # "MCC": MatthewsCorrCoef
     }
 
     BINARY_CLASSIFICATION_TORCHMETRICS = {

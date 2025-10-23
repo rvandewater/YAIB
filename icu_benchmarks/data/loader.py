@@ -32,9 +32,10 @@ class CommonPolarsDataset(Dataset):
         self.vars = vars
         self.grouping_df = data[split][grouping_segment]
         # Get the row indicators for the data to be able to match predicted labels
-        if not isinstance(vars["SEQUENCE"], str):
-            raise ValueError(f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead')
+
         if "SEQUENCE" in self.vars and self.vars["SEQUENCE"] in data[split][DataSegment.features].columns:
+            if not isinstance(vars["SEQUENCE"], str):
+                raise ValueError(f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead')
             # We have a time series dataset
             self.row_indicators = data[split][DataSegment.features][self.vars["GROUP"], self.vars["SEQUENCE"]]
 
@@ -42,11 +43,15 @@ class CommonPolarsDataset(Dataset):
             self.features_df = data[split][DataSegment.features]
             self.features_df = self.features_df.sort([self.vars["GROUP"], self.vars["SEQUENCE"]])
             self.features_df = self.features_df.drop(self.vars["SEQUENCE"])
+            self.row_indicators = self.row_indicators.sort([self.vars["GROUP"], self.vars["SEQUENCE"]])
+
         else:
             # We have a static dataset
             logging.info("Using static dataset")
             self.row_indicators = data[split][DataSegment.features][self.vars["GROUP"]]
             self.features_df = data[split][DataSegment.features]
+            # Series with unique values
+            self.row_indicators = self.row_indicators.sort()
         # calculate basic info for the data
         self.num_stays = self.grouping_df[self.vars["GROUP"]].unique().shape[0]
         self.maxlen = self.features_df.group_by([self.vars["GROUP"]]).len().max().item(0, 1)
@@ -67,7 +72,7 @@ class CommonPolarsDataset(Dataset):
         return self.num_stays
 
     def get_feature_names(self) -> List[str]:
-        return self.features_df.columns
+        return [col for col in self.features_df.columns]  # if col != self.vars["GROUP"] and col != self.vars["SEQUENCE"]]
 
     def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], ...]:
         values: list[list] = []
@@ -89,6 +94,14 @@ class PredictionPolarsDataset(CommonPolarsDataset):
 
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
+        if "SEQUENCE" in self.vars:
+            if self.row_indicators[self.vars["SEQUENCE"]].dtype.is_temporal():
+                self.row_indicators = self.row_indicators.with_columns(pl.col(self.vars["SEQUENCE"]).dt.total_hours())
+            else:
+                self.row_indicators = self.row_indicators.with_columns(pl.col(self.vars["SEQUENCE"]))
+        else:
+            logging.info("Using static dataset")
+            self.row_indicators = self.grouping_df[self.vars["GROUP"]].to_frame(self.vars["GROUP"])
         self.outcome_df = self.grouping_df
         self.ram_cache(ram_cache)
 
@@ -116,6 +129,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         if len(labels) == 1:
             # only one label per stay, align with window
             labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
+        row_inds = self.row_indicators.filter(pl.col(self.vars["GROUP"]) == stay_id).to_numpy()
 
         length_diff = self.maxlen - window.shape[0]
         pad_mask = np.ones(window.shape[0])
@@ -126,7 +140,9 @@ class PredictionPolarsDataset(CommonPolarsDataset):
             window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
             labels = np.concatenate([labels, np.ones(length_diff) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
-
+            # row_inds = np.concatenate([row_inds, np.ones(length_diff, row_inds.shape[1]) * pad_value], axis=0)
+            row_inds = np.concatenate([row_inds, np.ones((length_diff, row_inds.shape[1])) * pad_value], axis=0)
+        row_inds = row_inds.astype(np.float32)
         not_labeled = np.argwhere(np.isnan(labels))
         if len(not_labeled) > 0:
             labels[not_labeled] = -1
@@ -135,8 +151,8 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         pad_mask = pad_mask.astype(bool)
         labels = labels.astype(np.float32)
         data = window.astype(np.float32)
-
-        return from_numpy(data), from_numpy(labels), from_numpy(pad_mask)
+        # if self.vars"SEQUENCE" in self.vars:
+        return from_numpy(data), from_numpy(labels), from_numpy(pad_mask), from_numpy(row_inds)
 
     def get_balance(self) -> list:
         """Return the weight balance for the split of interest.
@@ -163,12 +179,24 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         if len(labels) == self.num_stays:
             # order of groups could be random, we make sure not to change it
             rep = rep.group_by(self.vars["GROUP"]).last()
-        else:
-            # Adding segment count for each stay id and timestep.
-            rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
-        rep = rep.to_numpy().astype(float)
+        # else:
+        #     # Adding segment count for each stay id and timestep.
+        #     rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
+        # rep = rep.sort([self.vars["GROUP"], "counter"])
+        # rep = rep.to_numpy().astype(float)
+        # Remove the first column from the rep array (group column)
+        # needs to still be in there?
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
+        # if self.vars["SEQUENCE"] in rep.columns:
+        #     rep = rep.select(pl.exclude(self.vars["SEQUENCE"]))
+        #     logging.info(f"Removed sequence column {self.vars['SEQUENCE']} from features_df.")
+        rep = rep.to_numpy().astype(float)
+        rep = rep[:, 1:]
+        if ("SEQUENCE" in self.vars and self.vars["SEQUENCE"] in self.row_indicators
+                and self.row_indicators[self.vars["SEQUENCE"]].dtype == pl.Duration):
+            self.row_indicators = self.row_indicators.with_columns(pl.col(self.vars["SEQUENCE"]).dt.total_hours())
+        # Todo: check if row indicators introduce information loss
         return rep, labels, self.row_indicators.to_numpy()
 
     def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], Union[Tensor, np.ndarray], Union[Tensor, np.ndarray]]:

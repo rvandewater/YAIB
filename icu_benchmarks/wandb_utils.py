@@ -4,6 +4,8 @@ from pathlib import Path
 
 import wandb
 
+from .utils import parse_dict
+
 
 def wandb_running() -> bool:
     """Check if wandb is running."""
@@ -30,7 +32,8 @@ def apply_wandb_sweep(args: Namespace) -> Namespace:
     Returns:
         Namespace: arguments with sweep configuration applied (some are applied via hyperparams)
     """
-    wandb.init(allow_val_change=True, dir=args.log_dir)
+    wandb.init(allow_val_change=True, dir=args.log_dir, config={"allow_val_change": True})
+    wandb.config.allow_val_change = True
     sweep_config = wandb.config
     args.__dict__.update(sweep_config)
     if args.hyperparams is None:
@@ -72,6 +75,9 @@ def set_wandb_experiment_name(args, mode):
         run_name += f"_train_size_{args.samples}_samples"
     elif args.complete_train:
         run_name += "_complete_training"
+    elif args.file_names:
+        file_names = parse_dict(args.file_names)
+        run_name += f"_outcome_{file_names['OUTCOME'].removesuffix('.parquet')}"
 
     if wandb_running():
         wandb.config.update({"run-name": run_name})

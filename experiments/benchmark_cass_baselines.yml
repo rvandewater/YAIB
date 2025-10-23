@@ -1,0 +1,64 @@
+command:
+  - ${env}
+  - ${program}
+  - train
+  - -d
+  - ../data/
+  - -t
+#  - BinaryClassification
+  - CassClassification
+  - --log-dir
+  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
+  - --tune
+  - --wandb-sweep
+  - -tn
+  - SSI
+  - --hp-checkpoint
+  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/dataset_baseline_cohort_post-operative_static_2025-08-01T11:00:26/SSI/XGBClassifier/2025-08-01T11-08-08.547141/hyperparameter_tuning_logs.db"
+  - --modalities
+  - "all"
+  - --file-names
+  - '"DYNAMIC":"dyn.parquet","STATIC":"sta.parquet"'
+  - --explain_features
+#  - --verbose
+  - --load_data_vars
+method: grid
+name: yaib_classification_benchmark
+parameters:
+  data_dir:
+    values:
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_cohort_pre-operative_2025-08-01T10:57:46"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_cohort_intra-operative_static_2025-08-01T10:59:15"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/dataset_baseline_cohort_post-operative_static_2025-08-01T11:00:26"
+  model:
+    values:
+#      - LogisticRegression
+#      - TimesNet
+#      - LGBMClassifier
+      - XGBClassifier
+#      - CBClassifier
+#      - BRFClassifier
+#       - RUSBClassifier
+#      - RFClassifier
+#      - GRU
+#      - LSTM
+#      - TCN
+#      - Transformer
+  modalities:
+    values:
+      - "all"
+  file_names:
+    values:
+      - '"OUTCOME":"outc.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_12.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_18.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_24.parquet","STATIC":"sta.parquet"'
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks

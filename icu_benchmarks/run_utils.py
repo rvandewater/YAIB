@@ -1,8 +1,8 @@
 import importlib
+import math
 import sys
 import warnings
 from math import sqrt
-
 import gin
 import torch
 import json
@@ -14,8 +14,11 @@ import scipy.stats as stats
 import shutil
 from statistics import mean, pstdev
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
-from icu_benchmarks.wandb_utils import wandb_log
 import polars as pl
+import random
+
+from .utils import parse_dict
+from .wandb_utils import wandb_log
 
 
 def build_parser() -> ArgumentParser:
@@ -60,6 +63,26 @@ def build_parser() -> ArgumentParser:
         help="Optional modality selection to use. Specify multiple modalities separated by spaces.",
     )
     parser.add_argument("--label", type=str, help="Label to use for evaluation in case of multiple labels.", default=None)
+    parser.add_argument(
+        "--file_names",
+        type=parse_dict,
+        help="Dictionary of file names to use in data_dir "
+        "(e.g., 'DYNAMIC:dyno.parquet,OUTCOME:outco.parquet,STATIC:sta.parquet')",
+        default=None,
+    )
+    parser.add_argument("--explain_features", default=False, action=BOA, help="Enable feature explanation.")
+    parser.add_argument(
+        "--load_data_vars",
+        default=False,
+        action=BOA,
+        help="Load data variables from the dataset directory. Avoids having to manually add the path in the task.gin",
+    )
+    parser.add_argument(
+        "--reduce_stay_steps",
+        default=None,
+        type=int,
+        help="Reduce the stay length dynamically",
+    )
     return parser
 
 
@@ -76,9 +99,9 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     Returns:
         Path to the created run log directory.
     """
-    log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S"))
+    log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))
     while log_dir_run.exists():
-        log_dir_run = log_dir / str(datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f"))
+        log_dir_run = log_dir_run.with_name(log_dir_run.name + random.randint(1, 10))
     log_dir_run.mkdir(parents=True)
     if randomly_searched_params:
         (log_dir_run / randomly_searched_params).touch()
@@ -98,7 +121,71 @@ def import_preprocessor(preprocessor_path: str):
         logging.error(f"Could not import custom preprocessor from {preprocessor_path}: {e}")
 
 
-def aggregate_results(log_dir: Path, execution_time: timedelta = None):
+def append_predictions_foldwise(directory: str, filename: str, max_id: int = 1300) -> pl.DataFrame:
+    """
+    Load all prediction CSV files with the specified filename in the given directory and its subdirectories,
+    and append them vertically into a single Polars DataFrame.
+    Files are processed fold by fold across all iterations.
+
+    Parameters:
+    directory (str): The root directory to search for CSV files.
+    filename (str): The specific filename to look for.
+    max_id (int): The maximum ID value to offset the IDs in each fold to prevent clashes.
+
+    Returns:
+    pl.DataFrame: A single DataFrame containing all the appended CSV files.
+
+    Example usage:
+    directory = 'home'
+    filename = 'pred_indicators.csv'
+    combined_df = load_and_append_csv_files(directory, filename)
+    """
+    dataframes = []
+    id_column = "# id"
+    counter = 0
+
+    # Get all iteration directories sorted
+    iterations = sorted([d for d in Path(directory).iterdir() if d.is_dir()])
+
+    # Get all unique fold names across all iterations
+    all_folds = set()
+    for iteration in iterations:
+        for fold_dir in iteration.iterdir():
+            if fold_dir.is_dir():
+                all_folds.add(fold_dir.name)
+
+    # Process fold by fold across all iterations
+    for fold_name in sorted(all_folds):
+        for iteration in iterations:
+            fold_path = iteration / fold_name
+            if fold_path.exists():
+                for file_path in sorted(fold_path.rglob(filename)):
+                    print(f"Loading file: {file_path}")
+
+                    # Load the CSV file
+                    df = pl.read_csv(file_path)
+
+                    # Check original ID range
+                    original_ids = df.select(pl.col(id_column)).to_numpy().flatten()
+                    print(f"  Original ID range: {original_ids.min()} - {original_ids.max()}")
+
+                    # Apply offset to prevent clashes
+                    df = df.with_columns(pl.col(id_column) + counter * max_id)
+
+                    # Check modified ID range
+                    modified_ids = df.select(pl.col(id_column)).to_numpy().flatten()
+                    print(f"  Modified ID range: {modified_ids.min()} - {modified_ids.max()}")
+                    print(f"  Counter: {counter}")
+                    print()
+                    dataframes.append(df)
+        counter += 1
+
+    # Concatenate all DataFrames vertically
+    combined_df = pl.concat(dataframes, how="vertical")
+
+    return combined_df
+
+def aggregate_results(log_dir: Path, execution_time: timedelta = None, explain_features: bool = False):
     """Aggregates results from all folds and writes to JSON file.
 
     Args:
@@ -106,7 +193,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
         execution_time: Overall execution time.
     """
     aggregated = {}
-    shap_values_test = []
+    explainer_values_test = []
     for repetition in log_dir.iterdir():
         if repetition.is_dir():
             aggregated[repetition.name] = {}
@@ -125,24 +212,27 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                     with open(fold_iter / "durations.json", "r") as f:
                         result = json.load(f)
                         aggregated[repetition.name][fold_iter.name].update(result)
-                if (fold_iter / "test_shap_values.parquet").is_file():
-                    shap_values_test.append(pl.read_parquet(fold_iter / "test_shap_values.parquet"))
+                if (fold_iter / "explainer_values_test.parquet").is_file():
+                    explainer_values_test.append(pl.read_parquet(fold_iter / "explainer_values_test.parquet"))
 
-    if shap_values_test:
-        shap_values = pl.concat(shap_values_test)
-        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
-
-    try:
-        shap_values = pl.concat(shap_values_test)
-        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
-    except Exception as e:
-        logging.error(f"Error aggregating or writing SHAP values: {e}")
+    if explain_features:
+        if explainer_values_test:
+            shap_values = pl.concat(explainer_values_test)
+            shap_values.write_parquet(log_dir / "aggregated_explainer_values.parquet")
+        try:
+            shap_values = pl.concat(explainer_values_test)
+            shap_values.write_parquet(log_dir / "aggregated_explainer_values.parquet")
+        except Exception as e:
+            logging.error(f"Error aggregating or writing SHAP values: {e}")
     # Aggregate results per metric
     list_scores = {}
     for repetition, folds in aggregated.items():
         for fold, result in folds.items():
             for metric, score in result.items():
                 if isinstance(score, (float, int)):
+                    if math.isnan(score):
+                        logging.warning(f"Score for metric {metric} is NaN, adding 0 instead.")
+                        score = 0
                     list_scores[metric] = list_scores.setdefault(metric, [])
                     list_scores[metric].append(score)
 

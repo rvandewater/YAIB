@@ -1,4 +1,3 @@
-import inspect
 import logging
 from statistics import mean
 
@@ -6,8 +5,10 @@ import gin
 import shap
 import wandb
 import xgboost as xgb
+import numpy as np
 from xgboost.callback import EarlyStopping
 from wandb.integration.xgboost import wandb_callback as wandb_xgb
+from sklearn.metrics import log_loss
 
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
@@ -20,10 +21,86 @@ from icu_benchmarks.models.wrappers import MLWrapper
 @gin.configurable
 class XGBClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
+
+    def __init__(self, *args, **kwargs):
+        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, eval_metric=log_loss, device="cpu", verbosity=0)
+        super().__init__(*args, **kwargs)
+
+    # def predict(self, features):
+    #     """
+    #     Predicts class probabilities for the given features.
+    #
+    #     Args:
+    #         features: Input features for prediction.
+    #
+    #     Returns:
+    #         numpy.ndarray: Predicted probabilities for each class.
+    #     """
+    #     return self.model.predict_proba(features)
+
+    def fit_model(self, train_data, train_labels, val_data, val_labels):
+        """Fit the model to the training data (default SKlearn syntax)"""
+        callbacks = [EarlyStopping(self.hparams.patience)]
+
+        if wandb.run is not None:
+            callbacks.append(wandb_xgb())
+        logging.info(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
+        logging.info(train_labels)
+        self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=0)
+
+        n_samples = min(1000, len(train_data))
+        indices = np.random.choice(len(train_data), size=n_samples, replace=False)
+        background_sample = train_data[indices]
+        self.explainer = shap.TreeExplainer(
+            self.model, background_sample, feature_perturbation="interventional", model_output="probability"
+        )
+        # if self.explain_features:
+        #     logging.info("Explaining features")
+        #     self.train_shap_values = self.explainer.shap_values(train_data)
+        # shap.summary_plot(shap_values, X_test, feature_names=features)
+        # logging.info(self.model.get_booster().get_score(importance_type='weight'))
+        # self.log_dict(self.model.get_booster().get_score(importance_type='weight'))
+        # Return the first metric we use for validation
+        eval_score = mean(next(iter(self.model.evals_result_["validation_0"].values())))
+        return eval_score  # , callbacks=callbacks)
+
+    def set_model_args(self, model, *args, **kwargs):
+        """XGBoost signature does not include the hyperparams so we need to pass them manually."""
+        # signature = inspect.signature(model.__init__).parameters
+        # valid_params = signature.keys()
+        valid_params = model().get_params().keys()
+        # Filter out invalid arguments
+        valid_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+        if len(valid_kwargs) == 0:
+            logging.warning("No valid arguments passed to XGBoost")
+        logging.debug(f"Creating model with: {valid_kwargs}.")
+        return model(**valid_kwargs)
+
+    def _explain_model(self, reps, labels):
+        if not hasattr(self.model, "feature_importances_"):
+                raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
+        # feature_importances = self.model.feature_importances_
+        shap_values = self.explainer.shap_values(reps, labels)
+        # feature_importances = np.abs(shap_values).mean(axis=1)
+        return shap_values
+
+@gin.configurable
+class XGBClassifierGPU(MLWrapper):
+    _supported_run_modes = [RunMode.classification]
     _explain_values = False
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, device="cpu")
+        # self.model = self.set_model_args(
+        #     xgb, *args, **kwargs, eval_metric="logloss", tree_method="hist", device="cuda", verbosity=0
+        # )
+        self.model = xgb
+        self.params = {
+            "eval_metric": "logloss",
+            "tree_method": "hist",
+            "device": "cuda",
+            "verbosity": 0,
+            **kwargs,
+        }
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
@@ -36,39 +113,39 @@ class XGBClassifier(MLWrapper):
         Returns:
             numpy.ndarray: Predicted probabilities for each class.
         """
-        return self.model.predict_proba(features)
+        return self.model.predict(xgb.DMatrix(features))
 
     def fit_model(self, train_data, train_labels, val_data, val_labels):
-        """Fit the model to the training data (default SKlearn syntax)"""
+        """
+        Train the model using the XGBoost `train` method.
+
+        Args:
+            train_data: Training features.
+            train_labels: Training labels.
+            val_data: Validation features.
+            val_labels: Validation labels.
+
+        Returns:
+            float: Evaluation score on the validation set.
+        """
+        dtrain = xgb.DMatrix(train_data, label=train_labels)
+        dval = xgb.DMatrix(val_data, label=val_labels)
+        evals = [(dtrain, "train"), (dval, "validation")]
+
         callbacks = [EarlyStopping(self.hparams.patience)]
 
         if wandb.run is not None:
             callbacks.append(wandb_xgb())
-        logging.debug(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
-        logging.debug(train_labels)
-        self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=False)
-        if self._explain_values:
-            self.explainer = shap.TreeExplainer(self.model)
-            self.train_shap_values = self.explainer(train_data)
-        # shap.summary_plot(shap_values, X_test, feature_names=features)
-        # logging.info(self.model.get_booster().get_score(importance_type='weight'))
-        # self.log_dict(self.model.get_booster().get_score(importance_type='weight'))
-        # Return the first metric we use for validation
-        eval_score = mean(next(iter(self.model.evals_result_["validation_0"].values())))
-        return eval_score  # , callbacks=callbacks)
+        self.model.train(self.params, train_data=dtrain, evals=evals, callbacks=callbacks)
+        # self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=0)
 
-    def set_model_args(self, model, *args, **kwargs):
-        """XGBoost signature does not include the hyperparams so we need to pass them manually."""
-        signature = inspect.signature(model.__init__).parameters
-        valid_params = signature.keys()
+        # shap_interaction_values = self.model.predict(dtrain)
+        # self.explainer = shap.TreeExplainer(
+        #     self.model, dtrain, feature_perturbation="interventional", model_output="probability"
+        # )
+        # if self.explain_features:
+        #     logging.info("Explaining features")
+        #     self.train_shap_values = self.explainer.shap_values(dtrain)
 
-        # Filter out invalid arguments
-        valid_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
-
-        logging.debug(f"Creating model with: {valid_kwargs}.")
-        return model(**valid_kwargs)
-
-    def get_feature_importance(self):
-        if not hasattr(self.model, "feature_importances_"):
-            raise ValueError("Model has not been fit yet. Call fit_model() before getting feature importances.")
-        return self.model.feature_importances_
+        eval_score = mean(next(iter(self.model.evals_result()["validation"].values())))
+        return eval_score

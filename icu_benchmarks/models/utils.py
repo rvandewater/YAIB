@@ -8,6 +8,7 @@ import gin
 import logging
 import numpy as np
 import torch
+import csv
 
 from pytorch_lightning.loggers.logger import Logger
 from pytorch_lightning.utilities import rank_zero_only
@@ -150,7 +151,7 @@ class JSONMetricsLogger(Logger):
         super().__init__(**kwargs)
         if output_dir is None:
             output_dir = Path.cwd() / "metrics"
-        logging.info(f"logging metrics to file: {str(output_dir.resolve())}")
+        logging.info(f"Logging metrics to file: {str(output_dir.resolve())}")
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -282,3 +283,33 @@ def get_smoothed_labels(
         return np.array(
             list(map(lambda x: smoothing_fn(x, h_true=h_true, h_min=h_min, h_max=h_max, delta_h=delta_h, gamma=gamma), dte))
         )
+
+
+
+
+def log_single_metric_to_file(metric_name: str, data_points: tuple[np.ndarray], output_file: Path) -> None:
+    """
+    Logs a single metric to a file, where the input is a tuple of numpy arrays.
+
+    Args:
+        metric_name (str): Name of the metric.
+        data_points (tuple[np.ndarray]): Tuple of numpy arrays to log.
+        output_file (Path): Path to the file where the metric will be saved.
+
+    Raises:
+        ValueError: If data_points is not a tuple of numpy arrays or output_file is not a valid Path.
+    """
+    if not isinstance(data_points, tuple) or not all(isinstance(arr, np.ndarray) for arr in data_points):
+        raise ValueError("data_points must be a tuple of numpy arrays.")
+    if not isinstance(output_file, Path):
+        raise ValueError("output_file must be a Path object.")
+
+    output_file.parent.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
+
+    with output_file.open(mode="w", newline="") as file:
+        writer = csv.writer(file)
+        # Write header
+        writer.writerow(["Row"] + [f"Column {i}" for i in range(data_points[0].size)])
+        # Write each numpy array as a row
+        for index, array in enumerate(data_points):
+            writer.writerow([index] + array.tolist())

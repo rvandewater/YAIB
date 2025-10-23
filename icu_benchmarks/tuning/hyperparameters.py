@@ -1,4 +1,6 @@
 import json
+import shutil
+
 import gin
 import logging
 from logging import NOTSET
@@ -83,7 +85,7 @@ def choose_and_bind_hyperparameters_scikit_optimize(
     configuration, evaluation = None, None
     if checkpoint:
         checkpoint_path = checkpoint / checkpoint_file
-        if not checkpoint_path.exists():
+        if not checkpoint_path.isfile():
             logging.warning(f"Hyperparameter checkpoint {checkpoint_path} does not exist.")
             logging.info("Attempting to find latest checkpoint file.")
             checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
@@ -188,6 +190,7 @@ def choose_and_bind_hyperparameters_optuna(
     n_calls: int = 20,
     sampler=optuna.samplers.GPSampler,
     folds_to_tune_on: int = None,
+    repetitions_to_tune_on: int = 1,
     checkpoint_file: str = "hyperparameter_tuning_logs.db",
     generate_cache: bool = False,
     load_cache: bool = False,
@@ -199,6 +202,7 @@ def choose_and_bind_hyperparameters_optuna(
     """Choose hyperparameters to tune and bind them to gin. Uses Optuna for hyperparameter optimization.
 
     Args:
+        repetitions_to_tune_on: Repetitions to tune on. If None, 1 repetitions are trained on.
         plot: Whether to plot hyperparameter importances.
         sampler: The sampler to use for hyperparameter optimization.
         wandb: Whether we use wandb or not.
@@ -222,6 +226,9 @@ def choose_and_bind_hyperparameters_optuna(
         ValueError: If checkpoint is not None and the checkpoint does not exist.
     """
     hyperparams = {}
+    if n_calls <= 0:
+        logging.info(f"Initialized with n_calls: {n_calls} , skipping tuning.")
+        return
 
     if len(scopes) == 0 or folds_to_tune_on is None:
         logging.warning("No scopes and/or folds to tune on, skipping tuning.")
@@ -306,7 +313,7 @@ def choose_and_bind_hyperparameters_optuna(
                 Path(temp_dir),
                 seed,
                 mode=run_mode,
-                cv_repetitions_to_train=1,
+                cv_repetitions_to_train=repetitions_to_tune_on,
                 cv_folds_to_train=folds_to_tune_on,
                 generate_cache=generate_cache,
                 load_cache=load_cache,
@@ -314,6 +321,7 @@ def choose_and_bind_hyperparameters_optuna(
                 debug=debug,
                 verbose=verbose,
                 wandb=wandb,
+                explain_features=False,
             )
             logging.info(f"Score: {score}")
             return score
@@ -326,12 +334,17 @@ def choose_and_bind_hyperparameters_optuna(
     # Optuna study
     # Attempt checkpoint loading
     if checkpoint and checkpoint.exists():
-        logging.warning(f"Hyperparameter checkpoint {checkpoint} does not exist.")
+        # logging.warning(f"Hyperparameter checkpoint {checkpoint} does not exist.")
         # logging.info("Attempting to find latest checkpoint file.")
         # checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
-        # Check if we found a checkpoint file
-        logging.info(f"Loading checkpoint at {checkpoint}")
-        study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(checkpoint), sampler=sampler, pruner=pruner)
+        # Check if we found a checkpoint file and copy it.
+        logging.info(f"Copying checkpoint and loading checkpoint at {checkpoint}")
+        local_path = log_dir / checkpoint_file
+        if not str(local_path).endswith(".db"):
+            local_path = local_path / "hyperparameter_tuning_logs.db"
+            logging.warning(f"Checkpoint file {checkpoint_file} does not end with .db, trying {local_path} instead.")
+        shutil.copy(str(checkpoint), local_path)
+        study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(local_path), sampler=sampler, pruner=pruner)
         n_calls = n_calls - len(study.trials)
     else:
         if checkpoint:

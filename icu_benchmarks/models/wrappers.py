@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 import torchmetrics
 from sklearn.metrics import log_loss, mean_squared_error, average_precision_score, roc_auc_score
+from sklearn.calibration import CalibratedClassifierCV
 
 import torch
 from torch.nn import MSELoss, CrossEntropyLoss
@@ -17,7 +18,7 @@ import numpy as np
 from ignite.exceptions import NotComputableError
 from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.custom_metrics import confusion_matrix
-from icu_benchmarks.models.utils import create_optimizer, create_scheduler
+from icu_benchmarks.models.utils import create_optimizer, create_scheduler, log_single_metric_to_file
 from joblib import dump
 from pytorch_lightning import LightningModule
 
@@ -47,6 +48,7 @@ class BaseModule(LightningModule):
     # Type of run mode
     run_mode = None
     debug = False
+    # We do not want to explain features by default as it is expensive (and not needed during hp tuning)
     explain_features = False
 
     def forward(self, *args, **kwargs):
@@ -62,6 +64,7 @@ class BaseModule(LightningModule):
         self.metrics = {}
 
     def set_trained_columns(self, columns: List[str]):
+        logging.info(f"Setting trained columns: {len(columns)}")
         self.trained_columns = columns
 
     def set_weight(self, weight, dataset):
@@ -104,6 +107,64 @@ class BaseModule(LightningModule):
             raise ValueError(f"Runmode {runmode} not supported for {self.__class__.__name__}")
         return True
 
+    def set_explain_features(self, set_explain_features: bool):
+        self.explain_features = set_explain_features
+        self.persist_reps = set_explain_features
+
+    def _explain_model(self, reps, labels):
+        raise NotImplementedError(f"Model {self.__class__.__name__} does not currently support feature explanation.")
+
+    def _save_model_outputs(self, pred_indicators, test_pred, test_label):
+        "Save model outputs to CSV file for further post-hoc analysis"
+        if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1:
+            # Temporal dataset
+            if pred_indicators.shape[1] == test_pred.shape[1] and pred_indicators.shape[0] == test_pred.shape[0]:
+                # One outcome per dataset
+                pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
+                pred_indicators = np.hstack((pred_indicators, test_pred))
+                # Save as: id, time (hours), ground truth, prediction 0, prediction 1
+                # if pred_indicators.shape(1) == 5:
+                np.savetxt(
+                    Path(self.logger.save_dir) / "pred_indicators.csv",
+                    pred_indicators,
+                    delimiter=",",
+                    header="id,time,ground_truth,prediction_0,prediction_1",
+                    fmt="%d,%d,%.3f,%.3f,%.3f",
+                )
+                logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
+                # else:
+                #     # Flat/static dataset
+                #     np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",",
+                #                 header="id,ground_truth,prediction_0,prediction_1", fmt='%d,%d,%.3f,%.3f,%.3f')
+                # np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",",
+                #            header="id,time,ground_truth,prediction_0,prediction_1", fmt='%d,%d,%.3f,%.3f,%.3f')
+                # logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
+            else:
+                logging.info(np.unique(pred_indicators[:, 0]))
+                pred_indicators = np.unique(pred_indicators[:, 0])
+                pred_indicators = np.hstack((pred_indicators.reshape(-1, 1), test_label.reshape(-1, 1)))
+                pred_indicators = np.hstack((pred_indicators, test_pred))
+
+                np.savetxt(
+                    Path(self.logger.save_dir) / "pred_indicators.csv",
+                    pred_indicators,
+                    delimiter=",",
+                    header="id,ground_truth,prediction_0,prediction_1",
+                    fmt="%d,%d,%0.3f,%0.3f",
+                )
+                logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
+        else:
+            pred_indicators = np.hstack((pred_indicators.reshape(-1, 1), test_label.reshape(-1, 1)))
+            logging.info(pred_indicators.shape)
+            pred_indicators = np.hstack((pred_indicators, test_pred))
+            np.savetxt(
+                Path(self.logger.save_dir) / "pred_indicators.csv",
+                pred_indicators,
+                delimiter=",",
+                header="id,ground_truth,prediction_0,prediction_1",
+                fmt="%d,%d,%0.3f,%0.3f",
+            )
+            logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / f'row_indicators.csv'}")
 
 @gin.configurable("DLWrapper")
 class DLWrapper(BaseModule, ABC):
@@ -210,6 +271,10 @@ class DLWrapper(BaseModule, ABC):
             step_name: {metric_name: metric() for metric_name, metric in self.set_metrics().items()}
             for step_name in ["train", "val", "test"]
         }
+        if hasattr(self.trainer, 'val_dataloaders') and self.trainer.val_dataloaders:
+            val_loader = self.trainer.val_dataloaders[0] if isinstance(self.trainer.val_dataloaders,
+                                                                       list) else self.trainer.val_dataloaders
+            self.setup_calibration(val_loader)
         return super().on_test_epoch_start()
 
     def save_model(self, save_path, file_name, file_extension=".ckpt"):
@@ -260,6 +325,8 @@ class DLPredictionWrapper(DLWrapper):
         )
         self.output_transform = None
         self.loss_weights = None
+        self.calibrated_model = None
+
 
     def set_metrics(self, *args):
         """Set the evaluation metrics for the prediction model."""
@@ -306,8 +373,8 @@ class DLPredictionWrapper(DLWrapper):
             step_prefix (str): Step type, by default: test, train, val.
         """
 
-        if len(element) == 2:
-            data, labels = element[0], element[1].to(self.device)
+        if len(element) == 3:
+            data, labels, indicators = element[0], element[1].to(self.device), element[2]
             if isinstance(data, list):
                 for i in range(len(data)):
                     data[i] = data[i].float().to(self.device)
@@ -315,8 +382,8 @@ class DLPredictionWrapper(DLWrapper):
                 data = data.float().to(self.device)
             mask = torch.ones_like(labels).bool()
 
-        elif len(element) == 3:
-            data, labels, mask = element[0], element[1].to(self.device), element[2].to(self.device)
+        elif len(element) == 4:
+            data, labels, mask, indicators = element[0], element[1].to(self.device), element[2].to(self.device), element[3]
             if isinstance(data, list):
                 for i in range(len(data)):
                     data[i] = data[i].float().to(self.device)
@@ -335,16 +402,53 @@ class DLPredictionWrapper(DLWrapper):
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
         target = torch.masked_select(labels, mask).to(self.device)
 
+        # valid_idx is (batch, seq_len) boolean mask
+        valid_idx = mask.detach().cpu().numpy().astype(bool)
+
+        # indicators is (batch, seq_len, ...) or (batch, seq_len, 2)
+        indicators_np = indicators.detach().cpu().numpy()[valid_idx]
+        predictors = prediction.detach().cpu()
+        target_np = target.detach().cpu().numpy()
+        # transformed_predictors = torch.softmax(predictors, dim=1)
+        # transformed_predictors = transformed_predictors.numpy()
+        # Apply calibration for test step if available
+        if (step_prefix == "test" and hasattr(self, 'calibrated_model') and
+                self.calibrated_model is not None and self.run_mode == RunMode.classification):
+            # Get uncalibrated probabilities
+            uncalibrated_probs = torch.softmax(prediction, dim=1).cpu().numpy()
+            # Apply calibration
+            calibrated_probs = self.calibrated_model.predict_proba(uncalibrated_probs)
+            # Convert back to tensor for loss calculation (keeping original logits for loss)
+            calibrated_tensor = torch.tensor(calibrated_probs, device=self.device)
+            transformed_predictors = calibrated_probs
+            logging.info("Using calibrated predictions for test step")
+        else:
+            # Use uncalibrated predictions
+            predictors = prediction.detach().cpu()
+            transformed_predictors = torch.softmax(predictors, dim=1)
+            transformed_predictors = transformed_predictors.numpy()
+
+        # if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
+        #     # Classification task
+        #     loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
+        #     # Returns torch.long because negative log likelihood loss
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
             loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
-            # Returns torch.long because negative log likelihood loss
+            # Use calibrated probabilities for output transform in test step
+            if step_prefix == "test" and hasattr(self, 'calibrated_model') and self.calibrated_model is not None:
+                transformed_output = self.output_transform((calibrated_tensor, target))
+            else:
+                transformed_output = self.output_transform((prediction, target))
         elif self.run_mode == RunMode.regression:
             # Regression task
             loss = self.loss(prediction[:, 0], target.float()) + aux_loss
         else:
             raise ValueError(f"Run mode {self.run_mode} not yet supported. Please implement it.")
         transformed_output = self.output_transform((prediction, target))
+
+        # Save predictions to file
+        self._save_model_outputs(indicators_np, transformed_predictors, target_np)
 
         for key, value in self.metrics[step_prefix].items():
             if isinstance(value, torchmetrics.Metric):
@@ -358,6 +462,141 @@ class DLPredictionWrapper(DLWrapper):
         self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
         return loss
 
+    def setup_calibration(self, val_loader, method='isotonic'):
+        """
+        Setup model calibration using validation data for better probability estimates.
+
+        Args:
+            val_loader: Validation dataloader for calibration
+            method: 'isotonic' or 'sigmoid' calibration method
+
+        Returns:
+            float: Validation loss after calibration
+        """
+        if self.run_mode != RunMode.classification:
+            logging.warning("Calibration only supported for classification tasks")
+            return None
+
+        logging.info(f"Applying {method} calibration using validation data")
+
+        # Collect validation predictions and labels
+        self.eval()
+        val_probs = []
+        val_labels = []
+
+        with torch.no_grad():
+            for batch in val_loader:
+                if len(batch) == 3:
+                    data, labels, _ = batch
+                    mask = torch.ones_like(labels).bool()
+                elif len(batch) == 4:
+                    data, labels, mask, _ = batch
+                else:
+                    raise Exception("Loader should return either (data, label) or (data, label, mask)")
+
+                # Move to device
+                if isinstance(data, list):
+                    data = [d.float().to(self.device) for d in data]
+                else:
+                    data = data.float().to(self.device)
+                labels = labels.to(self.device)
+                mask = mask.to(self.device)
+
+                # Get model predictions
+                out = self(data)
+                if len(out) == 2 and isinstance(out, tuple):
+                    out, _ = out
+
+                # Apply mask and get probabilities
+                prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1])
+                target = torch.masked_select(labels, mask)
+
+                # Convert to probabilities
+                probs = torch.softmax(prediction, dim=1)
+
+                val_probs.append(probs.cpu().numpy())
+                val_labels.append(target.cpu().numpy())
+
+        # Concatenate all validation data
+        val_probs = np.vstack(val_probs)
+        val_labels = np.concatenate(val_labels)
+
+        # Create sklearn-compatible wrapper for the PyTorch model
+        class PytorchModelWrapper:
+            def __init__(self, model, device):
+                self.model = model
+                self.device = device
+                self.classes_ = np.arange(val_probs.shape[1])
+
+            def predict_proba(self, X):
+                # X should be the raw features, but we'll use pre-computed probabilities
+                # This is a simplified approach - in practice you'd need to handle the full pipeline
+                return X  # X is already probabilities in this case
+
+        # Use pre-computed probabilities for calibration
+        wrapper = PytorchModelWrapper(self, self.device)
+
+        # Create calibrated version
+        self.calibrated_model = CalibratedClassifierCV(
+            wrapper,
+            method=method,
+            cv='prefit'
+        )
+
+        # Fit calibration on validation probabilities
+        self.calibrated_model.fit(val_probs, val_labels)
+
+        # Calculate calibrated validation score
+        cal_val_pred = self.calibrated_model.predict_proba(val_probs)
+        cal_val_loss = self.loss_fn_numpy(val_labels, cal_val_pred)
+        orig_val_loss = self.loss_fn_numpy(val_labels, val_probs)
+
+        logging.info(f"Calibration complete. "
+                     f"Original val loss: {orig_val_loss:.4f}, "
+                     f"Calibrated val loss: {cal_val_loss:.4f}")
+
+        return cal_val_loss
+
+
+    def loss_fn_numpy(self, labels, probs):
+        """Convert tensor loss to numpy equivalent for calibration evaluation."""
+        if self.run_mode == RunMode.classification:
+            return log_loss(labels, probs)
+        else:
+            return mean_squared_error(labels, probs)
+
+
+    def predict_calibrated(self, features):
+        """Get calibrated predictions if calibration is available."""
+        if self.calibrated_model is None:
+            logging.warning("Calibration not set up. Using base model predictions.")
+            return self.predict_uncalibrated(features)
+
+        # Get base model probabilities
+        base_probs = self.predict_uncalibrated(features)
+
+        # Apply calibration
+        if isinstance(base_probs, torch.Tensor):
+            base_probs = base_probs.cpu().numpy()
+
+        cal_probs = self.calibrated_model.predict_proba(base_probs)
+        return torch.tensor(cal_probs, device=self.device)
+
+
+    def predict_uncalibrated(self, features):
+        """Get raw model predictions without calibration."""
+        self.eval()
+        with torch.no_grad():
+            if isinstance(features, list):
+                features = [f.float().to(self.device) for f in features]
+            else:
+                features = features.float().to(self.device)
+
+            out = self(features)
+            if len(out) == 2 and isinstance(out, tuple):
+                out, _ = out
+
+            return torch.softmax(out, dim=1)
 
 @gin.configurable("MLWrapper")
 class MLWrapper(BaseModule, ABC):
@@ -376,6 +615,7 @@ class MLWrapper(BaseModule, ABC):
         self.patience = patience
         self.mps = mps
         self.loss_weight = None
+        self.save_model_outputs = True
 
     def set_metrics(self, labels):
         if self.run_mode == RunMode.classification:
@@ -403,6 +643,43 @@ class MLWrapper(BaseModule, ABC):
                 self.label_transform = lambda x: x
             self.metrics = MLMetrics.REGRESSION
 
+    def setup_calibration(self, val_data, val_labels, method='sigmoid'):
+        """
+        Setup model calibration using validation data for better probability estimates.
+
+        Args:
+            val_data: Validation features for calibration
+            val_labels: Validation labels for calibration
+            method: 'isotonic' or 'sigmoid' calibration method
+
+        Returns:
+            float: Validation loss after calibration
+        """
+        if self.run_mode != RunMode.classification:
+            logging.warning("Calibration only supported for classification tasks")
+            return None
+
+        logging.info(f"Applying {method} calibration using validation data")
+
+        # Create calibrated version using validation data as holdout set
+        self.calibrated_model = CalibratedClassifierCV(
+            self.model,
+            method=method,
+            cv='prefit'  # Use prefit model with holdout validation set
+        )
+        self.calibrated_model.fit(val_data, val_labels)
+
+        # Calculate calibrated validation score
+        cal_val_pred = self.calibrated_model.predict_proba(val_data)
+        cal_val_loss = self.loss(val_labels, cal_val_pred)
+
+        logging.info(f"Calibration complete. "
+                     f"Original val loss: {self.loss(val_labels, self.model.predict_proba(val_data)):.4f}, "
+                     f"Calibrated val loss: {cal_val_loss:.4f}")
+
+        return cal_val_loss
+
+
     def fit(self, train_dataset, val_dataset):
         """Fit the model to the training data."""
         train_rep, train_label, row_indicators = train_dataset.get_data_and_labels()
@@ -414,6 +691,17 @@ class MLWrapper(BaseModule, ABC):
             self.model.set_params(class_weight=self.weight)
 
         val_loss = self.fit_model(train_rep, train_label, val_rep, val_label)
+        calibrate = True
+        method = "sigmoid"
+        # Apply calibration if desired
+        calibrate = True
+        if calibrate and self.run_mode == RunMode.classification:
+            cal_val_loss = self.setup_calibration(val_rep, val_label, method=method)
+            logging.info(f"Model calibrated. val loss {val_loss} Calibrated val loss: {cal_val_loss}")
+
+        if self.explain_features:
+            self.explainer_values_train = self._explain_model(train_rep, train_label)
+
 
         train_pred = self.predict(train_rep)
 
@@ -423,12 +711,13 @@ class MLWrapper(BaseModule, ABC):
         logging.debug(f"Train loss: {self.loss(train_label, train_pred)}")
         self.log("val/loss", val_loss, sync_dist=True)
         logging.debug(f"Val loss: {val_loss}")
-        self.log_metrics(train_label, train_pred, "train")
+        self.log_metrics(train_label, train_pred, "train", row_indicators)
 
     def fit_model(self, train_data, train_labels, val_data, val_labels):
         """Fit the model to the training data (default SKlearn syntax)"""
         self.model.fit(train_data, train_labels)
-        val_loss = 0.0
+        val_pred = self.predict(val_data)
+        val_loss = self.loss(val_labels, val_pred)
         return val_loss
 
     def validation_step(self, val_dataset, _):
@@ -442,6 +731,28 @@ class MLWrapper(BaseModule, ABC):
         logging.info(f"Val loss: {self.loss(val_label, val_pred)}")
         self.log_metrics(val_label, val_pred, "val")
 
+    def compare_rankings(self, features, labels):
+        """Compare rankings between base and calibrated models."""
+        base_probs = self.model.predict_proba(features)[:, 1]
+        cal_probs = self.calibrated_model.predict_proba(features)[:, 1]
+
+        # Check if rankings are identical
+        base_ranking = np.argsort(base_probs)
+        cal_ranking = np.argsort(cal_probs)
+
+        ranking_identical = np.array_equal(base_ranking, cal_ranking)
+
+        # Calculate metrics for both
+        from sklearn.metrics import roc_auc_score, average_precision_score
+        base_auroc = roc_auc_score(labels, base_probs)
+        cal_auroc = roc_auc_score(labels, cal_probs)
+        base_auprc = average_precision_score(labels, base_probs)
+        cal_auprc = average_precision_score(labels, cal_probs)
+        logging.info(f"ranking identical: {ranking_identical}")
+        logging.info(f"Base AUROC: {base_auroc}, Calibrated AUROC: {cal_auroc}, ")
+        logging.info(f"Base AUPRC: {base_auprc}, Calibrated AUPRC: {cal_auprc}, ")
+
+
     def test_step(self, dataset, _):
         test_rep, test_label, pred_indicators = dataset
         test_rep, test_label, pred_indicators = (
@@ -451,55 +762,115 @@ class MLWrapper(BaseModule, ABC):
         )
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
-        if self.debug:
+        # test_pred_uncalibrated = self.predict(test_rep, use_calibrated=False)False
+        self.compare_rankings(test_rep, test_label)
+        self.log_curves(test_label, test_pred, "test", pred_indicators)
+        # if self.debug:
+        if self.save_model_outputs:
             self._save_model_outputs(pred_indicators, test_pred, test_label)
         if self.explain_features:
-            self.explain_model(test_rep, test_label)
+            # self.explain_model(test_rep, test_label)
+            self.explainer_values_test = self._explain_model(test_rep, test_label)
+        if self.persist_reps:
+            self.rep_test = test_rep
+            self.label_test = test_label
         if self.mps:
             self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
-            self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
+            self.log_metrics(np.float32(test_label), np.float32(test_pred), "test", pred_indicators)
         else:
             self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
-            self.log_metrics(test_label, test_pred, "test")
-        logging.debug(f"Test loss: {self.loss(test_label, test_pred)}")
+            self.log_metrics(test_label, test_pred, "test", pred_indicators)
+        # logging.info(f"Test loss: {self.loss(test_label, test_pred)}, "
+        #              f"uncalibrated {self.loss(test_label,test_pred_uncalibrated)}")
 
-    def predict(self, features):
-        if self.run_mode == RunMode.regression:
-            return self.model.predict(features)
-        else:  # Classification: return probabilities
-            return self.model.predict_proba(features)
+    def predict(self, features, use_calibrated=True):
+        """Predict using calibrated model if available, otherwise use base model."""
+        if hasattr(self, 'calibrated_model') and use_calibrated:
+            if self.run_mode == RunMode.regression:
+                return self.calibrated_model.predict(features)
+            else:
+                return self.calibrated_model.predict_proba(features)
+        else:
+            if self.run_mode == RunMode.regression:
+                return self.model.predict(features)
+            else:
+                return self.model.predict_proba(features)
 
-    def log_metrics(self, label, pred, metric_type):
+
+    # def predict_with_preserved_ranking(self, features):
+    #     """Get calibrated probabilities while preserving base model ranking."""
+    #     base_probs = self.model.predict_proba(features)[:, 1]
+    #     cal_probs = self.calibrated_model.predict_proba(features)[:, 1]
+    #
+    #     # Get ranking from base model
+    #     ranking_indices = np.argsort(base_probs)
+    #
+    #     # Sort calibrated probabilities to match base model ranking
+    #     sorted_cal_probs = np.sort(cal_probs)
+    #
+    #     # Create output that preserves base ranking but uses calibrated values
+    #     result = np.zeros_like(cal_probs)
+    #     result[ranking_indices] = sorted_cal_probs
+    #
+    #     # Convert back to two-column format
+    #     return np.column_stack([1 - result, result])
+
+    def log_curves(self, label, pred, metric_type, pred_indicators):
+        for name, metric in self.metrics.items():
+            result = metric(self.label_transform(label), self.output_transform(pred))
+            if isinstance(result, tuple):
+                # Vertical stacking for saving to file
+                # result = tuple(arr.reshape(-1, 1) for arr in result)
+                log_single_metric_to_file(
+                    metric_name=name,
+                    data_points=result,
+                    output_file=Path(self.logger.save_dir) / f"{metric_type}_metrics_{name}.csv",
+                )
+
+    def log_metrics(self, label, pred, metric_type, pred_indicators):
         """Log metrics to the PL logs."""
-        if "Confusion_Matrix" in self.metrics:
-            self.log_dict(confusion_matrix(self.label_transform(label), self.output_transform(pred)), sync_dist=True)
-        self.log_dict(
-            {
-                f"{metric_type}/{name}": (metric(self.label_transform(label), self.output_transform(pred)))
-                # For every metric
-                for name, metric in self.metrics.items()
-                # Filter out metrics that return a tuple (e.g. precision_recall_curve)
-                if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
-                and name != "Confusion_Matrix"
-            },
-            sync_dist=True,
-        )
-
-    def _explain_model(self, test_rep, test_label):
-        if self.explainer is not None:
-            self.test_shap_values = self.explainer(test_rep)
+        if pred_indicators is None:
+            if "Confusion_Matrix" in self.metrics:
+                self.log_dict(confusion_matrix(self.label_transform(label), self.output_transform(pred)), sync_dist=True)
+            self.log_dict(
+                {
+                    f"{metric_type}/{name}": (metric(self.label_transform(label), self.output_transform(pred)))
+                    # For every metric
+                    for name, metric in self.metrics.items()
+                    # Filter out metrics that return a tuple (e.g. precision_recall_curve)
+                    if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
+                    and name != "Confusion_Matrix"
+                },
+                sync_dist=True,
+            )
         else:
-            logging.warning("No explainer or explain_features values set.")
+            if (
+                len(pred_indicators.shape) > 1
+                and len(pred.shape) > 1
+                and pred_indicators.shape[1] == pred.shape[1]
+                and pred_indicators.shape[0] == pred.shape[0]
+            ):
+                pred_indicators = np.hstack((pred_indicators, label.reshape(-1, 1)))
+                pred_indicators = np.hstack((pred_indicators, pred))
+                # Format: id, time (hours), ground truth, prediction 0, prediction 1
 
-    def _save_model_outputs(self, pred_indicators, test_pred, test_label):
-        if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1 and pred_indicators.shape[1] == test_pred.shape[1]:
-            pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
-            pred_indicators = np.hstack((pred_indicators, test_pred))
-            # Save as: id, time (hours), ground truth, prediction 0, prediction 1
-            np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",")
-            logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
-        else:
-            logging.warning("Could not save row indicators.")
+            # TODO: Implement alarm metrics using row indicators
+            if "Confusion_Matrix" in self.metrics:
+                self.log_dict(confusion_matrix(self.label_transform(label), self.output_transform(pred)), sync_dist=True)
+            self.log_dict(
+                {
+                    f"{metric_type}/{name}": (metric(self.label_transform(label), self.output_transform(pred)))
+                    # For every metric
+                    for name, metric in self.metrics.items()
+                    # Filter out metrics that return a tuple (e.g. precision_recall_curve)
+                    if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
+                    and name != "Confusion_Matrix"
+                },
+                sync_dist=True,
+            )
+
+
+
 
     def configure_optimizers(self):
         return None

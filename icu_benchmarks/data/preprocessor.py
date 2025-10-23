@@ -1,13 +1,14 @@
 import copy
-import logging
 import pickle
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, Union
+import logging
 
 import gin
 import pandas as pd
 import polars as pl
+import recipys
 import torch
 from numpy import nan as np_nan
 from recipys.recipe import Recipe
@@ -66,6 +67,24 @@ class Preprocessor(ABC):
 
             update_wandb_config({"imputation_model": self.imputation_model.__class__.__name__})
 
+    def vars_selection(self, input_variables, segment: str) -> Union[str, list[str]]:
+        if input_variables.get(segment, None) is None or len(input_variables[segment]) == 0:
+            logging.warning("No dynamic variables provided. Skipping dynamic preprocessing.")
+            return []  # Return empty list if no variables are provided
+        vars_to_apply: Union[str, list[str]]
+        if self.vars_to_exclude is not None:
+            # Exclude vars_to_exclude from missing indicator/ feature generation
+            vars_to_apply = list(set(input_variables[segment]) - set(self.vars_to_exclude))
+            logging.info(f"Excluding features: {len(self.vars_to_exclude)} : "
+            f"{self.vars_to_exclude if len(self.vars_to_exclude) < 10 else f'{self.vars_to_exclude[:10]}...'}...")
+            if len(vars_to_apply) == 0:
+                logging.warning(
+                    f"No variables left after excluding vars_to_exclude: {self.vars_to_exclude} for segment {segment}. "
+                    "Skipping preprocessing for this segment."
+                )
+        else:
+            vars_to_apply = input_variables[segment]
+        return vars_to_apply
 
 @gin.configurable("base_classification_preprocessor")
 class PolarsClassificationPreprocessor(Preprocessor):
@@ -157,25 +176,29 @@ class PolarsClassificationPreprocessor(Preprocessor):
         logging.debug(data[DataSplit.train][DataSegment.features].head())
         logging.debug(data[DataSplit.train][DataSegment.outcome])
 
-        if not isinstance(vars["SEQUENCE"], str):
-            raise TypeError(f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead')
-
-        for split in [DataSplit.train, DataSplit.val, DataSplit.test]:
-            if vars["SEQUENCE"] in data[split][DataSegment.outcome] and len(data[split][DataSegment.features]) != len(
-                data[split][DataSegment.outcome]
-            ):
-                raise Exception(
-                    f"Data and outcome length mismatch in {split} split: "
-                    f"features: {len(data[split][DataSegment.features])}, outcome: {len(data[split][DataSegment.outcome])}"
-                )
+        # if not isinstance(vars["SEQUENCE"], str):
+        #     raise TypeError(f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead')
+        if "SEQUENCE" in vars:
+            for split in [DataSplit.train, DataSplit.val, DataSplit.test]:
+                # Check if we have sequence in the outcome and the data and outcome length match
+                if vars["SEQUENCE"] in data[split][DataSegment.outcome] and len(data[split][DataSegment.features]) != len(
+                    data[split][DataSegment.outcome]
+                ):
+                    raise Exception(
+                        f"Data and outcome length mismatch in {split} split: "
+                        f"features: {len(data[split][DataSegment.features])}, outcome: {len(data[split][DataSegment.outcome])}"
+                    )
         data[DataSplit.train][DataSegment.features] = data[DataSplit.train][DataSegment.features].unique()
         data[DataSplit.val][DataSegment.features] = data[DataSplit.val][DataSegment.features].unique()
         data[DataSplit.test][DataSegment.features] = data[DataSplit.test][DataSegment.features].unique()
 
-        logging.info(f"Generate features: {self.generate_features}")
+        logging.debug(f"Generate features in preprocessing: {self.generate_features}")
         return data
 
     def _process_static(self, data: dict[str, dict[str, pl.DataFrame]], vars: dict[str, Union[str, list[str]]]):
+        vars_to_apply = self.vars_selection(input_variables=vars, segment=DataSegment.dynamic)
+        if len(vars_to_apply) == 0:
+            return data
         sta_rec = Recipe(data[DataSplit.train][DataSegment.static], [], vars[DataSegment.static])
         sta_rec.add_step(StepSklearn(MissingIndicator(features="all"), sel=all_of(vars[DataSegment.static]), in_place=False))
         if self.scaling:
@@ -209,27 +232,26 @@ class PolarsClassificationPreprocessor(Preprocessor):
         return data
 
     def _process_dynamic(self, data: dict[str, dict[str, pl.DataFrame]], vars: dict[str, Union[str, list[str]]]):
+        vars_to_apply = self.vars_selection(input_variables=vars, segment=DataSegment.dynamic)
+        if len(vars_to_apply) == 0:
+            return data
         dyn_rec = Recipe(
             data[DataSplit.train][DataSegment.dynamic], [], vars[DataSegment.dynamic], vars["GROUP"], vars["SEQUENCE"]
         )
         if self.scaling:
-            dyn_rec.add_step(StepScale())
+            dyn_rec.add_step(StepScale(sel=all_numeric_predictors(backend=recipys.constants.Backend.POLARS)))
         if self.imputation_model is not None:
             dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[DataSegment.dynamic])))
-
-        vars_to_apply: Union[str, list[str]]
-        if self.vars_to_exclude is not None:
-            # Exclude vars_to_exclude from missing indicator/ feature generation
-            vars_to_apply = list(set(vars[DataSegment.dynamic]) - set(self.vars_to_exclude))
-        else:
-            vars_to_apply = vars[DataSegment.dynamic]
         dyn_rec.add_step(StepSklearn(MissingIndicator(features="all"), sel=all_of(vars_to_apply), in_place=False))
         dyn_rec.add_step(StepImputeFill(strategy="forward"))
         dyn_rec.add_step(StepImputeFill(strategy="zero"))
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars_to_apply))
         data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
+        # logging.info(f"Data columns: {len(data[Split.train][Segment.dynamic].columns)} -> old columns: {len(old_columns)}, added columns: {set(data[Split.train][Segment.dynamic].columns) - set(old_columns)}")
         return data
+
+
 
     def _dynamic_feature_generation(self, data, dynamic_vars):
         logging.debug("Adding dynamic feature generation.")
@@ -398,12 +420,15 @@ class PandasClassificationPreprocessor(Preprocessor):
         logging.debug("Data head")
         logging.debug(data[DataSplit.train][DataSegment.features].head())
         logging.debug(data[DataSplit.train][DataSegment.outcome].head())
-        logging.info(f"Generate features: {self.generate_features}")
+        logging.debug(f"Generate features: {self.generate_features}")
         return data
 
     def _process_static(
         self, data: dict[str, dict[str, pd.DataFrame]], vars: dict[str, Union[str, list[str]]]
     ) -> dict[str, dict[str, pd.DataFrame]]:
+        vars_to_apply = self.vars_selection(input_variables=vars, segment=DataSegment.static)
+        if len(vars_to_apply) == 0:
+            return data
         sta_rec = Recipe(data[DataSplit.train][DataSegment.static], [], vars[DataSegment.static])
         if self.scaling:
             sta_rec.add_step(StepScale())
@@ -439,9 +464,15 @@ class PandasClassificationPreprocessor(Preprocessor):
     def _process_dynamic(
         self, data: dict[str, dict[str, pd.DataFrame]], vars: dict[str, Union[str, list[str]]]
     ) -> dict[str, dict[str, pd.DataFrame]]:
+        vars_to_apply = self.vars_selection(input_variables=vars, segment=DataSegment.dynamic)
+        if len(vars_to_apply) == 0:
+            return data
         dyn_rec = Recipe(
             data[DataSplit.train][DataSegment.dynamic], [], vars[DataSegment.dynamic], vars["GROUP"], vars["SEQUENCE"]
         )
+        vars_to_apply = self.vars_selection(input_variables=vars, segment=DataSegment.dynamic)
+        if len(vars_to_apply) == 0:
+            return data
         if self.scaling:
             dyn_rec.add_step(StepScale())
         if self.imputation_model is not None:

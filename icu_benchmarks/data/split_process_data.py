@@ -3,36 +3,36 @@ import hashlib
 import json
 import logging
 import os
-import pickle
-from pathlib import Path
 from timeit import default_timer as timer
 from typing import Any, Iterable, Optional, Union
-
 import gin
 import pandas as pd
 import polars as pl
 from sklearn.model_selection import KFold, ShuffleSplit, StratifiedKFold, StratifiedShuffleSplit
-
+import polars.selectors as cs
+from pathlib import Path
+import pickle
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.preprocessor import (
     PandasClassificationPreprocessor,
     PolarsClassificationPreprocessor,
-    PolarsRegressionPreprocessor,
     Preprocessor,
 )
 
 from .constants import DataSegment, DataSplit, VarType
+from .utils import check_sanitize_data, modality_selection
 
 
 @gin.configurable("preprocess")
 def preprocess_data(
     data_dir: Path,
     file_names: dict[str, str] | Any = gin.REQUIRED,
-    preprocessor: type[PolarsClassificationPreprocessor | PolarsRegressionPreprocessor] = PolarsClassificationPreprocessor,
+    preprocessor: type[Preprocessor] = PolarsClassificationPreprocessor,
     use_static: bool = True,
     vars: dict[str, str | list[str]] | Any = gin.REQUIRED,
     modality_mapping: Optional[dict[str, list[str]]] = None,
     selected_modalities: Optional[list[str]] = None,
+    exclude_preproc: list[str] = None,
     seed: int = 42,
     debug: bool = False,
     cv_repetitions: int = 5,
@@ -48,6 +48,9 @@ def preprocess_data(
     label: Optional[str] = None,
     required_var_types: Optional[list[str]] = None,
     required_segments: Optional[list[str]] = None,
+    reduce_sequence_steps: int = 0,
+    remove_short_stays: bool = True,
+    min_remaining_steps: int = 1,
 ) -> dict[str, dict[str, pl.DataFrame]]:
     """
     Perform loading, splitting, imputing and normalising of task data.
@@ -60,6 +63,9 @@ def preprocess_data(
         data_dir: Path to the directory holding the data.
         file_names: Contains the parquet file names in data_dir.
         vars: Contains the names of columns in the data.
+        modality_mapping: Mapping of modalities to column names.
+        selected_modalities: List of selected modalities to use.
+        exclude_preproc: List of modalities to exclude from preprocessing.
         seed: Random seed.
         debug: Load less data if true.
         cv_repetitions: Number of times to repeat cross validation.
@@ -70,7 +76,9 @@ def preprocess_data(
         generate_cache: Generate cached preprocessed data if true.
         fold_index: Index of the fold to return.
         pretrained_imputation_model: pretrained imputation model to use. if None, standard imputation is used.
-
+        reduce_sequence_steps: Number of steps to reduce sequence length.
+        remove_short_stays: Whether to remove stays that are shorter than reduce_sequence_steps.
+        min_remaining_steps: Minimum number of remaining steps after reduction to keep a stay.
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC) / DYNAMIC/ OUTCOME
             nested within split (train/val/test).
@@ -80,7 +88,7 @@ def preprocess_data(
     if selected_modalities is None:
         selected_modalities = ["all"]
     if required_var_types is None:
-        required_var_types = ["GROUP", "SEQUENCE", "LABEL"]
+        required_var_types = ["GROUP", "LABEL"]
     if required_segments is None:
         required_segments = [DataSegment.static, DataSegment.dynamic, DataSegment.outcome]
 
@@ -106,16 +114,24 @@ def preprocess_data(
     dumped_vars = json.dumps(vars, sort_keys=True)
 
     logging.info(f"Using preprocessor: {preprocessor.__name__}")
-
-    cat_clinical_notes = modality_mapping.get("cat_clinical_notes")
-    cat_med_embeddings_map = modality_mapping.get("cat_med_embeddings_map")
-    if cat_clinical_notes is not None and cat_med_embeddings_map is not None:
-        vars_to_exclude = cat_clinical_notes + cat_med_embeddings_map
-    else:
-        vars_to_exclude = None
-
     cache_dir = data_dir / "cache"
     cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
+
+    vars_to_exclude = []
+    if exclude_preproc is not None:
+        # Exclude variables from preprocessing based on modality:
+        # useful if modality has already undergone extensive preprocessing.
+        if modality_mapping is not None and len(modality_mapping) > 0:
+            for modality in exclude_preproc:
+                if modality in modality_mapping:
+                    vars_to_exclude.extend(modality_mapping.get(modality))
+                else:
+                    logging.warning(f"Modality '{modality}' not found in modality mapping.")
+            logging.info(
+                f"Excluding modalities in {exclude_preproc}. Total vars excluded from preprocessing: {len(vars_to_exclude)}"
+            )
+        else:
+            logging.warning("No modality mapping provided. Excluding variables from preprocessing will have no effect.")
     preprocessor_instance: Preprocessor = preprocessor(
         use_static_features=use_static,
         save_cache=data_dir / "preproc" / (cache_filename + "_recipe") if generate_cache else None,
@@ -138,12 +154,14 @@ def preprocess_data(
 
     # Read parquet files into dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
+    if not data_dir.exists():
+        raise FileNotFoundError(f"Data directory {data_dir} does not exist. Please check the path.")
     data: dict[str, pl.DataFrame] = {
         f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys() if os.path.exists(data_dir / file_names[f])
     }
 
-    logging.info(f"Loaded data: {list(data.keys())}")
-    sanitized_data = check_sanitize_data(data, vars)
+    logging.info(f"Loaded datasets: {list(data.keys())}")
+    sanitized_data, vars = check_sanitize_data(data, vars)
 
     if DataSegment.dynamic not in sanitized_data.keys():
         logging.warning("No dynamic data found, using only static data.")
@@ -156,6 +174,18 @@ def preprocess_data(
         else:
             logging.info("Selecting all modalities.")
 
+    # Reduce stays by sequence steps if requested
+    if reduce_sequence_steps > 0:
+        logging.info(f"Reducing stays by {reduce_sequence_steps} sequence steps")
+        if remove_short_stays:
+            logging.info(f"Removing stays with less than {min_remaining_steps} remaining steps after reduction.")
+        sanitized_data = reduce_stays_by_steps(
+            sanitized_data,
+            vars,
+            reduce_sequence_steps,
+            remove_short_stays,
+            min_remaining_steps
+        )
     # Generate the splits
     logging.info("Generating splits.")
     if not complete_train:
@@ -180,9 +210,9 @@ def preprocess_data(
     sanitized_data = preprocessor_instance.apply(sanitized_data, vars)
     end = timer()
     logging.info(f"Preprocessing took {end - start:.2f} seconds.")
-    logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
+    logging.debug(f"Checking for NaNs and nulls in {data.keys()}.")
     for _dict in sanitized_data.values():
-        for key, val in _dict.items():
+        for key, dataframe in _dict.items():
             logging.debug(f"Data type: {key}")
             logging.debug("Is NaN:")
             sel = _dict[key].select(pl.selectors.numeric().is_nan().max())
@@ -190,12 +220,49 @@ def preprocess_data(
             logging.debug("Has nulls:")
             sel = _dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
-            _dict[key] = val.fill_null(strategy="zero")
-            _dict[key] = val.fill_nan(0)
+            _dict[key] = dataframe.fill_null(strategy="zero")
+            _dict[key] = dataframe.fill_nan(0)
             logging.debug("Dropping columns with nulls")
             sel = _dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
+            logging.debug("Checking for infinite values.")
+            for col in dataframe.select(cs.numeric()).columns:
+                if dataframe[col].is_infinite().any():
+                    logging.warning(f"Column '{col}' contains infinite values. Datatype: {dataframe[col].dtype}")
 
+            max_float64 = 0
+            # Replace infinite values with the maximum value for float64
+            dataframe = dataframe.with_columns(
+                [
+                    pl.when(pl.col(col).is_infinite()).then(max_float64).otherwise(pl.col(col)).alias(col)
+                    for col in dataframe.columns
+                    if dataframe[col].dtype == pl.Float64
+                ]
+            )
+            _dict[key] = dataframe
+            logging.debug(f"Amount of columns: {len(dataframe.columns)}")
+    logging.info(f"{len(sanitized_data[DataSplit.train][DataSegment.features].columns)} columns in dynamic data.")
+    train_samples = len(sanitized_data[DataSplit.train][DataSegment.outcome])
+    val_samples = len(sanitized_data[DataSplit.val][DataSegment.outcome])
+    test_samples = len(sanitized_data[DataSplit.test][DataSegment.outcome])
+    train_incidence = sanitized_data[DataSplit.test][DataSegment.outcome][vars[VarType.label]]
+    val_incidence = sanitized_data[DataSplit.val][DataSegment.outcome][vars[VarType.label]]
+    test_incidence = sanitized_data[DataSplit.test][DataSegment.outcome][vars[VarType.label]]
+    total_samples = train_samples + val_samples + test_samples
+    logging.info(
+        f"Train segments: {train_samples} ({train_samples / total_samples:.1%}), "
+        f"Val segments: {val_samples} ({val_samples / total_samples:.1%}), "
+        f"Test segments: {test_samples} ({test_samples / total_samples:.1%})"
+    )
+    # Define the number of decimal places for rounding
+    decimal_places = 4  #
+    logging.info(
+        f"Train incidence: {train_incidence.mean():.{decimal_places}f}, STD {train_incidence.std():.{decimal_places}f}| "
+        f"Val incidence: {val_incidence.mean():.{decimal_places}f}, STD {val_incidence.std():.{decimal_places}f}| "
+        f"Test incidence: {test_incidence.mean():.{decimal_places}f}, STD {test_incidence.std():.{decimal_places}f}"
+    )
+
+    # logging.info(f"{len(ou)}")
     # Generate cache
     if generate_cache:
         caching(cache_dir, cache_file, sanitized_data, load_cache)
@@ -217,7 +284,7 @@ def flatten_column_names(*args: object) -> list[str]:
     return result
 
 
-def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | list[str]]) -> dict[str, pl.DataFrame]:
+def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | list[str]]) -> dict[str, pl.DataFrame]:  # noqa: F811
     """Check for duplicates in the loaded data and remove them."""
     group: Optional[Union[str, list[str]]] = vars.get(VarType.group)
     sequence: Optional[Union[str, list[str]]] = vars.get(VarType.sequence)
@@ -243,13 +310,13 @@ def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | lis
                 subset=flatten_column_names(group, sequence), keep=keep, maintain_order=True
             )
         else:
-            data[DataSegment.outcome] = data[DataSegment.outcome].unique(subset=group, keep=keep, maintain_order=True)
+            data[DataSegment.outcome] = data[DataSegment.outcome].unique(subset=[group], keep=keep, maintain_order=True)
         if old_len != len(data[DataSegment.outcome]):
             logging.warning(f"Removed {old_len - len(data[DataSegment.outcome])} duplicates from outcome data.")
-    return data
+    return data, vars
 
 
-def modality_selection(
+def modality_selection(  # noqa: F811
     data: dict[str, pl.DataFrame],
     modality_mapping: dict[str, list[str]],
     selected_modalities: list[str],
@@ -444,7 +511,7 @@ def make_single_split_pandas(
     repetition_index: int,
     cv_folds: int,
     fold_index: int,
-    train_size: Optional[float] = None,
+    train_size: Optional[float] = 0.80,
     seed: int = 42,
     debug: bool = False,
     runmode: RunMode = RunMode.classification,
@@ -557,8 +624,10 @@ def make_single_split_polars(
             outer_cv = StratifiedShuffleSplit(cv_repetitions, train_size=train_size)
         else:
             outer_cv = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
-
-        inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
+        if cv_folds > 2:
+            inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
+        else:
+            inner_cv = StratifiedShuffleSplit(cv_folds, train_size=0.75, random_state=seed)
         dev, test = list(outer_cv.split(stays, labels))[repetition_index]
         dev_stays = stays[dev]
         train, val = list(inner_cv.split(dev_stays, labels[dev]))[fold_index]
@@ -569,6 +638,7 @@ def make_single_split_polars(
             outer_cv = ShuffleSplit(cv_repetitions, train_size=train_size)
         else:
             outer_cv = KFold(cv_repetitions, shuffle=True, random_state=seed)
+
         inner_cv = KFold(cv_folds, shuffle=True, random_state=seed)
         dev, test = list(outer_cv.split(stays))[repetition_index]
         dev_stays = stays[dev]
@@ -666,3 +736,137 @@ def check_required_keys(vars, required_keys):
     missing_keys = [key for key in required_keys if key not in vars]
     if missing_keys:
         raise KeyError(f"Missing required keys in vars: {', '.join(missing_keys)}")
+
+
+def reduce_stays_by_steps(
+        data: dict[str, pl.DataFrame],
+        vars: dict[str, Union[str, list[str]]],
+        steps_to_remove: int,
+        remove_short_stays: bool = True,
+        min_remaining_steps: int = 1
+) -> dict[str, pl.DataFrame]:
+    """
+    Reduce stays by removing the last x sequence steps from each stay.
+
+    Args:
+        data: Dictionary containing DataFrames for different segments (DYNAMIC, STATIC, OUTCOME)
+        vars: Dictionary containing variable names including GROUP and SEQUENCE
+        steps_to_remove: Number of sequence steps to remove from the end of each stay
+        remove_short_stays: Whether to remove stays that have fewer steps than steps_to_remove
+        min_remaining_steps: Minimum number of steps that must remain after reduction
+
+    Returns:
+        Modified data dictionary with reduced stays
+    """
+    if steps_to_remove <= 0:
+        logging.warning("steps_to_remove must be positive. No changes made.")
+        return data
+
+    group_var = vars[VarType.group]
+    sequence_var = vars[VarType.sequence]
+
+    if not isinstance(group_var, str) or not isinstance(sequence_var, str):
+        raise TypeError(f"GROUP and SEQUENCE variables must be strings, got {type(group_var)} and {type(sequence_var)}")
+
+    # Check if we have dynamic data with sequences
+    if DataSegment.dynamic not in data:
+        logging.warning("No dynamic data found. Cannot reduce stays by sequence steps.")
+        return data
+
+    dynamic_data = data[DataSegment.dynamic]
+
+    # Get stay lengths from dynamic data
+    stay_lengths = dynamic_data.group_by(group_var).len().sort(group_var)
+    total_stays = stay_lengths.height
+
+    stays_to_remove = []
+    stays_modified = 0
+
+    # Identify stays that are too short
+    short_stays = stay_lengths.filter(pl.col("len") <= steps_to_remove)
+    if short_stays.height > 0:
+        short_stay_ids = short_stays[group_var].to_list()
+        if remove_short_stays:
+            stays_to_remove.extend(short_stay_ids)
+            logging.info(f"Removing {len(short_stay_ids)} stays with <= {steps_to_remove} steps: {short_stay_ids}")
+        else:
+            logging.warning(
+                f"Found {len(short_stay_ids)} stays with <= {steps_to_remove} steps. Keeping them unchanged.")
+
+    # Identify stays that would have too few remaining steps
+    insufficient_stays = stay_lengths.filter(
+        (pl.col("len") > steps_to_remove) &
+        (pl.col("len") - steps_to_remove < min_remaining_steps)
+    )
+    if insufficient_stays.height > 0:
+        insufficient_stay_ids = insufficient_stays[group_var].to_list()
+        if remove_short_stays:
+            stays_to_remove.extend(insufficient_stay_ids)
+            logging.info(
+                f"Removing {len(insufficient_stay_ids)} stays that would have < {min_remaining_steps} steps after reduction: {insufficient_stay_ids}")
+        else:
+            logging.warning(
+                f"Found {len(insufficient_stay_ids)} stays that would have < {min_remaining_steps} steps after reduction. Keeping them unchanged.")
+
+    # Remove identified stays from all data segments
+    if stays_to_remove:
+        for segment in data:
+            original_length = data[segment].height
+            data[segment] = data[segment].filter(~pl.col(group_var).is_in(stays_to_remove))
+            removed_count = original_length - data[segment].height
+            logging.info(f"Removed {removed_count} rows from {segment} segment")
+
+    # Reduce remaining stays by removing last steps from dynamic data
+    valid_stays = stay_lengths.filter(
+        (pl.col("len") > steps_to_remove) &
+        (pl.col("len") - steps_to_remove >= min_remaining_steps) &
+        (~pl.col(group_var).is_in(stays_to_remove))
+    )[group_var].to_list()
+
+    if valid_stays:
+        # For dynamic data: keep only the first (total_length - steps_to_remove) rows per stay
+        reduced_dynamic_parts = []
+        unchanged_dynamic = data[DataSegment.dynamic].filter(~pl.col(group_var).is_in(valid_stays + stays_to_remove))
+
+        for stay_id in valid_stays:
+            stay_data = data[DataSegment.dynamic].filter(pl.col(group_var) == stay_id)
+            current_length = stay_data.height
+            keep_length = current_length - steps_to_remove
+
+            # Sort by sequence and keep first keep_length rows
+            reduced_stay = stay_data.sort(sequence_var).head(keep_length)
+            reduced_dynamic_parts.append(reduced_stay)
+            stays_modified += 1
+
+        # Reconstruct dynamic data
+        if reduced_dynamic_parts:
+            data[DataSegment.dynamic] = pl.concat([unchanged_dynamic] + reduced_dynamic_parts).sort(
+                [group_var, sequence_var])
+
+        # Handle outcome data if it has sequence information (sequence-to-sequence case)
+        if DataSegment.outcome in data and sequence_var in data[DataSegment.outcome].columns:
+            logging.info("Outcome data has sequence information. Reducing outcome sequences to match dynamic data.")
+
+            reduced_outcome_parts = []
+            unchanged_outcome = data[DataSegment.outcome].filter(
+                ~pl.col(group_var).is_in(valid_stays + stays_to_remove))
+
+            for stay_id in valid_stays:
+                stay_outcome = data[DataSegment.outcome].filter(pl.col(group_var) == stay_id)
+                current_length = stay_outcome.height
+                keep_length = current_length - steps_to_remove
+
+                # Sort by sequence and keep first keep_length rows
+                reduced_outcome = stay_outcome.sort(sequence_var).head(keep_length)
+                reduced_outcome_parts.append(reduced_outcome)
+
+            # Reconstruct outcome data
+            if reduced_outcome_parts:
+                data[DataSegment.outcome] = pl.concat([unchanged_outcome] + reduced_outcome_parts).sort(
+                    [group_var, sequence_var])
+
+    logging.info(f"Stay reduction complete: {stays_modified} stays modified, "
+                 f"{len(stays_to_remove)} stays removed, "
+                 f"{total_stays - len(stays_to_remove)} stays remaining")
+
+    return data

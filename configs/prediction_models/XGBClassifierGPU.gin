@@ -4,9 +4,9 @@
 include "configs/prediction_models/common/MLCommon.gin"
 
 # Train params
-train_common.model = @XGBClassifier
+train_common.model = @XGBClassifierGPU
 
-model/hyperparameter.class_to_tune = @XGBClassifier
+model/hyperparameter.class_to_tune = @XGBClassifierGPU
 model/hyperparameter.learning_rate = (0.01, 0.1, "log")
 model/hyperparameter.n_estimators = [50, 100, 250, 500, 750, 1000,1500,2000, 2500, 3000, 3500, 4000, 4500, 5000]
 model/hyperparameter.max_depth = [3, 5, 10, 15]

@@ -1,0 +1,74 @@
+command:
+  - ${env}
+  - ${program}
+  - train
+  - -d
+  - ../data/
+  - -t
+#  - BinaryClassification
+  - CassClassification
+  - --log-dir
+  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
+  - --tune
+  - --wandb-sweep
+  - -tn
+  - SSI
+  - --hp-checkpoint
+  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-21T17:08:54/SSI/GRU/2025-08-28T10-30-02.002119/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/SSI/CBClassifier/2025-08-13T11-36-55.269201/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/SSI/GRU/2025-08-10T10-57-05.448548/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/SSI/Transformer/2025-08-10T10-59-28.332900/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/SSI/RFClassifier/2025-08-11T10-10-03.033462/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/SSI/CBClassifier/2025-08-10T10-53-33.604092/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31/SSI/LGBMClassifier/2025-08-11T10-09-52.484304/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
+  - --modalities
+  - "all"
+  - --file-names
+  - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+#  - --explain_features
+#  - --verbose
+  - --load_data_vars
+method: grid
+name: yaib_classification_benchmark
+parameters:
+  data_dir:
+    values:
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-21T17:08:54"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-05T12:05:19"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-05T12:24:09"
+  model:
+    values:
+#      - LogisticRegression
+##      - TimesNet
+#      - LGBMClassifier
+##      - XGBClassifier
+#      - CBClassifier
+#      - BRFClassifier
+#      - XGBEnsembleClassifier
+#      - RUSBClassifier
+#      - RFClassifier
+      - GRU
+#      - LSTM
+#      - TCN
+#      - Transformer
+  modalities:
+    values:
+#      - "all"
+        - [ top_500_features ]
+  file_names:
+    values:
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_3.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_12.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_18.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_24.parquet","STATIC":"sta.parquet"'
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks
