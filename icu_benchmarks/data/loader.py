@@ -111,7 +111,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         window = (
             self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id).select(pl.exclude(self.vars["GROUP"])).to_numpy()
         )
-        labels = self.outcome_df.filter(pl.col(self.vars["GROUP"]) == stay_id)[self.vars["LABEL"]].to_numpy().astype(float)
+        labels = self.outcome_df.filter(pl.col(self.vars["GROUP"]) == stay_id)[self.vars["LABEL"]].to_numpy().astype(np.float32)
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -157,7 +157,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         Returns:
             A Tuple containing data points and label for the split.
         """
-        labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(float)
+        labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(np.float32)
         rep = self.features_df
 
         if len(labels) == self.num_stays:
@@ -166,17 +166,19 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         else:
             # Adding segment count for each stay id and timestep.
             rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
-        rep = rep.to_numpy().astype(float)
+        rep = rep.to_numpy().astype(np.float32)
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
         return rep, labels, self.row_indicators.to_numpy()
 
-    def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], Union[Tensor, np.ndarray], Union[Tensor, np.ndarray]]:
+    def to_tensor(self) -> tuple[Tensor, Tensor, Tensor]:
         data, labels, row_indicators = self.get_data_and_labels()
-        if self.mps:
-            return from_numpy(data).to(float32), from_numpy(labels).to(float32), from_numpy(row_indicators).to(float32)
-        else:
-            return from_numpy(data), from_numpy(labels), row_indicators
+        # Always use float32 for memory efficiency and MPS compatibility
+        return (
+            from_numpy(data),
+            from_numpy(labels),
+            from_numpy(row_indicators.astype(np.float32)),
+        )
 
 
 @gin.configurable("CommonPandasDataset")
@@ -271,7 +273,7 @@ class PredictionPandasDataset(CommonPandasDataset):
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id].to_numpy()
-        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
+        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=np.float32)
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -315,21 +317,19 @@ class PredictionPandasDataset(CommonPandasDataset):
         Returns:
             A Tuple containing data points and label for the split.
         """
-        labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(float)
+        labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(np.float32)
         rep = self.features_df
         if len(labels) == self.num_stays:
             # order of groups could be random, we make sure not to change it
             rep = rep.groupby(level=self.vars["GROUP"], sort=False).last()
-        rep = rep.to_numpy().astype(float)
+        rep = rep.to_numpy().astype(np.float32)
 
         return rep, labels
 
-    def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], Union[Tensor, np.ndarray]]:
+    def to_tensor(self) -> tuple[Tensor, Tensor]:
         data, labels = self.get_data_and_labels()
-        if self.mps:
-            return from_numpy(data).to(float32), from_numpy(labels).to(float32)
-        else:
-            return from_numpy(data), from_numpy(labels)
+        # Always use float32 for memory efficiency and MPS compatibility
+        return from_numpy(data), from_numpy(labels)
 
 
 @gin.configurable("ImputationPandasDataset")
