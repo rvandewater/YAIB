@@ -90,28 +90,30 @@ class PredictionPolarsDataset(CommonPolarsDataset):
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
         self.outcome_df = self.grouping_df
+
+        # One-pass partition keyed by stay id. Avoids the O(N_stays) full-frame filter
+        # that previously ran inside every __getitem__.
+        GROUP = self.vars["GROUP"]
+        LABEL = self.vars["LABEL"]
+        label_partitions = self.outcome_df.partition_by(GROUP, maintain_order=True)
+        feat_partitions = self.features_df.partition_by(GROUP, maintain_order=True)
+        self._stay_order = [part[GROUP][0] for part in label_partitions]
+        self._feat_arrays = {
+            part[GROUP][0]: part.select(pl.exclude(GROUP)).to_numpy().astype(np.float32)
+            for part in feat_partitions
+        }
+        self._label_arrays = {
+            part[GROUP][0]: part[LABEL].to_numpy().astype(np.float32) for part in label_partitions
+        }
+
         self.ram_cache(ram_cache)
 
-    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor, Tensor]:
-        """Function to sample from the data split of choice. Used for deep learning implementations.
-
-        Args:
-            idx: A specific row index to sample.
-
-        Returns:
-            A sample from the data, consisting of data, labels and padding mask.
-        """
-        if self._cached_dataset is not None:
-            return self._cached_dataset[idx]
-
+    def _build_item(self, idx: int) -> tuple[Tensor, Tensor, Tensor]:
         pad_value = 0.0
-        stay_id = self.outcome_df[self.vars["GROUP"]].unique()[idx]  # [self.vars["GROUP"]]
+        stay_id = self._stay_order[idx]
 
-        # slice to make sure to always return a DF
-        window = (
-            self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id).select(pl.exclude(self.vars["GROUP"])).to_numpy()
-        )
-        labels = self.outcome_df.filter(pl.col(self.vars["GROUP"]) == stay_id)[self.vars["LABEL"]].to_numpy().astype(np.float32)
+        window = self._feat_arrays[stay_id]
+        labels = self._label_arrays[stay_id]
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -122,7 +124,6 @@ class PredictionPolarsDataset(CommonPolarsDataset):
 
         # Padding the array to fulfill size requirement
         if length_diff > 0:
-            # window shorter than the longest window in dataset, pad to same length
             window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
             labels = np.concatenate([labels, np.ones(length_diff) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
@@ -137,6 +138,19 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         data = window.astype(np.float32)
 
         return from_numpy(data), from_numpy(labels), from_numpy(pad_mask)
+
+    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor, Tensor]:
+        """Function to sample from the data split of choice. Used for deep learning implementations.
+
+        Args:
+            idx: A specific row index to sample.
+
+        Returns:
+            A sample from the data, consisting of data, labels and padding mask.
+        """
+        if self._cached_dataset is not None:
+            return self._cached_dataset[idx]
+        return self._build_item(idx)
 
     def get_balance(self) -> list:
         """Return the weight balance for the split of interest.
