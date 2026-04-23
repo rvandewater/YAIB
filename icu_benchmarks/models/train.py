@@ -42,7 +42,7 @@ def train_common(
     model: DLModel | MLModelClassifier | MLModelRegression | object = gin.REQUIRED,
     weight: str = "",
     optimizer: type = Adam,
-    precision: Optional[Literal[16] | Literal[32] | Literal[64] | Literal["16-true"]] = 32,
+    precision: Optional[Literal[16] | Literal[32] | Literal[64] | str] = 32,
     batch_size: int = 1,
     epochs: int = 100,
     patience: int = 20,
@@ -154,8 +154,8 @@ def train_common(
     ]
     if verbose:
         callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
-    if precision == 16 or "16-mixed":
-        torch.set_float32_matmul_precision("medium")
+    if precision in (16, "16-mixed", "bf16", "bf16-mixed"):
+        torch.set_float32_matmul_precision("high")
 
     trainer = Trainer(
         max_epochs=epochs if model.requires_backprop else 1,
