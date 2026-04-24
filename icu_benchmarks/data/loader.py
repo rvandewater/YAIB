@@ -102,9 +102,14 @@ class PredictionPolarsDataset(CommonPolarsDataset):
             part[GROUP][0]: part.select(pl.exclude(GROUP)).to_numpy().astype(np.float32)
             for part in feat_partitions
         }
+        for arr in self._feat_arrays.values():
+            arr.setflags(write=False)
+    
         self._label_arrays = {
             part[GROUP][0]: part[LABEL].to_numpy().astype(np.float32) for part in label_partitions
         }
+        for arr in self._label_arrays.values():
+            arr.setflags(write=False)
 
         self.ram_cache(ram_cache)
 
@@ -113,7 +118,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         stay_id = self._stay_order[idx]
 
         window = self._feat_arrays[stay_id]
-        labels = self._label_arrays[stay_id]
+        labels = self._label_arrays[stay_id].copy() # copy to avoid in-place NaN replacement
 
         if len(labels) == 1:
             # only one label per stay, align with window
