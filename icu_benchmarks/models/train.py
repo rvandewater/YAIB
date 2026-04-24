@@ -118,7 +118,7 @@ def train_common(
         num_workers=num_workers,
         drop_last=True,
         persistent_workers=persistent_workers,
-        pin_memory=True,
+        pin_memory=not cpu,
     )
     val_loader = DataLoader(
         val_dataset,
@@ -127,7 +127,7 @@ def train_common(
         num_workers=num_workers,
         drop_last=True,
         persistent_workers=persistent_workers,
-        pin_memory=True,
+        pin_memory=not cpu,
     )
 
     data_shape = next(iter(train_loader))[0].shape
@@ -196,7 +196,7 @@ def train_common(
             batch_size=min(batch_size * 4, len(test_dataset)),
             shuffle=False,
             num_workers=num_workers,
-            pin_memory=True,
+            pin_memory=not cpu,
             drop_last=True,
             persistent_workers=persistent_workers,
         )
