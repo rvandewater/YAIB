@@ -192,11 +192,11 @@ class PredictionPolarsDataset(CommonPolarsDataset):
 
     def to_tensor(self) -> tuple[Tensor, Tensor, Tensor]:
         data, labels, row_indicators = self.get_data_and_labels()
-        # Always use float32 for memory efficiency and MPS compatibility
+
         return (
             from_numpy(data),
             from_numpy(labels),
-            from_numpy(row_indicators.astype(np.float32)),
+            from_numpy(row_indicators),
         )
 
 
