@@ -51,6 +51,7 @@ def preprocess_data(
     reduce_sequence_steps: int = 0,
     remove_short_stays: bool = True,
     min_remaining_steps: int = 1,
+    filter_segments_test: int = None
 ) -> dict[str, dict[str, pl.DataFrame]]:
     """
     Perform loading, splitting, imputing and normalising of task data.
@@ -79,6 +80,7 @@ def preprocess_data(
         reduce_sequence_steps: Number of steps to reduce sequence length.
         remove_short_stays: Whether to remove stays that are shorter than reduce_sequence_steps.
         min_remaining_steps: Minimum number of remaining steps after reduction to keep a stay.
+        filter_segments_test: If not None, filter test segments to only those with the given value in the "icu_stay" column.
     Returns:
         Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC) / DYNAMIC/ OUTCOME
             nested within split (train/val/test).
@@ -175,7 +177,7 @@ def preprocess_data(
             logging.info("Selecting all modalities.")
 
     # Reduce stays by sequence steps if requested
-    if reduce_sequence_steps > 0:
+    if isinstance(reduce_sequence_steps, int) and reduce_sequence_steps > 0:
         logging.info(f"Reducing stays by {reduce_sequence_steps} sequence steps")
         if remove_short_stays:
             logging.info(f"Removing stays with less than {min_remaining_steps} remaining steps after reduction.")
@@ -204,6 +206,19 @@ def preprocess_data(
     else:
         # If full train is set, we use all data for training/validation
         sanitized_data = make_train_val_polars(data, vars, train_size=None, seed=seed, debug=debug, runmode=runmode)
+    # Filter test segments to only certain stays if requested
+    if filter_segments_test is not None:
+        logging.info(f"Filtering to segments test with value: {filter_segments_test}")
+        test_split = sanitized_data[DataSplit.test]
+        old_len = len(test_split[DataSegment.dynamic])
+        old_ids = test_split[DataSegment.outcome][vars[VarType.group]].unique().to_list()
+        if DataSegment.dynamic in test_split:
+            test_split[DataSegment.dynamic] = test_split[DataSegment.dynamic].filter(pl.col("icu_stay")==filter_segments_test)
+        test_split[DataSegment.outcome] = test_split[DataSegment.outcome].filter(pl.col("icu_stay")==filter_segments_test)
+        logging.info(f"Filtered test dynamic data from {old_len} to {len(test_split[DataSegment.outcome])} stay segments")
+        new_ids = test_split[DataSegment.outcome][vars[VarType.group]].unique().to_list()
+        logging.info(f"Filtered test stays from {len(old_ids)} to {len(new_ids)} stays")
+        sanitized_data[DataSplit.test] = test_split
 
     # Apply preprocessing
     start = timer()
