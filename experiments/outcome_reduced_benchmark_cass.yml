@@ -1,0 +1,81 @@
+command:
+  - ${env}
+  - ${program}
+  - train
+  - -d
+  - ../data/
+  - -t
+#  - BinaryClassification
+  - CassClassification
+  - --log-dir
+  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
+  - --tune
+  - --wandb-sweep
+  - -tn
+  - SSI
+  - --hp-checkpoint
+  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-16T14-25-18.724819/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
+  - --modalities
+  - "all"
+  - --file-names
+  - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+#  - --explain_features
+#  - --verbose
+  - --load_data_vars
+  - --reduce_stay_steps
+  - 0
+method: grid
+name: outcome_reduced_benchmark_cass
+parameters:
+  data_dir:
+    values:
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-21T17:08:54"
+  model:
+    values:
+#      - LogisticRegression
+#      - TimesNet
+      - LGBMClassifier
+#      - XGBClassifier
+#      - RUSBClassifier
+#      - CBClassifier
+#      - BRFClassifier
+#      - RFClassifier
+#      - GRU
+#      - LSTM
+#      - TCN
+#      - Transformer
+  modalities:
+    values:
+      - "all"
+#        - [ top_250_featuresres ]
+#        - [ top_100_features ]
+#        - [ top_250_features ]
+#        - [ top_500_features ]
+#        - [ top_1000_features ]
+#        - [ top_2000_features ]
+  reduce_stay_steps:
+    values:
+      - 0 # no reduction
+#      - 4 # 2 hours before outcome
+#      - 10 # 5 hours before outcome
+#      - 22 # 11 hours before outcome
+#      - 34 # 17 hours before outcome
+#      - 46 # 23 hours before outcome
+  file_names:
+    values:
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_1.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_3.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_12.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_18.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_24.parquet","STATIC":"sta.parquet"'
+  seed:
+    values:
+      - 1111
+  use_pretrained_imputation:
+    values:
+      - None
+program: icu-benchmarks

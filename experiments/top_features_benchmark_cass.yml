@@ -14,26 +14,31 @@ command:
   - -tn
   - SSI
   - --hp-checkpoint
-  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
+  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-23T15-55-41.359233/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.25_horizon_6:00:00_transfer_full_2025-08-07T20:09:44/SSI/XGBClassifier/2025-08-08T10-30-09.905452/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
+##  - Mortality
+#  - --verbose
   - --modalities
   - "all"
   - --file-names
   - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
-#  - --explain_features
+  - --explain_features
 #  - --verbose
   - --load_data_vars
 method: grid
-name: yaib_classification_benchmark
+name: cass_top_features_benchmark
 parameters:
   data_dir:
     values:
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-21T17:08:54"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46"
   model:
     values:
 #      - LogisticRegression
 #      - TimesNet
-#      - LGBMClassifier
-      - XGBClassifier
+      - LGBMClassifier
+#      - XGBClassifier
 #      - RUSBClassifier
 #      - CBClassifier
 #      - BRFClassifier
@@ -45,12 +50,12 @@ parameters:
   modalities:
     values:
 #      - "all"
-        - [ top_50_features ]
+#        - [ top_50_features ]
 #        - [ top_100_features ]
         - [ top_250_features ]
-        - [ top_500_features ]
-        - [ top_1000_features ]
-        - [ top_2000_features ]
+#        - [ top_500_features ]
+#        - [ top_1000_features ]
+#        - [ top_2000_features ]
 #      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_medications, cat_clinical_notes, wearable_activity, wearable_core, wearable_ppgfeature, wearable_ppgembedding, static, static_retro_icu, static_retro_pre_intra ] # missing:hour
       #      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_clinical_notes, cat_clinical_notes, static]
 #      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, cat_clinical_notes, wearable_activity, wearable_core, static]
