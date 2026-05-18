@@ -75,7 +75,7 @@ class Preprocessor(ABC):
         if self.vars_to_exclude is not None:
             # Exclude vars_to_exclude from missing indicator/ feature generation
             vars_to_apply = list(set(input_variables[segment]) - set(self.vars_to_exclude))
-            logging.info(f"Excluding features: {len(self.vars_to_exclude)} : "
+            logging.info(f"Excluding features from in-built preprocessing: {len(self.vars_to_exclude)} : "
             f"{self.vars_to_exclude if len(self.vars_to_exclude) < 10 else f'{self.vars_to_exclude[:10]}...'}...")
             if len(vars_to_apply) == 0:
                 logging.warning(
