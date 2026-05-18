@@ -7,7 +7,7 @@ gin-config==0.5.0
 pytorch-ignite==0.5.1
 # Note: versioning of Pytorch might be dependent on compatible CUDA version.
 # Please check yourself if your Pytorch installation supports cuda (for gpu acceleration)
-torch==2.6.0+cu118
+torch==2.6.0 #+cu118
 lightning==2.4.0
 torchmetrics==1.0.3
 lightgbm==4.6.0
@@ -32,5 +32,6 @@ recipies==1.0
 scikit-optimize-fix==0.9.1
 hydra-submitit-launcher==1.2.0
 pytest-runner==6.0.1
-shap==0.46.0
+shap==0.49.1
+numba==0.60.0
 
