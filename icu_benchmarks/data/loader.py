@@ -51,7 +51,8 @@ class CommonPolarsDataset(Dataset):
             self.row_indicators = data[split][DataSegment.features][self.vars["GROUP"]]
             self.features_df = data[split][DataSegment.features]
             # Series with unique values
-            self.row_indicators = self.row_indicators.sort()
+            self.row_indicators = self.row_indicators.sort(self.vars["GROUP"])
+            self.features_df = self.features_df.sort(self.vars["GROUP"])
         # calculate basic info for the data
         self.num_stays = self.grouping_df[self.vars["GROUP"]].unique().shape[0]
         self.maxlen = self.features_df.group_by([self.vars["GROUP"]]).len().max().item(0, 1)
@@ -83,6 +84,114 @@ class CommonPolarsDataset(Dataset):
                 values[i].append(value.unsqueeze(0))
         return tuple(cat(value, dim=0) for value in values)
 
+    def reduce_stays_by_steps(
+            self,
+            steps_to_remove: int,
+            remove_short_stays: bool = True,
+            min_remaining_steps: int = 1
+    ) -> 'CommonPolarsDataset':
+        """
+        Reduce stays by removing the last x sequence steps from each stay.
+
+        Args:
+            steps_to_remove: Number of sequence steps to remove from the end of each stay
+            remove_short_stays: Whether to remove stays that have fewer steps than steps_to_remove
+            min_remaining_steps: Minimum number of steps that must remain after reduction
+
+        Returns:
+            Modified dataset with reduced stays
+        """
+        if "SEQUENCE" not in self.vars:
+            logging.warning("No sequence column found. Cannot reduce stays by steps.")
+            return self
+
+        if steps_to_remove <= 0:
+            logging.warning("steps_to_remove must be positive. No changes made.")
+            return self
+
+        # Get stay lengths before reduction
+        stay_lengths = self.features_df.group_by(self.vars["GROUP"]).len().sort(self.vars["GROUP"])
+        stays_to_remove = []
+        stays_modified = 0
+
+        # Identify stays that are too short
+        short_stays = stay_lengths.filter(pl.col("len") <= steps_to_remove)
+        if short_stays.height > 0:
+            short_stay_ids = short_stays[self.vars["GROUP"]].to_list()
+            if remove_short_stays:
+                stays_to_remove.extend(short_stay_ids)
+                logging.info(f"Removing {len(short_stay_ids)} stays with <= {steps_to_remove} steps: {short_stay_ids}")
+            else:
+                logging.warning(
+                    f"Found {len(short_stay_ids)} stays with <= {steps_to_remove} steps. Keeping them unchanged.")
+
+        # Identify stays that would have too few remaining steps
+        insufficient_stays = stay_lengths.filter(
+            (pl.col("len") > steps_to_remove) &
+            (pl.col("len") - steps_to_remove < min_remaining_steps)
+        )
+        if insufficient_stays.height > 0:
+            insufficient_stay_ids = insufficient_stays[self.vars["GROUP"]].to_list()
+            if remove_short_stays:
+                stays_to_remove.extend(insufficient_stay_ids)
+                logging.info(
+                    f"Removing {len(insufficient_stay_ids)} stays that would have < {min_remaining_steps} steps after reduction: {insufficient_stay_ids}")
+            else:
+                logging.warning(
+                    f"Found {len(insufficient_stay_ids)} stays that would have < {min_remaining_steps} steps after reduction. Keeping them unchanged.")
+
+        # Remove identified stays from all dataframes
+        if stays_to_remove:
+            self.features_df = self.features_df.filter(~pl.col(self.vars["GROUP"]).is_in(stays_to_remove))
+            self.row_indicators = self.row_indicators.filter(~pl.col(self.vars["GROUP"]).is_in(stays_to_remove))
+            self.grouping_df = self.grouping_df.filter(~pl.col(self.vars["GROUP"]).is_in(stays_to_remove))
+
+        # Reduce remaining stays by removing last steps
+        valid_stays = stay_lengths.filter(
+            (pl.col("len") > steps_to_remove) &
+            (pl.col("len") - steps_to_remove >= min_remaining_steps)
+        )[self.vars["GROUP"]].to_list()
+
+        if valid_stays:
+            # For each valid stay, keep only the first (total_length - steps_to_remove) rows
+            reduced_features = []
+            reduced_indicators = []
+
+            for stay_id in valid_stays:
+                stay_data = self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id)
+                stay_indicators = self.row_indicators.filter(pl.col(self.vars["GROUP"]) == stay_id)
+
+                current_length = stay_data.height
+                keep_length = current_length - steps_to_remove
+
+                # Keep first keep_length rows
+                reduced_features.append(stay_data.head(keep_length))
+                reduced_indicators.append(stay_indicators.head(keep_length))
+                stays_modified += 1
+
+            if reduced_features:
+                self.features_df = pl.concat(reduced_features + [
+                    self.features_df.filter(~pl.col(self.vars["GROUP"]).is_in(valid_stays + stays_to_remove))
+                ])
+                self.row_indicators = pl.concat(reduced_indicators + [
+                    self.row_indicators.filter(~pl.col(self.vars["GROUP"]).is_in(valid_stays + stays_to_remove))
+                ])
+
+        # Update basic info
+        self.num_stays = self.grouping_df[self.vars["GROUP"]].unique().shape[0]
+        if self.features_df.height > 0:
+            self.maxlen = self.features_df.group_by([self.vars["GROUP"]]).len().max().item(0, 1)
+        else:
+            self.maxlen = 0
+
+        # Clear cache since data has changed
+        self._cached_dataset = None
+
+        logging.info(f"Stay reduction complete: {stays_modified} stays modified, "
+                     f"{len(stays_to_remove)} stays removed, "
+                     f"{self.num_stays} stays remaining")
+
+        return self
 
 @gin.configurable("PredictionPolarsDataset")
 class PredictionPolarsDataset(CommonPolarsDataset):
