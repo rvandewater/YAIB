@@ -616,6 +616,7 @@ class MLWrapper(BaseModule, ABC):
         self.mps = mps
         self.loss_weight = None
         self.save_model_outputs = True
+        self.calibrate = False
 
     def set_metrics(self, labels):
         if self.run_mode == RunMode.classification:
@@ -691,11 +692,9 @@ class MLWrapper(BaseModule, ABC):
             self.model.set_params(class_weight=self.weight)
 
         val_loss = self.fit_model(train_rep, train_label, val_rep, val_label)
-        calibrate = True
         method = "sigmoid"
         # Apply calibration if desired
-        calibrate = True
-        if calibrate and self.run_mode == RunMode.classification:
+        if self.calibrate and self.run_mode == RunMode.classification:
             cal_val_loss = self.setup_calibration(val_rep, val_label, method=method)
             logging.info(f"Model calibrated. val loss {val_loss} Calibrated val loss: {cal_val_loss}")
 
@@ -763,7 +762,8 @@ class MLWrapper(BaseModule, ABC):
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
         # test_pred_uncalibrated = self.predict(test_rep, use_calibrated=False)False
-        self.compare_rankings(test_rep, test_label)
+        if hasattr(self, "calibrated_model"):
+            self.compare_rankings(test_rep, test_label)
         self.log_curves(test_label, test_pred, "test", pred_indicators)
         # if self.debug:
         if self.save_model_outputs:
@@ -800,7 +800,7 @@ class MLWrapper(BaseModule, ABC):
     # def predict_with_preserved_ranking(self, features):
     #     """Get calibrated probabilities while preserving base model ranking."""
     #     base_probs = self.model.predict_proba(features)[:, 1]
-    #     cal_probs = self.calibrated_model.predict_proba(features)[:, 1]
+    #     cal_probs = self.calibrated_modƒel.predict_proba(features)[:, 1]
     #
     #     # Get ranking from base model
     #     ranking_indices = np.argsort(base_probs)
