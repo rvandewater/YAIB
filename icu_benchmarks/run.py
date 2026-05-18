@@ -53,6 +53,7 @@ def main(my_args=tuple(sys.argv[1:])):
     source_dir = args.source_dir
     modalities = args.modalities
     load_data_vars = args.load_data_vars
+    reduce_stay_steps = args.reduce_stay_steps
 
     if modalities:
         logging.debug(f"Binding modalities: {modalities}")
@@ -66,6 +67,11 @@ def main(my_args=tuple(sys.argv[1:])):
             f"Invalid task or model. Task: {task} {'not ' if task not in tasks else ''} found. "
             f"Model: {model} {'not ' if model not in models else ''}found."
         )
+    if reduce_stay_steps:
+        logging.info(f"Running experiment with reducing stay by {reduce_stay_steps} steps")
+        gin.bind_parameter("preprocess.reduce_sequence_steps", reduce_stay_steps)
+        gin.bind_parameter("preprocess.remove_short_stays", True)
+        gin.bind_parameter("preprocess.min_remaining_steps", 3)
     # Load task config
     if load_data_vars:
         logging.info(f"Loading variables from {task} from {data_dir} configuration")
