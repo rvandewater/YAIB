@@ -9,12 +9,12 @@ command:
   - CassClassification
   - --log-dir
   - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
-#  - --tune
+  - --tune
   - --wandb-sweep
   - -tn
   - SSI
-  - --hp-checkpoint
-  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
+#  - --hp-checkpoint
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
 #  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.25_horizon_6:00:00_transfer_full_2025-08-07T20:09:44/SSI/XGBClassifier/2025-08-08T10-30-09.905452/hyperparameter_tuning_logs.db"
 #  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
 ##  - Mortality
@@ -31,12 +31,24 @@ name: cass_segmentation_length
 parameters:
   data_dir:
     values:
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.125_full_2025-08-22T12:28:04"
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.25_horizon_6:00:00_transfer_full_2025-08-21T17:01:27"
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-21T17:08:54"
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_full_2025-08-21T16:46:25"
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_3.0_full_2025-08-21T16:44:31"
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_6.0_full_2025-08-22T11:38:16"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.125_full_2025-10-21T11:20:09"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.25_full_2025-10-21T12:38:06"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-10-21T13:50:58"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_full_2025-10-21T14:58:28"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_3.0_full_2025-10-21T16:04:05"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_6.0_full_2025-10-21T17:09:54"
+#      - real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.125_full_2025-10-21T11:20:09
+#      - real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.25_full_2025-10-21T12:38:06
+#      - real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-10-21T13:50:58
+#      - real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_full_2025-10-21T14:58:28
+#      - real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_3.0_full_2025-10-21T16:04:05
+#      - real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_6.0_full_2025-10-21T17:09:54
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.125_full_2025-08-22T12:28:04"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.25_horizon_6:00:00_transfer_full_2025-08-21T17:01:27"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-21T17:08:54"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_full_2025-08-21T16:46:25"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_3.0_full_2025-08-21T16:44:31"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_6.0_full_2025-08-22T11:38:16"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_9.0_full_2025-08-21T16:46:46"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_12.0_full_2025-08-21T16:46:09"
 #      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.25_horizon_6:00:00_transfer_full_2025-08-07T20:09:44"
@@ -49,8 +61,8 @@ parameters:
     values:
 #      - LogisticRegression
 #      - TimesNet
-#      - LGBMClassifier
-      - XGBClassifier
+      - LGBMClassifier
+#      - XGBClassifier
 #      - CBClassifier
 #      - BRFClassifier
 #       - RUSBClassifier
@@ -65,8 +77,8 @@ parameters:
   file_names:
     values:
 #      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_3.parquet","STATIC":"sta.parquet"'
-      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
-#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
+#      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
+      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
 #      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_12.parquet","STATIC":"sta.parquet"'
 #      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_18.parquet","STATIC":"sta.parquet"'
 #      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_24.parquet","STATIC":"sta.parquet"'

@@ -9,26 +9,23 @@ command:
   - CassClassification
   - --log-dir
   - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs
-#  - --tune
+  - --tune
   - --wandb-sweep
   - -tn
   - SSI
   - --hp-checkpoint
-  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-23T09-42-04.806320/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-20T18-29-31.571508/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-07-16T14:02:27/SSI/XGBClassifier/2025-07-20T18-32-19.553702/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-16T14:58:54/SSI/XGBClassifier/2025-07-16T19-51-45.484723/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-07-16T14:02:27/SSI/XGBClassifier/2025-07-16T19-41-44.887611/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-16T19-39-58.063736/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-14T17-02-09.569252/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-07-14T13:20:08/SSI/XGBClassifier/2025-07-14T13-49-47.629185/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-06-27T14:38:43/SSI/XGBClassifier/2025-06-27T17-13-28.076070/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-06-27T13:36:02/SSI/XGBClassifier/2025-06-27T17-12-03.184584/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-06-27T14:45:50/SSI/XGBClassifier/2025-06-27T17-08-55.389121/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/lab_set_normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-06-19T19:11:23/SSI/XGBClassifier/2025-06-20T12-14-27.191590/hyperparameter_tuning_logs.db"
-#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/BDA_segment_1.0_horizon_6:00:00_transfer_full_2025-06-20T16:37:14/SSI/XGBClassifier/2025-06-20T17-36-53.795313/hyperparameter_tuning_logs.db"
-#  - /sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_normal_ward_SSI-3_segment_1.0_horizon_6:00:00_transfer_full_2025-06-03T16:05:00/SSI/XGBClassifier/2025-06-04T17-09-19.640244/hyperparameter_tuning_logs.db
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-21T14-19-18.318157/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-21T14-19-38.477648/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-21T14-20-14.293383/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-21T14-20-14.296184/hyperparameter_tuning_logs.db"
+#  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-21T14-18-57.423187/hyperparameter_tuning_logs.db"
+  - "/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-21T14-19-41.941901/hyperparameter_tuning_logs.db"
+#  - "24h": f"/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier//2025-10-21T14-19-18.318157/hyperparameter_tuning_logs.db",
+#  - "12h": f"/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-21T14-19-38.477648/hyperparameter_tuning_logs.db",
+#  - "9h": f"/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-21T14-20-14.293383/hyperparameter_tuning_logs.db",
+#  - "6h": f"/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-21T14-20-14.296184/hyperparameter_tuning_logs.db",
+#  - "3h": f"/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-21T14-18-57.423187/hyperparameter_tuning_logs.db",
+#  - "1h": f"/sc-projects/sc-proj-cc08-cassandra/RW_Prospective/yaib_logs/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46/SSI/LGBMClassifier/2025-10-21T14-19-41.941901/hyperparameter_tuning_logs.db",
 ##  - Mortality
 #  - --verbose
   - --modalities
@@ -43,13 +40,14 @@ name: yaib_classification_benchmark
 parameters:
   data_dir:
     values:
-      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31"
+      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/real_life_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_full_2025-09-02T20:13:46"
+#      - "/sc-projects/sc-proj-cc08-cassandra/Prospective_Preprocessed/yaib_format/lab_set_ICU_and_normal_ward_SSI-3_POPF_Galleleck_BDA_segment_0.5_horizon_6:00:00_transfer_full_2025-08-01T12:13:31"
   model:
     values:
 #      - LogisticRegression
 #      - TimesNet
-#      - LGBMClassifier
-      - XGBClassifier
+      - LGBMClassifier
+#      - XGBClassifier
 #      - CBClassifier
 #      - BRFClassifier
 #       - RUSBClassifier
@@ -60,13 +58,14 @@ parameters:
 #      - Transformer
   modalities:
     values:
-      - "all"
+#      - "all"
+      - [ top_250_features ]
 #      - [copra_observations, copra_scores, copra_fluid_balance, ishmed_lab_numeric, static] #, wearable_activity, wearable_core] # without wearable data
 
   file_names:
     values:
       - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_1.parquet","STATIC":"sta.parquet"'
-      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_2.parquet","STATIC":"sta.parquet"'
+##      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_2.parquet","STATIC":"sta.parquet"'
 #      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_3.parquet","STATIC":"sta.parquet"'
 #      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_6.parquet","STATIC":"sta.parquet"'
 #      - '"DYNAMIC":"dyn.parquet","OUTCOME":"outc_9.parquet","STATIC":"sta.parquet"'
