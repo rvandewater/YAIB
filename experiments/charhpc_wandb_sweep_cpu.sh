@@ -2,7 +2,7 @@
 #SBATCH --job-name=yaib_experiment
 #SBATCH --partition=compute # -p
 #SBATCH --cpus-per-task=16 # -c
-#SBATCH --mem=300gb
+#SBATCH --mem=200gb
 #SBATCH --output=logs/classification_%a_%j.log # %j is job id
 #SBATCH --time=48:00:00
 
