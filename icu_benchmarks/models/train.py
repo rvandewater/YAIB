@@ -42,7 +42,7 @@ def train_common(
     model: DLModel | MLModelClassifier | MLModelRegression | object = gin.REQUIRED,
     weight: str = "",
     optimizer: type = Adam,
-    precision: Optional[Literal[16] | Literal[32] | Literal[64] | str] = 32,
+    precision: Optional[Literal[16, 32, 64, "16-mixed", "bf16", "bf16-mixed", "16-true"]] = 32,
     batch_size: int = 1,
     epochs: int = 100,
     patience: int = 20,
