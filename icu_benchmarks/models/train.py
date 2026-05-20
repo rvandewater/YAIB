@@ -156,6 +156,8 @@ def train_common(
     ]
     if verbose:
         callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
+    # Supported reduced-precision modes include 16 and Lightning string values such as
+    # "16-mixed", "bf16", and "bf16-mixed".
     if precision in (16, "16-mixed", "bf16", "bf16-mixed"):
         torch.set_float32_matmul_precision("high")
 
