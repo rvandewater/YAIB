@@ -368,15 +368,13 @@ def make_train_val_polars(
         )
 
     if debug:
-        logging.info(
-            "Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets."
-        )
+        logging.info("Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets.")
         sampled_ids = data[DataSegment.outcome][_id].unique().sample(fraction=0.01, seed=seed)
         data[DataSegment.outcome].filter(pl.col(_id).is_in(sampled_ids))
         if DataSegment.dynamic in data:
-             data[DataSegment.dynamic] = data[DataSegment.dynamic].filter(pl.col(_id).is_in(sampled_ids))
+            data[DataSegment.dynamic] = data[DataSegment.dynamic].filter(pl.col(_id).is_in(sampled_ids))
         if DataSegment.static in data:
-             data[DataSegment.static] = data[DataSegment.static].filter(pl.col(_id).is_in(sampled_ids))
+            data[DataSegment.static] = data[DataSegment.static].filter(pl.col(_id).is_in(sampled_ids))
 
     stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique())
 
@@ -544,9 +542,7 @@ def make_single_split_polars(
     # ID variable
     _id = vars[VarType.group]
     if debug:
-        logging.info(
-            "Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets."
-        )
+        logging.info("Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets.")
         sampled_ids = data[DataSegment.outcome][_id].unique().sample(fraction=0.01, seed=seed)
         data[DataSegment.outcome] = data[DataSegment.outcome].filter(pl.col(_id).is_in(sampled_ids))
         if DataSegment.dynamic in data:

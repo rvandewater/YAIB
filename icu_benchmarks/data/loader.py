@@ -53,7 +53,7 @@ class CommonPolarsDataset(Dataset):
         m_index = [self.vars["GROUP"]]
         front = sorted([c for c in cols if not c.startswith("MissingIndicator_") and c not in m_index])
         back = sorted([c for c in cols if c.startswith("MissingIndicator_") and c not in m_index])
-        self.features_df= self.features_df[m_index + front + back]
+        self.features_df = self.features_df[m_index + front + back]
 
         # calculate basic info for the data
         self.num_stays = self.grouping_df[self.vars["GROUP"]].unique().shape[0]
@@ -107,15 +107,12 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         feat_partitions = self.features_df.partition_by(GROUP, maintain_order=True)
         self._stay_order = [part[GROUP][0] for part in label_partitions]
         self._feat_arrays = {
-            part[GROUP][0]: part.select(pl.exclude(GROUP)).to_numpy().astype(np.float32)
-            for part in feat_partitions
+            part[GROUP][0]: part.select(pl.exclude(GROUP)).to_numpy().astype(np.float32) for part in feat_partitions
         }
         for arr in self._feat_arrays.values():
             arr.setflags(write=False)
-    
-        self._label_arrays = {
-            part[GROUP][0]: part[LABEL].to_numpy().astype(np.float32) for part in label_partitions
-        }
+
+        self._label_arrays = {part[GROUP][0]: part[LABEL].to_numpy().astype(np.float32) for part in label_partitions}
         for arr in self._label_arrays.values():
             arr.setflags(write=False)
 
@@ -126,7 +123,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         stay_id = self._stay_order[idx]
 
         window = self._feat_arrays[stay_id]
-        labels = self._label_arrays[stay_id].copy() # copy to avoid in-place NaN replacement
+        labels = self._label_arrays[stay_id].copy()  # copy to avoid in-place NaN replacement
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -147,11 +144,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         # check for (partially) unlabeled data
         nan_mask = np.isnan(labels)
         labels[nan_mask] = -1
-        invalid_rows = (
-            nan_mask
-            if labels.ndim == 1
-            else nan_mask.any(axis=-1)
-        )
+        invalid_rows = nan_mask if labels.ndim == 1 else nan_mask.any(axis=-1)
         pad_mask[invalid_rows] = 0
 
         pad_mask = pad_mask.astype(bool)
