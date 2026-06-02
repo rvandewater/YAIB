@@ -16,30 +16,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: "3.10"
+          version: "latest"
 
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/setup.py', '**/setup.cfg', '**/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+      - name: Set up Python
+        run: uv python install 3.10
 
       - name: Install YAIB and dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -e .
+        run: uv sync
 
       - name: Verify icu-benchmarks CLI is available
-        run: icu-benchmarks --help
+        run: uv run icu-benchmarks --help
 
-      - name: Run E2E integration test — XGBClassifier / Mortality24 / MIMIC demo
+      - name: Run E2E integration test
         run: |
-          icu-benchmarks train \
+          uv run icu-benchmarks train \
             -d demo_data/mortality24/mimic_demo \
             -n mimic_demo \
             -t BinaryClassification \
