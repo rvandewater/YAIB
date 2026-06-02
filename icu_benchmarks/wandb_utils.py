@@ -36,7 +36,9 @@ def apply_wandb_sweep(args: Namespace) -> Namespace:
     if args.hyperparams is None:
         args.hyperparams = []
     for key, value in sweep_config.items():
-        args.hyperparams.append(f"{key}=" + (("'" + value + "'") if isinstance(value, str) else str(value)))
+        args.hyperparams.append(
+            f"{key}=" + (("'" + value + "'") if isinstance(value, str) else str(value))
+        )
     logging.info(f"hyperparams after loading sweep config: {args.hyperparams}")
     return args
 

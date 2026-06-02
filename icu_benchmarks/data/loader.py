@@ -27,20 +27,33 @@ class CommonPolarsDataset(Dataset):
         name: str = "",
     ):
         if not isinstance(vars, dict):
-            raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
+            raise ValueError(
+                f"Expected vars to be of type dict, got {type(vars)} instead"
+            )
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment]
         # Get the row indicators for the data to be able to match predicted labels
         if not isinstance(vars["SEQUENCE"], str):
-            raise ValueError(f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead')
-        if "SEQUENCE" in self.vars and self.vars["SEQUENCE"] in data[split][DataSegment.features].columns:
+            raise ValueError(
+                f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead'
+            )
+        if (
+            "SEQUENCE" in self.vars
+            and self.vars["SEQUENCE"] in data[split][DataSegment.features].columns
+        ):
             # We have a time series dataset
-            self.row_indicators = data[split][DataSegment.features][self.vars["GROUP"], self.vars["SEQUENCE"]]
+            self.row_indicators = data[split][DataSegment.features][
+                self.vars["GROUP"], self.vars["SEQUENCE"]
+            ]
 
-            self.row_indicators = self.row_indicators.with_columns(pl.col(self.vars["SEQUENCE"]))  # already in hours?
+            self.row_indicators = self.row_indicators.with_columns(
+                pl.col(self.vars["SEQUENCE"])
+            )  # already in hours?
             self.features_df = data[split][DataSegment.features]
-            self.features_df = self.features_df.sort([self.vars["GROUP"], self.vars["SEQUENCE"]])
+            self.features_df = self.features_df.sort(
+                [self.vars["GROUP"], self.vars["SEQUENCE"]]
+            )
             self.features_df = self.features_df.drop(self.vars["SEQUENCE"])
         else:
             # We have a static dataset
@@ -51,13 +64,23 @@ class CommonPolarsDataset(Dataset):
         # order columns: index, features (alphabetically), indicator (alphabetically)
         cols = self.features_df.columns
         m_index = [self.vars["GROUP"]]
-        front = sorted([c for c in cols if not c.startswith("MissingIndicator_") and c not in m_index])
-        back = sorted([c for c in cols if c.startswith("MissingIndicator_") and c not in m_index])
+        front = sorted(
+            [
+                c
+                for c in cols
+                if not c.startswith("MissingIndicator_") and c not in m_index
+            ]
+        )
+        back = sorted(
+            [c for c in cols if c.startswith("MissingIndicator_") and c not in m_index]
+        )
         self.features_df = self.features_df[m_index + front + back]
 
         # calculate basic info for the data
         self.num_stays = self.grouping_df[self.vars["GROUP"]].unique().shape[0]
-        self.maxlen = self.features_df.group_by([self.vars["GROUP"]]).len().max().item(0, 1)
+        self.maxlen = (
+            self.features_df.group_by([self.vars["GROUP"]]).len().max().item(0, 1)
+        )
         self.mps = mps
         self.name = name
 
@@ -107,12 +130,16 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         feat_partitions = self.features_df.partition_by(GROUP, maintain_order=True)
         self._stay_order = [part[GROUP][0] for part in label_partitions]
         self._feat_arrays = {
-            part[GROUP][0]: part.select(pl.exclude(GROUP)).to_numpy().astype(np.float32) for part in feat_partitions
+            part[GROUP][0]: part.select(pl.exclude(GROUP)).to_numpy().astype(np.float32)
+            for part in feat_partitions
         }
         for arr in self._feat_arrays.values():
             arr.setflags(write=False)
 
-        self._label_arrays = {part[GROUP][0]: part[LABEL].to_numpy().astype(np.float32) for part in label_partitions}
+        self._label_arrays = {
+            part[GROUP][0]: part[LABEL].to_numpy().astype(np.float32)
+            for part in label_partitions
+        }
         for arr in self._label_arrays.values():
             arr.setflags(write=False)
 
@@ -123,7 +150,9 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         stay_id = self._stay_order[idx]
 
         window = self._feat_arrays[stay_id]
-        labels = self._label_arrays[stay_id].copy()  # copy to avoid in-place NaN replacement
+        labels = self._label_arrays[
+            stay_id
+        ].copy()  # copy to avoid in-place NaN replacement
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -137,8 +166,12 @@ class PredictionPolarsDataset(CommonPolarsDataset):
 
         # Padding the array to fulfill size requirement
         if length_diff > 0:
-            window = np.concatenate([window, np.full((length_diff, window.shape[1]), pad_value)], axis=0)
-            labels = np.concatenate([labels, np.full((length_diff, *labels.shape[1:]), pad_value)], axis=0)
+            window = np.concatenate(
+                [window, np.full((length_diff, window.shape[1]), pad_value)], axis=0
+            )
+            labels = np.concatenate(
+                [labels, np.full((length_diff, *labels.shape[1:]), pad_value)], axis=0
+            )
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
 
         # check for (partially) unlabeled data
@@ -172,7 +205,11 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         Returns:
             Weights for each label.
         """
-        counts = self.outcome_df[self.vars["LABEL"]].value_counts(parallel=True).get_columns()[1]
+        counts = (
+            self.outcome_df[self.vars["LABEL"]]
+            .value_counts(parallel=True)
+            .get_columns()[1]
+        )
         counts = counts.to_numpy()
         weights = list((1 / counts) * np.sum(counts) / counts.shape[0])
         return weights
@@ -193,7 +230,12 @@ class PredictionPolarsDataset(CommonPolarsDataset):
             rep = rep.group_by(self.vars["GROUP"]).last()
         else:
             # Adding segment count for each stay id and timestep.
-            rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
+            rep = rep.with_columns(
+                pl.col(self.vars["GROUP"])
+                .cum_count()
+                .over(self.vars["GROUP"])
+                .alias("counter")
+            )
         rep = rep.to_numpy().astype(np.float32)
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
@@ -227,15 +269,27 @@ class CommonPandasDataset(Dataset):
         mps: bool = False,
         name: str = "",
     ):
-        warnings.warn("CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not isinstance(vars, dict):
-            raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
-        warnings.warn("CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning, stacklevel=2)
+            raise ValueError(
+                f"Expected vars to be of type dict, got {type(vars)} instead"
+            )
+        warnings.warn(
+            "CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
         self.features_df = (
-            data[split][DataSegment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+            data[split][DataSegment.features]
+            .set_index(self.vars["GROUP"])
+            .drop(labels=self.vars["SEQUENCE"], axis=1)
         )
 
         # calculate basic info for the data
@@ -301,11 +355,15 @@ class PredictionPandasDataset(CommonPandasDataset):
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id].to_numpy()
-        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=np.float32)
+        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(
+            dtype=np.float32
+        )
 
         if len(labels) == 1:
             # only one label per stay, align with window
-            labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
+            labels = np.concatenate(
+                [np.empty(window.shape[0] - 1) * np.nan, labels], axis=0
+            )
 
         length_diff = self.maxlen - window.shape[0]
         pad_mask = np.ones(window.shape[0])
@@ -313,7 +371,9 @@ class PredictionPandasDataset(CommonPandasDataset):
         # Padding the array to fulfill size requirement
         if length_diff > 0:
             # window shorter than the longest window in dataset, pad to same length
-            window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
+            window = np.concatenate(
+                [window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0
+            )
             labels = np.concatenate([labels, np.ones(length_diff) * pad_value], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
 
@@ -386,13 +446,19 @@ class ImputationPandasDataset(CommonPandasDataset):
                 training. Defaults to True.
         """
         if not isinstance(vars, dict):
-            raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
+            raise ValueError(
+                f"Expected vars to be of type dict, got {type(vars)} instead"
+            )
         super().__init__(data, split, vars, grouping_segment=DataSegment.static)
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion
         )
-        self.amputation_mask = (self.amputation_mask + self.features_df.isna().values).bool()
-        self.amputation_mask = DataFrame(self.amputation_mask, columns=np.array(self.vars[DataSegment.dynamic]))
+        self.amputation_mask = (
+            self.amputation_mask + self.features_df.isna().values
+        ).bool()
+        self.amputation_mask = DataFrame(
+            self.amputation_mask, columns=np.array(self.vars[DataSegment.dynamic])
+        )
         self.amputation_mask[self.vars["GROUP"]] = self.features_df.index
         self.amputation_mask = self.amputation_mask.set_index(self.vars["GROUP"])
 
@@ -417,9 +483,15 @@ class ImputationPandasDataset(CommonPandasDataset):
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id, self.vars[DataSegment.dynamic]]
-        window_missingness_mask = self.target_missingness_mask.loc[stay_id:stay_id, self.vars[DataSegment.dynamic]]
-        amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars[DataSegment.dynamic]]
-        amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars[DataSegment.dynamic]]
+        window_missingness_mask = self.target_missingness_mask.loc[
+            stay_id:stay_id, self.vars[DataSegment.dynamic]
+        ]
+        amputated_window = self.amputated_values.loc[
+            stay_id:stay_id, self.vars[DataSegment.dynamic]
+        ]
+        amputation_mask = self.amputation_mask.loc[
+            stay_id:stay_id, self.vars[DataSegment.dynamic]
+        ]
 
         return (
             from_numpy(amputated_window.values).to(float32),
@@ -437,7 +509,7 @@ class ImputationPredictionDataset(Dataset):
         data (DataFrame): dict of the different splits of the data
         grouping_column (str, optional): column that is used for grouping. Defaults to "stay_id".
         select_columns (List[str], optional): the columns to serve as input for the imputation model. Defaults to None.
-        ram_cache (bool, optional): wether the dataset should be stored in ram. Defaults to True.
+        ram_cache (bool, optional): whether the dataset should be stored in ram. Defaults to True.
     """
 
     def __init__(

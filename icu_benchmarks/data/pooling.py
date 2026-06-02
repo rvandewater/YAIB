@@ -66,7 +66,10 @@ class PooledData:
             if folder.is_dir():
                 if folder.name in datasets:
                     data[folder.name] = {
-                        f: pq.read_table(folder / self.file_names[f]).to_pandas(self_destruct=True) for f in self.file_names
+                        f: pq.read_table(folder / self.file_names[f]).to_pandas(
+                            self_destruct=True
+                        )
+                        for f in self.file_names
                     }
         data = self._pool_datasets(
             datasets=data,
@@ -79,7 +82,9 @@ class PooledData:
             data_dir=self.data_dir,
             save_test=self.save_test,
         )
-        self._save_pooled_data(self.data_dir, data, datasets, self.file_names, samples=samples)
+        self._save_pooled_data(
+            self.data_dir, data, datasets, self.file_names, samples=samples
+        )
 
     def _save_pooled_data(self, data_dir, data, datasets, file_names, samples=10000):
         """
@@ -146,19 +151,31 @@ class PooledData:
 
             if runmode is RunMode.classification:
                 # If we have more outcomes than stays, check max label value per stay id
-                labels = outcome.groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+                labels = (
+                    outcome.groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+                )
                 # if pd.Series(outcome[id].unique()) is outcome[id]):
                 selected_stays = train_test_split(
-                    stays, stratify=labels, shuffle=shuffle, random_state=seed, train_size=samples
+                    stays,
+                    stratify=labels,
+                    shuffle=shuffle,
+                    random_state=seed,
+                    train_size=samples,
                 )
             else:
-                selected_stays = train_test_split(stays, shuffle=shuffle, random_state=seed, train_size=samples)
+                selected_stays = train_test_split(
+                    stays, shuffle=shuffle, random_state=seed, train_size=samples
+                )
             # Select only stays that are in the selected_stays
             # Save test sets to test on without leakage
             if save_test:
                 select = selected_stays[1]
                 outcome, static, dynamic = self._select_stays(
-                    outcome=outcome, static=static, dynamic=dynamic, select=select, repeated_digit=repeated_digit
+                    outcome=outcome,
+                    static=static,
+                    dynamic=dynamic,
+                    select=select,
+                    repeated_digit=repeated_digit,
                 )
                 save_folder = key
                 save_folder += f"_test_{len(select)}"
@@ -171,7 +188,11 @@ class PooledData:
                 logging.info(f"Saved train data at {save_dir}")
             selected_stays = selected_stays[0]
             outcome, static, dynamic = self._select_stays(
-                outcome=outcome, static=static, dynamic=dynamic, select=selected_stays, repeated_digit=repeated_digit
+                outcome=outcome,
+                static=static,
+                dynamic=dynamic,
+                select=selected_stays,
+                repeated_digit=repeated_digit,
             )
             # Adding to pooled data
             pooled_data[Segment.static].append(static)

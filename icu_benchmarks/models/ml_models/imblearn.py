@@ -9,7 +9,9 @@ class BRFClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(BalancedRandomForestClassifier, *args, **kwargs)
+        self.model = self.set_model_args(
+            BalancedRandomForestClassifier, *args, **kwargs
+        )
         super().__init__(*args, **kwargs)
 
 

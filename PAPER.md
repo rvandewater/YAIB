@@ -10,6 +10,7 @@ See a graphical overview of our framework below:
 ![yaib_flow](docs/figures/yaib_flow_combined.svg)
 
 Yet Another ICU Benchmark was designed to address reproducibility issues and provide a unified interface to develop clinical prediction models for the ICU. An experiment in YAIB consists of four steps:
+
 1. Defining clinical concepts from the raw data.
 2. Extracting the patient cohort and specifying the prediction task.
 3. Preprocessing and feature generation.

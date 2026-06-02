@@ -28,7 +28,9 @@ class KNNImputation(ImputationWrapper):
     def forward(self, amputated_values, amputation_mask):
         debatched_values = amputated_values.reshape((-1, amputated_values.shape[-1]))
         debatched_values = debatched_values.to("cpu")
-        output = torch.Tensor(self.imputer.transform(debatched_values)).to(amputated_values.device)
+        output = torch.Tensor(self.imputer.transform(debatched_values)).to(
+            amputated_values.device
+        )
 
         output = output.reshape(amputated_values.shape)
         return output
@@ -40,9 +42,22 @@ class MICEImputation(ImputationWrapper):
 
     requires_backprop = False
 
-    def __init__(self, *args, max_iter=100, verbose=2, imputation_order="random", random_state=0, **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        max_iter=100,
+        verbose=2,
+        imputation_order="random",
+        random_state=0,
+        **kwargs,
+    ) -> None:
         super().__init__(
-            *args, max_iter=max_iter, verbose=verbose, imputation_order=imputation_order, random_state=random_state, **kwargs
+            *args,
+            max_iter=max_iter,
+            verbose=verbose,
+            imputation_order=imputation_order,
+            random_state=random_state,
+            **kwargs,
         )
         self.imputer = IterativeImputer(
             estimator=LinearRegression(),
@@ -58,7 +73,9 @@ class MICEImputation(ImputationWrapper):
     def forward(self, amputated_values, amputation_mask):
         debatched_values = amputated_values.reshape((-1, amputated_values.shape[-1]))
         debatched_values = debatched_values.to("cpu")
-        output = torch.Tensor(self.imputer.transform(debatched_values)).to(amputated_values.device)
+        output = torch.Tensor(self.imputer.transform(debatched_values)).to(
+            amputated_values.device
+        )
 
         output = output.reshape(amputated_values.shape)
         return output
@@ -80,7 +97,9 @@ class MeanImputation(ImputationWrapper):
     def forward(self, amputated_values, amputation_mask):
         debatched_values = amputated_values.reshape((-1, amputated_values.shape[-1]))
         debatched_values = debatched_values.to("cpu")
-        output = torch.Tensor(self.imputer.transform(debatched_values)).to(amputated_values.device)
+        output = torch.Tensor(self.imputer.transform(debatched_values)).to(
+            amputated_values.device
+        )
 
         output = output.reshape(amputated_values.shape)
         return output
@@ -102,7 +121,9 @@ class MedianImputation(ImputationWrapper):
     def forward(self, amputated_values, amputation_mask):
         debatched_values = amputated_values.reshape((-1, amputated_values.shape[-1]))
         debatched_values = debatched_values.to("cpu")
-        output = torch.Tensor(self.imputer.transform(debatched_values)).to(amputated_values.device)
+        output = torch.Tensor(self.imputer.transform(debatched_values)).to(
+            amputated_values.device
+        )
 
         output = output.reshape(amputated_values.shape)
         return output
@@ -124,7 +145,9 @@ class ZeroImputation(ImputationWrapper):
     def forward(self, amputated_values, amputation_mask):
         debatched_values = amputated_values.reshape((-1, amputated_values.shape[-1]))
         debatched_values = debatched_values.to("cpu")
-        output = torch.Tensor(self.imputer.transform(debatched_values)).to(amputated_values.device)
+        output = torch.Tensor(self.imputer.transform(debatched_values)).to(
+            amputated_values.device
+        )
 
         output = output.reshape(amputated_values.shape)
         return output
@@ -146,7 +169,9 @@ class MostFrequentImputation(ImputationWrapper):
     def forward(self, amputated_values, amputation_mask):
         debatched_values = amputated_values.reshape((-1, amputated_values.shape[-1]))
         debatched_values = debatched_values.to("cpu")
-        output = torch.Tensor(self.imputer.transform(debatched_values)).to(amputated_values.device)
+        output = torch.Tensor(self.imputer.transform(debatched_values)).to(
+            amputated_values.device
+        )
 
         output = output.reshape(amputated_values.shape)
         return output
@@ -170,10 +195,14 @@ def wrap_hyperimpute_model(methodName: str, configName: str) -> Type:
             self.imputer.fit(train_dataset.amputated_values.values)
 
         def forward(self, amputated_values, amputation_mask):
-            debatched_values = amputated_values.reshape((-1, amputated_values.shape[-1]))
+            debatched_values = amputated_values.reshape(
+                (-1, amputated_values.shape[-1])
+            )
             debatched_values = debatched_values.to(float).to("cpu").numpy()
             with torch.inference_mode(mode=False):
-                output = torch.Tensor(self.imputer.transform(debatched_values).values).to(amputated_values.device)
+                output = torch.Tensor(
+                    self.imputer.transform(debatched_values).values
+                ).to(amputated_values.device)
             output = output.reshape(amputated_values.shape)
             return output
 
@@ -196,9 +225,16 @@ class BRITSImputation(ImputationWrapper):
 
     requires_backprop = False
 
-    def __init__(self, *args, input_size, epochs=1, rnn_hidden_size=64, batch_size=256, **kwargs) -> None:
+    def __init__(
+        self, *args, input_size, epochs=1, rnn_hidden_size=64, batch_size=256, **kwargs
+    ) -> None:
         super().__init__(
-            *args, input_size=input_size, epochs=epochs, rnn_hidden_size=rnn_hidden_size, batch_size=batch_size, **kwargs
+            *args,
+            input_size=input_size,
+            epochs=epochs,
+            rnn_hidden_size=rnn_hidden_size,
+            batch_size=batch_size,
+            **kwargs,
         )
         self.imputer = BRITS(
             n_steps=input_size[1],
@@ -212,7 +248,9 @@ class BRITSImputation(ImputationWrapper):
     def fit(self, train_dataset, val_dataset):
         self.imputer.fit(
             torch.Tensor(
-                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
+                train_dataset.amputated_values.values.reshape(
+                    -1, train_dataset.maxlen, train_dataset.features_df.shape[1]
+                )
             )
         )
 
@@ -231,7 +269,20 @@ class SAITSImputation(ImputationWrapper):
 
     requires_backprop = False
 
-    def __init__(self, *args, input_size, epochs, n_layers, d_model, d_inner, n_head, d_k, d_v, dropout, **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        input_size,
+        epochs,
+        n_layers,
+        d_model,
+        d_inner,
+        n_head,
+        d_k,
+        d_v,
+        dropout,
+        **kwargs,
+    ) -> None:
         super().__init__(
             *args,
             input_size=input_size,
@@ -261,7 +312,9 @@ class SAITSImputation(ImputationWrapper):
     def fit(self, train_dataset, val_dataset):
         self.imputer.fit(
             torch.Tensor(
-                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
+                train_dataset.amputated_values.values.reshape(
+                    -1, train_dataset.maxlen, train_dataset.features_df.shape[1]
+                )
             )
         )
 
@@ -281,7 +334,20 @@ class AttentionImputation(ImputationWrapper):
     # Handled within the library
     requires_backprop = False
 
-    def __init__(self, *args, input_size, epochs, n_layers, d_model, d_inner, n_head, d_k, d_v, dropout, **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        input_size,
+        epochs,
+        n_layers,
+        d_model,
+        d_inner,
+        n_head,
+        d_k,
+        d_v,
+        dropout,
+        **kwargs,
+    ) -> None:
         super().__init__(
             *args,
             input_size=input_size,
@@ -311,7 +377,9 @@ class AttentionImputation(ImputationWrapper):
     def fit(self, train_dataset, val_dataset):
         self.imputer.fit(
             torch.Tensor(
-                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
+                train_dataset.amputated_values.values.reshape(
+                    -1, train_dataset.maxlen, train_dataset.features_df.shape[1]
+                )
             )
         )
 

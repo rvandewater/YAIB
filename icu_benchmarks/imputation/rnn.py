@@ -12,8 +12,17 @@ class RNNImputation(ImputationWrapper):
 
     requires_backprop = True
 
-    def __init__(self, *args, input_size, hidden_size=64, state_init="zero", cell="gru", **kwargs) -> None:
-        super().__init__(*args, input_size=input_size, hidden_size=hidden_size, state_init=state_init, cell=cell, **kwargs)
+    def __init__(
+        self, *args, input_size, hidden_size=64, state_init="zero", cell="gru", **kwargs
+    ) -> None:
+        super().__init__(
+            *args,
+            input_size=input_size,
+            hidden_size=hidden_size,
+            state_init=state_init,
+            cell=cell,
+            **kwargs,
+        )
         self.input_size = input_size
         self.n_features = input_size[2]
         self.hidden_size = hidden_size
@@ -32,13 +41,19 @@ class RNNImputation(ImputationWrapper):
 
     def init_hidden_state(self, x):
         if self.state_init == "zero":
-            return torch.zeros((x.size(0), self.hidden_size), device=x.device, dtype=x.dtype)
+            return torch.zeros(
+                (x.size(0), self.hidden_size), device=x.device, dtype=x.dtype
+            )
         if self.state_init == "noise":
-            return torch.randn(x.size(0), self.hidden_size, device=x.device, dtype=x.dtype)
+            return torch.randn(
+                x.size(0), self.hidden_size, device=x.device, dtype=x.dtype
+            )
 
     def forward(self, amputated, amputation_mask, return_hidden=False):
         steps = amputated.size(1)
-        amputated = torch.where(amputation_mask.bool(), torch.zeros_like(amputated), amputated)
+        amputated = torch.where(
+            amputation_mask.bool(), torch.zeros_like(amputated), amputated
+        )
         h = self.init_hidden_state(amputated)
         c = self.init_hidden_state(amputated)
 
@@ -70,19 +85,48 @@ class BRNNImputation(ImputationWrapper):
 
     requires_backprop = True
 
-    def __init__(self, *args, input_size, hidden_size=64, state_init="zero", dropout=0.0, cell="gru", **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        input_size,
+        hidden_size=64,
+        state_init="zero",
+        dropout=0.0,
+        cell="gru",
+        **kwargs,
+    ) -> None:
         super().__init__(
-            *args, input_size=input_size, hidden_size=hidden_size, state_init=state_init, dropout=dropout, cell=cell, **kwargs
+            *args,
+            input_size=input_size,
+            hidden_size=hidden_size,
+            state_init=state_init,
+            dropout=dropout,
+            cell=cell,
+            **kwargs,
         )
         self.hidden_size = hidden_size
-        self.fwd_rnn = RNNImputation(input_size=input_size, hidden_size=hidden_size, state_init=state_init, cell=cell)
-        self.bwd_rnn = RNNImputation(input_size=input_size, hidden_size=hidden_size, state_init=state_init, cell=cell)
+        self.fwd_rnn = RNNImputation(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            state_init=state_init,
+            cell=cell,
+        )
+        self.bwd_rnn = RNNImputation(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            state_init=state_init,
+            cell=cell,
+        )
         self.dropout = nn.Dropout(dropout)
         self.fn = nn.Linear(2 * hidden_size, input_size[2])
 
     def forward(self, amputated, amputation_mask):
         _, h_fwd = self.fwd_rnn(amputated, amputation_mask, return_hidden=True)
-        _, h_bwd = self.bwd_rnn(self.reverse_tensor(amputated, 1), self.reverse_tensor(amputation_mask, 1), return_hidden=True)
+        _, h_bwd = self.bwd_rnn(
+            self.reverse_tensor(amputated, 1),
+            self.reverse_tensor(amputation_mask, 1),
+            return_hidden=True,
+        )
         h_bwd = self.reverse_tensor(h_bwd, 1)
 
         h = self.dropout(torch.cat([h_fwd, h_bwd], -1))
@@ -97,5 +141,7 @@ class BRNNImputation(ImputationWrapper):
         if tensor.dim() <= 1:
             return tensor
         indices = range(tensor.size()[axis])[::-1]
-        indices = Variable(torch.LongTensor(indices), requires_grad=False).to(tensor.device)
+        indices = Variable(torch.LongTensor(indices), requires_grad=False).to(
+            tensor.device
+        )
         return tensor.index_select(axis, indices)

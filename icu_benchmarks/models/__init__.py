@@ -2,7 +2,11 @@ from typing import Union
 
 from icu_benchmarks.models.dl_models.rnn import GRUNet, LSTMNet, RNNet
 from icu_benchmarks.models.dl_models.tcn import TemporalConvNet
-from icu_benchmarks.models.dl_models.transformer import BaseTransformer, LocalTransformer, Transformer
+from icu_benchmarks.models.dl_models.transformer import (
+    BaseTransformer,
+    LocalTransformer,
+    Transformer,
+)
 from icu_benchmarks.models.ml_models.catboost import CBClassifier
 from icu_benchmarks.models.ml_models.imblearn import BRFClassifier, RUSBClassifier
 from icu_benchmarks.models.ml_models.lgbm import LGBMClassifier, LGBMRegressor

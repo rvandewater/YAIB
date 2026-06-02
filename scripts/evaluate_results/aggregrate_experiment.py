@@ -6,7 +6,15 @@ import pandas as pd
 
 def aggregate_results(
     log_dir: Path,
-    models=["LSTM", "Transformer", "GRU", "RNN", "LogisticRegression", "LGBMClassifier", "TCN"],
+    models=[
+        "LSTM",
+        "Transformer",
+        "GRU",
+        "RNN",
+        "LogisticRegression",
+        "LGBMClassifier",
+        "TCN",
+    ],
     metric_type="AUC",
     include_unfinished=False,
     iterations=5,
@@ -29,7 +37,17 @@ def aggregate_results(
         datasets: Which datasets to include.
         results_file: Name of the results file.
     """
-    results = pd.DataFrame(columns=["Time", "Dataset", "Model", "Average", "Std", "95% CI", "Execution Time"])
+    results = pd.DataFrame(
+        columns=[
+            "Time",
+            "Dataset",
+            "Model",
+            "Average",
+            "Std",
+            "95% CI",
+            "Execution Time",
+        ]
+    )
     for dataset in log_dir.iterdir():
         if dataset.is_dir() and dataset.name in datasets:
             for task in dataset.iterdir():
@@ -43,14 +61,30 @@ def aggregate_results(
                             time = "NaN"
                             if "execution_time" in test_metrics:
                                 time = test_metrics["execution_time"]
-                            results.loc[len(results.index)] = [log_time.name, dataset.name, model.name, avg, std, ci_95, time]
+                            results.loc[len(results.index)] = [
+                                log_time.name,
+                                dataset.name,
+                                model.name,
+                                avg,
+                                std,
+                                ci_95,
+                                time,
+                            ]
 
                         elif include_unfinished:
                             avg = "NaN"
                             std = "NaN"
                             ci_95 = "NaN"
                             time = "NaN"
-                            results.loc[len(results.index)] = [log_time.name, dataset.name, model.name, avg, std, ci_95, time]
+                            results.loc[len(results.index)] = [
+                                log_time.name,
+                                dataset.name,
+                                model.name,
+                                avg,
+                                std,
+                                ci_95,
+                                time,
+                            ]
 
     # Exclude nan rows for calculations
     nan_rows = results[results["95% CI"] == "NaN"]
@@ -62,7 +96,9 @@ def aggregate_results(
     results["Std"] = pd.to_numeric(results["Std"], errors="coerce")
 
     # Scaling
-    results["95% CI"] = results["95% CI"].apply(lambda x: (pd.to_numeric(x[1]) * scale, pd.to_numeric(x[0]) * scale))
+    results["95% CI"] = results["95% CI"].apply(
+        lambda x: (pd.to_numeric(x[1]) * scale, pd.to_numeric(x[0]) * scale)
+    )
     results[["Average", "Std"]] = results[["Average", "Std"]].apply(lambda x: x * scale)
 
     # Correct std for amount of iterations
@@ -71,7 +107,9 @@ def aggregate_results(
 
     # Round everything to x decimals
     results = results.round(decimals)
-    results["95% CI"] = results["95% CI"].apply(lambda x: tuple(map(lambda y: round(y, decimals), x)))
+    results["95% CI"] = results["95% CI"].apply(
+        lambda x: tuple(map(lambda y: round(y, decimals), x))
+    )
 
     # Append unfinished results
     results = pd.concat([results, nan_rows])

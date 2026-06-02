@@ -77,6 +77,7 @@ packages = ["icu_benchmarks"]
 dev = [
   "coverage==7.2.3",
   "flake8>=7.0.0",
+  "pre-commit>=4.6.0",
   "pytest==7.3.1",
   "pytest-runner==6.0.1",
   "ruff",

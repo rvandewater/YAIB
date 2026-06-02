@@ -26,7 +26,9 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         # Time embedding
         self.time_mlp = nn.Sequential(
-            SinusoidalPositionEmbeddings(time_emb_dim), nn.Linear(time_emb_dim, time_emb_dim), nn.ReLU()
+            SinusoidalPositionEmbeddings(time_emb_dim),
+            nn.Linear(time_emb_dim, time_emb_dim),
+            nn.ReLU(),
         )
 
         # Initial projection
@@ -34,12 +36,18 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         # Downsample
         self.downs = nn.ModuleList(
-            [Block(down_channels[i], down_channels[i + 1], time_emb_dim) for i in range(len(down_channels) - 1)]
+            [
+                Block(down_channels[i], down_channels[i + 1], time_emb_dim)
+                for i in range(len(down_channels) - 1)
+            ]
         )
 
         # Upsample
         self.ups = nn.ModuleList(
-            [Block(up_channels[i], up_channels[i + 1], time_emb_dim, up=True) for i in range(len(up_channels) - 1)]
+            [
+                Block(up_channels[i], up_channels[i + 1], time_emb_dim, up=True)
+                for i in range(len(up_channels) - 1)
+            ]
         )
 
         # Final Output
@@ -52,7 +60,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         # output = self.model(model_input)
         # output = output.reshape(amputated.shape)
 
-        # Embedd time
+        # Embed time
         t = self.time_mlp(timestep)
 
         # Initial Convolution
@@ -91,10 +99,17 @@ class SimpleDiffusionModel(ImputationWrapper):
         returns the noisy version of it
         """
         noise = torch.randn_like(x_0)
-        sqrt_alphas_cumprod_t = self.get_index_from_list(self.sqrt_alphas_cumprod, t, x_0.shape)
-        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, x_0.shape)
+        sqrt_alphas_cumprod_t = self.get_index_from_list(
+            self.sqrt_alphas_cumprod, t, x_0.shape
+        )
+        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(
+            self.sqrt_one_minus_alphas_cumprod, t, x_0.shape
+        )
         # mean + variance
-        return sqrt_alphas_cumprod_t * x_0 + sqrt_one_minus_alphas_cumprod_t * noise, noise
+        return (
+            sqrt_alphas_cumprod_t * x_0 + sqrt_one_minus_alphas_cumprod_t * noise,
+            noise,
+        )
 
     # Define beta schedule
     T = 300
@@ -121,7 +136,9 @@ class SimpleDiffusionModel(ImputationWrapper):
         self.alphas_cumprod_prev = self.alphas_cumprod_prev.to(self.device)
         self.sqrt_recip_alphas = self.sqrt_recip_alphas.to(self.device)
         self.sqrt_alphas_cumprod = self.sqrt_alphas_cumprod.to(self.device)
-        self.sqrt_one_minus_alphas_cumprod = self.sqrt_one_minus_alphas_cumprod.to(self.device)
+        self.sqrt_one_minus_alphas_cumprod = self.sqrt_one_minus_alphas_cumprod.to(
+            self.device
+        )
         self.posterior_variance = self.posterior_variance.to(self.device)
         super().on_fit_start()
 
@@ -135,7 +152,9 @@ class SimpleDiffusionModel(ImputationWrapper):
         self.log("train/loss", loss.item(), prog_bar=True)
 
         for metric in self.metrics["train"].values():
-            metric.update((torch.flatten(target, start_dim=1), torch.flatten(target, start_dim=1)))
+            metric.update(
+                (torch.flatten(target, start_dim=1), torch.flatten(target, start_dim=1))
+            )
 
         return loss
 
@@ -147,12 +166,20 @@ class SimpleDiffusionModel(ImputationWrapper):
         t = torch.randint(0, self.T, (1,), device=self.device).long()
 
         betas_t = self.get_index_from_list(self.betas, t, amputated.shape)
-        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, amputated.shape)
-        sqrt_recip_alphas_t = self.get_index_from_list(self.sqrt_recip_alphas, t, amputated.shape)
+        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(
+            self.sqrt_one_minus_alphas_cumprod, t, amputated.shape
+        )
+        sqrt_recip_alphas_t = self.get_index_from_list(
+            self.sqrt_recip_alphas, t, amputated.shape
+        )
 
-        model_mean = sqrt_recip_alphas_t * (amputated - betas_t * self(amputated, t) / sqrt_one_minus_alphas_cumprod_t)
+        model_mean = sqrt_recip_alphas_t * (
+            amputated - betas_t * self(amputated, t) / sqrt_one_minus_alphas_cumprod_t
+        )
 
-        posterior_variance_t = self.get_index_from_list(self.posterior_variance, t, amputated.shape)
+        posterior_variance_t = self.get_index_from_list(
+            self.posterior_variance, t, amputated.shape
+        )
 
         if t == 0:
             imputated = model_mean
@@ -169,7 +196,12 @@ class SimpleDiffusionModel(ImputationWrapper):
         self.log("val/loss", loss.item(), prog_bar=True)
 
         for metric in self.metrics["val"].values():
-            metric.update((torch.flatten(amputated, start_dim=1), torch.flatten(target, start_dim=1)))
+            metric.update(
+                (
+                    torch.flatten(amputated, start_dim=1),
+                    torch.flatten(target, start_dim=1),
+                )
+            )
 
     def test_step(self, batch, batch_index):
         amputated, amputation_mask, target, target_missingness = batch
@@ -179,12 +211,20 @@ class SimpleDiffusionModel(ImputationWrapper):
         t = torch.randint(0, self.T, (1,), device=self.device).long()
 
         betas_t = self.get_index_from_list(self.betas, t, amputated.shape)
-        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, amputated.shape)
-        sqrt_recip_alphas_t = self.get_index_from_list(self.sqrt_recip_alphas, t, amputated.shape)
+        sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(
+            self.sqrt_one_minus_alphas_cumprod, t, amputated.shape
+        )
+        sqrt_recip_alphas_t = self.get_index_from_list(
+            self.sqrt_recip_alphas, t, amputated.shape
+        )
 
-        model_mean = sqrt_recip_alphas_t * (amputated - betas_t * self(amputated, t) / sqrt_one_minus_alphas_cumprod_t)
+        model_mean = sqrt_recip_alphas_t * (
+            amputated - betas_t * self(amputated, t) / sqrt_one_minus_alphas_cumprod_t
+        )
 
-        posterior_variance_t = self.get_index_from_list(self.posterior_variance, t, amputated.shape)
+        posterior_variance_t = self.get_index_from_list(
+            self.posterior_variance, t, amputated.shape
+        )
 
         if t == 0:
             imputated = model_mean
@@ -201,7 +241,12 @@ class SimpleDiffusionModel(ImputationWrapper):
         self.log("test/loss", loss.item(), prog_bar=True)
 
         for metric in self.metrics["test"].values():
-            metric.update((torch.flatten(amputated, start_dim=1), torch.flatten(target, start_dim=1)))
+            metric.update(
+                (
+                    torch.flatten(amputated, start_dim=1),
+                    torch.flatten(target, start_dim=1),
+                )
+            )
 
 
 class Block(nn.Module):
@@ -223,11 +268,17 @@ class Block(nn.Module):
         self.relu = nn.ReLU()
 
         # Transformer Encoder for Feature Self-Attention
-        self.feature_layer = nn.TransformerEncoderLayer(d_model=in_ch, nhead=1, dim_feedforward=64, activation="gelu")
-        self.feature_transformer = nn.TransformerEncoder(self.feature_layer, num_layers=1)
+        self.feature_layer = nn.TransformerEncoderLayer(
+            d_model=in_ch, nhead=1, dim_feedforward=64, activation="gelu"
+        )
+        self.feature_transformer = nn.TransformerEncoder(
+            self.feature_layer, num_layers=1
+        )
 
         # Transformer Encoder for Time Self-Attention
-        self.time_layer = nn.TransformerEncoderLayer(d_model=time_dim, nhead=1, dim_feedforward=64, activation="gelu")
+        self.time_layer = nn.TransformerEncoderLayer(
+            d_model=time_dim, nhead=1, dim_feedforward=64, activation="gelu"
+        )
         self.time_transformer = nn.TransformerEncoder(self.time_layer, num_layers=1)
 
     def forward(self, x, t):

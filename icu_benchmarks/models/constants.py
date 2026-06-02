@@ -1,4 +1,9 @@
-from ignite.contrib.metrics import AveragePrecision, ROC_AUC, RocCurve, PrecisionRecallCurve
+from ignite.contrib.metrics import (
+    AveragePrecision,
+    ROC_AUC,
+    RocCurve,
+    PrecisionRecallCurve,
+)
 from ignite.metrics import Accuracy, RootMeanSquaredError
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
@@ -71,7 +76,9 @@ class DLMetrics:
         "PrecisionRecallCurve": TorchMetricsPrecisionRecallCurve(task="binary"),
         "Calibration_Error": CalibrationError(task="binary", n_bins=10),
         "F1": F1Score(task="binary", num_classes=2),
-        "Binary_Fairness": BinaryFairnessWrapper(num_groups=2, task="demographic_parity", group_name="sex"),
+        "Binary_Fairness": BinaryFairnessWrapper(
+            num_groups=2, task="demographic_parity", group_name="sex"
+        ),
     }
 
     MULTICLASS_CLASSIFICATION = {

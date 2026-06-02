@@ -11,7 +11,11 @@ class Plotter:
         for fold in self.results:
             fold_result = self.results[fold]
             auc = fold_result["AUC"]
-            plt.plot(fold_result["ROC"][0], fold_result["ROC"][1], label=f"ROC curve {fold} {auc:0.3f}")
+            plt.plot(
+                fold_result["ROC"][0],
+                fold_result["ROC"][1],
+                label=f"ROC curve {fold} {auc:0.3f}",
+            )
         plt.plot([0, 1], [0, 1], "k--")  # random predictions curve
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.0])
@@ -26,7 +30,11 @@ class Plotter:
         for fold in self.results:
             fold_result = self.results[fold]
             prc = fold_result["PR"]
-            plt.plot(fold_result["PRC"][0], fold_result["PRC"][1], label=f"PRC curve {fold} {prc:0.3f}")
+            plt.plot(
+                fold_result["PRC"][0],
+                fold_result["PRC"][1],
+                label=f"PRC curve {fold} {prc:0.3f}",
+            )
         plt.xlim([0.0, 1.0])
         plt.ylim([0.5, 1.0])
         plt.xlabel("Recall")
@@ -39,8 +47,14 @@ class Plotter:
     def calibration_curve(self):
         for fold in self.results:
             fold_result = self.results[fold]
-            plt.plot(fold_result["Calibration"][0], fold_result["Calibration"][1], label=f"Calibration curve {fold}")
-        plt.plot([0, 1], [0, 1], "k--", label="Perfect Calibration")  # random predictions curve
+            plt.plot(
+                fold_result["Calibration"][0],
+                fold_result["Calibration"][1],
+                label=f"Calibration curve {fold}",
+            )
+        plt.plot(
+            [0, 1], [0, 1], "k--", label="Perfect Calibration"
+        )  # random predictions curve
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.0])
         plt.xlabel("Mean predicted probability")

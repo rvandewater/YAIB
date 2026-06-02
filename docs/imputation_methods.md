@@ -1,4 +1,3 @@
-
 # Adding new Imputation Models
 
 To add another imputation model, you have to create a class that inherits from `ImputationWrapper` in `icu_benchmarks.models.wrappers`. Your model class should look like this:
@@ -11,9 +10,9 @@ import gin
 @gin.configurable("newmethod")
 class New_Method(ImputationWrapper):
     # adjust this accordingly
-    # if true, the method is trained iteratively (like a deep learning model). 
+    # if true, the method is trained iteratively (like a deep learning model).
     # If false it receives the complete training data to perform a fit on
-    requires_backprop = False  
+    requires_backprop = False
 
     def __init__(self, *args, model_arg1, model_arg2, **kwargs):
         super().__init__(*args, **kwargs)
@@ -28,11 +27,10 @@ class New_Method(ImputationWrapper):
 
     # implement this, if needs_fit is true, otherwise you can leave it out.
     # this method receives the complete input training data to perform a fit on.
-    def fit(self, train_data):
-        ...
+    def fit(self, train_data): ...
 ```
 
-You also need to create a gin configuration file in the `configs/imputation` directory, 
+You also need to create a gin configuration file in the `configs/imputation` directory,
 named `newmethod.gin` after the name that was entered into the `gin.configurable` decorator call.
 
 Your `.gin` file should look like this:

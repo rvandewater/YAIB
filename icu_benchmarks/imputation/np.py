@@ -89,7 +89,9 @@ class NPImputation(ImputationWrapper):
 
         # Do a context/target split with mask - see CSDI implemnetation - line 56
         # https://github.com/ermongroup/CSDI/blob/main/main_model.py
-        x_context, y_context, x_target, y_target = self._context_target_split(x, amputed, mask)
+        x_context, y_context, x_target, y_target = self._context_target_split(
+            x, amputed, mask
+        )
 
         # Get the predicted probability distribution
         p_y_pred, _, _ = self(x_context, y_context, x_target, y_target)
@@ -124,7 +126,9 @@ class NPImputation(ImputationWrapper):
 
         # Do a context/target split with mask - see CSDI implemnetation - line 56
         # https://github.com/ermongroup/CSDI/blob/main/main_model.py
-        x_context, y_context, x_target, y_target = self._context_target_split(x, amputed, mask)
+        x_context, y_context, x_target, y_target = self._context_target_split(
+            x, amputed, mask
+        )
 
         # Get the predicted probability distribution
         p_y_pred, _, _ = self(x_context, y_context, x_target, y_target)
@@ -154,7 +158,7 @@ class NPImputation(ImputationWrapper):
         # Calculate mean of all K samples - dim = 0 is required to do a element-wise mean
         #   calculation on multidimensional tensor stack
         generated = torch.mean(torch.stack(generated_list), dim=0).to(self.device)
-        # Use the indexing functionality of tensor to impute values into the indicies
+        # Use the indexing functionality of tensor to impute values into the indices
         # specified by the mask
         amputed[mask > 0] = generated[mask > 0]
         amputed[complete_missingness_mask > 0] = complete[complete_missingness_mask > 0]
@@ -201,7 +205,7 @@ class NPImputation(ImputationWrapper):
         # Calculate mean of all K samples - dim = 0 is required to do a element-wise mean
         #   calculation on multidimensional tensor stack
         generated = torch.mean(torch.stack(generated_list), dim=0).to(self.device)
-        # Use the indexing functionality of tensor to impute values into the indicies
+        # Use the indexing functionality of tensor to impute values into the indices
         # specified by the mask
         amputed[mask > 0] = generated[mask > 0]
 

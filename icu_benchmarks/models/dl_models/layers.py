@@ -10,7 +10,9 @@ from torch.nn.utils import weight_norm
 def parallel_recomb(q_t, kv_t, att_type="all", local_context=3, bin_size=None):
     """Return mask of attention matrix (ts_q, ts_kv)"""
     with torch.no_grad():
-        q_t[q_t == -1.0] = float("inf")  # We want padded to attend to everyone to avoid any nan.
+        q_t[q_t == -1.0] = float(
+            "inf"
+        )  # We want padded to attend to everyone to avoid any nan.
         kv_t[kv_t == -1.0] = float("inf")  # We want no one to attend the padded values
 
         if bin_size is not None:  # General case where we use unaligned timesteps.
@@ -18,7 +20,9 @@ def parallel_recomb(q_t, kv_t, att_type="all", local_context=3, bin_size=None):
             starts_q = q_t[:, 0:1].clone()  # Needed because of Memory allocation issue
             q_t -= starts_q
             kv_t = kv_t / bin_size
-            starts_kv = kv_t[:, 0:1].clone()  # Needed because of Memory allocation issue
+            starts_kv = kv_t[
+                :, 0:1
+            ].clone()  # Needed because of Memory allocation issue
             kv_t -= starts_kv
 
         bs, ts_q = q_t.size()
@@ -29,9 +33,15 @@ def parallel_recomb(q_t, kv_t, att_type="all", local_context=3, bin_size=None):
         if att_type == "all":
             return (diff_mask >= 0).float()
         if att_type == "local":
-            return ((diff_mask >= 0) * (diff_mask <= local_context) + (diff_mask == float("inf"))).float()
+            return (
+                (diff_mask >= 0) * (diff_mask <= local_context)
+                + (diff_mask == float("inf"))
+            ).float()
         if att_type == "strided":
-            return ((diff_mask >= 0) * (torch.floor(diff_mask) % local_context == 0) + (diff_mask == float("inf"))).float()
+            return (
+                (diff_mask >= 0) * (torch.floor(diff_mask) % local_context == 0)
+                + (diff_mask == float("inf"))
+            ).float()
 
 
 class PositionalEncoding(nn.Module):
@@ -41,7 +51,9 @@ class PositionalEncoding(nn.Module):
         super().__init__()
         pe = torch.zeros(max_len, emb)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, emb, 2).float() * (-math.log(10000.0) / emb))
+        div_term = torch.exp(
+            torch.arange(0, emb, 2).float() * (-math.log(10000.0) / emb)
+        )
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)
@@ -57,7 +69,15 @@ class SelfAttention(nn.Module):
     (batch_size, n_timestamps, emb)."""
 
     def __init__(
-        self, emb, hidden, heads=8, mask=True, att_type="all", local_context=None, mask_aggregation="union", dropout_att=0.0
+        self,
+        emb,
+        hidden,
+        heads=8,
+        mask=True,
+        att_type="all",
+        local_context=None,
+        mask_aggregation="union",
+        dropout_att=0.0,
     ):
         """Initialize the Multi Head Block.
         Args:
@@ -120,36 +140,58 @@ class SelfAttention(nn.Module):
                     mask_tensor = 0
                     for att_type in self.att_type:
                         mask_tensor += parallel_recomb(
-                            torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
-                            torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
+                            torch.arange(
+                                1, n + 1, dtype=torch.float, device=dot.device
+                            ).reshape(1, -1),
+                            torch.arange(
+                                1, n + 1, dtype=torch.float, device=dot.device
+                            ).reshape(1, -1),
                             att_type,
                             self.local_context,
                         )[0]
                     mask_tensor = torch.clamp(mask_tensor, 0, 1)
-                    dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(dot.device)).view(bs * h, n, n)
+                    dot = torch.where(
+                        mask_tensor.bool(),
+                        dot,
+                        torch.tensor(float("-inf")).to(dot.device),
+                    ).view(bs * h, n, n)
 
                 elif self.mask_aggregation == "split":
-                    dot_list = list(torch.split(dot, dot.shape[0] // len(self.att_type), dim=0))
+                    dot_list = list(
+                        torch.split(dot, dot.shape[0] // len(self.att_type), dim=0)
+                    )
                     for i, att_type in enumerate(self.att_type):
                         mask_tensor = parallel_recomb(
-                            torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
-                            torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
+                            torch.arange(
+                                1, n + 1, dtype=torch.float, device=dot.device
+                            ).reshape(1, -1),
+                            torch.arange(
+                                1, n + 1, dtype=torch.float, device=dot.device
+                            ).reshape(1, -1),
                             att_type,
                             self.local_context,
                         )[0]
 
                         dot_list[i] = torch.where(
-                            mask_tensor.bool(), dot_list[i], torch.tensor(float("-inf")).to(dot.device)
+                            mask_tensor.bool(),
+                            dot_list[i],
+                            torch.tensor(float("-inf")).to(dot.device),
                         ).view(*dot_list[i].shape)
                     dot = torch.cat(dot_list, dim=0)
             else:  # Full causal masking
                 mask_tensor = parallel_recomb(
-                    torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
-                    torch.arange(1, n + 1, dtype=torch.float, device=dot.device).reshape(1, -1),
+                    torch.arange(
+                        1, n + 1, dtype=torch.float, device=dot.device
+                    ).reshape(1, -1),
+                    torch.arange(
+                        1, n + 1, dtype=torch.float, device=dot.device
+                    ).reshape(1, -1),
                     self.att_type,
                     self.local_context,
                 )[0]
-                dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(dot.device)).view(bs * h, n, n)
+                dot = torch.where(
+                    mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(dot.device)
+                ).view(bs * h, n, n)
 
         # dot now has row-wise self-attention probabilities
         dot = F.softmax(dot, dim=2)
@@ -194,7 +236,11 @@ class SparseBlock(nn.Module):
         self.norm1 = nn.LayerNorm(emb)
         self.norm2 = nn.LayerNorm(emb)
 
-        self.ff = nn.Sequential(nn.Linear(emb, ff_hidden_mult * emb), nn.ReLU(), nn.Linear(ff_hidden_mult * emb, emb))
+        self.ff = nn.Sequential(
+            nn.Linear(emb, ff_hidden_mult * emb),
+            nn.ReLU(),
+            nn.Linear(ff_hidden_mult * emb, emb),
+        )
 
         self.drop = nn.Dropout(dropout)
 
@@ -211,7 +257,17 @@ class SparseBlock(nn.Module):
 
 
 class LocalBlock(nn.Module):
-    def __init__(self, emb, hidden, heads, ff_hidden_mult, dropout=0.0, mask=True, local_context=3, dropout_att=0.0):
+    def __init__(
+        self,
+        emb,
+        hidden,
+        heads,
+        ff_hidden_mult,
+        dropout=0.0,
+        mask=True,
+        local_context=3,
+        dropout_att=0.0,
+    ):
         super().__init__()
 
         self.attention = SelfAttention(
@@ -228,7 +284,11 @@ class LocalBlock(nn.Module):
         self.norm1 = nn.LayerNorm(emb)
         self.norm2 = nn.LayerNorm(emb)
 
-        self.ff = nn.Sequential(nn.Linear(emb, ff_hidden_mult * emb), nn.ReLU(), nn.Linear(ff_hidden_mult * emb, emb))
+        self.ff = nn.Sequential(
+            nn.Linear(emb, ff_hidden_mult * emb),
+            nn.ReLU(),
+            nn.Linear(ff_hidden_mult * emb, emb),
+        )
 
         self.drop = nn.Dropout(dropout)
 
@@ -245,15 +305,30 @@ class LocalBlock(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, emb, hidden, heads, ff_hidden_mult, dropout=0.0, mask=True, dropout_att=0.0):
+    def __init__(
+        self,
+        emb,
+        hidden,
+        heads,
+        ff_hidden_mult,
+        dropout=0.0,
+        mask=True,
+        dropout_att=0.0,
+    ):
         super().__init__()
 
-        self.attention = SelfAttention(emb, hidden, heads=heads, mask=mask, dropout_att=dropout_att)
+        self.attention = SelfAttention(
+            emb, hidden, heads=heads, mask=mask, dropout_att=dropout_att
+        )
         self.mask = mask
         self.norm1 = nn.LayerNorm(emb)
         self.norm2 = nn.LayerNorm(emb)
 
-        self.ff = nn.Sequential(nn.Linear(emb, ff_hidden_mult * emb), nn.ReLU(), nn.Linear(ff_hidden_mult * emb, emb))
+        self.ff = nn.Sequential(
+            nn.Linear(emb, ff_hidden_mult * emb),
+            nn.ReLU(),
+            nn.Linear(ff_hidden_mult * emb, emb),
+        )
 
         self.drop = nn.Dropout(dropout)
 
@@ -281,26 +356,53 @@ class Chomp1d(nn.Module):
 
 
 class TemporalBlock(nn.Module):
-    def __init__(self, n_inputs, n_outputs, kernel_size, stride, dilation, padding, dropout=0.2):
+    def __init__(
+        self, n_inputs, n_outputs, kernel_size, stride, dilation, padding, dropout=0.2
+    ):
         super(TemporalBlock, self).__init__()
         self.conv1 = weight_norm(
-            nn.Conv1d(n_inputs, n_outputs, kernel_size, stride=stride, padding=padding, dilation=dilation), dim=None
+            nn.Conv1d(
+                n_inputs,
+                n_outputs,
+                kernel_size,
+                stride=stride,
+                padding=padding,
+                dilation=dilation,
+            ),
+            dim=None,
         )
         self.chomp1 = Chomp1d(padding)
         self.relu1 = nn.ReLU()
         self.dropout1 = nn.Dropout(dropout)
 
         self.conv2 = weight_norm(
-            nn.Conv1d(n_outputs, n_outputs, kernel_size, stride=stride, padding=padding, dilation=dilation), dim=None
+            nn.Conv1d(
+                n_outputs,
+                n_outputs,
+                kernel_size,
+                stride=stride,
+                padding=padding,
+                dilation=dilation,
+            ),
+            dim=None,
         )
         self.chomp2 = Chomp1d(padding)
         self.relu2 = nn.ReLU()
         self.dropout2 = nn.Dropout(dropout)
 
         self.net = nn.Sequential(
-            self.conv1, self.chomp1, self.relu1, self.dropout1, self.conv2, self.chomp2, self.relu2, self.dropout2
+            self.conv1,
+            self.chomp1,
+            self.relu1,
+            self.dropout1,
+            self.conv2,
+            self.chomp2,
+            self.relu2,
+            self.dropout2,
         )
-        self.downsample = nn.Conv1d(n_inputs, n_outputs, 1) if n_inputs != n_outputs else None
+        self.downsample = (
+            nn.Conv1d(n_inputs, n_outputs, 1) if n_inputs != n_outputs else None
+        )
         self.relu = nn.ReLU()
         self.init_weights()
 

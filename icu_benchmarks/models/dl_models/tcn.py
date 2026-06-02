@@ -15,7 +15,17 @@ class TemporalConvNet(DLPredictionWrapper):
 
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, input_size, num_channels, num_classes, *args, max_seq_length=0, kernel_size=2, dropout=0.0, **kwargs):
+    def __init__(
+        self,
+        input_size,
+        num_channels,
+        num_classes,
+        *args,
+        max_seq_length=0,
+        kernel_size=2,
+        dropout=0.0,
+        **kwargs,
+    ):
         super().__init__(
             *args,
             input_size=input_size,
@@ -30,9 +40,13 @@ class TemporalConvNet(DLPredictionWrapper):
 
         # We compute automatically the depth based on the desired seq_length.
         if isinstance(num_channels, Integral) and max_seq_length:
-            num_channels = [num_channels] * int(np.ceil(np.log(max_seq_length / 2) / np.log(kernel_size)))
+            num_channels = [num_channels] * int(
+                np.ceil(np.log(max_seq_length / 2) / np.log(kernel_size))
+            )
         elif isinstance(num_channels, Integral) and not max_seq_length:
-            raise Exception("a maximum sequence length needs to be provided if num_channels is int")
+            raise Exception(
+                "a maximum sequence length needs to be provided if num_channels is int"
+            )
 
         num_levels = len(num_channels)
         for i in range(num_levels):

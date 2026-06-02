@@ -81,12 +81,16 @@ def execute_repeated_cv(
         cv_folds_to_train = 1
 
     else:
-        logging.info(f"Starting nested CV with {cv_repetitions_to_train} repetitions of {cv_folds_to_train} folds.")
+        logging.info(
+            f"Starting nested CV with {cv_repetitions_to_train} repetitions of {cv_folds_to_train} folds."
+        )
     # Train model for each repetition (a manner of splitting the folds)
     for repetition in range(cv_repetitions_to_train):
         # Train model for each fold configuration (i.e, one fold is test fold and the rest are train/val folds)
         for fold_index in range(cv_folds_to_train):
-            repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
+            repetition_fold_dir = (
+                log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
+            )
             repetition_fold_dir.mkdir(parents=True, exist_ok=True)
 
             start_time = datetime.now()
@@ -127,7 +131,10 @@ def execute_repeated_cv(
                 f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| PROCEDURE DURATION {train_time}",
                 level=logging.INFO,
             )
-            durations = {"preprocessing_duration": preprocess_time, "train_duration": train_time}
+            durations = {
+                "preprocessing_duration": preprocess_time,
+                "train_duration": train_time,
+            }
 
             with open(repetition_fold_dir / "durations.json", "w") as f:
                 json.dump(durations, f, cls=JsonResultLoggingEncoder)
@@ -138,6 +145,11 @@ def execute_repeated_cv(
                     aggregate_results(log_dir)
                 except Exception as e:
                     logging.error(f"Failed to aggregate results: {e}")
-        log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
+        log_full_line(
+            f"FINISHED CV REPETITION {repetition}",
+            level=logging.INFO,
+            char="=",
+            num_newlines=3,
+        )
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)

@@ -2,9 +2,9 @@ name: E2E Integration Test
 
 on:
   push:
-    branches: [ main, development ]
+    branches: [main, development]
   pull_request:
-    branches: [ main, development ]
+    branches: [main, development]
   workflow_dispatch:
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.10
+        run: uv python install 3.12
 
       - name: Install YAIB and dependencies
         run: uv sync
@@ -40,7 +40,6 @@ jobs:
             -m XGBClassifier \
             --seed 2222 \
             -l ../yaib_logs/ \
-            --tune
 
       - name: Verify log output was created
         run: |

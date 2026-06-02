@@ -12,7 +12,10 @@ class LGBMWrapper(MLWrapper):
     def fit_model(self, train_data, train_labels, val_data, val_labels):
         """Fitting function for LGBM models."""
         self.model.set_params(random_state=np.random.get_state()[1][0])
-        callbacks = [lgbm.early_stopping(self.hparams.patience, verbose=True), lgbm.log_evaluation(period=-1)]
+        callbacks = [
+            lgbm.early_stopping(self.hparams.patience, verbose=True),
+            lgbm.log_evaluation(period=-1),
+        ]
 
         if wandb.run is not None:
             callbacks.append(wandb_lgbm())

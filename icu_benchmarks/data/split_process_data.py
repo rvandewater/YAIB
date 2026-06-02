@@ -11,7 +11,12 @@ from typing import Any, Iterable, Optional, Union
 import gin
 import pandas as pd
 import polars as pl
-from sklearn.model_selection import KFold, ShuffleSplit, StratifiedKFold, StratifiedShuffleSplit
+from sklearn.model_selection import (
+    KFold,
+    ShuffleSplit,
+    StratifiedKFold,
+    StratifiedShuffleSplit,
+)
 
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.preprocessor import (
@@ -28,7 +33,9 @@ from .constants import DataSegment, DataSplit, VarType
 def preprocess_data(
     data_dir: Path,
     file_names: dict[str, str] | Any = gin.REQUIRED,
-    preprocessor: type[PolarsClassificationPreprocessor | PolarsRegressionPreprocessor] = PolarsClassificationPreprocessor,
+    preprocessor: type[
+        PolarsClassificationPreprocessor | PolarsRegressionPreprocessor
+    ] = PolarsClassificationPreprocessor,
     use_static: bool = True,
     vars: dict[str, str | list[str]] | Any = gin.REQUIRED,
     modality_mapping: Optional[dict[str, list[str]]] = None,
@@ -82,7 +89,11 @@ def preprocess_data(
     if required_var_types is None:
         required_var_types = ["GROUP", "SEQUENCE", "LABEL"]
     if required_segments is None:
-        required_segments = [DataSegment.static, DataSegment.dynamic, DataSegment.outcome]
+        required_segments = [
+            DataSegment.static,
+            DataSegment.dynamic,
+            DataSegment.outcome,
+        ]
 
     check_required_keys(vars, required_var_types)
     check_required_keys(file_names, required_segments)
@@ -95,7 +106,9 @@ def preprocess_data(
         if label is not None:
             vars[VarType.label] = [label]
         else:
-            logging.debug(f"Multiple labels found and no value provided. Using first label: {vars[VarType.label]}")
+            logging.debug(
+                f"Multiple labels found and no value provided. Using first label: {vars[VarType.label]}"
+            )
             vars[VarType.label] = vars[VarType.label][0]
         logging.info(f"Using label: {vars[VarType.label]}")
 
@@ -115,16 +128,24 @@ def preprocess_data(
         vars_to_exclude = None
 
     cache_dir = data_dir / "cache"
-    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
+    cache_filename = (
+        f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
+    )
     preprocessor_instance: Preprocessor = preprocessor(
         use_static_features=use_static,
-        save_cache=data_dir / "preproc" / (cache_filename + "_recipe") if generate_cache else None,
+        save_cache=data_dir / "preproc" / (cache_filename + "_recipe")
+        if generate_cache
+        else None,
         vars_to_exclude=vars_to_exclude,
     )
     if isinstance(preprocessor_instance, PandasClassificationPreprocessor):
         preprocessor_instance.set_imputation_model(pretrained_imputation_model)
 
-    hash_config = hashlib.md5(f"{preprocessor_instance.to_cache_string()}{dumped_file_names}{dumped_vars}".encode("utf-8"))
+    hash_config = hashlib.md5(
+        f"{preprocessor_instance.to_cache_string()}{dumped_file_names}{dumped_vars}".encode(
+            "utf-8"
+        )
+    )
     cache_filename += f"_{hash_config.hexdigest()}"
     cache_file = cache_dir / cache_filename
 
@@ -139,7 +160,9 @@ def preprocess_data(
     # Read parquet files into dataframes and remove the parquet file from memory
     logging.info(f"Loading data from directory {data_dir.absolute()}")
     data: dict[str, pl.DataFrame] = {
-        f: pl.read_parquet(data_dir / file_names[f]) for f in file_names.keys() if os.path.exists(data_dir / file_names[f])
+        f: pl.read_parquet(data_dir / file_names[f])
+        for f in file_names.keys()
+        if os.path.exists(data_dir / file_names[f])
     }
 
     logging.info(f"Loaded data: {list(data.keys())}")
@@ -152,7 +175,9 @@ def preprocess_data(
     if len(modality_mapping) > 0:
         # Optional modality selection
         if selected_modalities not in [None, "all", ["all"]]:
-            data, vars = modality_selection(sanitized_data, modality_mapping, selected_modalities, vars)
+            data, vars = modality_selection(
+                sanitized_data, modality_mapping, selected_modalities, vars
+            )
         else:
             logging.info("Selecting all modalities.")
 
@@ -173,7 +198,9 @@ def preprocess_data(
         )
     else:
         # If full train is set, we use all data for training/validation
-        sanitized_data = make_train_val_polars(data, vars, train_size=train_size, seed=seed, debug=debug, runmode=runmode)
+        sanitized_data = make_train_val_polars(
+            data, vars, train_size=train_size, seed=seed, debug=debug, runmode=runmode
+        )
 
     # Apply preprocessing
     start = timer()
@@ -217,16 +244,22 @@ def flatten_column_names(*args: object) -> list[str]:
     return result
 
 
-def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | list[str]]) -> dict[str, pl.DataFrame]:
+def check_sanitize_data(
+    data: dict[str, pl.DataFrame], vars: dict[str, str | list[str]]
+) -> dict[str, pl.DataFrame]:
     """Check for duplicates in the loaded data and remove them."""
     group: Optional[Union[str, list[str]]] = vars.get(VarType.group)
     sequence: Optional[Union[str, list[str]]] = vars.get(VarType.sequence)
     keep = "last"
     if DataSegment.static in data.keys():
         old_len = len(data[DataSegment.static])
-        data[DataSegment.static] = data[DataSegment.static].unique(subset=group, keep=keep, maintain_order=True)
+        data[DataSegment.static] = data[DataSegment.static].unique(
+            subset=group, keep=keep, maintain_order=True
+        )
         if old_len != len(data[DataSegment.static]):
-            logging.warning(f"Removed {old_len - len(data[DataSegment.static])} duplicates from static data.")
+            logging.warning(
+                f"Removed {old_len - len(data[DataSegment.static])} duplicates from static data."
+            )
     if DataSegment.dynamic in data.keys():
         old_len = len(data[DataSegment.dynamic])
 
@@ -234,18 +267,26 @@ def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | lis
             subset=flatten_column_names(group, sequence), keep=keep, maintain_order=True
         )
         if old_len != len(data[DataSegment.dynamic]):
-            logging.warning(f"Removed {old_len - len(data[DataSegment.dynamic])} duplicates from dynamic data.")
+            logging.warning(
+                f"Removed {old_len - len(data[DataSegment.dynamic])} duplicates from dynamic data."
+            )
     if DataSegment.outcome in data.keys():
         old_len = len(data[DataSegment.outcome])
         if sequence in data[DataSegment.outcome].columns:
             # We have a dynamic outcome with group and sequence
             data[DataSegment.outcome] = data[DataSegment.outcome].unique(
-                subset=flatten_column_names(group, sequence), keep=keep, maintain_order=True
+                subset=flatten_column_names(group, sequence),
+                keep=keep,
+                maintain_order=True,
             )
         else:
-            data[DataSegment.outcome] = data[DataSegment.outcome].unique(subset=group, keep=keep, maintain_order=True)
+            data[DataSegment.outcome] = data[DataSegment.outcome].unique(
+                subset=group, keep=keep, maintain_order=True
+            )
         if old_len != len(data[DataSegment.outcome]):
-            logging.warning(f"Removed {old_len - len(data[DataSegment.outcome])} duplicates from outcome data.")
+            logging.warning(
+                f"Removed {old_len - len(data[DataSegment.outcome])} duplicates from outcome data."
+            )
     return data
 
 
@@ -256,7 +297,11 @@ def modality_selection(
     vars: dict[str, Union[str, list[str]]],
 ) -> tuple[dict[str, pl.DataFrame], dict[str, Union[str, list[str]]]]:
     logging.info(f"Selected modalities: {selected_modalities}")
-    selected_columns = [modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]
+    selected_columns = [
+        modality_mapping[cols]
+        for cols in selected_modalities
+        if cols in modality_mapping.keys()
+    ]
     if not any(col in modality_mapping.keys() for col in selected_modalities):
         raise ValueError("None of the selected modalities found in modality mapping.")
     if selected_columns == []:
@@ -268,7 +313,11 @@ def modality_selection(
     label_val = vars[VarType.label]
     sequence_val = vars[VarType.sequence]
 
-    if not (isinstance(group_val, str) and isinstance(label_val, str) and isinstance(sequence_val, str)):
+    if not (
+        isinstance(group_val, str)
+        and isinstance(label_val, str)
+        and isinstance(sequence_val, str)
+    ):
         raise TypeError(
             f'Expected keys "{VarType.group}", "{VarType.label}" and "{VarType.sequence}" to be of type str, '
             f"got {type(group_val)}, {type(label_val)} and {type(sequence_val)} instead."
@@ -282,7 +331,9 @@ def modality_selection(
             old_columns.extend(value)
             vars[key] = [col for col in value if col in selected_columns]
     # -3 because of standard columns
-    logging.info(f"Selected columns: {len(selected_columns) - 3}, old columns: {len(old_columns)}")
+    logging.info(
+        f"Selected columns: {len(selected_columns) - 3}, old columns: {len(old_columns)}"
+    )
     logging.debug(f"Difference: {set(old_columns) - set(selected_columns)}")
     # Update data dict
     for key in data.keys():
@@ -315,17 +366,25 @@ def make_train_val_pandas(
         )
 
     if debug:
-        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
-        data[DataSegment.outcome] = data[DataSegment.outcome].sample(frac=0.01, random_state=seed)
+        logging.info(
+            "Using only 1% of the data for debugging. Note that this might lead to errors for small datasets."
+        )
+        data[DataSegment.outcome] = data[DataSegment.outcome].sample(
+            frac=0.01, random_state=seed
+        )
 
     stays = data[DataSegment.outcome][_id].unique()
 
     if VarType.label in vars and runmode is RunMode.classification:
         labels = data[DataSegment.outcome].groupby(_id)[label].max()
-        train_val_splitter = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
+        train_val_splitter = StratifiedShuffleSplit(
+            train_size=train_size, random_state=seed, n_splits=1
+        )
         train_indices, val_indices = list(train_val_splitter.split(stays, labels))[0]
     else:
-        train_val_splitter = ShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
+        train_val_splitter = ShuffleSplit(
+            train_size=train_size, random_state=seed, n_splits=1
+        )
         train_indices, val_indices = list(train_val_splitter.split(stays))[0]
 
     split_ids = {
@@ -338,7 +397,9 @@ def make_train_val_pandas(
     for fold in split_ids.keys():
         data_split[fold] = {}
         for data_type in data.keys():
-            merged_df = data[data_type].merge(split_ids[fold], on=_id, how="right", sort=True)
+            merged_df = data[data_type].merge(
+                split_ids[fold], on=_id, how="right", sort=True
+            )
             data_split[fold][data_type] = merged_df
 
     data_split[DataSplit.test] = copy.deepcopy(data_split[DataSplit.val])
@@ -368,22 +429,36 @@ def make_train_val_polars(
         )
 
     if debug:
-        logging.info("Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets.")
-        sampled_ids = data[DataSegment.outcome][_id].unique().sample(fraction=0.01, seed=seed)
-        data[DataSegment.outcome] = data[DataSegment.outcome].filter(pl.col(_id).is_in(sampled_ids))
+        logging.info(
+            "Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets."
+        )
+        sampled_ids = (
+            data[DataSegment.outcome][_id].unique().sample(fraction=0.01, seed=seed)
+        )
+        data[DataSegment.outcome] = data[DataSegment.outcome].filter(
+            pl.col(_id).is_in(sampled_ids)
+        )
         if DataSegment.dynamic in data:
-            data[DataSegment.dynamic] = data[DataSegment.dynamic].filter(pl.col(_id).is_in(sampled_ids))
+            data[DataSegment.dynamic] = data[DataSegment.dynamic].filter(
+                pl.col(_id).is_in(sampled_ids)
+            )
         if DataSegment.static in data:
-            data[DataSegment.static] = data[DataSegment.static].filter(pl.col(_id).is_in(sampled_ids))
+            data[DataSegment.static] = data[DataSegment.static].filter(
+                pl.col(_id).is_in(sampled_ids)
+            )
 
     stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique())
 
     if VarType.label in vars and runmode is RunMode.classification:
         labels = data[DataSegment.outcome].group_by(_id).max()[label]
-        train_val_splitter = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
+        train_val_splitter = StratifiedShuffleSplit(
+            train_size=train_size, random_state=seed, n_splits=1
+        )
         train_indices, val_indices = list(train_val_splitter.split(stays, labels))[0]
     else:
-        train_val_splitter = ShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
+        train_val_splitter = ShuffleSplit(
+            train_size=train_size, random_state=seed, n_splits=1
+        )
         train_indices, val_indices = list(train_val_splitter.split(stays))[0]
 
     split = {
@@ -396,7 +471,11 @@ def make_train_val_polars(
     for fold in split.keys():
         data_split[fold] = {
             data_type: split[fold]
-            .join(data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)), on=_id, how="left")
+            .join(
+                data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)),
+                on=_id,
+                how="left",
+            )
             .sort(by=_id)
             for data_type in data.keys()
         }
@@ -434,11 +513,21 @@ def make_train_val(
         corresponding to the original data segments.
     """
     if polars:
-        polars_data = {k: v if isinstance(v, pl.DataFrame) else pl.DataFrame(v) for k, v in data.items()}
-        return make_train_val_polars(polars_data, vars, train_size, seed, debug, runmode)
+        polars_data = {
+            k: v if isinstance(v, pl.DataFrame) else pl.DataFrame(v)
+            for k, v in data.items()
+        }
+        return make_train_val_polars(
+            polars_data, vars, train_size, seed, debug, runmode
+        )
     else:
-        pandas_data = {k: v if isinstance(v, pd.DataFrame) else v.to_pandas() for k, v in data.items()}
-        return make_train_val_pandas(pandas_data, vars, train_size, seed, debug, runmode)
+        pandas_data = {
+            k: v if isinstance(v, pd.DataFrame) else v.to_pandas()
+            for k, v in data.items()
+        }
+        return make_train_val_pandas(
+            pandas_data, vars, train_size, seed, debug, runmode
+        )
 
 
 # Use these helper functions in both make_train_val and make_single_split
@@ -470,13 +559,19 @@ def make_single_split_pandas(
         )
 
     if debug:
-        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
-        data[DataSegment.outcome] = data[DataSegment.outcome].sample(frac=0.01, random_state=seed)
+        logging.info(
+            "Using only 1% of the data for debugging. Note that this might lead to errors for small datasets."
+        )
+        data[DataSegment.outcome] = data[DataSegment.outcome].sample(
+            frac=0.01, random_state=seed
+        )
 
     stays = data[DataSegment.outcome][_id].unique()
 
     if VarType.label in vars and runmode is RunMode.classification:
-        labels = data[DataSegment.outcome].groupby(_id)[label].max().reset_index(drop=True)
+        labels = (
+            data[DataSegment.outcome].groupby(_id)[label].max().reset_index(drop=True)
+        )
         if labels.value_counts().min() < cv_folds:
             raise Exception(
                 f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
@@ -484,17 +579,25 @@ def make_single_split_pandas(
             )
 
         if train_size:
-            outer_cv = StratifiedShuffleSplit(cv_repetitions, train_size=train_size, random_state=seed)
+            outer_cv = StratifiedShuffleSplit(
+                cv_repetitions, train_size=train_size, random_state=seed
+            )
         else:
             outer_cv = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
         inner_cv = StratifiedKFold(cv_folds, shuffle=True, random_state=seed)
 
-        dev_indices, test_indices = list(outer_cv.split(stays, labels))[repetition_index]
+        dev_indices, test_indices = list(outer_cv.split(stays, labels))[
+            repetition_index
+        ]
         dev_stays = stays[dev_indices]
-        train_indices, val_indices = list(inner_cv.split(dev_stays, labels[dev_indices]))[fold_index]
+        train_indices, val_indices = list(
+            inner_cv.split(dev_stays, labels[dev_indices])
+        )[fold_index]
     else:
         if train_size:
-            outer_cv = ShuffleSplit(cv_repetitions, train_size=train_size, random_state=seed)
+            outer_cv = ShuffleSplit(
+                cv_repetitions, train_size=train_size, random_state=seed
+            )
         else:
             outer_cv = KFold(cv_repetitions, shuffle=True, random_state=seed)
         inner_cv = KFold(cv_folds, shuffle=True, random_state=seed)
@@ -514,7 +617,9 @@ def make_single_split_pandas(
     for fold in split_ids.keys():
         data_split[fold] = {}
         for data_type in data.keys():
-            merged_df = data[data_type].merge(split_ids[fold], on=_id, how="right", sort=True)
+            merged_df = data[data_type].merge(
+                split_ids[fold], on=_id, how="right", sort=True
+            )
             data_split[fold][data_type] = merged_df
 
     logging.debug(f"Data split: {data_split}")
@@ -542,20 +647,32 @@ def make_single_split_polars(
     # ID variable
     _id = vars[VarType.group]
     if debug:
-        logging.info("Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets.")
-        sampled_ids = data[DataSegment.outcome][_id].unique().sample(fraction=0.01, seed=seed)
-        data[DataSegment.outcome] = data[DataSegment.outcome].filter(pl.col(_id).is_in(sampled_ids))
+        logging.info(
+            "Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets."
+        )
+        sampled_ids = (
+            data[DataSegment.outcome][_id].unique().sample(fraction=0.01, seed=seed)
+        )
+        data[DataSegment.outcome] = data[DataSegment.outcome].filter(
+            pl.col(_id).is_in(sampled_ids)
+        )
         if DataSegment.dynamic in data:
-            data[DataSegment.dynamic] = data[DataSegment.dynamic].filter(pl.col(_id).is_in(sampled_ids))
+            data[DataSegment.dynamic] = data[DataSegment.dynamic].filter(
+                pl.col(_id).is_in(sampled_ids)
+            )
         if DataSegment.static in data:
-            data[DataSegment.static] = data[DataSegment.static].filter(pl.col(_id).is_in(sampled_ids))
+            data[DataSegment.static] = data[DataSegment.static].filter(
+                pl.col(_id).is_in(sampled_ids)
+            )
 
     # Get stay IDs from outcome segment
     stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique()).sort()
     # If there are labels, and the task is classification, use stratified k-fold
     if VarType.label in vars and runmode is RunMode.classification:
         # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
-        labels: pl.Series = data[DataSegment.outcome].group_by(_id).max().sort(_id)[vars[VarType.label]]
+        labels: pl.Series = (
+            data[DataSegment.outcome].group_by(_id).max().sort(_id)[vars[VarType.label]]
+        )
         if labels.value_counts().min().item(0, 1) < cv_folds:
             raise Exception(
                 f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
@@ -595,7 +712,11 @@ def make_single_split_polars(
         # set sort to true to make sure that IDs are reordered after scrambling earlier
         data_split[fold] = {
             data_type: split[fold]
-            .join(data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)), on=_id, how="left")
+            .join(
+                data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)),
+                on=_id,
+                how="left",
+            )
             .sort(by=_id)
             for data_type in data.keys()
         }
@@ -640,14 +761,38 @@ def make_single_split(
         Input data divided into 'train', 'val', and 'test'.
     """
     if polars:
-        polars_data = {k: v if isinstance(v, pl.DataFrame) else pl.DataFrame(v) for k, v in data.items()}
+        polars_data = {
+            k: v if isinstance(v, pl.DataFrame) else pl.DataFrame(v)
+            for k, v in data.items()
+        }
         return make_single_split_polars(
-            polars_data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, train_size, seed, debug, runmode
+            polars_data,
+            vars,
+            cv_repetitions,
+            repetition_index,
+            cv_folds,
+            fold_index,
+            train_size,
+            seed,
+            debug,
+            runmode,
         )
     else:
-        pandas_data = {k: v if isinstance(v, pd.DataFrame) else v.to_pandas() for k, v in data.items()}
+        pandas_data = {
+            k: v if isinstance(v, pd.DataFrame) else v.to_pandas()
+            for k, v in data.items()
+        }
         return make_single_split_pandas(
-            pandas_data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, train_size, seed, debug, runmode
+            pandas_data,
+            vars,
+            cv_repetitions,
+            repetition_index,
+            cv_folds,
+            fold_index,
+            train_size,
+            seed,
+            debug,
+            runmode,
         )
 
 

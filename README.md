@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml)
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-![Platform](https://img.shields.io/badge/platform-linux--64%20|%20win--64%20|%20osx--64-lightgrey)
+![Platform](https://img.shields.io/badge/platform-linux--64%20%7C%20win--64%20%7C%20osx--64-lightgrey)
 [![arXiv](https://img.shields.io/badge/arXiv-2306.05109-b31b1b.svg)](http://arxiv.org/abs/2306.05109)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/yaib.svg)](https://pypi.python.org/pypi/yaib/)
 [![python](https://img.shields.io/badge/-Python_3.10-blue?logo=python&logoColor=white)](https://www.python.org/downloads/release/python-3100/)
@@ -12,15 +12,13 @@
 [![lightning](https://img.shields.io/badge/-Lightning_2.0+-792ee5?logo=pytorchlightning&logoColor=white)](https://pytorchlightning.ai/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-[//]: # (TODO: add coverage once we have some tests )
-
 Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on Intensive Care Unit
 (ICU) EHR data.
 
 We support the following datasets out of the box:
 
 | **Dataset**                 | [MIMIC-III](https://physionet.org/content/mimiciii/) / [IV](https://physionet.org/content/mimiciv/) | [eICU-CRD](https://physionet.org/content/eicu-crd/) | [HiRID](https://physionet.org/content/hirid/1.1.1/) | [AUMCdb](https://doi.org/10.17026/dans-22u-f8vd) |
-|-----------------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------|-----------------------------------------------------|--------------------------------------------------|
+| --------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------ |
 | **Admissions**              | 40k / 73k                                                                                           | 200k                                                | 33k                                                 | 23k                                              |
 | **Version**                 | v1.4 / v2.2                                                                                         | v2.0                                                | v1.1.1                                              | v1.0.2                                           |
 | **Frequency** (time-series) | 1 hour                                                                                              | 5 minutes                                           | 2 / 5 minutes                                       | up to 1 minute                                   |
@@ -33,7 +31,7 @@ The benchmark is designed for operating on preprocessed parquet files.
 We provide five common tasks for clinical prediction by default:
 
 | No  | Task                      | Frequency                 | Type                  |
-|-----|---------------------------|---------------------------|-----------------------|
+| --- | ------------------------- | ------------------------- | --------------------- |
 | 1   | ICU Mortality             | Once per Stay (after 24H) | Binary Classification |
 | 2   | Acute Kidney Injury (AKI) | Hourly (within 6H)        | Binary Classification |
 | 3   | Sepsis                    | Hourly (within 6H)        | Binary Classification |
