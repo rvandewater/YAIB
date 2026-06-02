@@ -173,7 +173,7 @@ def preprocess_data(
         )
     else:
         # If full train is set, we use all data for training/validation
-        sanitized_data = make_train_val_polars(data, vars, train_size=None, seed=seed, debug=debug, runmode=runmode)
+        sanitized_data = make_train_val_polars(data, vars, train_size=train_size, seed=seed, debug=debug, runmode=runmode)
 
     # Apply preprocessing
     start = timer()
@@ -191,7 +191,7 @@ def preprocess_data(
             sel = _dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
             _dict[key] = val.fill_null(strategy="zero")
-            _dict[key] = val.fill_nan(0)
+            _dict[key] = _dict[key].fill_nan(0)
             logging.debug("Dropping columns with nulls")
             sel = _dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
@@ -368,8 +368,13 @@ def make_train_val_polars(
         )
 
     if debug:
-        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
-        data[DataSegment.outcome] = data[DataSegment.outcome].sample(fraction=0.01, seed=seed)
+        logging.info("Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets.")
+        sampled_ids = data[DataSegment.outcome][_id].unique().sample(fraction=0.01, seed=seed)
+        data[DataSegment.outcome] = data[DataSegment.outcome].filter(pl.col(_id).is_in(sampled_ids))
+        if DataSegment.dynamic in data:
+            data[DataSegment.dynamic] = data[DataSegment.dynamic].filter(pl.col(_id).is_in(sampled_ids))
+        if DataSegment.static in data:
+            data[DataSegment.static] = data[DataSegment.static].filter(pl.col(_id).is_in(sampled_ids))
 
     stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique())
 
@@ -535,18 +540,22 @@ def make_single_split_polars(
     For a more detailed documentation refer to make_single_splits(...)
     """
     # ID variable
-    id = vars[VarType.group]
+    _id = vars[VarType.group]
     if debug:
-        # Only use 1% of the data
-        logging.info("Using only 1% of the data for debugging. Note that this might lead to errors for small datasets.")
-        data[DataSegment.outcome] = data[DataSegment.outcome].sample(fraction=0.01, seed=seed)
+        logging.info("Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets.")
+        sampled_ids = data[DataSegment.outcome][_id].unique().sample(fraction=0.01, seed=seed)
+        data[DataSegment.outcome] = data[DataSegment.outcome].filter(pl.col(_id).is_in(sampled_ids))
+        if DataSegment.dynamic in data:
+            data[DataSegment.dynamic] = data[DataSegment.dynamic].filter(pl.col(_id).is_in(sampled_ids))
+        if DataSegment.static in data:
+            data[DataSegment.static] = data[DataSegment.static].filter(pl.col(_id).is_in(sampled_ids))
 
     # Get stay IDs from outcome segment
-    stays = pl.Series(name=id, values=data[DataSegment.outcome][id].unique())
+    stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique()).sort()
     # If there are labels, and the task is classification, use stratified k-fold
     if VarType.label in vars and runmode is RunMode.classification:
         # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
-        labels: pl.Series = data[DataSegment.outcome].group_by(id).max().sort(id)[vars[VarType.label]]
+        labels: pl.Series = data[DataSegment.outcome].group_by(_id).max().sort(_id)[vars[VarType.label]]
         if labels.value_counts().min().item(0, 1) < cv_folds:
             raise Exception(
                 f"The smallest amount of samples in a class is: {labels.value_counts().min()}, "
@@ -586,8 +595,8 @@ def make_single_split_polars(
         # set sort to true to make sure that IDs are reordered after scrambling earlier
         data_split[fold] = {
             data_type: split[fold]
-            .join(data[data_type].with_columns(pl.col(id).cast(pl.datatypes.Int64)), on=id, how="left")
-            .sort(by=id)
+            .join(data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)), on=_id, how="left")
+            .sort(by=_id)
             for data_type in data.keys()
         }
 

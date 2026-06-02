@@ -47,6 +47,14 @@ class CommonPolarsDataset(Dataset):
             logging.info("Using static dataset")
             self.row_indicators = data[split][DataSegment.features][self.vars["GROUP"]]
             self.features_df = data[split][DataSegment.features]
+
+        # order columns: index, features (alphabetically), indicator (alphabetically)
+        cols = self.features_df.columns
+        m_index = [self.vars["GROUP"]]
+        front = sorted([c for c in cols if not c.startswith("MissingIndicator_") and c not in m_index])
+        back = sorted([c for c in cols if c.startswith("MissingIndicator_") and c not in m_index])
+        self.features_df = self.features_df[m_index + front + back]
+
         # calculate basic info for the data
         self.num_stays = self.grouping_df[self.vars["GROUP"]].unique().shape[0]
         self.maxlen = self.features_df.group_by([self.vars["GROUP"]]).len().max().item(0, 1)
@@ -99,15 +107,12 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         feat_partitions = self.features_df.partition_by(GROUP, maintain_order=True)
         self._stay_order = [part[GROUP][0] for part in label_partitions]
         self._feat_arrays = {
-            part[GROUP][0]: part.select(pl.exclude(GROUP)).to_numpy().astype(np.float32)
-            for part in feat_partitions
+            part[GROUP][0]: part.select(pl.exclude(GROUP)).to_numpy().astype(np.float32) for part in feat_partitions
         }
         for arr in self._feat_arrays.values():
             arr.setflags(write=False)
-    
-        self._label_arrays = {
-            part[GROUP][0]: part[LABEL].to_numpy().astype(np.float32) for part in label_partitions
-        }
+
+        self._label_arrays = {part[GROUP][0]: part[LABEL].to_numpy().astype(np.float32) for part in label_partitions}
         for arr in self._label_arrays.values():
             arr.setflags(write=False)
 
@@ -118,25 +123,29 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         stay_id = self._stay_order[idx]
 
         window = self._feat_arrays[stay_id]
-        labels = self._label_arrays[stay_id].copy() # copy to avoid in-place NaN replacement
+        labels = self._label_arrays[stay_id].copy()  # copy to avoid in-place NaN replacement
 
         if len(labels) == 1:
             # only one label per stay, align with window
-            labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
+            labels = np.concatenate(
+                [np.full((window.shape[0] - 1, *labels.shape[1:]), np.nan), labels],
+                axis=0,
+            )
 
         length_diff = self.maxlen - window.shape[0]
         pad_mask = np.ones(window.shape[0])
 
         # Padding the array to fulfill size requirement
         if length_diff > 0:
-            window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
-            labels = np.concatenate([labels, np.ones(length_diff) * pad_value], axis=0)
+            window = np.concatenate([window, np.full((length_diff, window.shape[1]), pad_value)], axis=0)
+            labels = np.concatenate([labels, np.full((length_diff, *labels.shape[1:]), pad_value)], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
 
-        not_labeled = np.argwhere(np.isnan(labels))
-        if len(not_labeled) > 0:
-            labels[not_labeled] = -1
-            pad_mask[not_labeled] = 0
+        # check for (partially) unlabeled data
+        nan_mask = np.isnan(labels)
+        labels[nan_mask] = -1
+        invalid_rows = nan_mask if labels.ndim == 1 else nan_mask.any(axis=-1)
+        pad_mask[invalid_rows] = 0
 
         pad_mask = pad_mask.astype(bool)
         labels = labels.astype(np.float32)
