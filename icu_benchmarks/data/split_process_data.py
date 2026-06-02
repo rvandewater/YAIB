@@ -191,7 +191,7 @@ def preprocess_data(
             sel = _dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
             _dict[key] = val.fill_null(strategy="zero")
-            _dict[key] = val.fill_nan(0)
+            _dict[key] = _dict[key].fill_nan(0)
             logging.debug("Dropping columns with nulls")
             sel = _dict[key].select(pl.all().has_nulls())
             logging.debug(sel.select(col.name for col in sel if col.item(0)))
