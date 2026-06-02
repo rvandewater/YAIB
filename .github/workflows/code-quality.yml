@@ -1,6 +1,3 @@
-# Same as `code-quality-pr.yaml` but triggered on commit to main branch
-# and runs on all files (instead of only the changed ones)
-
 name: Code Quality Main
 
 on:
@@ -13,21 +10,18 @@ jobs:
   code-quality:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
-      - name: Install packages
+      - name: Install pre-commit only
         run: |
-          pip install .[dev]
+          python -m pip install --upgrade pip
+          pip install pre-commit
 
       - name: Run pre-commits
         uses: pre-commit/action@v3.0.1
