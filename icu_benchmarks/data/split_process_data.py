@@ -370,7 +370,7 @@ def make_train_val_polars(
     if debug:
         logging.info("Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets.")
         sampled_ids = data[DataSegment.outcome][_id].unique().sample(fraction=0.01, seed=seed)
-        data[DataSegment.outcome].filter(pl.col(_id).is_in(sampled_ids))
+        data[DataSegment.outcome] = data[DataSegment.outcome].filter(pl.col(_id).is_in(sampled_ids))
         if DataSegment.dynamic in data:
             data[DataSegment.dynamic] = data[DataSegment.dynamic].filter(pl.col(_id).is_in(sampled_ids))
         if DataSegment.static in data:
@@ -551,7 +551,7 @@ def make_single_split_polars(
             data[DataSegment.static] = data[DataSegment.static].filter(pl.col(_id).is_in(sampled_ids))
 
     # Get stay IDs from outcome segment
-    stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique())
+    stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique()).sort()
     # If there are labels, and the task is classification, use stratified k-fold
     if VarType.label in vars and runmode is RunMode.classification:
         # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)
