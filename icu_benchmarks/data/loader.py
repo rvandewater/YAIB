@@ -47,6 +47,14 @@ class CommonPolarsDataset(Dataset):
             logging.info("Using static dataset")
             self.row_indicators = data[split][DataSegment.features][self.vars["GROUP"]]
             self.features_df = data[split][DataSegment.features]
+
+        # order columns: index, features (alphabetically), indicator (alphabetically)
+        cols = self.features_df.columns
+        m_index = [self.vars["GROUP"]]
+        front = sorted([c for c in cols if not c.startswith("MissingIndicator_") and c not in m_index])
+        back = sorted([c for c in cols if c.startswith("MissingIndicator_") and c not in m_index])
+        self.features_df= self.features_df[m_index + front + back]
+
         # calculate basic info for the data
         self.num_stays = self.grouping_df[self.vars["GROUP"]].unique().shape[0]
         self.maxlen = self.features_df.group_by([self.vars["GROUP"]]).len().max().item(0, 1)
