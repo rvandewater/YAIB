@@ -130,21 +130,29 @@ class PredictionPolarsDataset(CommonPolarsDataset):
 
         if len(labels) == 1:
             # only one label per stay, align with window
-            labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
+            labels = np.concatenate(
+                [np.full((window.shape[0] - 1, *labels.shape[1:]), np.nan), labels],
+                axis=0,
+            )
 
         length_diff = self.maxlen - window.shape[0]
         pad_mask = np.ones(window.shape[0])
 
         # Padding the array to fulfill size requirement
         if length_diff > 0:
-            window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
-            labels = np.concatenate([labels, np.ones(length_diff) * pad_value], axis=0)
+            window = np.concatenate([window, np.full((length_diff, window.shape[1]), pad_value)], axis=0)
+            labels = np.concatenate([labels, np.full((length_diff, *labels.shape[1:]), pad_value)], axis=0)
             pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
 
-        not_labeled = np.argwhere(np.isnan(labels))
-        if len(not_labeled) > 0:
-            labels[not_labeled] = -1
-            pad_mask[not_labeled] = 0
+        # check for (partially) unlabeled data
+        nan_mask = np.isnan(labels)
+        labels[nan_mask] = -1
+        invalid_rows = (
+            nan_mask
+            if labels.ndim == 1
+            else nan_mask.any(axis=-1)
+        )
+        pad_mask[invalid_rows] = 0
 
         pad_mask = pad_mask.astype(bool)
         labels = labels.astype(np.float32)
