@@ -1,0 +1,67 @@
+name: E2E Integration Test
+
+on:
+  push:
+    branches: [ main, development ]
+  pull_request:
+    branches: [ main, development ]
+  workflow_dispatch:
+
+jobs:
+  e2e-integration-test:
+    name: Run YAIB E2E Integration Test (XGBClassifier / Mortality24)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/setup.py', '**/setup.cfg', '**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install YAIB and dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e .
+
+      - name: Verify icu-benchmarks CLI is available
+        run: icu-benchmarks --help
+
+      - name: Run E2E integration test — XGBClassifier / Mortality24 / MIMIC demo
+        run: |
+          icu-benchmarks train \
+            -d demo_data/mortality24/mimic_demo \
+            -n mimic_demo \
+            -t BinaryClassification \
+            -tn Mortality24 \
+            -m XGBClassifier \
+            --seed 2222 \
+            -l ../yaib_logs/ \
+            --tune
+
+      - name: Verify log output was created
+        run: |
+          if [ ! -d "../yaib_logs/mimic_demo" ]; then
+            echo "ERROR: Expected log directory ../yaib_logs/mimic_demo was not created."
+            exit 1
+          fi
+          echo "Log directory found:"
+          find ../yaib_logs -type f | head -50
+
+      - name: Upload run logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yaib-e2e-logs
+          path: ../yaib_logs/
+          retention-days: 7
