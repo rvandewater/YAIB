@@ -7,7 +7,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, "release/*", "dev"]
+    branches: [main, "release/*", "development"]
 
 jobs:
   code-quality:

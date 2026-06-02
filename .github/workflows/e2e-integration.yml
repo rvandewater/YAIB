@@ -39,7 +39,7 @@ jobs:
             -tn Mortality24 \
             -m XGBClassifier \
             --seed 2222 \
-            -l ../yaib_logs/ \
+            -l yaib_logs/ \
 
       - name: Verify log output was created
         run: |
@@ -48,12 +48,12 @@ jobs:
             exit 1
           fi
           echo "Log directory found:"
-          find ../yaib_logs -type f | head -50
+          find yaib_logs/ -type f | head -50
 
       - name: Upload run logs as artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: yaib-e2e-logs
-          path: ../yaib_logs/
+          path: yaib_logs/
           retention-days: 7
