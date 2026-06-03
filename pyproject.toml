@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "yaib"
-version = "0.3.1"
+version = "1.0.3"
 
 description = "🧪Yet Another ICU Benchmark: a holistic framework for the standardization of clinical prediction model experiments. Provide custom datasets, cohorts, prediction tasks, endpoints, preprocessing, and models. Paper: https://arxiv.org/abs/2306.05109"
 readme = "README.md"
