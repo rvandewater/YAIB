@@ -5,8 +5,6 @@ on: push
 jobs:
   build:
     name: Build distribution 📦
-  build:
-    name: Build distribution 📦
     runs-on: ubuntu-latest
     permissions:
       contents: read
