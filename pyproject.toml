@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.7"]
+requires = ["uv_build>=0.7 ,<0.12"]
 build-backend = "uv_build"
 
 [project]
@@ -94,5 +94,5 @@ torch = [
 
 
 [tool.ruff]
-line-length = 128
+line-length = 127
 include = ["*.py"]
