@@ -5,7 +5,11 @@ on: push
 jobs:
   build:
     name: Build distribution 📦
+  build:
+    name: Build distribution 📦
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     strategy:
       matrix:
@@ -21,12 +25,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Debug git and version info
-        env:
-          GIT_REF: ${{ github.ref }}
         run: |
           git tag -l
           git describe --tags --dirty --always
-          echo "GitHub ref: $GIT_REF"
+          echo "GitHub ref: ${{ github.ref }}"
       - name: Install dependencies
         run: |
           python3 -m pip install setuptools-scm build
