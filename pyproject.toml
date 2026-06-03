@@ -1,11 +1,12 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.7"]
+build-backend = "uv_build"
 
 [project]
 name = "yaib"
-version = "dynamic"
-description = "Yet Another ICU Benchmark is a holistic framework for the automation of the development of clinical prediction models on ICU data."
+version = "0.3.1"
+
+description = "🧪Yet Another ICU Benchmark: a holistic framework for the standardization of clinical prediction model experiments. Provide custom datasets, cohorts, prediction tasks, endpoints, preprocessing, and models. Paper: https://arxiv.org/abs/2306.05109"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
@@ -61,8 +62,12 @@ icu-benchmarks = "icu_benchmarks.run:main"
 [project.urls]
 Homepage = "https://github.com/rvandewater/YAIB"
 
-[tool.hatch.build.targets.wheel]
-packages = ["icu_benchmarks"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = "icu_benchmarks"
 
 [dependency-groups]
 dev = [
@@ -85,5 +90,6 @@ torch = [
 ]
 
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
+[tool.ruff]
+line-length = 127
+include = ["*.py"]
