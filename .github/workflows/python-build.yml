@@ -21,10 +21,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Debug git and version info
+        env:
+          GIT_REF: ${{ github.ref }}
         run: |
           git tag -l
           git describe --tags --dirty --always
-          echo "GitHub ref: ${{ github.ref }}"
+          echo "GitHub ref: $GIT_REF"
       - name: Install dependencies
         run: |
           python3 -m pip install setuptools-scm build
