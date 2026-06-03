@@ -719,19 +719,29 @@ class PandasRegressionPreprocessor(PandasClassificationPreprocessor):
 
 @gin.configurable("base_imputation_preprocessor")
 class PandasImputationPreprocessor(Preprocessor):
+    """
+    Preprocesses data for imputation.
+
+    Args:
+        scaling (bool, optional): If the values in each column should be normalized. Defaults to True.
+        use_static_features (bool, optional): If static features should be included in the dataset. Defaults to True.
+    """
+
     def __init__(
         self,
         scaling: bool = True,
         use_static_features: bool = True,
         filter_missing_values: bool = True,
+        save_cache: Optional[Union[str, Path]] = None,
+        load_cache: Optional[Union[str, Path]] = None,
     ):
-        """
-        Preprocesses data for imputation.
-
-        Args:
-            scaling (bool, optional): If the values in each column should be normalized. Defaults to True.
-            use_static_features (bool, optional): If static features should be included in the dataset. Defaults to True.
-        """
+        super().__init__(
+            generate_features=False,
+            scaling=scaling,
+            use_static_features=use_static_features,
+            save_cache=save_cache,
+            load_cache=load_cache,
+        )
         self.scaling = scaling
         self.use_static_features = use_static_features
         self.filter_missing_values = filter_missing_values
