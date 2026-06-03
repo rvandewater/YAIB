@@ -199,7 +199,12 @@ def preprocess_data(
     else:
         # If full train is set, we use all data for training/validation
         sanitized_data = make_train_val_polars(
-            data, vars, train_size=train_size, seed=seed, debug=debug, runmode=runmode
+            sanitized_data,
+            vars,
+            train_size=train_size,
+            seed=seed,
+            debug=debug,
+            runmode=runmode,
         )
 
     # Apply preprocessing

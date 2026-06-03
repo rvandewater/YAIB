@@ -1,7 +1,7 @@
 default_language_version:
   python: python3.12
 
-exclude: ".ipynb"
+exclude: '\.ipynb$'
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks

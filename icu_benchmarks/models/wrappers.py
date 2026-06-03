@@ -583,7 +583,7 @@ class MLWrapper(BaseModule, ABC):
                 delimiter=",",
             )
             logging.debug(
-                f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}"
+                f"Saved row indicators to {Path(self.logger.save_dir) / 'pred_indicators.csv'}"
             )
         else:
             logging.warning("Could not save row indicators.")

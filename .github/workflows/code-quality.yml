@@ -8,6 +8,8 @@ on:
 
 jobs:
   code-quality:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
 
     steps:

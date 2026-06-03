@@ -6,27 +6,20 @@ import pandas as pd
 
 def aggregate_results(
     log_dir: Path,
-    models=[
-        "LSTM",
-        "Transformer",
-        "GRU",
-        "RNN",
-        "LogisticRegression",
-        "LGBMClassifier",
-        "TCN",
-    ],
+    models=None,
     metric_type="AUC",
     include_unfinished=False,
     iterations=5,
     decimals=2,
     scale=100,
-    sort=["Dataset", "Model"],
-    datasets=["miiv", "aumc", "hirid", "eicu"],
+    sort=None,
+    datasets=None,
     results_file="accumulated_test_metrics.json",
 ):
     """
     Aggregate results from a log directory.
     Args:
+        scale: Scale results to units (e.g. 100 for percentage).
         log_dir: Log directory stub.
         models: List of models to include in the results.
         metric_type: Metric to aggregate.
@@ -37,6 +30,20 @@ def aggregate_results(
         datasets: Which datasets to include.
         results_file: Name of the results file.
     """
+    if sort is None:
+        sort = ["Dataset", "Model"]
+    if datasets is None:
+        datasets = ["miiv", "aumc", "hirid", "eicu"]
+    if models is None:
+        models = [
+            "LSTM",
+            "Transformer",
+            "GRU",
+            "RNN",
+            "LogisticRegression",
+            "LGBMClassifier",
+            "TCN",
+        ]
     results = pd.DataFrame(
         columns=[
             "Time",
