@@ -24,7 +24,17 @@ class SimpleDiffusionModel(ImputationWrapper):
 
     input_size = []
 
-    def __init__(self, input_size, n_onedirectional_conv, T, min_noise, max_noise, noise_scheduler, *args, **kwargs):
+    def __init__(
+        self,
+        input_size,
+        n_onedirectional_conv,
+        T,
+        min_noise,
+        max_noise,
+        noise_scheduler,
+        *args,
+        **kwargs,
+    ):
         super().__init__(
             n_onedirectional_conv=n_onedirectional_conv,
             T=T,
@@ -80,7 +90,9 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         # Time embedding
         self.time_mlp = nn.Sequential(
-            SinusoidalPositionEmbeddings(input_size[2]), nn.Linear(input_size[2], input_size[2]), nn.ReLU()
+            SinusoidalPositionEmbeddings(input_size[2]),
+            nn.Linear(input_size[2], input_size[2]),
+            nn.ReLU(),
         )
 
         # Blocks
@@ -96,7 +108,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         amputated = amputated[:, None, :, :]
         x = amputated
 
-        # Embedd time
+        # Embed time
         t = self.time_mlp(timestep)
 
         # Residual Connections

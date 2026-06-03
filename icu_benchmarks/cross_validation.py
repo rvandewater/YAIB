@@ -127,7 +127,10 @@ def execute_repeated_cv(
                 f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| PROCEDURE DURATION {train_time}",
                 level=logging.INFO,
             )
-            durations = {"preprocessing_duration": preprocess_time, "train_duration": train_time}
+            durations = {
+                "preprocessing_duration": preprocess_time,
+                "train_duration": train_time,
+            }
 
             with open(repetition_fold_dir / "durations.json", "w") as f:
                 json.dump(durations, f, cls=JsonResultLoggingEncoder)
@@ -138,6 +141,11 @@ def execute_repeated_cv(
                     aggregate_results(log_dir)
                 except Exception as e:
                     logging.error(f"Failed to aggregate results: {e}")
-        log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
+        log_full_line(
+            f"FINISHED CV REPETITION {repetition}",
+            level=logging.INFO,
+            char="=",
+            num_newlines=3,
+        )
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)

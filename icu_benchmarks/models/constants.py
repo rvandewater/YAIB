@@ -1,4 +1,9 @@
-from ignite.contrib.metrics import AveragePrecision, ROC_AUC, RocCurve, PrecisionRecallCurve
+from ignite.contrib.metrics import (
+    AveragePrecision,
+    ROC_AUC,
+    RocCurve,
+    PrecisionRecallCurve,
+)
 from ignite.metrics import Accuracy, RootMeanSquaredError
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (

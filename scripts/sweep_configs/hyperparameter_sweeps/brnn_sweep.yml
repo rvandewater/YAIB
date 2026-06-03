@@ -33,10 +33,10 @@ parameters:
   Adam.lr:
     values: [0.001, 0.01, 0.1]
   BRNN.cell:
-    values: ['gru', "lstm"]
+    values: ["gru", "lstm"]
   BRNN.hidden_size:
     values: [32, 64, 128]
   BRNN.state_init:
-    values: ['zero', "noise"]
+    values: ["zero", "noise"]
   BRNN.dropout:
     values: [0.0, 0.1, 0.3]

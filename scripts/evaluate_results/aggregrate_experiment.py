@@ -6,19 +6,20 @@ import pandas as pd
 
 def aggregate_results(
     log_dir: Path,
-    models=["LSTM", "Transformer", "GRU", "RNN", "LogisticRegression", "LGBMClassifier", "TCN"],
+    models=None,
     metric_type="AUC",
     include_unfinished=False,
     iterations=5,
     decimals=2,
     scale=100,
-    sort=["Dataset", "Model"],
-    datasets=["miiv", "aumc", "hirid", "eicu"],
+    sort=None,
+    datasets=None,
     results_file="accumulated_test_metrics.json",
 ):
     """
     Aggregate results from a log directory.
     Args:
+        scale: Scale results to units (e.g. 100 for percentage).
         log_dir: Log directory stub.
         models: List of models to include in the results.
         metric_type: Metric to aggregate.
@@ -29,7 +30,31 @@ def aggregate_results(
         datasets: Which datasets to include.
         results_file: Name of the results file.
     """
-    results = pd.DataFrame(columns=["Time", "Dataset", "Model", "Average", "Std", "95% CI", "Execution Time"])
+    if sort is None:
+        sort = ["Dataset", "Model"]
+    if datasets is None:
+        datasets = ["miiv", "aumc", "hirid", "eicu"]
+    if models is None:
+        models = [
+            "LSTM",
+            "Transformer",
+            "GRU",
+            "RNN",
+            "LogisticRegression",
+            "LGBMClassifier",
+            "TCN",
+        ]
+    results = pd.DataFrame(
+        columns=[
+            "Time",
+            "Dataset",
+            "Model",
+            "Average",
+            "Std",
+            "95% CI",
+            "Execution Time",
+        ]
+    )
     for dataset in log_dir.iterdir():
         if dataset.is_dir() and dataset.name in datasets:
             for task in dataset.iterdir():
@@ -43,14 +68,30 @@ def aggregate_results(
                             time = "NaN"
                             if "execution_time" in test_metrics:
                                 time = test_metrics["execution_time"]
-                            results.loc[len(results.index)] = [log_time.name, dataset.name, model.name, avg, std, ci_95, time]
+                            results.loc[len(results.index)] = [
+                                log_time.name,
+                                dataset.name,
+                                model.name,
+                                avg,
+                                std,
+                                ci_95,
+                                time,
+                            ]
 
                         elif include_unfinished:
                             avg = "NaN"
                             std = "NaN"
                             ci_95 = "NaN"
                             time = "NaN"
-                            results.loc[len(results.index)] = [log_time.name, dataset.name, model.name, avg, std, ci_95, time]
+                            results.loc[len(results.index)] = [
+                                log_time.name,
+                                dataset.name,
+                                model.name,
+                                avg,
+                                std,
+                                ci_95,
+                                time,
+                            ]
 
     # Exclude nan rows for calculations
     nan_rows = results[results["95% CI"] == "NaN"]

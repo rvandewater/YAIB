@@ -227,10 +227,18 @@ class CommonPandasDataset(Dataset):
         mps: bool = False,
         name: str = "",
     ):
-        warnings.warn("CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not isinstance(vars, dict):
             raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
-        warnings.warn("CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
@@ -437,7 +445,7 @@ class ImputationPredictionDataset(Dataset):
         data (DataFrame): dict of the different splits of the data
         grouping_column (str, optional): column that is used for grouping. Defaults to "stay_id".
         select_columns (List[str], optional): the columns to serve as input for the imputation model. Defaults to None.
-        ram_cache (bool, optional): wether the dataset should be stored in ram. Defaults to True.
+        ram_cache (bool, optional): whether the dataset should be stored in ram. Defaults to True.
     """
 
     def __init__(

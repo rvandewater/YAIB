@@ -16,4 +16,3 @@ model/hyperparameter.class_to_tune = @GRUNet
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.hidden_dim = (32, 512, "log")
 model/hyperparameter.layer_dim = (1, 10)
-

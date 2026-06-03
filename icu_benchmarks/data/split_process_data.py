@@ -11,7 +11,12 @@ from typing import Any, Iterable, Optional, Union
 import gin
 import pandas as pd
 import polars as pl
-from sklearn.model_selection import KFold, ShuffleSplit, StratifiedKFold, StratifiedShuffleSplit
+from sklearn.model_selection import (
+    KFold,
+    ShuffleSplit,
+    StratifiedKFold,
+    StratifiedShuffleSplit,
+)
 
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.preprocessor import (
@@ -82,7 +87,11 @@ def preprocess_data(
     if required_var_types is None:
         required_var_types = ["GROUP", "SEQUENCE", "LABEL"]
     if required_segments is None:
-        required_segments = [DataSegment.static, DataSegment.dynamic, DataSegment.outcome]
+        required_segments = [
+            DataSegment.static,
+            DataSegment.dynamic,
+            DataSegment.outcome,
+        ]
 
     check_required_keys(vars, required_var_types)
     check_required_keys(file_names, required_segments)
@@ -173,7 +182,14 @@ def preprocess_data(
         )
     else:
         # If full train is set, we use all data for training/validation
-        sanitized_data = make_train_val_polars(data, vars, train_size=train_size, seed=seed, debug=debug, runmode=runmode)
+        sanitized_data = make_train_val_polars(
+            sanitized_data,
+            vars,
+            train_size=train_size,
+            seed=seed,
+            debug=debug,
+            runmode=runmode,
+        )
 
     # Apply preprocessing
     start = timer()
@@ -240,7 +256,9 @@ def check_sanitize_data(data: dict[str, pl.DataFrame], vars: dict[str, str | lis
         if sequence in data[DataSegment.outcome].columns:
             # We have a dynamic outcome with group and sequence
             data[DataSegment.outcome] = data[DataSegment.outcome].unique(
-                subset=flatten_column_names(group, sequence), keep=keep, maintain_order=True
+                subset=flatten_column_names(group, sequence),
+                keep=keep,
+                maintain_order=True,
             )
         else:
             data[DataSegment.outcome] = data[DataSegment.outcome].unique(subset=group, keep=keep, maintain_order=True)
@@ -396,7 +414,11 @@ def make_train_val_polars(
     for fold in split.keys():
         data_split[fold] = {
             data_type: split[fold]
-            .join(data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)), on=_id, how="left")
+            .join(
+                data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)),
+                on=_id,
+                how="left",
+            )
             .sort(by=_id)
             for data_type in data.keys()
         }
@@ -595,7 +617,11 @@ def make_single_split_polars(
         # set sort to true to make sure that IDs are reordered after scrambling earlier
         data_split[fold] = {
             data_type: split[fold]
-            .join(data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)), on=_id, how="left")
+            .join(
+                data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)),
+                on=_id,
+                how="left",
+            )
             .sort(by=_id)
             for data_type in data.keys()
         }
@@ -642,12 +668,30 @@ def make_single_split(
     if polars:
         polars_data = {k: v if isinstance(v, pl.DataFrame) else pl.DataFrame(v) for k, v in data.items()}
         return make_single_split_polars(
-            polars_data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, train_size, seed, debug, runmode
+            polars_data,
+            vars,
+            cv_repetitions,
+            repetition_index,
+            cv_folds,
+            fold_index,
+            train_size,
+            seed,
+            debug,
+            runmode,
         )
     else:
         pandas_data = {k: v if isinstance(v, pd.DataFrame) else v.to_pandas() for k, v in data.items()}
         return make_single_split_pandas(
-            pandas_data, vars, cv_repetitions, repetition_index, cv_folds, fold_index, train_size, seed, debug, runmode
+            pandas_data,
+            vars,
+            cv_repetitions,
+            repetition_index,
+            cv_folds,
+            fold_index,
+            train_size,
+            seed,
+            debug,
+            runmode,
         )
 
 

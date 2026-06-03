@@ -7,7 +7,7 @@ command:
   - ../data/
   - -t
   - BinaryClassification
-#  - Regression
+  #  - Regression
   - --log-dir
   - ../yaib_logs
   - --tune

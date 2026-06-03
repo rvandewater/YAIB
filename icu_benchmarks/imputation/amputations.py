@@ -116,7 +116,7 @@ def MNAR_logistic_mask(X, p, p_params=0.3, exclude_inputs=True):
     Missing not at random mechanism with a logistic masking model. It implements two mechanisms:
     (i) Missing probabilities are selected with a logistic model, taking all variables as inputs. Hence, values that are
     inputs can also be missing.
-    (ii) Variables are split into a set of intputs for a logistic model, and a set whose missing probabilities are
+    (ii) Variables are split into a set of inputs for a logistic model, and a set whose missing probabilities are
     determined by the logistic model. Then inputs are then masked MCAR (hence, missing values from the second set will
     depend on masked values.
     In either case, weights are random and the intercept is selected to attain the desired proportion of missing values.

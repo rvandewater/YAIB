@@ -10,5 +10,5 @@ train_common.model = @MICE
 
 MICE.max_iter = 100
 MICE.verbose = 2
-MICE.imputation_order = 'random' 
+MICE.imputation_order = 'random'
 MICE.random_state = 0

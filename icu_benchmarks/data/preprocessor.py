@@ -175,16 +175,31 @@ class PolarsClassificationPreprocessor(Preprocessor):
         logging.info(f"Generate features: {self.generate_features}")
         return data
 
-    def _process_static(self, data: dict[str, dict[str, pl.DataFrame]], vars: dict[str, Union[str, list[str]]]):
+    def _process_static(
+        self,
+        data: dict[str, dict[str, pl.DataFrame]],
+        vars: dict[str, Union[str, list[str]]],
+    ):
         sta_rec = Recipe(data[DataSplit.train][DataSegment.static], [], vars[DataSegment.static])
-        sta_rec.add_step(StepSklearn(MissingIndicator(features="all"), sel=all_of(vars[DataSegment.static]), in_place=False))
+        sta_rec.add_step(
+            StepSklearn(
+                MissingIndicator(features="all"),
+                sel=all_of(vars[DataSegment.static]),
+                in_place=False,
+            )
+        )
         if self.scaling:
             sta_rec.add_step(StepScale())
         sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), strategy="zero"))
         types = ["String", "Object", "Categorical"]
         sel = has_type(types)
         if len(sel(sta_rec.data)) > 0:
-            sta_rec.add_step(StepSklearn(SimpleImputer(missing_values=np_nan, strategy="most_frequent"), sel=has_type(types)))
+            sta_rec.add_step(
+                StepSklearn(
+                    SimpleImputer(missing_values=np_nan, strategy="most_frequent"),
+                    sel=has_type(types),
+                )
+            )
             sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type(types), columnwise=True))
 
         data = apply_recipe_to_splits(sta_rec, data, DataSegment.static, self.save_cache, self.load_cache)
@@ -208,9 +223,17 @@ class PolarsClassificationPreprocessor(Preprocessor):
             data.drop(columns=group, inplace=True)
         return data
 
-    def _process_dynamic(self, data: dict[str, dict[str, pl.DataFrame]], vars: dict[str, Union[str, list[str]]]):
+    def _process_dynamic(
+        self,
+        data: dict[str, dict[str, pl.DataFrame]],
+        vars: dict[str, Union[str, list[str]]],
+    ):
         dyn_rec = Recipe(
-            data[DataSplit.train][DataSegment.dynamic], [], vars[DataSegment.dynamic], vars["GROUP"], vars["SEQUENCE"]
+            data[DataSplit.train][DataSegment.dynamic],
+            [],
+            vars[DataSegment.dynamic],
+            vars["GROUP"],
+            vars["SEQUENCE"],
         )
         if self.scaling:
             dyn_rec.add_step(StepScale())
@@ -223,7 +246,13 @@ class PolarsClassificationPreprocessor(Preprocessor):
             vars_to_apply = list(set(vars[DataSegment.dynamic]) - set(self.vars_to_exclude))
         else:
             vars_to_apply = vars[DataSegment.dynamic]
-        dyn_rec.add_step(StepSklearn(MissingIndicator(features="all"), sel=all_of(vars_to_apply), in_place=False))
+        dyn_rec.add_step(
+            StepSklearn(
+                MissingIndicator(features="all"),
+                sel=all_of(vars_to_apply),
+                in_place=False,
+            )
+        )
         dyn_rec.add_step(StepImputeFill(strategy="forward"))
         dyn_rec.add_step(StepImputeFill(strategy="zero"))
         if self.generate_features:
@@ -284,7 +313,9 @@ class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
         self.outcome_min = outcome_min
 
     def apply(
-        self, data: dict[str, dict[str, pl.DataFrame]], vars: dict[str, Union[str, list[str]]]
+        self,
+        data: dict[str, dict[str, pl.DataFrame]],
+        vars: dict[str, Union[str, list[str]]],
     ) -> dict[str, dict[str, pl.DataFrame]]:
         """
         Args:
@@ -300,7 +331,10 @@ class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
         return data
 
     def _process_outcome(
-        self, data: dict[str, dict[str, pl.DataFrame]], vars: dict[str, Union[str, list[str]]], split: str
+        self,
+        data: dict[str, dict[str, pl.DataFrame]],
+        vars: dict[str, Union[str, list[str]]],
+        split: str,
     ) -> dict[str, dict[str, pl.DataFrame]]:
         logging.debug(f"Processing {split} outcome values.")
         outcome_rec = Recipe(data[split][DataSegment.outcome], vars["LABEL"], [], vars["GROUP"])
@@ -353,7 +387,9 @@ class PandasClassificationPreprocessor(Preprocessor):
         self.load_cache = load_cache
 
     def apply(
-        self, data: dict[str, dict[str, pd.DataFrame]], vars: dict[str, Union[str, list[str]]]
+        self,
+        data: dict[str, dict[str, pd.DataFrame]],
+        vars: dict[str, Union[str, list[str]]],
     ) -> dict[str, dict[str, pd.DataFrame]]:
         """
         Args:
@@ -402,7 +438,9 @@ class PandasClassificationPreprocessor(Preprocessor):
         return data
 
     def _process_static(
-        self, data: dict[str, dict[str, pd.DataFrame]], vars: dict[str, Union[str, list[str]]]
+        self,
+        data: dict[str, dict[str, pd.DataFrame]],
+        vars: dict[str, Union[str, list[str]]],
     ) -> dict[str, dict[str, pd.DataFrame]]:
         sta_rec = Recipe(data[DataSplit.train][DataSegment.static], [], vars[DataSegment.static])
         if self.scaling:
@@ -411,7 +449,10 @@ class PandasClassificationPreprocessor(Preprocessor):
         sta_rec.add_step(StepImputeFastZeroFill(sel=all_numeric_predictors()))
         if len(data[DataSplit.train][DataSegment.static].select_dtypes(include=["object"]).columns) > 0:
             sta_rec.add_step(
-                StepSklearn(SimpleImputer(missing_values=np_nan, strategy="most_frequent"), sel=has_type("object"))
+                StepSklearn(
+                    SimpleImputer(missing_values=np_nan, strategy="most_frequent"),
+                    sel=has_type("object"),
+                )
             )
             sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
 
@@ -437,16 +478,28 @@ class PandasClassificationPreprocessor(Preprocessor):
         return data
 
     def _process_dynamic(
-        self, data: dict[str, dict[str, pd.DataFrame]], vars: dict[str, Union[str, list[str]]]
+        self,
+        data: dict[str, dict[str, pd.DataFrame]],
+        vars: dict[str, Union[str, list[str]]],
     ) -> dict[str, dict[str, pd.DataFrame]]:
         dyn_rec = Recipe(
-            data[DataSplit.train][DataSegment.dynamic], [], vars[DataSegment.dynamic], vars["GROUP"], vars["SEQUENCE"]
+            data[DataSplit.train][DataSegment.dynamic],
+            [],
+            vars[DataSegment.dynamic],
+            vars["GROUP"],
+            vars["SEQUENCE"],
         )
         if self.scaling:
             dyn_rec.add_step(StepScale())
         if self.imputation_model is not None:
             dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[DataSegment.dynamic])))
-        dyn_rec.add_step(StepSklearn(MissingIndicator(), sel=all_of(vars[DataSegment.dynamic]), in_place=False))
+        dyn_rec.add_step(
+            StepSklearn(
+                MissingIndicator(),
+                sel=all_of(vars[DataSegment.dynamic]),
+                in_place=False,
+            )
+        )
         dyn_rec.add_step(StepImputeFastForwardFill())
         dyn_rec.add_step(StepImputeFastZeroFill())
         if self.generate_features:
@@ -505,7 +558,9 @@ class PandasRegressionPreprocessor(PandasClassificationPreprocessor):
         self.outcome_min = outcome_min
 
     def apply(
-        self, data: dict[str, dict[str, pd.DataFrame]], vars: dict[str, Union[str, list[str]]]
+        self,
+        data: dict[str, dict[str, pd.DataFrame]],
+        vars: dict[str, Union[str, list[str]]],
     ) -> dict[str, dict[str, pd.DataFrame]]:
         """
         Args:
@@ -543,25 +598,37 @@ class PandasRegressionPreprocessor(PandasClassificationPreprocessor):
 
 @gin.configurable("base_imputation_preprocessor")
 class PandasImputationPreprocessor(Preprocessor):
+    """
+    Preprocesses data for imputation.
+
+    Args:
+        scaling (bool, optional): If the values in each column should be normalized. Defaults to True.
+        use_static_features (bool, optional): If static features should be included in the dataset. Defaults to True.
+    """
+
     def __init__(
         self,
         scaling: bool = True,
         use_static_features: bool = True,
         filter_missing_values: bool = True,
+        save_cache: Optional[Union[str, Path]] = None,
+        load_cache: Optional[Union[str, Path]] = None,
     ):
-        """
-        Preprocesses data for imputation.
-
-        Args:
-            scaling (bool, optional): If the values in each column should be normalized. Defaults to True.
-            use_static_features (bool, optional): If static features should be included in the dataset. Defaults to True.
-        """
+        super().__init__(
+            generate_features=False,
+            scaling=scaling,
+            use_static_features=use_static_features,
+            save_cache=save_cache,
+            load_cache=load_cache,
+        )
         self.scaling = scaling
         self.use_static_features = use_static_features
         self.filter_missing_values = filter_missing_values
 
     def apply(
-        self, data: dict[str, dict[str, pd.DataFrame]], vars: dict[str, Union[str, list[str]]]
+        self,
+        data: dict[str, dict[str, pd.DataFrame]],
+        vars: dict[str, Union[str, list[str]]],
     ) -> dict[str, dict[str, pd.DataFrame]]:
         """
         Args:
@@ -574,7 +641,11 @@ class PandasImputationPreprocessor(Preprocessor):
         data = {step: self._process_dynamic_data(data[step], vars) for step in data}
 
         dyn_rec = Recipe(
-            data[DataSplit.train][DataSegment.dynamic], [], vars[DataSegment.dynamic], vars["GROUP"], vars["SEQUENCE"]
+            data[DataSplit.train][DataSegment.dynamic],
+            [],
+            vars[DataSegment.dynamic],
+            vars["GROUP"],
+            vars["SEQUENCE"],
         )
         if self.scaling:
             dyn_rec.add_step(StepScale())
@@ -584,7 +655,10 @@ class PandasImputationPreprocessor(Preprocessor):
             raise TypeError(
                 f'Expected keys "GROUP" and "SEQUENCE" to be of type str, got {type(vars["GROUP"])} and {type(vars["SEQUENCE"])} instead.'
             )
-        selected_vars: list[str] = [str(item) for item in vars[DataSegment.dynamic]] + [vars["GROUP"], vars["SEQUENCE"]]
+        selected_vars: list[str] = [str(item) for item in vars[DataSegment.dynamic]] + [
+            vars["GROUP"],
+            vars["SEQUENCE"],
+        ]
         data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(DataSegment.dynamic).loc[:, selected_vars]
         data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(DataSegment.dynamic).loc[:, selected_vars]
         data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(DataSegment.dynamic).loc[:, selected_vars]

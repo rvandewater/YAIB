@@ -13,7 +13,26 @@ command:
 method: grid
 parameters:
   model:
-    values: ["NP", "CSDI", "Mean", "Median", "Zero", "MostFrequent", "KNN", "MICE", "GAIN", "BRITS", "SAITS", "Attention", "MissForest", "MLP", "BRNN", "RNN", "Simple_Diffusion"]
+    values:
+      [
+        "NP",
+        "CSDI",
+        "Mean",
+        "Median",
+        "Zero",
+        "MostFrequent",
+        "KNN",
+        "MICE",
+        "GAIN",
+        "BRITS",
+        "SAITS",
+        "Attention",
+        "MissForest",
+        "MLP",
+        "BRNN",
+        "RNN",
+        "Simple_Diffusion",
+      ]
   ImputationDataset.mask_method:
     values: ["MCAR", "MAR", "MNAR"]
   seed:

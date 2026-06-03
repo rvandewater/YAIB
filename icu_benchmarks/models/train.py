@@ -9,14 +9,23 @@ import polars as pl
 import torch
 from joblib import load
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint, TQDMProgressBar
+from pytorch_lightning.callbacks import (
+    EarlyStopping,
+    LearningRateMonitor,
+    ModelCheckpoint,
+    TQDMProgressBar,
+)
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.constants import DataSplit as DataSplit
-from icu_benchmarks.data.loader import ImputationPandasDataset, PredictionPandasDataset, PredictionPolarsDataset
+from icu_benchmarks.data.loader import (
+    ImputationPandasDataset,
+    PredictionPandasDataset,
+    PredictionPolarsDataset,
+)
 from icu_benchmarks.models import DLModel, MLModelClassifier, MLModelRegression
 from icu_benchmarks.models.utils import JSONMetricsLogger, save_config_file
 
@@ -55,7 +64,11 @@ def train_common(
     ram_cache: bool = False,
     pl_model: bool = True,
     train_only: bool = False,
-    num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
+    num_workers: int = min(
+        cpu_core_count,
+        torch.cuda.device_count() * 8 * int(torch.cuda.is_available()),
+        32,
+    ),
     polars: bool = True,
     persistent_workers: bool = False,
 ):
@@ -102,7 +115,10 @@ def train_common(
     save_config_file(log_dir)  # We save the operative config before and also after training
     train_dataset = dataset_class(data, split=DataSplit.train, ram_cache=ram_cache, name=dataset_names["train"])
     val_dataset = dataset_class(data, split=DataSplit.val, ram_cache=ram_cache, name=dataset_names["val"])
-    train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
+    train_dataset, val_dataset = (
+        assure_minimum_length(train_dataset),
+        assure_minimum_length(val_dataset),
+    )
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
 
     if not eval_only:
@@ -136,7 +152,11 @@ def train_common(
         model: DLModel | MLModelClassifier | MLModelRegression = load_model(model, source_dir, pl_model=pl_model)
     else:
         model: DLModel | MLModelClassifier | MLModelRegression = model(
-            optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode, cpu=cpu
+            optimizer=optimizer,
+            input_size=data_shape,
+            epochs=epochs,
+            run_mode=mode,
+            cpu=cpu,
         )
 
     model.set_weight(weight, train_dataset)
@@ -150,7 +170,13 @@ def train_common(
         devices = 1
 
     callbacks = [
-        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False, verbose=verbose),
+        EarlyStopping(
+            monitor="val/loss",
+            min_delta=min_delta,
+            patience=patience,
+            strict=False,
+            verbose=verbose,
+        ),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
         LearningRateMonitor(logging_interval="step"),
     ]
@@ -221,13 +247,19 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
     try:
         if trainer.lightning_module.test_shap_values is not None:
             shap_values = trainer.lightning_module.test_shap_values
-            shaps_test = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(shap_values.values))
+            shaps_test = pl.DataFrame(
+                schema=trainer.lightning_module.trained_columns,
+                data=np.transpose(shap_values.values),
+            )
             with (log_dir / "shap_values_test.parquet").open("wb") as f:
                 shaps_test.write_parquet(f)
             logging.info(f"Saved shap values to {log_dir / 'test_shap_values.parquet'}")
         if trainer.lightning_module.train_shap_values is not None:
             shap_values = trainer.lightning_module.train_shap_values
-            shaps_train = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(shap_values.values))
+            shaps_train = pl.DataFrame(
+                schema=trainer.lightning_module.trained_columns,
+                data=np.transpose(shap_values.values),
+            )
             with (log_dir / "shap_values_train.parquet").open("wb") as f:
                 shaps_train.write_parquet(f)
 
