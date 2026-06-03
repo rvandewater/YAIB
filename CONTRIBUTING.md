@@ -46,6 +46,93 @@ uv run ruff check --line-length 127 --statistics
 4. Use [SemVer](http://semver.org/) for versioning-related updates.
 5. You may merge a pull request once you have the required reviewer approval, or request a reviewer to merge it for you if you do not have permission.
 
+# YAIB release flow with uv build
+
+## Trusted publishers to configure
+
+Create two trusted publisher entries:
+
+### On PyPI
+
+- Owner: `rvandewater`
+- Repository: `YAIB`
+- Workflow: `python-build.yml`
+- Environment: `pypi`
+
+### On TestPyPI
+
+- Owner: `rvandewater`
+- Repository: `YAIB`
+- Workflow: `python-build.yml`
+- Environment: `testpypi`
+
+The repository name and workflow filename must match exactly.
+
+## What this workflow does
+
+- Push to `development`:
+    - builds with `uv build`
+    - publishes to TestPyPI
+- Push of a tag like `v1.0.2` or `1.0.2`:
+    - builds with `uv build`
+    - publishes to PyPI
+    - creates a GitHub release and uploads signed artifacts
+
+## How to release a development build
+
+Push to the `development` branch:
+
+```bash
+git checkout development
+git pull
+git push origin development
+```
+
+That triggers a build and upload to TestPyPI.
+
+## How to release a new production version
+
+Because `uv build` uses the version already present in `pyproject.toml`, first update the package version there.
+
+Example:
+
+```toml
+[project]
+version = "1.0.2"
+```
+
+Then commit, tag, and push:
+
+```bash
+git checkout main
+git pull
+
+git add pyproject.toml uv.lock
+git commit -m "Release 1.0.2"
+git tag v1.0.2
+git push origin main
+git push origin v1.0.2
+```
+
+If you use plain numeric tags instead of `v`-prefixed tags, this also works:
+
+```bash
+git tag 1.0.2
+git push origin 1.0.2
+```
+
+## Recommended release sequence
+
+1. Merge the tested changes from `development` into `main`.
+2. Update `version` in `pyproject.toml`.
+3. Commit the release bump.
+4. Create and push the tag.
+5. Wait for the PyPI publish and GitHub release workflow to finish.
+
+## Important note
+
+With `uv build`, the tag itself does not set the package version. The version must already be defined in `pyproject.toml` before the build runs.
+
 ## Code of Conduct
 
 ### Our Pledge

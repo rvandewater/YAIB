@@ -2,6 +2,9 @@ name: Build and publish Python package
 
 on:
   push:
+    branches:
+      - development
+      - main
     tags:
       - "v*"
       - "[0-9]+.[0-9]+.[0-9]+"
@@ -36,6 +39,30 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
+
+  publish-to-testpypi:
+    name: Publish to TestPyPI
+    if: github.ref == 'refs/heads/development'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/yaib
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish distributions to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1.12
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
 
   publish-to-pypi:
     name: Publish to PyPI
