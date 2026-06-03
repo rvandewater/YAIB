@@ -35,36 +35,28 @@ def accuracy(output, target, topk=(1,)):
 
 
 class BalancedAccuracy(EpochMetric):
-    def __init__(
-        self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False
-    ) -> None:
+    def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
         super(BalancedAccuracy, self).__init__(
             self.balanced_accuracy_compute,
             output_transform=output_transform,
             check_compute_fn=check_compute_fn,
         )
 
-        def balanced_accuracy_compute(
-            y_preds: torch.Tensor, y_targets: torch.Tensor
-        ) -> float:
+        def balanced_accuracy_compute(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
             y_true = y_targets.numpy()
             y_pred = np.argmax(y_preds.numpy(), axis=-1)
             return balanced_accuracy_score(y_true, y_pred)
 
 
 class CalibrationCurve(EpochMetric):
-    def __init__(
-        self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False
-    ) -> None:
+    def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
         super(CalibrationCurve, self).__init__(
             self.ece_curve_compute_fn,
             output_transform=output_transform,
             check_compute_fn=check_compute_fn,
         )
 
-        def ece_curve_compute_fn(
-            y_preds: torch.Tensor, y_targets: torch.Tensor, n_bins=10
-        ) -> float:
+        def ece_curve_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, n_bins=10) -> float:
             y_true = y_targets.numpy()
             y_pred = y_preds.numpy()
             return calibration_curve(y_true, y_pred, n_bins=n_bins)
@@ -83,9 +75,7 @@ class MAE(EpochMetric):
             check_compute_fn=check_compute_fn,
         )
 
-        def mae_with_invert_compute_fn(
-            y_preds: torch.Tensor, y_targets: torch.Tensor, invert_fn=Callable
-        ) -> float:
+        def mae_with_invert_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, invert_fn=Callable) -> float:
             y_true = invert_fn(y_targets.numpy().reshape(-1, 1))[:, 0]
             y_pred = invert_fn(y_preds.numpy().reshape(-1, 1))[:, 0]
             return mean_absolute_error(y_true, y_pred)
@@ -138,9 +128,7 @@ class BinaryFairnessWrapper(BinaryFairness):
         """ " Standard metric update function"""
         groups = data[:, :, feature_names.index(self.group_name)]
         group_per_id = groups[:, 0]
-        return super().update(
-            preds=preds.cpu(), target=target.cpu(), groups=group_per_id.long().cpu()
-        )
+        return super().update(preds=preds.cpu(), target=target.cpu(), groups=group_per_id.long().cpu())
 
     def feature_helper(self, trainer, step_prefix):
         """Helper function to get the feature names from the trainer"""

@@ -62,9 +62,7 @@ class CSDI(ImputationWrapper):
         self.emb_total_dim = self.emb_time_dim + self.emb_feature_dim
         if not self.is_unconditional:
             self.emb_total_dim += 1  # for conditional mask
-        self.embed_layer = nn.Embedding(
-            num_embeddings=self.target_dim, embedding_dim=self.emb_feature_dim
-        )
+        self.embed_layer = nn.Embedding(num_embeddings=self.target_dim, embedding_dim=self.emb_feature_dim)
 
         input_dim = 1 if self.is_unconditional else 2
         self.diffmodel = diff_CSDI(
@@ -98,9 +96,7 @@ class CSDI(ImputationWrapper):
     def time_embedding(self, pos, d_model=128):
         pe = torch.zeros(pos.shape[0], pos.shape[1], d_model).to(self.device)
         position = pos.unsqueeze(2)
-        div_term = 1 / torch.pow(
-            10000.0, torch.arange(0, d_model, 2).to(self.device) / d_model
-        )
+        div_term = 1 / torch.pow(10000.0, torch.arange(0, d_model, 2).to(self.device) / d_model)
         pe[:, :, 0::2] = torch.sin(position * div_term)
         pe[:, :, 1::2] = torch.cos(position * div_term)
         return pe
@@ -137,9 +133,7 @@ class CSDI(ImputationWrapper):
 
         time_embed = self.time_embedding(observed_tp, self.emb_time_dim)  # (B,L,emb)
         time_embed = time_embed.unsqueeze(2).expand(-1, -1, K, -1)
-        feature_embed = self.embed_layer(
-            torch.arange(self.target_dim).to(self.device)
-        )  # (K,emb)
+        feature_embed = self.embed_layer(torch.arange(self.target_dim).to(self.device))  # (K,emb)
         feature_embed = feature_embed.unsqueeze(0).unsqueeze(0).expand(B, L, -1, -1)
 
         side_info = torch.cat([time_embed, feature_embed], dim=-1)  # (B,L,K,*)
@@ -151,14 +145,10 @@ class CSDI(ImputationWrapper):
 
         return side_info
 
-    def calc_loss_valid(
-        self, observed_data, cond_mask, observed_mask, side_info, is_train
-    ):
+    def calc_loss_valid(self, observed_data, cond_mask, observed_mask, side_info, is_train):
         loss_sum = 0
         for t in range(self.num_steps):  # calculate loss for all t
-            loss = self.calc_loss(
-                observed_data, cond_mask, observed_mask, side_info, is_train, set_t=t
-            )
+            loss = self.calc_loss(observed_data, cond_mask, observed_mask, side_info, is_train, set_t=t)
             loss_sum += loss.detach()
         return loss_sum / self.num_steps
 
@@ -184,26 +174,20 @@ class CSDI(ImputationWrapper):
                 noisy_cond_history = []
                 for t in range(self.num_steps):
                     noise = torch.randn_like(noisy_obs)
-                    noisy_obs = (self.alpha_hat[t] ** 0.5) * noisy_obs + self.beta[
-                        t
-                    ] ** 0.5 * noise
+                    noisy_obs = (self.alpha_hat[t] ** 0.5) * noisy_obs + self.beta[t] ** 0.5 * noise
                     noisy_cond_history.append(noisy_obs * cond_mask)
 
             current_sample = torch.randn_like(amputated_data)
 
             for t in range(self.num_steps - 1, -1, -1):
                 if self.is_unconditional:
-                    diff_input = (
-                        noisy_cond_history[t] + (1.0 - cond_mask) * current_sample
-                    )
+                    diff_input = noisy_cond_history[t] + (1.0 - cond_mask) * current_sample
                     diff_input = diff_input.unsqueeze(1)  # (B,1,K,L)
                 else:
                     cond_obs = amputated_data.unsqueeze(1)
                     noisy_target = ((1 - cond_mask) * current_sample).unsqueeze(1)
                     diff_input = torch.cat([cond_obs, noisy_target], dim=1)  # (B,2,K,L)
-                predicted = self.diffmodel(
-                    diff_input, side_info, torch.tensor([t]).to(self.device)
-                )
+                predicted = self.diffmodel(diff_input, side_info, torch.tensor([t]).to(self.device))
 
                 coeff1 = 1 / self.alpha_hat[t] ** 0.5
                 coeff2 = (1 - self.alpha_hat[t]) / (1 - self.alpha[t]) ** 0.5
@@ -211,9 +195,7 @@ class CSDI(ImputationWrapper):
 
                 if t > 0:
                     noise = torch.randn_like(current_sample)
-                    sigma = (
-                        (1.0 - self.alpha[t - 1]) / (1.0 - self.alpha[t]) * self.beta[t]
-                    ) ** 0.5
+                    sigma = ((1.0 - self.alpha[t - 1]) / (1.0 - self.alpha[t]) * self.beta[t]) ** 0.5
                     current_sample += sigma * noise
 
             imputed_samples[:, i] = current_sample.detach()
@@ -240,9 +222,7 @@ class CSDI(ImputationWrapper):
         t = torch.randint(0, self.num_steps, [B]).to(self.device)
         current_alpha = self.alpha_torch[t]  # (B,1,1)
         noise = torch.randn_like(amputated_data)
-        noisy_data = (current_alpha**0.5) * amputated_data + (
-            1.0 - current_alpha
-        ) ** 0.5 * noise
+        noisy_data = (current_alpha**0.5) * amputated_data + (1.0 - current_alpha) ** 0.5 * noise
 
         total_input = self.set_input_to_diffmodel(noisy_data, amputated_data, cond_mask)
 
@@ -302,9 +282,7 @@ class CSDI(ImputationWrapper):
 
 
 def get_torch_trans(heads=8, layers=1, channels=64):
-    encoder_layer = nn.TransformerEncoderLayer(
-        d_model=channels, nhead=heads, dim_feedforward=64, activation="gelu"
-    )
+    encoder_layer = nn.TransformerEncoderLayer(d_model=channels, nhead=heads, dim_feedforward=64, activation="gelu")
     return nn.TransformerEncoder(encoder_layer, num_layers=layers)
 
 
@@ -337,9 +315,7 @@ class DiffusionStepEmbedding(nn.Module):
 
     def _build_embedding(self, num_steps, dim=64):
         steps = torch.arange(num_steps).unsqueeze(1)  # (T,1)
-        frequencies = 10.0 ** (torch.arange(dim) / (dim - 1) * 4.0).unsqueeze(
-            0
-        )  # (1,dim)
+        frequencies = 10.0 ** (torch.arange(dim) / (dim - 1) * 4.0).unsqueeze(0)  # (1,dim)
         table = steps * frequencies  # (T,dim)
         table = torch.cat([torch.sin(table), torch.cos(table)], dim=1)  # (T,dim*2)
         return table
@@ -439,9 +415,7 @@ class ResidualBlock(nn.Module):
         base_shape = x.shape
         x = x.reshape(B, channel, K * L)
 
-        diffusion_emb = self.diffusion_projection(diffusion_emb).unsqueeze(
-            -1
-        )  # (B,channel,1)
+        diffusion_emb = self.diffusion_projection(diffusion_emb).unsqueeze(-1)  # (B,channel,1)
         y = x + diffusion_emb
 
         y = self.forward_time(y, base_shape)

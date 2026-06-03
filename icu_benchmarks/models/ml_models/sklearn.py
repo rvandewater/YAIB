@@ -9,9 +9,7 @@ class LogisticRegression(MLWrapper):
     _supported_run_modes = [RunMode.classification]
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(
-            linear_model.LogisticRegression, *args, **kwargs
-        )
+        self.model = self.set_model_args(linear_model.LogisticRegression, *args, **kwargs)
         super().__init__(*args, **kwargs)
 
 
@@ -38,9 +36,7 @@ class RFClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
 
     def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(
-            ensemble.RandomForestClassifier, *args, **kwargs
-        )
+        self.model = self.set_model_args(ensemble.RandomForestClassifier, *args, **kwargs)
         super().__init__(*args, **kwargs)
 
 

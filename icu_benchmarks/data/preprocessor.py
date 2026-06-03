@@ -64,9 +64,7 @@ class Preprocessor(ABC):
         if self.imputation_model is not None:
             from icu_benchmarks.wandb_utils import update_wandb_config
 
-            update_wandb_config(
-                {"imputation_model": self.imputation_model.__class__.__name__}
-            )
+            update_wandb_config({"imputation_model": self.imputation_model.__class__.__name__})
 
 
 @gin.configurable("base_classification_preprocessor")
@@ -130,77 +128,49 @@ class PolarsClassificationPreprocessor(Preprocessor):
             data = self._process_dynamic(data, vars)
             if self.use_static_features:
                 # Join static and dynamic data.
-                data[DataSplit.train][DataSegment.dynamic] = data[DataSplit.train][
-                    DataSegment.dynamic
-                ].join(data[DataSplit.train][DataSegment.static], on=vars["GROUP"])
-                data[DataSplit.val][DataSegment.dynamic] = data[DataSplit.val][
-                    DataSegment.dynamic
-                ].join(data[DataSplit.val][DataSegment.static], on=vars["GROUP"])
-                data[DataSplit.test][DataSegment.dynamic] = data[DataSplit.test][
-                    DataSegment.dynamic
-                ].join(data[DataSplit.test][DataSegment.static], on=vars["GROUP"])
+                data[DataSplit.train][DataSegment.dynamic] = data[DataSplit.train][DataSegment.dynamic].join(
+                    data[DataSplit.train][DataSegment.static], on=vars["GROUP"]
+                )
+                data[DataSplit.val][DataSegment.dynamic] = data[DataSplit.val][DataSegment.dynamic].join(
+                    data[DataSplit.val][DataSegment.static], on=vars["GROUP"]
+                )
+                data[DataSplit.test][DataSegment.dynamic] = data[DataSplit.test][DataSegment.dynamic].join(
+                    data[DataSplit.test][DataSegment.static], on=vars["GROUP"]
+                )
 
                 # Remove static features from splits
-                data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(
-                    DataSegment.static
-                )
-                data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(
-                    DataSegment.static
-                )
-                data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(
-                    DataSegment.static
-                )
+                data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(DataSegment.static)
+                data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(DataSegment.static)
+                data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(DataSegment.static)
 
             # Create feature splits
-            data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(
-                DataSegment.dynamic
-            )
-            data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(
-                DataSegment.dynamic
-            )
-            data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(
-                DataSegment.dynamic
-            )
+            data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(DataSegment.dynamic)
+            data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(DataSegment.dynamic)
+            data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(DataSegment.dynamic)
         elif self.use_static_features:
-            data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(
-                DataSegment.static
-            )
-            data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(
-                DataSegment.static
-            )
-            data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(
-                DataSegment.static
-            )
+            data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(DataSegment.static)
+            data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(DataSegment.static)
+            data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(DataSegment.static)
         else:
-            raise Exception(
-                f"No recognized data segments data to preprocess. Available: {data.keys()}"
-            )
+            raise Exception(f"No recognized data segments data to preprocess. Available: {data.keys()}")
         logging.debug("Data head")
         logging.debug(data[DataSplit.train][DataSegment.features].head())
         logging.debug(data[DataSplit.train][DataSegment.outcome])
 
         if not isinstance(vars["SEQUENCE"], str):
-            raise TypeError(
-                f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead'
-            )
+            raise TypeError(f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead')
 
         for split in [DataSplit.train, DataSplit.val, DataSplit.test]:
-            if vars["SEQUENCE"] in data[split][DataSegment.outcome] and len(
-                data[split][DataSegment.features]
-            ) != len(data[split][DataSegment.outcome]):
+            if vars["SEQUENCE"] in data[split][DataSegment.outcome] and len(data[split][DataSegment.features]) != len(
+                data[split][DataSegment.outcome]
+            ):
                 raise Exception(
                     f"Data and outcome length mismatch in {split} split: "
                     f"features: {len(data[split][DataSegment.features])}, outcome: {len(data[split][DataSegment.outcome])}"
                 )
-        data[DataSplit.train][DataSegment.features] = data[DataSplit.train][
-            DataSegment.features
-        ].unique()
-        data[DataSplit.val][DataSegment.features] = data[DataSplit.val][
-            DataSegment.features
-        ].unique()
-        data[DataSplit.test][DataSegment.features] = data[DataSplit.test][
-            DataSegment.features
-        ].unique()
+        data[DataSplit.train][DataSegment.features] = data[DataSplit.train][DataSegment.features].unique()
+        data[DataSplit.val][DataSegment.features] = data[DataSplit.val][DataSegment.features].unique()
+        data[DataSplit.test][DataSegment.features] = data[DataSplit.test][DataSegment.features].unique()
 
         logging.info(f"Generate features: {self.generate_features}")
         return data
@@ -210,9 +180,7 @@ class PolarsClassificationPreprocessor(Preprocessor):
         data: dict[str, dict[str, pl.DataFrame]],
         vars: dict[str, Union[str, list[str]]],
     ):
-        sta_rec = Recipe(
-            data[DataSplit.train][DataSegment.static], [], vars[DataSegment.static]
-        )
+        sta_rec = Recipe(data[DataSplit.train][DataSegment.static], [], vars[DataSegment.static])
         sta_rec.add_step(
             StepSklearn(
                 MissingIndicator(features="all"),
@@ -232,25 +200,17 @@ class PolarsClassificationPreprocessor(Preprocessor):
                     sel=has_type(types),
                 )
             )
-            sta_rec.add_step(
-                StepSklearn(LabelEncoder(), sel=has_type(types), columnwise=True)
-            )
+            sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type(types), columnwise=True))
 
-        data = apply_recipe_to_splits(
-            sta_rec, data, DataSegment.static, self.save_cache, self.load_cache
-        )
+        data = apply_recipe_to_splits(sta_rec, data, DataSegment.static, self.save_cache, self.load_cache)
 
         return data
 
     def _model_impute(self, data: pd.DataFrame, group: Optional[str] = None):
         if not self.imputation_model:
             raise ValueError("No Imputation Model provided! Aborting...")
-        dataset = ImputationPredictionDataset(
-            data, group, self.imputation_model.trained_columns
-        )
-        input_data = torch.cat(
-            [data_point.unsqueeze(0) for data_point in dataset], dim=0
-        )
+        dataset = ImputationPredictionDataset(data, group, self.imputation_model.trained_columns)
+        input_data = torch.cat([data_point.unsqueeze(0) for data_point in dataset], dim=0)
         self.imputation_model.eval()
         with torch.no_grad():
             logging.info(f"Imputing with {self.imputation_model.__class__.__name__}.")
@@ -258,9 +218,7 @@ class PolarsClassificationPreprocessor(Preprocessor):
             logging.info("Imputation done.")
         assert imputation.isnan().sum() == 0
         data = data.copy()
-        data.loc[:, self.imputation_model.trained_columns] = imputation.flatten(
-            end_dim=1
-        ).to("cpu")
+        data.loc[:, self.imputation_model.trained_columns] = imputation.flatten(end_dim=1).to("cpu")
         if group is not None:
             data.drop(columns=group, inplace=True)
         return data
@@ -280,18 +238,12 @@ class PolarsClassificationPreprocessor(Preprocessor):
         if self.scaling:
             dyn_rec.add_step(StepScale())
         if self.imputation_model is not None:
-            dyn_rec.add_step(
-                StepImputeModel(
-                    model=self.model_impute, sel=all_of(vars[DataSegment.dynamic])
-                )
-            )
+            dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[DataSegment.dynamic])))
 
         vars_to_apply: Union[str, list[str]]
         if self.vars_to_exclude is not None:
             # Exclude vars_to_exclude from missing indicator/ feature generation
-            vars_to_apply = list(
-                set(vars[DataSegment.dynamic]) - set(self.vars_to_exclude)
-            )
+            vars_to_apply = list(set(vars[DataSegment.dynamic]) - set(self.vars_to_exclude))
         else:
             vars_to_apply = vars[DataSegment.dynamic]
         dyn_rec.add_step(
@@ -305,25 +257,15 @@ class PolarsClassificationPreprocessor(Preprocessor):
         dyn_rec.add_step(StepImputeFill(strategy="zero"))
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars_to_apply))
-        data = apply_recipe_to_splits(
-            dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache
-        )
+        data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
         return data
 
     def _dynamic_feature_generation(self, data, dynamic_vars):
         logging.debug("Adding dynamic feature generation.")
-        data.add_step(
-            StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist")
-        )
-        data.add_step(
-            StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist")
-        )
-        data.add_step(
-            StepHistorical(sel=dynamic_vars, fun=Accumulator.COUNT, suffix="count_hist")
-        )
-        data.add_step(
-            StepHistorical(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist")
-        )
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.COUNT, suffix="count_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist"))
         return data
 
     def to_cache_string(self):
@@ -395,21 +337,16 @@ class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
         split: str,
     ) -> dict[str, dict[str, pl.DataFrame]]:
         logging.debug(f"Processing {split} outcome values.")
-        outcome_rec = Recipe(
-            data[split][DataSegment.outcome], vars["LABEL"], [], vars["GROUP"]
-        )
+        outcome_rec = Recipe(data[split][DataSegment.outcome], vars["LABEL"], [], vars["GROUP"])
         # If the range is predefined, use predefined transformation function
         if self.outcome_max is not None and self.outcome_min is not None:
             if self.outcome_max == self.outcome_min:
-                logging.warning(
-                    "outcome_max equals outcome_min. Skipping outcome scaling."
-                )
+                logging.warning("outcome_max equals outcome_min. Skipping outcome scaling.")
             else:
                 outcome_rec.add_step(
                     StepSklearn(
                         sklearn_transformer=FunctionTransformer(
-                            func=lambda x: (x - self.outcome_min)
-                            / (self.outcome_max - self.outcome_min)
+                            func=lambda x: (x - self.outcome_min) / (self.outcome_max - self.outcome_min)
                         ),
                         sel=all_outcomes(),
                     )
@@ -469,48 +406,30 @@ class PandasClassificationPreprocessor(Preprocessor):
             data = self._process_static(data, vars)
 
             # Set index to grouping variable
-            data[DataSplit.train][DataSegment.static] = data[DataSplit.train][
-                DataSegment.static
-            ].set_index(vars["GROUP"])
-            data[DataSplit.val][DataSegment.static] = data[DataSplit.val][
-                DataSegment.static
-            ].set_index(vars["GROUP"])
-            data[DataSplit.test][DataSegment.static] = data[DataSplit.test][
-                DataSegment.static
-            ].set_index(vars["GROUP"])
+            data[DataSplit.train][DataSegment.static] = data[DataSplit.train][DataSegment.static].set_index(vars["GROUP"])
+            data[DataSplit.val][DataSegment.static] = data[DataSplit.val][DataSegment.static].set_index(vars["GROUP"])
+            data[DataSplit.test][DataSegment.static] = data[DataSplit.test][DataSegment.static].set_index(vars["GROUP"])
 
             # Join static and dynamic data.
-            data[DataSplit.train][DataSegment.dynamic] = data[DataSplit.train][
-                DataSegment.dynamic
-            ].join(data[DataSplit.train][DataSegment.static], on=vars["GROUP"])
-            data[DataSplit.val][DataSegment.dynamic] = data[DataSplit.val][
-                DataSegment.dynamic
-            ].join(data[DataSplit.val][DataSegment.static], on=vars["GROUP"])
-            data[DataSplit.test][DataSegment.dynamic] = data[DataSplit.test][
-                DataSegment.dynamic
-            ].join(data[DataSplit.test][DataSegment.static], on=vars["GROUP"])
+            data[DataSplit.train][DataSegment.dynamic] = data[DataSplit.train][DataSegment.dynamic].join(
+                data[DataSplit.train][DataSegment.static], on=vars["GROUP"]
+            )
+            data[DataSplit.val][DataSegment.dynamic] = data[DataSplit.val][DataSegment.dynamic].join(
+                data[DataSplit.val][DataSegment.static], on=vars["GROUP"]
+            )
+            data[DataSplit.test][DataSegment.dynamic] = data[DataSplit.test][DataSegment.dynamic].join(
+                data[DataSplit.test][DataSegment.static], on=vars["GROUP"]
+            )
 
             # Remove static features from splits
-            data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(
-                DataSegment.static
-            )
-            data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(
-                DataSegment.static
-            )
-            data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(
-                DataSegment.static
-            )
+            data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(DataSegment.static)
+            data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(DataSegment.static)
+            data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(DataSegment.static)
 
         # Create feature splits
-        data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(
-            DataSegment.dynamic
-        )
-        data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(
-            DataSegment.dynamic
-        )
-        data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(
-            DataSegment.dynamic
-        )
+        data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(DataSegment.dynamic)
+        data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(DataSegment.dynamic)
+        data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(DataSegment.dynamic)
 
         logging.debug("Data head")
         logging.debug(data[DataSplit.train][DataSegment.features].head())
@@ -523,48 +442,29 @@ class PandasClassificationPreprocessor(Preprocessor):
         data: dict[str, dict[str, pd.DataFrame]],
         vars: dict[str, Union[str, list[str]]],
     ) -> dict[str, dict[str, pd.DataFrame]]:
-        sta_rec = Recipe(
-            data[DataSplit.train][DataSegment.static], [], vars[DataSegment.static]
-        )
+        sta_rec = Recipe(data[DataSplit.train][DataSegment.static], [], vars[DataSegment.static])
         if self.scaling:
             sta_rec.add_step(StepScale())
 
         sta_rec.add_step(StepImputeFastZeroFill(sel=all_numeric_predictors()))
-        if (
-            len(
-                data[DataSplit.train][DataSegment.static]
-                .select_dtypes(include=["object"])
-                .columns
-            )
-            > 0
-        ):
+        if len(data[DataSplit.train][DataSegment.static].select_dtypes(include=["object"]).columns) > 0:
             sta_rec.add_step(
                 StepSklearn(
                     SimpleImputer(missing_values=np_nan, strategy="most_frequent"),
                     sel=has_type("object"),
                 )
             )
-            sta_rec.add_step(
-                StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True)
-            )
+            sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type("object"), columnwise=True))
 
-        data = apply_recipe_to_splits(
-            sta_rec, data, DataSegment.static, self.save_cache, self.load_cache
-        )
+        data = apply_recipe_to_splits(sta_rec, data, DataSegment.static, self.save_cache, self.load_cache)
 
         return data
 
-    def _model_impute(
-        self, data: pd.DataFrame, group: Optional[str] = None
-    ) -> pd.DataFrame:
+    def _model_impute(self, data: pd.DataFrame, group: Optional[str] = None) -> pd.DataFrame:
         if not self.imputation_model:
             raise TypeError("No Imputation Model provided. Aborting...")
-        dataset = ImputationPredictionDataset(
-            data, group, self.imputation_model.trained_columns
-        )
-        input_data = torch.cat(
-            [data_point.unsqueeze(0) for data_point in dataset], dim=0
-        )
+        dataset = ImputationPredictionDataset(data, group, self.imputation_model.trained_columns)
+        input_data = torch.cat([data_point.unsqueeze(0) for data_point in dataset], dim=0)
         self.imputation_model.eval()
         with torch.no_grad():
             logging.info(f"Imputing with {self.imputation_model.__class__.__name__}.")
@@ -572,9 +472,7 @@ class PandasClassificationPreprocessor(Preprocessor):
             logging.info("Imputation done.")
         assert imputation.isnan().sum() == 0
         data = data.copy()
-        data.loc[:, self.imputation_model.trained_columns] = imputation.flatten(
-            end_dim=1
-        ).to("cpu")
+        data.loc[:, self.imputation_model.trained_columns] = imputation.flatten(end_dim=1).to("cpu")
         if group is not None:
             data.drop(columns=group, inplace=True)
         return data
@@ -594,11 +492,7 @@ class PandasClassificationPreprocessor(Preprocessor):
         if self.scaling:
             dyn_rec.add_step(StepScale())
         if self.imputation_model is not None:
-            dyn_rec.add_step(
-                StepImputeModel(
-                    model=self.model_impute, sel=all_of(vars[DataSegment.dynamic])
-                )
-            )
+            dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[DataSegment.dynamic])))
         dyn_rec.add_step(
             StepSklearn(
                 MissingIndicator(),
@@ -609,28 +503,16 @@ class PandasClassificationPreprocessor(Preprocessor):
         dyn_rec.add_step(StepImputeFastForwardFill())
         dyn_rec.add_step(StepImputeFastZeroFill())
         if self.generate_features:
-            dyn_rec = self._dynamic_feature_generation(
-                dyn_rec, all_of(vars[DataSegment.dynamic])
-            )
-        data = apply_recipe_to_splits(
-            dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache
-        )
+            dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars[DataSegment.dynamic]))
+        data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
         return data
 
     def _dynamic_feature_generation(self, data: Recipe, dynamic_vars: Selector):
         logging.debug("Adding dynamic feature generation.")
-        data.add_step(
-            StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist")
-        )
-        data.add_step(
-            StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist")
-        )
-        data.add_step(
-            StepHistorical(sel=dynamic_vars, fun=Accumulator.COUNT, suffix="count_hist")
-        )
-        data.add_step(
-            StepHistorical(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist")
-        )
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.COUNT, suffix="count_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist"))
         return data
 
     def to_cache_string(self) -> str:
@@ -695,16 +577,13 @@ class PandasRegressionPreprocessor(PandasClassificationPreprocessor):
 
     def _process_outcome(self, data, vars, split):
         logging.debug(f"Processing {split} outcome values.")
-        outcome_rec = Recipe(
-            data[split][DataSegment.outcome], vars["LABEL"], [], vars["GROUP"]
-        )
+        outcome_rec = Recipe(data[split][DataSegment.outcome], vars["LABEL"], [], vars["GROUP"])
         # If the range is predefined, use predefined transformation function
         if self.outcome_max is not None and self.outcome_min is not None:
             outcome_rec.add_step(
                 StepSklearn(
                     sklearn_transformer=FunctionTransformer(
-                        func=lambda x: (x - self.outcome_min)
-                        / (self.outcome_max - self.outcome_min)
+                        func=lambda x: (x - self.outcome_min) / (self.outcome_max - self.outcome_min)
                     ),
                     sel=all_outcomes(),
                 )
@@ -770,9 +649,7 @@ class PandasImputationPreprocessor(Preprocessor):
         )
         if self.scaling:
             dyn_rec.add_step(StepScale())
-        data = apply_recipe_to_splits(
-            dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache
-        )
+        data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
 
         if not (isinstance(vars["GROUP"], str) and isinstance(vars["SEQUENCE"], str)):
             raise TypeError(
@@ -782,36 +659,19 @@ class PandasImputationPreprocessor(Preprocessor):
             vars["GROUP"],
             vars["SEQUENCE"],
         ]
-        data[DataSplit.train][DataSegment.features] = (
-            data[DataSplit.train].pop(DataSegment.dynamic).loc[:, selected_vars]
-        )
-        data[DataSplit.val][DataSegment.features] = (
-            data[DataSplit.val].pop(DataSegment.dynamic).loc[:, selected_vars]
-        )
-        data[DataSplit.test][DataSegment.features] = (
-            data[DataSplit.test].pop(DataSegment.dynamic).loc[:, selected_vars]
-        )
+        data[DataSplit.train][DataSegment.features] = data[DataSplit.train].pop(DataSegment.dynamic).loc[:, selected_vars]
+        data[DataSplit.val][DataSegment.features] = data[DataSplit.val].pop(DataSegment.dynamic).loc[:, selected_vars]
+        data[DataSplit.test][DataSegment.features] = data[DataSplit.test].pop(DataSegment.dynamic).loc[:, selected_vars]
         return data
 
     def to_cache_string(self):
-        return (
-            super().to_cache_string()
-            + f"_imputation_{self.use_static_features}_{self.scaling}"
-        )
+        return super().to_cache_string() + f"_imputation_{self.use_static_features}_{self.scaling}"
 
     def _process_dynamic_data(self, data, vars):
         if self.filter_missing_values:
-            rows_to_remove = (
-                data[DataSegment.dynamic][vars[DataSegment.dynamic]].isna().sum(axis=1)
-                != 0
-            )
-            ids_to_remove = (
-                data[DataSegment.dynamic].loc[rows_to_remove][vars["GROUP"]].unique()
-            )
-            data = {
-                table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)]
-                for table_name, table in data.items()
-            }
+            rows_to_remove = data[DataSegment.dynamic][vars[DataSegment.dynamic]].isna().sum(axis=1) != 0
+            ids_to_remove = data[DataSegment.dynamic].loc[rows_to_remove][vars["GROUP"]].unique()
+            data = {table_name: table.loc[~table[vars["GROUP"]].isin(ids_to_remove)] for table_name, table in data.items()}
             logging.info(f"Removed {len(ids_to_remove)} stays with missing values.")
         return data
 

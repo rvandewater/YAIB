@@ -89,9 +89,7 @@ class NPImputation(ImputationWrapper):
 
         # Do a context/target split with mask - see CSDI implemnetation - line 56
         # https://github.com/ermongroup/CSDI/blob/main/main_model.py
-        x_context, y_context, x_target, y_target = self._context_target_split(
-            x, amputed, mask
-        )
+        x_context, y_context, x_target, y_target = self._context_target_split(x, amputed, mask)
 
         # Get the predicted probability distribution
         p_y_pred, _, _ = self(x_context, y_context, x_target, y_target)
@@ -126,9 +124,7 @@ class NPImputation(ImputationWrapper):
 
         # Do a context/target split with mask - see CSDI implemnetation - line 56
         # https://github.com/ermongroup/CSDI/blob/main/main_model.py
-        x_context, y_context, x_target, y_target = self._context_target_split(
-            x, amputed, mask
-        )
+        x_context, y_context, x_target, y_target = self._context_target_split(x, amputed, mask)
 
         # Get the predicted probability distribution
         p_y_pred, _, _ = self(x_context, y_context, x_target, y_target)

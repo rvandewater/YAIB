@@ -59,18 +59,13 @@ except ImportError:
         z: (..., L)
         returns: (..., L)
         """
-        cauchy_matrix = v.unsqueeze(-1) / (
-            z.unsqueeze(-2) - w.unsqueeze(-1)
-        )  # (... N L)
+        cauchy_matrix = v.unsqueeze(-1) / (z.unsqueeze(-2) - w.unsqueeze(-1))  # (... N L)
         return torch.sum(cauchy_matrix, dim=-2)
 
 
 def _broadcast_dims(*tensors):
     max_dim = max([len(tensor.shape) for tensor in tensors])
-    tensors = [
-        tensor.view((1,) * (max_dim - len(tensor.shape)) + tensor.shape)
-        for tensor in tensors
-    ]
+    tensors = [tensor.view((1,) * (max_dim - len(tensor.shape)) + tensor.shape) for tensor in tensors]
     return tensors
 
 
@@ -116,9 +111,7 @@ def Activation(activation=None, dim=-1):
     elif activation == "sigmoid":
         return nn.Sigmoid()
     else:
-        raise NotImplementedError(
-            "hidden activation '{}' is not implemented".format(activation)
-        )
+        raise NotImplementedError("hidden activation '{}' is not implemented".format(activation))
 
 
 def get_initializer(name, activation=None):
@@ -129,9 +122,7 @@ def get_initializer(name, activation=None):
     elif activation in ["gelu", "swish", "silu"]:
         nonlinearity = "relu"  # Close to ReLU so approximate with ReLU's gain
     else:
-        raise NotImplementedError(
-            f"get_initializer: activation {activation} not supported"
-        )
+        raise NotImplementedError(f"get_initializer: activation {activation} not supported")
 
     if name == "uniform":
         initializer = partial(torch.nn.init.kaiming_uniform_, nonlinearity=nonlinearity)
@@ -144,9 +135,7 @@ def get_initializer(name, activation=None):
     elif name == "one":
         initializer = partial(torch.nn.init.constant_, val=1)
     else:
-        raise NotImplementedError(
-            f"get_initializer: initializer type {name} not supported"
-        )
+        raise NotImplementedError(f"get_initializer: initializer type {name} not supported")
 
     return initializer
 
@@ -247,9 +236,7 @@ def krylov(L, A, b, c=None, return_power=False):
             _x = x
 
         _x = A_ @ _x
-        x = torch.cat(
-            [x, _x], dim=-1
-        )  # there might be a more efficient way of ordering axes
+        x = torch.cat([x, _x], dim=-1)  # there might be a more efficient way of ordering axes
         if not done:
             A_ = A_ @ A_
 
@@ -316,9 +303,7 @@ def power(L, A, v=None):
 
 def embed_c2r(A):
     A = rearrange(A, "... m n -> ... m () n ()")
-    A = np.pad(A, ((0, 0), (0, 1), (0, 0), (0, 1))) + np.pad(
-        A, ((0, 0), (1, 0), (0, 0), (1, 0))
-    )
+    A = np.pad(A, ((0, 0), (0, 1), (0, 0), (0, 1))) + np.pad(A, ((0, 0), (1, 0), (0, 0), (1, 0)))
     return rearrange(A, "m x n y -> (m x) (n y)")
 
 
@@ -345,16 +330,9 @@ def transition(measure, N, **measure_args):
         A = -np.eye(N) * (1 + beta) / 2 - np.tril(np.ones((N, N)), -1)
         B = ss.binom(alpha + np.arange(N), np.arange(N))[:, None]
 
-        L = np.exp(
-            0.5 * (ss.gammaln(np.arange(N) + alpha + 1) - ss.gammaln(np.arange(N) + 1))
-        )
+        L = np.exp(0.5 * (ss.gammaln(np.arange(N) + alpha + 1) - ss.gammaln(np.arange(N) + 1)))
         A = (1.0 / L[:, None]) * A * L[None, :]
-        B = (
-            (1.0 / L[:, None])
-            * B
-            * np.exp(-0.5 * ss.gammaln(1 - alpha))
-            * beta ** ((1 - alpha) / 2)
-        )
+        B = (1.0 / L[:, None]) * B * np.exp(-0.5 * ss.gammaln(1 - alpha)) * beta ** ((1 - alpha) / 2)
     # Legendre (translated)
     elif measure == "legt":
         Q = np.arange(N, dtype=np.float64)
@@ -474,9 +452,7 @@ def bilinear(dt, A, B=None):
     if B is None:
         dB = None
     else:
-        dB = dt[..., None] * torch.linalg.solve(A_backwards, B.unsqueeze(-1)).squeeze(
-            -1
-        )  # (... N)
+        dB = dt[..., None] * torch.linalg.solve(A_backwards, B.unsqueeze(-1)).squeeze(-1)  # (... N)
 
     dA = torch.linalg.solve(A_backwards, A_forwards)  # (... N N)
     return dA, dB
@@ -524,9 +500,7 @@ class SSKernelNPLR(nn.Module):
     def _omega(self, L, dtype, device, cache=True):
         """Calculate (and cache) FFT nodes and their "unprocessed" them with the bilinear transform
         This should be called every time the internal length self.L changes"""
-        omega = torch.tensor(
-            np.exp(-2j * np.pi / (L)), dtype=dtype, device=device
-        )  # \omega_{2L}
+        omega = torch.tensor(np.exp(-2j * np.pi / (L)), dtype=dtype, device=device)  # \omega_{2L}
         omega = omega ** torch.arange(0, L // 2 + 1, device=device)
         z = 2 * (1 - omega) / (1 + omega)
         if cache:
@@ -580,9 +554,7 @@ class SSKernelNPLR(nn.Module):
         self.N = w.size(-1)
 
         # Broadcast everything to correct shapes
-        C = C.expand(
-            torch.broadcast_shapes(C.shape, (1, self.H, self.N))
-        ).clone()  # (H, C, N)
+        C = C.expand(torch.broadcast_shapes(C.shape, (1, self.H, self.N))).clone()  # (H, C, N)
         H = 1 if self.tie_state else self.H
         B = repeat(B, "n -> 1 h n", h=H).clone()
         P = repeat(P, "r n -> r h n", h=H).clone()
@@ -608,9 +580,7 @@ class SSKernelNPLR(nn.Module):
         self.register("B", _c2r(B), trainable.get("B", train), lr, 0.0)
         self.register("P", _c2r(P), trainable.get("P", train), lr, 0.0)
         if self.hurwitz:
-            log_w_real = torch.log(
-                -w.real + 1e-3
-            )  # Some of the HiPPO methods have real part 0
+            log_w_real = torch.log(-w.real + 1e-3)  # Some of the HiPPO methods have real part 0
             w_imag = w.imag
             self.register("log_w_real", log_w_real, trainable.get("A", 0), lr, 0.0)
             self.register("w_imag", w_imag, trainable.get("A", train), lr, 0.0)
@@ -667,9 +637,7 @@ class SSKernelNPLR(nn.Module):
             # Use cached FFT nodes
             omega, z = _r2c(self.omega), _r2c(self.z)  # (..., L)
         else:
-            omega, z = self._omega(
-                int(self.L / rate), dtype=w.dtype, device=w.device, cache=False
-            )
+            omega, z = self._omega(int(self.L / rate), dtype=w.dtype, device=w.device, cache=False)
 
         if self.tie_state:
             B = repeat(B, "... 1 n -> ... h n", h=self.H)
@@ -684,9 +652,7 @@ class SSKernelNPLR(nn.Module):
             # Can do this without expanding (maybe minor speedup using conj symmetry in theory),
             # but it's easier to read this way
             s = _conj(state) if state.size(-1) == self.N else state  # (B H N)
-            sA = s * _conj(w) - contract(
-                "bhm, rhm, rhn -> bhn", s, _conj(Q), _conj(P)
-            )  # (B H N)
+            sA = s * _conj(w) - contract("bhm, rhm, rhn -> bhn", s, _conj(Q), _conj(P))  # (B H N)
             s = s / dt.unsqueeze(-1) + sA / 2
             s = s[..., : self.N]
 
@@ -715,17 +681,13 @@ class SSKernelNPLR(nn.Module):
 
         # Low-rank Woodbury correction
         if self.rank == 1:
-            k_f = r[:-1, :-1, :, :] - r[:-1, -1:, :, :] * r[-1:, :-1, :, :] / (
-                1 + r[-1:, -1:, :, :]
-            )
+            k_f = r[:-1, :-1, :, :] - r[:-1, -1:, :, :] * r[-1:, :-1, :, :] / (1 + r[-1:, -1:, :, :])
         elif self.rank == 2:
             r00 = r[: -self.rank, : -self.rank, :, :]
             r01 = r[: -self.rank, -self.rank :, :, :]
             r10 = r[-self.rank :, : -self.rank, :, :]
             r11 = r[-self.rank :, -self.rank :, :, :]
-            det = (1 + r11[:1, :1, :, :]) * (1 + r11[1:, 1:, :, :]) - r11[
-                :1, 1:, :, :
-            ] * r11[1:, :1, :, :]
+            det = (1 + r11[:1, :1, :, :]) * (1 + r11[1:, 1:, :, :]) - r11[:1, 1:, :, :] * r11[1:, :1, :, :]
             s = (
                 r01[:, :1, :, :] * (1 + r11[1:, 1:, :, :]) * r10[:1, :, :, :]
                 + r01[:, 1:, :, :] * (1 + r11[:1, :1, :, :]) * r10[1:, :, :, :]
@@ -742,9 +704,7 @@ class SSKernelNPLR(nn.Module):
             r11 = rearrange(r11, "a b h n -> h n a b")
             r11 = torch.linalg.inv(torch.eye(self.rank, device=r.device) + r11)
             r11 = rearrange(r11, "h n a b -> a b h n")
-            k_f = r00 - torch.einsum(
-                "i j h n, j k h n, k l h n -> i l h n", r01, r11, r10
-            )
+            k_f = r00 - torch.einsum("i j h n, j k h n, k l h n -> i l h n", r01, r11, r10)
 
         # Final correction for the bilinear transform
         k_f = k_f * 2 / (1 + omega)
@@ -777,8 +737,7 @@ class SSKernelNPLR(nn.Module):
         dt = torch.exp(self.log_dt)
         D = (2.0 / dt.unsqueeze(-1) - w).reciprocal()  # (H, N)
         R = (
-            torch.eye(self.rank, dtype=w.dtype, device=w.device)
-            + 2 * contract("r h n, h n, s h n -> h r s", Q, D, P).real
+            torch.eye(self.rank, dtype=w.dtype, device=w.device) + 2 * contract("r h n, h n, s h n -> h r s", Q, D, P).real
         )  # (H r r)
         Q_D = rearrange(Q * D, "r h n -> h r n")
         R = torch.linalg.solve(R.to(Q_D), Q_D)  # (H r N)
@@ -814,15 +773,13 @@ class SSKernelNPLR(nn.Module):
             state = torch.zeros(self.H, self.N, dtype=C.dtype, device=C.device)
 
         step_params = self.step_params.copy()
-        if (
-            state.size(-1) == self.N
-        ):  # Only store half of the conjugate pairs; should be true by default
+        if state.size(-1) == self.N:  # Only store half of the conjugate pairs; should be true by default
             # There should be a slightly faster way using conjugate symmetry
 
             def contract_fn(p, x, y):
-                return contract(
-                    "r h n, r h m, ... h m -> ... h n", _conj(p), _conj(x), _conj(y)
-                )[..., : self.N]  # inner outer product
+                return contract("r h n, r h m, ... h m -> ... h n", _conj(p), _conj(x), _conj(y))[
+                    ..., : self.N
+                ]  # inner outer product
 
         else:
             assert state.size(-1) == 2 * self.N
@@ -832,9 +789,7 @@ class SSKernelNPLR(nn.Module):
             #  time for stepping
 
             def contract_fn(p, x, y):
-                return contract(
-                    "r h n, r h m, ... h m -> ... h n", p, x, y
-                )  # inner outer product
+                return contract("r h n, r h m, ... h m -> ... h n", p, x, y)  # inner outer product
 
         D = step_params["D"]  # (H N)
         E = step_params["E"]  # (H N)
@@ -856,9 +811,7 @@ class SSKernelNPLR(nn.Module):
         self._setup_linear()
         C = _r2c(self.C)  # Just returns a view that we use for finding dtype/device
 
-        state = torch.eye(2 * self.N, dtype=C.dtype, device=C.device).unsqueeze(
-            -2
-        )  # (N 1 N)
+        state = torch.eye(2 * self.N, dtype=C.dtype, device=C.device).unsqueeze(-2)  # (N 1 N)
         dA = self._step_state_linear(state=state)
         dA = rearrange(dA, "n h m -> h m n")
         self.dA = dA  # (H N N)
@@ -870,9 +823,7 @@ class SSKernelNPLR(nn.Module):
 
     def _step_state(self, u, state):
         """Must be called after self.default_state() is used to construct an initial state!"""
-        next_state = self.state_contraction(self.dA, state) + self.input_contraction(
-            self.dB, u
-        )
+        next_state = self.state_contraction(self.dA, state) + self.input_contraction(self.dB, u)
         return next_state
 
     def setup_step(self, mode="dense"):
@@ -910,9 +861,7 @@ class SSKernelNPLR(nn.Module):
         elif mode == "dense":
             pass
         else:
-            raise NotImplementedError(
-                "NPLR Kernel step mode must be {'dense' | 'linear' | 'diagonal'}"
-            )
+            raise NotImplementedError("NPLR Kernel step mode must be {'dense' | 'linear' | 'diagonal'}")
 
     def default_state(self, *batch_shape):
         C = _r2c(self.C)
@@ -1021,9 +970,7 @@ class HippoSSKernel(nn.Module):
         self.channels = channels
 
         # Generate dt
-        log_dt = torch.rand(self.H, dtype=dtype) * (
-            math.log(dt_max) - math.log(dt_min)
-        ) + math.log(dt_min)
+        log_dt = torch.rand(self.H, dtype=dtype) * (math.log(dt_max) - math.log(dt_min)) + math.log(dt_min)
 
         w, p, B, _ = nplr(measure, self.N, rank, dtype=dtype)
         C = torch.randn(channels, self.H, self.N // 2, dtype=cdtype)
@@ -1054,9 +1001,7 @@ class HippoSSKernel(nn.Module):
 
 
 def get_torch_trans(heads=8, layers=1, channels=64):
-    encoder_layer = nn.TransformerEncoderLayer(
-        d_model=channels, nhead=heads, dim_feedforward=64, activation="gelu"
-    )
+    encoder_layer = nn.TransformerEncoderLayer(d_model=channels, nhead=heads, dim_feedforward=64, activation="gelu")
     return nn.TransformerEncoder(encoder_layer, num_layers=layers)
 
 
@@ -1114,9 +1059,7 @@ class S4(nn.Module):
             channels *= 2
 
         # SSM Kernel
-        self.kernel = HippoSSKernel(
-            self.h, N=self.n, L=l_max, channels=channels, **kernel_args
-        )
+        self.kernel = HippoSSKernel(self.h, N=self.n, L=l_max, channels=channels, **kernel_args)
 
         # Pointwise
         self.activation = Activation(activation)
@@ -1156,15 +1099,11 @@ class S4(nn.Module):
             k = F.pad(k0, (0, L)) + F.pad(k1.flip(-1), (L, 0))
         k_f = torch.fft.rfft(k, n=2 * L)  # (C H L)
         u_f = torch.fft.rfft(u, n=2 * L)  # (B H L)
-        y_f = contract(
-            "bhl,chl->bchl", u_f, k_f
-        )  # k_f.unsqueeze(-4) * u_f.unsqueeze(-3) # (B C H L)
+        y_f = contract("bhl,chl->bchl", u_f, k_f)  # k_f.unsqueeze(-4) * u_f.unsqueeze(-3) # (B C H L)
         y = torch.fft.irfft(y_f, n=2 * L)[..., :L]  # (B C H L)
 
         # Compute D term in state space equation - essentially a skip connection
-        y = y + contract(
-            "bhl,ch->bchl", u, self.D
-        )  # u.unsqueeze(-3) * self.D.unsqueeze(-1)
+        y = y + contract("bhl,ch->bchl", u, self.D)  # u.unsqueeze(-3) * self.D.unsqueeze(-1)
 
         # Optional hyper-network multiplication
         if self.hyper:
@@ -1223,22 +1162,16 @@ class S4(nn.Module):
 
 class S4Layer(nn.Module):
     # S4 Layer that can be used as a drop-in replacement for a TransformerEncoder
-    def __init__(
-        self, features, lmax, N=64, dropout=0.0, bidirectional=True, layer_norm=True
-    ):
+    def __init__(self, features, lmax, N=64, dropout=0.0, bidirectional=True, layer_norm=True):
         super().__init__()
-        self.s4_layer = S4(
-            d_model=features, d_state=N, l_max=lmax, bidirectional=bidirectional
-        )
+        self.s4_layer = S4(d_model=features, d_state=N, l_max=lmax, bidirectional=bidirectional)
 
         self.norm_layer = nn.LayerNorm(features) if layer_norm else nn.Identity()
         self.dropout = nn.Dropout2d(dropout) if dropout > 0 else nn.Identity()
 
     def forward(self, x):
         # x has shape seq, batch, feature
-        x = x.permute(
-            (1, 2, 0)
-        )  # batch, feature, seq (as expected from S4 with transposed=True)
+        x = x.permute((1, 2, 0))  # batch, feature, seq (as expected from S4 with transposed=True)
         xout, _ = self.s4_layer(x)  # batch, feature, seq
         xout = self.dropout(xout)
         xout = xout + x  # skip connection   # batch, feature, seq

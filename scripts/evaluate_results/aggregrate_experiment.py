@@ -103,9 +103,7 @@ def aggregate_results(
     results["Std"] = pd.to_numeric(results["Std"], errors="coerce")
 
     # Scaling
-    results["95% CI"] = results["95% CI"].apply(
-        lambda x: (pd.to_numeric(x[1]) * scale, pd.to_numeric(x[0]) * scale)
-    )
+    results["95% CI"] = results["95% CI"].apply(lambda x: (pd.to_numeric(x[1]) * scale, pd.to_numeric(x[0]) * scale))
     results[["Average", "Std"]] = results[["Average", "Std"]].apply(lambda x: x * scale)
 
     # Correct std for amount of iterations
@@ -114,9 +112,7 @@ def aggregate_results(
 
     # Round everything to x decimals
     results = results.round(decimals)
-    results["95% CI"] = results["95% CI"].apply(
-        lambda x: tuple(map(lambda y: round(y, decimals), x))
-    )
+    results["95% CI"] = results["95% CI"].apply(lambda x: tuple(map(lambda y: round(y, decimals), x)))
 
     # Append unfinished results
     results = pd.concat([results, nan_rows])

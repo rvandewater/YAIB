@@ -35,9 +35,7 @@ class BaseTransformer(DLPredictionWrapper):
         if local_context is not None and self._get_name() == "Transformer":
             raise ValueError("Local context is only supported for LocalTransformer")
         hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
-        self.input_embedding = nn.Linear(
-            input_size[2], hidden
-        )  # This acts as a time-distributed layer by defaults
+        self.input_embedding = nn.Linear(input_size[2], hidden)  # This acts as a time-distributed layer by defaults
         if pos_encoding:
             self.pos_encoder = PositionalEncoding(hidden)
         else:
@@ -54,11 +52,7 @@ class BaseTransformer(DLPredictionWrapper):
                     ff_hidden_mult=ff_hidden_mult,
                     dropout=dropout,
                     dropout_att=dropout_att,
-                    **(
-                        {"local_context": local_context}
-                        if local_context is not None
-                        else {}
-                    ),
+                    **({"local_context": local_context} if local_context is not None else {}),
                 )
             )
 

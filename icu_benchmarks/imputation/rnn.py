@@ -12,9 +12,7 @@ class RNNImputation(ImputationWrapper):
 
     requires_backprop = True
 
-    def __init__(
-        self, *args, input_size, hidden_size=64, state_init="zero", cell="gru", **kwargs
-    ) -> None:
+    def __init__(self, *args, input_size, hidden_size=64, state_init="zero", cell="gru", **kwargs) -> None:
         super().__init__(
             *args,
             input_size=input_size,
@@ -41,19 +39,13 @@ class RNNImputation(ImputationWrapper):
 
     def init_hidden_state(self, x):
         if self.state_init == "zero":
-            return torch.zeros(
-                (x.size(0), self.hidden_size), device=x.device, dtype=x.dtype
-            )
+            return torch.zeros((x.size(0), self.hidden_size), device=x.device, dtype=x.dtype)
         if self.state_init == "noise":
-            return torch.randn(
-                x.size(0), self.hidden_size, device=x.device, dtype=x.dtype
-            )
+            return torch.randn(x.size(0), self.hidden_size, device=x.device, dtype=x.dtype)
 
     def forward(self, amputated, amputation_mask, return_hidden=False):
         steps = amputated.size(1)
-        amputated = torch.where(
-            amputation_mask.bool(), torch.zeros_like(amputated), amputated
-        )
+        amputated = torch.where(amputation_mask.bool(), torch.zeros_like(amputated), amputated)
         h = self.init_hidden_state(amputated)
         c = self.init_hidden_state(amputated)
 
@@ -141,7 +133,5 @@ class BRNNImputation(ImputationWrapper):
         if tensor.dim() <= 1:
             return tensor
         indices = range(tensor.size()[axis])[::-1]
-        indices = Variable(torch.LongTensor(indices), requires_grad=False).to(
-            tensor.device
-        )
+        indices = Variable(torch.LongTensor(indices), requires_grad=False).to(tensor.device)
         return tensor.index_select(axis, indices)

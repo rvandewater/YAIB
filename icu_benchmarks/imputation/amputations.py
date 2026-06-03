@@ -147,14 +147,8 @@ def MNAR_logistic_mask(X, p, p_params=0.3, exclude_inputs=True):
     d_na = d - d_params if exclude_inputs else d
 
     # Sample variables that will be parameters for the logistic regression:
-    idxs_params = (
-        np.random.choice(d, d_params, replace=False) if exclude_inputs else np.arange(d)
-    )
-    idxs_nas = (
-        np.array([i for i in range(d) if i not in idxs_params])
-        if exclude_inputs
-        else np.arange(d)
-    )
+    idxs_params = np.random.choice(d, d_params, replace=False) if exclude_inputs else np.arange(d)
+    idxs_nas = np.array([i for i in range(d) if i not in idxs_params]) if exclude_inputs else np.arange(d)
 
     # Other variables will have NA proportions selected by a logistic model
     # The parameters of this logistic model are random.
@@ -235,9 +229,7 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
     elif mechanism == "BO":
         mask = BO_mask(X, p_miss)
     else:
-        logging.error(
-            "Not a valid amputation mechanism. Missing-data mechanisms to be used are MAR, MCAR, MNAR or BO."
-        )
+        logging.error("Not a valid amputation mechanism. Missing-data mechanisms to be used are MAR, MCAR, MNAR or BO.")
         raise ValueError(f"Invalid amputation mechanism: {mechanism}")
 
     amputed_data = data.mask(mask)

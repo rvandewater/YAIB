@@ -4,9 +4,7 @@ import gin
 
 
 @gin.configurable("hyperparameter")
-def get_gin_hyperparameters(
-    class_to_tune: str = gin.REQUIRED, **hyperparams: dict
-) -> dict:
+def get_gin_hyperparameters(class_to_tune: str = gin.REQUIRED, **hyperparams: dict) -> dict:
     """Get hyperparameters to tune from gin config.
 
     Hyperparameters that are already present in the gin config are ignored.

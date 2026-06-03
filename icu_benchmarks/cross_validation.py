@@ -81,16 +81,12 @@ def execute_repeated_cv(
         cv_folds_to_train = 1
 
     else:
-        logging.info(
-            f"Starting nested CV with {cv_repetitions_to_train} repetitions of {cv_folds_to_train} folds."
-        )
+        logging.info(f"Starting nested CV with {cv_repetitions_to_train} repetitions of {cv_folds_to_train} folds.")
     # Train model for each repetition (a manner of splitting the folds)
     for repetition in range(cv_repetitions_to_train):
         # Train model for each fold configuration (i.e, one fold is test fold and the rest are train/val folds)
         for fold_index in range(cv_folds_to_train):
-            repetition_fold_dir = (
-                log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
-            )
+            repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
             repetition_fold_dir.mkdir(parents=True, exist_ok=True)
 
             start_time = datetime.now()

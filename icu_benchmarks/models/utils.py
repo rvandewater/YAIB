@@ -29,9 +29,7 @@ def save_config_file(log_dir):
         f.write(gin.operative_config_str())
 
 
-def create_optimizer(
-    name: str, model: Module, lr: float, momentum: float = 0
-) -> Optimizer:
+def create_optimizer(name: str, model: Module, lr: float, momentum: float = 0) -> Optimizer:
     """creates the specified optimizer with the given parameters
 
     Args:
@@ -145,9 +143,7 @@ def log_table_row(
         table_cells = []
         for cell, width in zip(cells, widths):
             cell = str(cell)[:width]  # truncate cell if it is too long
-            table_cells.append(
-                "{: {align}{width}}".format(cell, align=align.value, width=width)
-            )
+            table_cells.append("{: {align}{width}}".format(cell, align=align.value, width=width))
     table_row = " | ".join([f"{cell}" for cell in table_cells])
     if highlight:
         table_row = f"\x1b[31;32m{table_row}\x1b[0m"
@@ -168,26 +164,12 @@ class JSONMetricsLogger(Logger):
         return "json_metrics_logger"
 
     @rank_zero_only
-    def log_metrics(
-        self, metrics: Dict[str, float], step: Optional[int] = None
-    ) -> None:
+    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
         old_metrics = {}
         stage_metrics = {
-            "train": {
-                "/".join(key.split("/")[1:]): value
-                for key, value in metrics.items()
-                if key.startswith("train/")
-            },
-            "val": {
-                "/".join(key.split("/")[1:]): value
-                for key, value in metrics.items()
-                if key.startswith("val/")
-            },
-            "test": {
-                "/".join(key.split("/")[1:]): value
-                for key, value in metrics.items()
-                if key.startswith("test/")
-            },
+            "train": {"/".join(key.split("/")[1:]): value for key, value in metrics.items() if key.startswith("train/")},
+            "val": {"/".join(key.split("/")[1:]): value for key, value in metrics.items() if key.startswith("val/")},
+            "test": {"/".join(key.split("/")[1:]): value for key, value in metrics.items() if key.startswith("test/")},
         }
         for stage, metrics in stage_metrics.items():
             if metrics:
@@ -255,9 +237,7 @@ def get_smoothed_labels(
     else:
         label_for_event = label
         h_for_event = h_true
-    diffs_label = np.concatenate(
-        [np.zeros(1), label_for_event[1:] - label_for_event[:-1]], axis=-1
-    )
+    diffs_label = np.concatenate([np.zeros(1), label_for_event[1:] - label_for_event[:-1]], axis=-1)
 
     # Event that occurred after the end of the stay for M3B.
     # In that case event are equal to the number of hours after the end of stay when the event occurred.
@@ -265,9 +245,7 @@ def get_smoothed_labels(
     if len(pos_event_change_delayed) > 0:
         delays = event[pos_event_change_delayed] - 1
         pos_event_change_delayed += delays.astype(int)
-        pos_event_change_full = np.sort(
-            np.concatenate([pos_event_change_full, pos_event_change_delayed])
-        )
+        pos_event_change_full = np.sort(np.concatenate([pos_event_change_full, pos_event_change_delayed]))
 
     last_know_label = label_for_event[np.where(label_for_event != -1)][-1]
     last_know_idx = np.where(label_for_event == last_know_label)[0][-1]
@@ -286,12 +264,8 @@ def get_smoothed_labels(
             last_known_stable = known_stable[-1]
 
         pos_change = np.where((diffs_label >= 1) & (label_for_event == 1))[0]
-        last_pos_change = pos_change[
-            np.where(pos_change > max(last_know_event, last_known_stable))
-        ][0]
-        pos_event_change_full = np.concatenate(
-            [pos_event_change_full, [last_pos_change + h_for_event]]
-        )
+        last_pos_change = pos_change[np.where(pos_change > max(last_know_event, last_known_stable))][0]
+        pos_event_change_full = np.concatenate([pos_event_change_full, [last_pos_change + h_for_event]])
 
     # No event case
     if len(pos_event_change_full) == 0:

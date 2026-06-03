@@ -52,9 +52,7 @@ class Plotter:
                 fold_result["Calibration"][1],
                 label=f"Calibration curve {fold}",
             )
-        plt.plot(
-            [0, 1], [0, 1], "k--", label="Perfect Calibration"
-        )  # random predictions curve
+        plt.plot([0, 1], [0, 1], "k--", label="Perfect Calibration")  # random predictions curve
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.0])
         plt.xlabel("Mean predicted probability")

@@ -94,5 +94,5 @@ torch = [
 
 
 [tool.ruff]
-line-length = 127
+line-length = 128
 include = ["*.py"]

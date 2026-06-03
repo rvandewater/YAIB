@@ -73,9 +73,7 @@ def choose_and_bind_hyperparameters_scikit_optimize(
         return
 
     # Collect hyperparameters.
-    hyperparams_bounds, hyperparams_names = collect_bound_hyperparameters(
-        hyperparams, scopes
-    )
+    hyperparams_bounds, hyperparams_names = collect_bound_hyperparameters(hyperparams, scopes)
 
     if do_tune and not hyperparams_bounds:
         logging.info("No hyperparameters to tune, skipping tuning.")
@@ -86,16 +84,12 @@ def choose_and_bind_hyperparameters_scikit_optimize(
     if checkpoint:
         checkpoint_path = checkpoint / checkpoint_file
         if not checkpoint_path.exists():
-            logging.warning(
-                f"Hyperparameter checkpoint {checkpoint_path} does not exist."
-            )
+            logging.warning(f"Hyperparameter checkpoint {checkpoint_path} does not exist.")
             logging.info("Attempting to find latest checkpoint file.")
             checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
         # Check if we found a checkpoint file
         if checkpoint_path:
-            n_calls, configuration, evaluation = load_checkpoint(
-                checkpoint_path, n_calls
-            )
+            n_calls, configuration, evaluation = load_checkpoint(checkpoint_path, n_calls)
             # Check if we surpassed maximum tuning iterations
             if n_calls <= 0:
                 logging.log(
@@ -103,9 +97,7 @@ def choose_and_bind_hyperparameters_scikit_optimize(
                     "No more hyperparameter tuning iterations left, skipping tuning.",
                 )
                 logging.info("Training with these hyperparameters:")
-                bind_gin_params(
-                    hyperparams_names, configuration[np.argmin(evaluation)]
-                )  # bind best hyperparameters
+                bind_gin_params(hyperparams_names, configuration[np.argmin(evaluation)])  # bind best hyperparameters
                 return
         else:
             logging.warning("No checkpoint file found, starting from scratch.")
@@ -143,9 +135,7 @@ def choose_and_bind_hyperparameters_scikit_optimize(
             table_cells = [len(res.x_iters)] + res.x_iters[-1] + [res.func_vals[-1]]
             highlight = res.x_iters[-1] == res.x  # highlight if best so far
             log_table_row(header, TUNE)
-            log_table_row(
-                table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight
-            )
+            log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
             wandb_log({"hp-iteration": len(res.x_iters)})
 
     if do_tune:
@@ -160,9 +150,7 @@ def choose_and_bind_hyperparameters_scikit_optimize(
         logging.log(TUNE, "Hyperparameter tuning disabled")
         if configuration:
             # We have loaded a checkpoint, use the best hyperparameters.
-            logging.info(
-                "Training with the best hyperparameters from loaded checkpoint:"
-            )
+            logging.info("Training with the best hyperparameters from loaded checkpoint:")
             bind_gin_params(hyperparams_names, configuration[np.argmin(evaluation)])
         else:
             logging.log(TUNE, "Choosing hyperparameters randomly from bounds.")
@@ -243,9 +231,7 @@ def choose_and_bind_hyperparameters_optuna(
         return
 
     # Collect hyperparameters.
-    hyperparams_bounds, hyperparams_names = collect_bound_hyperparameters(
-        hyperparams, scopes
-    )
+    hyperparams_bounds, hyperparams_names = collect_bound_hyperparameters(hyperparams, scopes)
 
     if do_tune and not hyperparams_bounds:
         logging.info("No hyperparameters to tune, skipping tuning.")
@@ -285,9 +271,7 @@ def choose_and_bind_hyperparameters_optuna(
                 # Then in the objective function:
                 if isinstance(value[0], int) and isinstance(value[1], int):
                     hyperparams[name] = suggest_int_param(trial, name, value)
-                elif isinstance(value[0], (int, float)) and isinstance(
-                    value[1], (int, float)
-                ):
+                elif isinstance(value[0], (int, float)) and isinstance(value[1], (int, float)):
                     hyperparams[name] = suggest_float_param(trial, name, value)
                 else:
                     hyperparams[name] = suggest_categorical_param(trial, name, value)
@@ -303,9 +287,7 @@ def choose_and_bind_hyperparameters_optuna(
         ]
         highlight = study.trials[-1] == study.best_trial  # highlight if best so far
         log_table_row(header, TUNE)
-        log_table_row(
-            table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight
-        )
+        log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
         wandb_log({"HP-optimization-iteration": len(study.trials)})
 
     if do_tune:
@@ -318,14 +300,10 @@ def choose_and_bind_hyperparameters_optuna(
     else:
         logging.log(TUNE, "Hyperparameter tuning disabled")
         if checkpoint:
-            study = optuna.load_study(
-                study_name="tuning", storage="sqlite:///" + str(checkpoint)
-            )
+            study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(checkpoint))
             configuration = study.best_params
             # We have loaded a checkpoint, use the best hyperparameters.
-            logging.info(
-                "Training with the best hyperparameters from loaded checkpoint:"
-            )
+            logging.info("Training with the best hyperparameters from loaded checkpoint:")
             bind_gin_params(configuration)
             return
         else:
@@ -359,9 +337,7 @@ def choose_and_bind_hyperparameters_optuna(
             return score
 
     if isinstance(sampler, optuna.samplers.GPSampler):
-        sampler = sampler(
-            seed=seed, n_startup_trials=n_initial_points, deterministic_objective=True
-        )
+        sampler = sampler(seed=seed, n_startup_trials=n_initial_points, deterministic_objective=True)
     else:
         sampler = sampler(seed=seed)
     pruner = optuna.pruners.HyperbandPruner()
@@ -382,9 +358,7 @@ def choose_and_bind_hyperparameters_optuna(
         n_calls = n_calls - len(study.trials)
     else:
         if checkpoint:
-            logging.warning(
-                "Checkpoint path given as flag but not found, starting from scratch."
-            )
+            logging.warning("Checkpoint path given as flag but not found, starting from scratch.")
         study = optuna.create_study(
             sampler=sampler,
             storage="sqlite:///" + str(log_dir / checkpoint_file),
@@ -402,9 +376,7 @@ def choose_and_bind_hyperparameters_optuna(
         wandbc = WeightsAndBiasesCallback(metric_name="loss", wandb_kwargs=wandb_kwargs)
         callbacks.append(wandbc)
 
-    logging.info(
-        f"Starting or resuming Optuna study with {n_calls} trails and callbacks: {callbacks}."
-    )
+    logging.info(f"Starting or resuming Optuna study with {n_calls} trails and callbacks: {callbacks}.")
     if n_calls > 0:
         study.optimize(
             lambda trail: objective(trail, hyperparams_bounds, hyperparams_names),

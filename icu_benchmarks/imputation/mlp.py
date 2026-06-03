@@ -10,9 +10,7 @@ class MLPImputation(ImputationWrapper):
 
     requires_backprop = True
 
-    def __init__(
-        self, *args, input_size, num_hidden_layers=3, hidden_layer_size=10, **kwargs
-    ) -> None:
+    def __init__(self, *args, input_size, num_hidden_layers=3, hidden_layer_size=10, **kwargs) -> None:
         super().__init__(
             *args,
             input_size=input_size,
