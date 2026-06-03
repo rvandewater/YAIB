@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "yaib"
-version = "0.3.1"
+version = "dynamic"
 description = "Yet Another ICU Benchmark is a holistic framework for the automation of the development of clinical prediction models on ICU data."
 readme = "README.md"
 license = { text = "MIT" }
