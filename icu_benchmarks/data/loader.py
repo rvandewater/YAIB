@@ -234,11 +234,6 @@ class CommonPandasDataset(Dataset):
         )
         if not isinstance(vars, dict):
             raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
-        warnings.warn(
-            "CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])

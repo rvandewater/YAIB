@@ -50,7 +50,7 @@ jobs:
       - name: Verify log output was created
         run: |
           if [ ! -d "yaib_logs/mimic_demo" ]; then
-            echo "ERROR: Expected log directory ../yaib_logs/mimic_demo was not created."
+            echo "ERROR: Expected log directory yaib_logs/mimic_demo was not created."
             exit 1
           fi
           echo "Log directory found:"
