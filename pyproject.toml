@@ -56,7 +56,7 @@ dependencies = [
   "scikit-optimize-fix==0.9.1",
   "hydra-submitit-launcher==1.2.0",
   "shap==0.49.1",
-  "numba==0.60.0",
+  "numba>=0.62.0",
 ]
 
 [project.scripts]
