@@ -40,7 +40,7 @@ dependencies = [
   "xgboost==2.1.0",
   "imbalanced-learn==0.12.3",
   "catboost==1.2.5",
-  "numpy==2.1.0",
+  "numpy==1.26.0",
   "pandas>=2.2.2",
   "polars>=1.9.0",
   "pyarrow>=20.0.0",
