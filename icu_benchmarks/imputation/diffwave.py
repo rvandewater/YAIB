@@ -385,10 +385,11 @@ class Residual_group(nn.Module):
         h = noise
         skip = 0
         for n in range(self.num_res_layers):
-            h = noise
             for n in range(self.num_res_layers):
-                h, skip_n = self.residual_blocks[n]((h, conditional, diffusion_step_embed))
-                skip += skip_n
+                h = noise
+                for n in range(self.num_res_layers):
+                    h, skip_n = self.residual_blocks[n]((h, conditional, diffusion_step_embed))
+                    skip += skip_n
             skip += skip_n
 
         return skip * math.sqrt(1.0 / self.num_res_layers)  # normalize for training stability
