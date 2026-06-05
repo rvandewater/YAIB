@@ -30,6 +30,9 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ matrix.python-version }}
 
+      - name: Install OpenBLAS
+        run: sudo apt-get update && sudo apt-get install -y libopenblas-dev
+
       - name: Install YAIB and dependencies
         run: uv sync
 
