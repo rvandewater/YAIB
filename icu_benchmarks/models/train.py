@@ -251,7 +251,7 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
                 schema=trainer.lightning_module.trained_columns,
                 data=np.transpose(shap_values.values),
             )
-            with (log_dir / "shap_values_test.parquet").open("wb") as f:
+            with (log_dir / "test_shap_values.parquet").open("wb") as f:
                 shaps_test.write_parquet(f)
             logging.info(f"Saved shap values to {log_dir / 'test_shap_values.parquet'}")
         if trainer.lightning_module.train_shap_values is not None:

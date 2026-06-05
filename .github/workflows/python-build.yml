@@ -2,9 +2,7 @@ name: Build and publish Python package
 
 on:
   push:
-    branches:
-      - development
-      - main
+    branches: [main, master, "release/*", "development"]
     tags:
       - "v*"
       - "[0-9]+.[0-9]+.[0-9]+"

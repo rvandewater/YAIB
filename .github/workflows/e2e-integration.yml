@@ -2,9 +2,9 @@ name: E2E Integration Test
 
 on:
   push:
-    branches: [main, development]
+    branches: [main, master, "release/*", "development"]
   pull_request:
-    branches: [main, development]
+    branches: [main, master, "release/*", "development"]
   workflow_dispatch:
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install YAIB and dependencies
         run: uv sync
