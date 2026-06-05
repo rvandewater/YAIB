@@ -261,7 +261,7 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
                 schema=trainer.lightning_module.trained_columns,
                 data=np.transpose(shap_values.values),
             )
-            with (log_dir / "shap_values_train.parquet").open("wb") as f:
+            with (log_dir / "train_shap_values.parquet").open("wb") as f:
                 shaps_train.write_parquet(f)
 
     except Exception as e:
