@@ -2,9 +2,9 @@ name: E2E Integration Test
 
 on:
   push:
-    branches: [main, development]
+    branches: [main, master, "release/*", "development"]
   pull_request:
-    branches: [main, development]
+    branches: [main, master, "release/*", "development"]
   workflow_dispatch:
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install YAIB and dependencies
         run: uv sync
@@ -50,7 +50,7 @@ jobs:
       - name: Verify log output was created
         run: |
           if [ ! -d "yaib_logs/mimic_demo" ]; then
-            echo "ERROR: Expected log directory ../yaib_logs/mimic_demo was not created."
+            echo "ERROR: Expected log directory yaib_logs/mimic_demo was not created."
             exit 1
           fi
           echo "Log directory found:"

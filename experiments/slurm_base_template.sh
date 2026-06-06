@@ -20,7 +20,7 @@ DATASETS=(hirid miiv eicu aumc)
 
 echo "This is a SLURM job named" $SLURM_JOB_NAME "with array id" $SLURM_ARRAY_TASK_ID "and job id" $SLURM_JOB_ID
 echo "Resources allocated: " $SLURM_CPUS_PER_TASK "CPUs, " $SLURM_MEM_PER_NODE "GB RAM, " $SLURM_GPUS_PER_NODE "GPUs"
-echi "Task type:" ${TASK}
+echo "Task type:" ${TASK}
 echo "Task: " ${TASK_NAME}
 echo "Model: "${MODEL_NAME}
 echo "Dataset: "${DATASETS[$SLURM_ARRAY_TASK_ID]}

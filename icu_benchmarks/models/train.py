@@ -98,8 +98,9 @@ def train_common(
         pl_model: Loading a pytorch lightning model.
         num_workers: Number of workers to use for data loading.
     """
+
     if dataset_names is None:
-        dataset_names = {}
+        dataset_names = {"train": "default", "val": "default", "test": "default"}
 
     logging.info(f"Training model: {model.__name__}.")
     # TODO: add support for polars versions of datasets
@@ -113,8 +114,8 @@ def train_common(
     logging.info(f"Using dataset class: {dataset_class.__name__}.")
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
-    train_dataset = dataset_class(data, split=DataSplit.train, ram_cache=ram_cache, name=dataset_names["train"])
-    val_dataset = dataset_class(data, split=DataSplit.val, ram_cache=ram_cache, name=dataset_names["val"])
+    train_dataset = dataset_class(data, split=DataSplit.train, ram_cache=ram_cache, name=dataset_names.get("train", "default"))
+    val_dataset = dataset_class(data, split=DataSplit.val, ram_cache=ram_cache, name=dataset_names.get("val", "default"))
     train_dataset, val_dataset = (
         assure_minimum_length(train_dataset),
         assure_minimum_length(val_dataset),
@@ -213,7 +214,7 @@ def train_common(
         logging.info("Finished training full model.")
         save_config_file(log_dir)
         return 0
-    test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"], ram_cache=ram_cache)
+    test_dataset = dataset_class(data, split=test_on, name=dataset_names.get("test", "default"), ram_cache=ram_cache)
     test_dataset = assure_minimum_length(test_dataset)
     logging.info(f"Testing on {test_dataset.name}  with {len(test_dataset)} samples.")
     test_loader = (
@@ -251,7 +252,7 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
                 schema=trainer.lightning_module.trained_columns,
                 data=np.transpose(shap_values.values),
             )
-            with (log_dir / "shap_values_test.parquet").open("wb") as f:
+            with (log_dir / "test_shap_values.parquet").open("wb") as f:
                 shaps_test.write_parquet(f)
             logging.info(f"Saved shap values to {log_dir / 'test_shap_values.parquet'}")
         if trainer.lightning_module.train_shap_values is not None:
@@ -260,7 +261,7 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
                 schema=trainer.lightning_module.trained_columns,
                 data=np.transpose(shap_values.values),
             )
-            with (log_dir / "shap_values_train.parquet").open("wb") as f:
+            with (log_dir / "train_shap_values.parquet").open("wb") as f:
                 shaps_train.write_parquet(f)
 
     except Exception as e:

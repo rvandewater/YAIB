@@ -63,7 +63,7 @@ def build_parser() -> ArgumentParser:
         "--verbose",
         default=False,
         action=BOA,
-        help="Set to log verbosly. Disable for clean logs.",
+        help="Set to log verbosely. Disable for clean logs.",
     )
     parser.add_argument("--cpu", default=False, action=BOA, help="Set to use CPU.")
     parser.add_argument("-db", "--debug", default=False, action=BOA, help="Set to load less data.")
