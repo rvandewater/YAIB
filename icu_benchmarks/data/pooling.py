@@ -149,7 +149,11 @@ class PooledData:
                 labels = outcome.groupby(id).max()[vars[Var.label]].reset_index(drop=True)
                 # if pd.Series(outcome[id].unique()) is outcome[id]):
                 selected_stays = train_test_split(
-                    stays, stratify=labels, shuffle=shuffle, random_state=seed, train_size=samples
+                    stays,
+                    stratify=labels,
+                    shuffle=shuffle,
+                    random_state=seed,
+                    train_size=samples,
                 )
             else:
                 selected_stays = train_test_split(stays, shuffle=shuffle, random_state=seed, train_size=samples)
@@ -158,7 +162,11 @@ class PooledData:
             if save_test:
                 select = selected_stays[1]
                 outcome, static, dynamic = self._select_stays(
-                    outcome=outcome, static=static, dynamic=dynamic, select=select, repeated_digit=repeated_digit
+                    outcome=outcome,
+                    static=static,
+                    dynamic=dynamic,
+                    select=select,
+                    repeated_digit=repeated_digit,
                 )
                 save_folder = key
                 save_folder += f"_test_{len(select)}"
@@ -171,7 +179,11 @@ class PooledData:
                 logging.info(f"Saved train data at {save_dir}")
             selected_stays = selected_stays[0]
             outcome, static, dynamic = self._select_stays(
-                outcome=outcome, static=static, dynamic=dynamic, select=selected_stays, repeated_digit=repeated_digit
+                outcome=outcome,
+                static=static,
+                dynamic=dynamic,
+                select=selected_stays,
+                repeated_digit=repeated_digit,
             )
             # Adding to pooled data
             pooled_data[Segment.static].append(static)

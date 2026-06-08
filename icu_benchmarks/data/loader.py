@@ -1,16 +1,18 @@
+import logging
 import warnings
-from typing import List
-from pandas import DataFrame
+from typing import List, Optional, Union
+
 import gin
 import numpy as np
-from torch import Tensor, cat, from_numpy, float32
-from torch.utils.data import Dataset
-import logging
-from typing import Dict, Tuple
 import polars as pl
+from pandas import DataFrame
+from torch import Tensor, cat, float32, from_numpy
+from torch.utils.data import Dataset
+
 from icu_benchmarks.imputation.amputations import ampute_data
-from .constants import DataSegment as Segment
-from .constants import DataSplit as Split
+
+from .constants import DataSegment as DataSegment
+from .constants import DataSplit as DataSplit
 
 
 @gin.configurable("CommonPolarsDataset")
@@ -18,35 +20,41 @@ class CommonPolarsDataset(Dataset):
     def __init__(
         self,
         data: dict,
-        split: str = Split.train,
-        vars: Dict[str, str] = gin.REQUIRED,
-        grouping_segment: str = Segment.outcome,
+        split: str = DataSplit.train,
+        vars: dict[str, Union[str, list[str]]] | object = gin.REQUIRED,
+        grouping_segment: str = DataSegment.outcome,
         mps: bool = False,
         name: str = "",
-        *args,
-        **kwargs,
     ):
-        # super().__init__(*args, **kwargs)
+        if not isinstance(vars, dict):
+            raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
         self.split = split
         self.vars = vars
-        self.grouping_df = data[split][grouping_segment]  # .set_index(self.vars["GROUP"])
-        # logging.info(f"data split: {data[split]}")
-        # self.features_df = (
-        #     data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
-        # )
+        self.grouping_df = data[split][grouping_segment]
         # Get the row indicators for the data to be able to match predicted labels
-        if "SEQUENCE" in self.vars and self.vars["SEQUENCE"] in data[split][Segment.features].columns:
+        if not isinstance(vars["SEQUENCE"], str):
+            raise ValueError(f'Expected key "SEQUENCE" to be of type str, got {type(vars["SEQUENCE"])} instead')
+        if "SEQUENCE" in self.vars and self.vars["SEQUENCE"] in data[split][DataSegment.features].columns:
             # We have a time series dataset
-            self.row_indicators = data[split][Segment.features][self.vars["GROUP"], self.vars["SEQUENCE"]]
-            self.row_indicators = self.row_indicators.with_columns(pl.col(self.vars["SEQUENCE"]).dt.total_hours())
-            self.features_df = data[split][Segment.features]
+            self.row_indicators = data[split][DataSegment.features][self.vars["GROUP"], self.vars["SEQUENCE"]]
+
+            self.row_indicators = self.row_indicators.with_columns(pl.col(self.vars["SEQUENCE"]))  # already in hours?
+            self.features_df = data[split][DataSegment.features]
             self.features_df = self.features_df.sort([self.vars["GROUP"], self.vars["SEQUENCE"]])
             self.features_df = self.features_df.drop(self.vars["SEQUENCE"])
         else:
             # We have a static dataset
             logging.info("Using static dataset")
-            self.row_indicators = data[split][Segment.features][self.vars["GROUP"]]
-            self.features_df = data[split][Segment.features]
+            self.row_indicators = data[split][DataSegment.features][self.vars["GROUP"]]
+            self.features_df = data[split][DataSegment.features]
+
+        # order columns: index, features (alphabetically), indicator (alphabetically)
+        cols = self.features_df.columns
+        m_index = [self.vars["GROUP"]]
+        front = sorted([c for c in cols if not c.startswith("MissingIndicator_") and c not in m_index])
+        back = sorted([c for c in cols if c.startswith("MissingIndicator_") and c not in m_index])
+        self.features_df = self.features_df[m_index + front + back]
+
         # calculate basic info for the data
         self.num_stays = self.grouping_df[self.vars["GROUP"]].unique().shape[0]
         self.maxlen = self.features_df.group_by([self.vars["GROUP"]]).len().max().item(0, 1)
@@ -60,8 +68,7 @@ class CommonPolarsDataset(Dataset):
             self._cached_dataset = [self[i] for i in range(len(self))]
 
     def __len__(self) -> int:
-        """Returns number of stays in the data.
-
+        """
         Returns:
             number of stays in the data
         """
@@ -70,14 +77,14 @@ class CommonPolarsDataset(Dataset):
     def get_feature_names(self) -> List[str]:
         return self.features_df.columns
 
-    def to_tensor(self) -> List[Tensor]:
-        values = []
+    def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], ...]:
+        values: list[list] = []
         for entry in self:
             for i, value in enumerate(entry):
                 if len(values) <= i:
                     values.append([])
                 values[i].append(value.unsqueeze(0))
-        return [cat(value, dim=0) for value in values]
+        return tuple(cat(value, dim=0) for value in values)
 
 
 @gin.configurable("PredictionPolarsDataset")
@@ -91,9 +98,62 @@ class PredictionPolarsDataset(CommonPolarsDataset):
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
         self.outcome_df = self.grouping_df
+
+        # One-pass partition keyed by stay id. Avoids the O(N_stays) full-frame filter
+        # that previously ran inside every __getitem__.
+        GROUP = self.vars["GROUP"]
+        LABEL = self.vars["LABEL"]
+        label_partitions = self.outcome_df.partition_by(GROUP, maintain_order=True)
+        feat_partitions = self.features_df.partition_by(GROUP, maintain_order=True)
+        self._stay_order = [part[GROUP][0] for part in label_partitions]
+        self._feat_arrays = {
+            part[GROUP][0]: part.select(pl.exclude(GROUP)).to_numpy().astype(np.float32) for part in feat_partitions
+        }
+        for arr in self._feat_arrays.values():
+            arr.setflags(write=False)
+
+        self._label_arrays = {part[GROUP][0]: part[LABEL].to_numpy().astype(np.float32) for part in label_partitions}
+        for arr in self._label_arrays.values():
+            arr.setflags(write=False)
+
         self.ram_cache(ram_cache)
 
-    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
+    def _build_item(self, idx: int) -> tuple[Tensor, Tensor, Tensor]:
+        pad_value = 0.0
+        stay_id = self._stay_order[idx]
+
+        window = self._feat_arrays[stay_id]
+        labels = self._label_arrays[stay_id].copy()  # copy to avoid in-place NaN replacement
+
+        if len(labels) == 1:
+            # only one label per stay, align with window
+            labels = np.concatenate(
+                [np.full((window.shape[0] - 1, *labels.shape[1:]), np.nan), labels],
+                axis=0,
+            )
+
+        length_diff = self.maxlen - window.shape[0]
+        pad_mask = np.ones(window.shape[0])
+
+        # Padding the array to fulfill size requirement
+        if length_diff > 0:
+            window = np.concatenate([window, np.full((length_diff, window.shape[1]), pad_value)], axis=0)
+            labels = np.concatenate([labels, np.full((length_diff, *labels.shape[1:]), pad_value)], axis=0)
+            pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
+
+        # check for (partially) unlabeled data
+        nan_mask = np.isnan(labels)
+        labels[nan_mask] = -1
+        invalid_rows = nan_mask if labels.ndim == 1 else nan_mask.any(axis=-1)
+        pad_mask[invalid_rows] = 0
+
+        pad_mask = pad_mask.astype(bool)
+        labels = labels.astype(np.float32)
+        data = window.astype(np.float32)
+
+        return from_numpy(data), from_numpy(labels), from_numpy(pad_mask)
+
+    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice. Used for deep learning implementations.
 
         Args:
@@ -104,43 +164,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         """
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
-
-        pad_value = 0.0
-        # stay_id = self.outcome_df.index.unique()[idx]  # [self.vars["GROUP"]]
-        stay_id = self.outcome_df[self.vars["GROUP"]].unique()[idx]  # [self.vars["GROUP"]]
-
-        # slice to make sure to always return a DF
-        # window = self.features_df.loc[stay_id:stay_id].to_numpy()
-        # labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
-        window = (
-            self.features_df.filter(pl.col(self.vars["GROUP"]) == stay_id).select(pl.exclude(self.vars["GROUP"])).to_numpy()
-        )
-        labels = self.outcome_df.filter(pl.col(self.vars["GROUP"]) == stay_id)[self.vars["LABEL"]].to_numpy().astype(float)
-
-        if len(labels) == 1:
-            # only one label per stay, align with window
-            labels = np.concatenate([np.empty(window.shape[0] - 1) * np.nan, labels], axis=0)
-
-        length_diff = self.maxlen - window.shape[0]
-        pad_mask = np.ones(window.shape[0])
-
-        # Padding the array to fulfill size requirement
-        if length_diff > 0:
-            # window shorter than the longest window in dataset, pad to same length
-            window = np.concatenate([window, np.ones((length_diff, window.shape[1])) * pad_value], axis=0)
-            labels = np.concatenate([labels, np.ones(length_diff) * pad_value], axis=0)
-            pad_mask = np.concatenate([pad_mask, np.zeros(length_diff)], axis=0)
-
-        not_labeled = np.argwhere(np.isnan(labels))
-        if len(not_labeled) > 0:
-            labels[not_labeled] = -1
-            pad_mask[not_labeled] = 0
-
-        pad_mask = pad_mask.astype(bool)
-        labels = labels.astype(np.float32)
-        data = window.astype(np.float32)
-
-        return from_numpy(data), from_numpy(labels), from_numpy(pad_mask)
+        return self._build_item(idx)
 
     def get_balance(self) -> list:
         """Return the weight balance for the split of interest.
@@ -153,7 +177,7 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         weights = list((1 / counts) * np.sum(counts) / counts.shape[0])
         return weights
 
-    def get_data_and_labels(self) -> Tuple[np.array, np.array, np.array]:
+    def get_data_and_labels(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Function to return all the data and labels aligned at once.
 
         We use this function for the ML methods which don't require an iterator.
@@ -161,27 +185,28 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         Returns:
             A Tuple containing data points and label for the split.
         """
-        labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(float)
+        labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(np.float32)
         rep = self.features_df
 
         if len(labels) == self.num_stays:
             # order of groups could be random, we make sure not to change it
-            # rep = rep.groupby(level=self.vars["GROUP"], sort=False).last()
             rep = rep.group_by(self.vars["GROUP"]).last()
         else:
             # Adding segment count for each stay id and timestep.
             rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
-        rep = rep.to_numpy().astype(float)
+        rep = rep.to_numpy().astype(np.float32)
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
         return rep, labels, self.row_indicators.to_numpy()
 
-    def to_tensor(self) -> Tuple[Tensor, Tensor, Tensor]:
+    def to_tensor(self) -> tuple[Tensor, Tensor, Tensor]:
         data, labels, row_indicators = self.get_data_and_labels()
-        if self.mps:
-            return from_numpy(data).to(float32), from_numpy(labels).to(float32), from_numpy(row_indicators).to(float32)
-        else:
-            return from_numpy(data), from_numpy(labels), row_indicators
+
+        return (
+            from_numpy(data),
+            from_numpy(labels),
+            from_numpy(row_indicators),
+        )
 
 
 @gin.configurable("CommonPandasDataset")
@@ -196,19 +221,24 @@ class CommonPandasDataset(Dataset):
     def __init__(
         self,
         data: dict,
-        split: str = Split.train,
-        vars: Dict[str, str] = gin.REQUIRED,
-        grouping_segment: str = Segment.outcome,
+        split: str = DataSplit.train,
+        vars: dict[str, Union[str, list[str]]] | object = gin.REQUIRED,
+        grouping_segment: str = DataSegment.outcome,
         mps: bool = False,
         name: str = "",
     ):
-        warnings.warn("CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "CommonPandasDataset is deprecated. Use CommonPolarsDataset instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if not isinstance(vars, dict):
+            raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
-        # logging.info(f"data split: {data[split]}")
         self.features_df = (
-            data[split][Segment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
+            data[split][DataSegment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
         )
 
         # calculate basic info for the data
@@ -231,17 +261,17 @@ class CommonPandasDataset(Dataset):
         """
         return self.num_stays
 
-    def get_feature_names(self) -> List[str]:
+    def get_feature_names(self) -> list[str]:
         return self.features_df.columns
 
-    def to_tensor(self) -> List[Tensor]:
-        values = []
+    def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], ...]:
+        values: list[list] = []
         for entry in self:
             for i, value in enumerate(entry):
                 if len(values) <= i:
                     values.append([])
                 values[i].append(value.unsqueeze(0))
-        return [cat(value, dim=0) for value in values]
+        return tuple(cat(value, dim=0) for value in values)
 
 
 @gin.configurable("PredictionPandasDataset")
@@ -253,11 +283,11 @@ class PredictionPandasDataset(CommonPandasDataset):
     """
 
     def __init__(self, *args, ram_cache: bool = True, **kwargs):
-        super().__init__(*args, grouping_segment=Segment.outcome, **kwargs)
+        super().__init__(*args, grouping_segment=DataSegment.outcome, **kwargs)
         self.outcome_df = self.grouping_df
         self.ram_cache(ram_cache)
 
-    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice. Used for deep learning implementations.
 
         Args:
@@ -270,11 +300,11 @@ class PredictionPandasDataset(CommonPandasDataset):
             return self._cached_dataset[idx]
 
         pad_value = 0.0
-        stay_id = self.outcome_df.index.unique()[idx]  # [self.vars["GROUP"]]
+        stay_id = self.outcome_df.index.unique()[idx]
 
         # slice to make sure to always return a DF
         window = self.features_df.loc[stay_id:stay_id].to_numpy()
-        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=float)
+        labels = self.outcome_df.loc[stay_id:stay_id][self.vars["LABEL"]].to_numpy(dtype=np.float32)
 
         if len(labels) == 1:
             # only one label per stay, align with window
@@ -308,10 +338,9 @@ class PredictionPandasDataset(CommonPandasDataset):
             Weights for each label.
         """
         counts = self.outcome_df[self.vars["LABEL"]].value_counts()
-        # weights = list((1 / counts) * np.sum(counts) / counts.shape[0])
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
-    def get_data_and_labels(self) -> Tuple[np.array, np.array]:
+    def get_data_and_labels(self) -> tuple[np.ndarray, np.ndarray]:
         """Function to return all the data and labels aligned at once.
 
         We use this function for the ML methods which don't require an iterator.
@@ -319,21 +348,19 @@ class PredictionPandasDataset(CommonPandasDataset):
         Returns:
             A Tuple containing data points and label for the split.
         """
-        labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(float)
+        labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(np.float32)
         rep = self.features_df
         if len(labels) == self.num_stays:
             # order of groups could be random, we make sure not to change it
             rep = rep.groupby(level=self.vars["GROUP"], sort=False).last()
-        rep = rep.to_numpy().astype(float)
+        rep = rep.to_numpy().astype(np.float32)
 
         return rep, labels
 
-    def to_tensor(self):
+    def to_tensor(self) -> tuple[Tensor, Tensor]:
         data, labels = self.get_data_and_labels()
-        if self.mps:
-            return from_numpy(data).to(float32), from_numpy(labels).to(float32)
-        else:
-            return from_numpy(data), from_numpy(labels)
+        # Always use float32 for memory efficiency and MPS compatibility
+        return from_numpy(data), from_numpy(labels)
 
 
 @gin.configurable("ImputationPandasDataset")
@@ -342,9 +369,9 @@ class ImputationPandasDataset(CommonPandasDataset):
 
     def __init__(
         self,
-        data: Dict[str, DataFrame],
-        split: str = Split.train,
-        vars: Dict[str, str] = gin.REQUIRED,
+        data: dict[str, DataFrame],
+        split: str = DataSplit.train,
+        vars: dict[str, Union[str, list[str]]] | object = gin.REQUIRED,
         mask_proportion=0.3,
         mask_method="MCAR",
         mask_observation_proportion=0.3,
@@ -361,20 +388,22 @@ class ImputationPandasDataset(CommonPandasDataset):
             ram_cache (bool, optional): if the dataset should be completely stored in ram and not generated on the fly during
                 training. Defaults to True.
         """
-        super().__init__(data, split, vars, grouping_segment=Segment.static)
+        if not isinstance(vars, dict):
+            raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
+        super().__init__(data, split, vars, grouping_segment=DataSegment.static)
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion
         )
         self.amputation_mask = (self.amputation_mask + self.features_df.isna().values).bool()
-        self.amputation_mask = DataFrame(self.amputation_mask, columns=self.vars[Segment.dynamic])
+        self.amputation_mask = DataFrame(self.amputation_mask, columns=np.array(self.vars[DataSegment.dynamic]))
         self.amputation_mask[self.vars["GROUP"]] = self.features_df.index
-        self.amputation_mask.set_index(self.vars["GROUP"], inplace=True)
+        self.amputation_mask = self.amputation_mask.set_index(self.vars["GROUP"])
 
         self.target_missingness_mask = self.features_df.isna()
         self.features_df.fillna(0, inplace=True)
         self.ram_cache(ram_cache)
 
-    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Function to sample from the data split of choice.
 
         Used for deep learning implementations.
@@ -390,10 +419,10 @@ class ImputationPandasDataset(CommonPandasDataset):
         stay_id = self.grouping_df.iloc[idx].name
 
         # slice to make sure to always return a DF
-        window = self.features_df.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
-        window_missingness_mask = self.target_missingness_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
-        amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
-        amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars[Segment.dynamic]]
+        window = self.features_df.loc[stay_id:stay_id, self.vars[DataSegment.dynamic]]
+        window_missingness_mask = self.target_missingness_mask.loc[stay_id:stay_id, self.vars[DataSegment.dynamic]]
+        amputated_window = self.amputated_values.loc[stay_id:stay_id, self.vars[DataSegment.dynamic]]
+        amputation_mask = self.amputation_mask.loc[stay_id:stay_id, self.vars[DataSegment.dynamic]]
 
         return (
             from_numpy(amputated_window.values).to(float32),
@@ -411,20 +440,20 @@ class ImputationPredictionDataset(Dataset):
         data (DataFrame): dict of the different splits of the data
         grouping_column (str, optional): column that is used for grouping. Defaults to "stay_id".
         select_columns (List[str], optional): the columns to serve as input for the imputation model. Defaults to None.
-        ram_cache (bool, optional): wether the dataset should be stored in ram. Defaults to True.
+        ram_cache (bool, optional): whether the dataset should be stored in ram. Defaults to True.
     """
 
     def __init__(
         self,
         data: DataFrame,
-        grouping_column: str = "stay_id",
-        select_columns: List[str] = None,
+        grouping_column: Optional[str] = "stay_id",
+        select_columns: Optional[list[str]] = None,
         ram_cache: bool = True,
     ):
         self.dyn_df = data
 
         if select_columns is not None:
-            self.dyn_df = self.dyn_df[list(select_columns) + grouping_column]
+            self.dyn_df = self.dyn_df[list(select_columns) + [grouping_column]]
 
         if grouping_column is not None:
             self.dyn_df = self.dyn_df.set_index(grouping_column)
@@ -448,7 +477,7 @@ class ImputationPredictionDataset(Dataset):
         """
         return self.group_indices.shape[0]
 
-    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, idx: int) -> Tensor:
         """Function to sample from the data split of choice.
 
         Used for deep learning implementations.

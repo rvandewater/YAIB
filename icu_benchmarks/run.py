@@ -1,11 +1,16 @@
-# -*- coding: utf-8 -*-
+"""Main module."""
+
 from datetime import datetime
 import gin
 import logging
 import sys
 from pathlib import Path
 import torch.cuda
-from icu_benchmarks.wandb_utils import update_wandb_config, apply_wandb_sweep, set_wandb_experiment_name
+from icu_benchmarks.wandb_utils import (
+    update_wandb_config,
+    apply_wandb_sweep,
+    set_wandb_experiment_name,
+)
 from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameters_optuna
 from scripts.plotting.utils import plot_aggregated_results
 from icu_benchmarks.cross_validation import execute_repeated_cv
@@ -99,10 +104,14 @@ def main(my_args=tuple(sys.argv[1:])):
     # Check cuda availability
     if torch.cuda.is_available():
         for name in range(0, torch.cuda.device_count()):
-            log_full_line(f"Available GPU {name}: {torch.cuda.get_device_name(name)}", level=logging.INFO)
+            log_full_line(
+                f"Available GPU {name}: {torch.cuda.get_device_name(name)}",
+                level=logging.INFO,
+            )
     else:
         log_full_line(
-            "No GPUs available: please check your device and Torch,Cuda installation if unintended.", level=logging.WARNING
+            "No GPUs available: please check your device and Torch,Cuda installation if unintended.",
+            level=logging.WARNING,
         )
 
     if args.preprocessor:
@@ -198,6 +207,5 @@ def main(my_args=tuple(sys.argv[1:])):
         plot_aggregated_results(run_dir, "aggregated_test_metrics.json")
 
 
-"""Main module."""
 if __name__ == "__main__":
     main()

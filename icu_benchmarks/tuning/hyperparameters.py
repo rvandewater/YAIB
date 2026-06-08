@@ -92,7 +92,10 @@ def choose_and_bind_hyperparameters_scikit_optimize(
             n_calls, configuration, evaluation = load_checkpoint(checkpoint_path, n_calls)
             # Check if we surpassed maximum tuning iterations
             if n_calls <= 0:
-                logging.log(TUNE, "No more hyperparameter tuning iterations left, skipping tuning.")
+                logging.log(
+                    TUNE,
+                    "No more hyperparameter tuning iterations left, skipping tuning.",
+                )
                 logging.info("Training with these hyperparameters:")
                 bind_gin_params(hyperparams_names, configuration[np.argmin(evaluation)])  # bind best hyperparameters
                 return
@@ -247,10 +250,20 @@ def choose_and_bind_hyperparameters_optuna(
             if isinstance(value, tuple):
 
                 def suggest_int_param(trial, name, value):
-                    return trial.suggest_int(name, value[0], value[1], log=value[2] == "log" if len(value) == 3 else False)
+                    return trial.suggest_int(
+                        name,
+                        value[0],
+                        value[1],
+                        log=value[2] == "log" if len(value) == 3 else False,
+                    )
 
                 def suggest_float_param(trial, name, value):
-                    return trial.suggest_float(name, value[0], value[1], log=value[2] == "log" if len(value) == 3 else False)
+                    return trial.suggest_float(
+                        name,
+                        value[0],
+                        value[1],
+                        log=value[2] == "log" if len(value) == 3 else False,
+                    )
 
                 def suggest_categorical_param(trial, name, value):
                     return trial.suggest_categorical(name, value)
@@ -267,7 +280,11 @@ def choose_and_bind_hyperparameters_optuna(
         return bind_params_and_train(hyperparams)
 
     def tune_step_callback(study: optuna.study.Study, trial: optuna.trial.FrozenTrial):
-        table_cells = [str(len(study.trials)), *list(study.trials[-1].params.values()), study.trials[-1].value]
+        table_cells = [
+            str(len(study.trials)),
+            *list(study.trials[-1].params.values()),
+            study.trials[-1].value,
+        ]
         highlight = study.trials[-1] == study.best_trial  # highlight if best so far
         log_table_row(header, TUNE)
         log_table_row(table_cells, TUNE, align=Align.RIGHT, header=header, highlight=highlight)
@@ -291,7 +308,8 @@ def choose_and_bind_hyperparameters_optuna(
             return
         else:
             logging.log(
-                TUNE, "Choosing hyperparameters randomly from bounds using hp tuning as no earlier checkpoint supplied."
+                TUNE,
+                "Choosing hyperparameters randomly from bounds using hp tuning as no earlier checkpoint supplied.",
             )
             n_initial_points = 1
             n_calls = 1
@@ -331,7 +349,12 @@ def choose_and_bind_hyperparameters_optuna(
         # checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
         # Check if we found a checkpoint file
         logging.info(f"Loading checkpoint at {checkpoint}")
-        study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(checkpoint), sampler=sampler, pruner=pruner)
+        study = optuna.load_study(
+            study_name="tuning",
+            storage="sqlite:///" + str(checkpoint),
+            sampler=sampler,
+            pruner=pruner,
+        )
         n_calls = n_calls - len(study.trials)
     else:
         if checkpoint:

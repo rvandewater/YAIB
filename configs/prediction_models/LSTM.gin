@@ -16,5 +16,3 @@ model/hyperparameter.class_to_tune = @LSTMNet
 model/hyperparameter.num_classes = %NUM_CLASSES
 model/hyperparameter.hidden_dim = (32, 256, "log-uniform", 2)
 model/hyperparameter.layer_dim = (1, 3)
-
-

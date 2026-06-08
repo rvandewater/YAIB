@@ -57,7 +57,15 @@ class SelfAttention(nn.Module):
     (batch_size, n_timestamps, emb)."""
 
     def __init__(
-        self, emb, hidden, heads=8, mask=True, att_type="all", local_context=None, mask_aggregation="union", dropout_att=0.0
+        self,
+        emb,
+        hidden,
+        heads=8,
+        mask=True,
+        att_type="all",
+        local_context=None,
+        mask_aggregation="union",
+        dropout_att=0.0,
     ):
         """Initialize the Multi Head Block.
         Args:
@@ -126,7 +134,11 @@ class SelfAttention(nn.Module):
                             self.local_context,
                         )[0]
                     mask_tensor = torch.clamp(mask_tensor, 0, 1)
-                    dot = torch.where(mask_tensor.bool(), dot, torch.tensor(float("-inf")).to(dot.device)).view(bs * h, n, n)
+                    dot = torch.where(
+                        mask_tensor.bool(),
+                        dot,
+                        torch.tensor(float("-inf")).to(dot.device),
+                    ).view(bs * h, n, n)
 
                 elif self.mask_aggregation == "split":
                     dot_list = list(torch.split(dot, dot.shape[0] // len(self.att_type), dim=0))
@@ -139,7 +151,9 @@ class SelfAttention(nn.Module):
                         )[0]
 
                         dot_list[i] = torch.where(
-                            mask_tensor.bool(), dot_list[i], torch.tensor(float("-inf")).to(dot.device)
+                            mask_tensor.bool(),
+                            dot_list[i],
+                            torch.tensor(float("-inf")).to(dot.device),
                         ).view(*dot_list[i].shape)
                     dot = torch.cat(dot_list, dim=0)
             else:  # Full causal masking
@@ -194,7 +208,11 @@ class SparseBlock(nn.Module):
         self.norm1 = nn.LayerNorm(emb)
         self.norm2 = nn.LayerNorm(emb)
 
-        self.ff = nn.Sequential(nn.Linear(emb, ff_hidden_mult * emb), nn.ReLU(), nn.Linear(ff_hidden_mult * emb, emb))
+        self.ff = nn.Sequential(
+            nn.Linear(emb, ff_hidden_mult * emb),
+            nn.ReLU(),
+            nn.Linear(ff_hidden_mult * emb, emb),
+        )
 
         self.drop = nn.Dropout(dropout)
 
@@ -211,7 +229,17 @@ class SparseBlock(nn.Module):
 
 
 class LocalBlock(nn.Module):
-    def __init__(self, emb, hidden, heads, ff_hidden_mult, dropout=0.0, mask=True, local_context=3, dropout_att=0.0):
+    def __init__(
+        self,
+        emb,
+        hidden,
+        heads,
+        ff_hidden_mult,
+        dropout=0.0,
+        mask=True,
+        local_context=3,
+        dropout_att=0.0,
+    ):
         super().__init__()
 
         self.attention = SelfAttention(
@@ -228,7 +256,11 @@ class LocalBlock(nn.Module):
         self.norm1 = nn.LayerNorm(emb)
         self.norm2 = nn.LayerNorm(emb)
 
-        self.ff = nn.Sequential(nn.Linear(emb, ff_hidden_mult * emb), nn.ReLU(), nn.Linear(ff_hidden_mult * emb, emb))
+        self.ff = nn.Sequential(
+            nn.Linear(emb, ff_hidden_mult * emb),
+            nn.ReLU(),
+            nn.Linear(ff_hidden_mult * emb, emb),
+        )
 
         self.drop = nn.Dropout(dropout)
 
@@ -245,7 +277,16 @@ class LocalBlock(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, emb, hidden, heads, ff_hidden_mult, dropout=0.0, mask=True, dropout_att=0.0):
+    def __init__(
+        self,
+        emb,
+        hidden,
+        heads,
+        ff_hidden_mult,
+        dropout=0.0,
+        mask=True,
+        dropout_att=0.0,
+    ):
         super().__init__()
 
         self.attention = SelfAttention(emb, hidden, heads=heads, mask=mask, dropout_att=dropout_att)
@@ -253,7 +294,11 @@ class TransformerBlock(nn.Module):
         self.norm1 = nn.LayerNorm(emb)
         self.norm2 = nn.LayerNorm(emb)
 
-        self.ff = nn.Sequential(nn.Linear(emb, ff_hidden_mult * emb), nn.ReLU(), nn.Linear(ff_hidden_mult * emb, emb))
+        self.ff = nn.Sequential(
+            nn.Linear(emb, ff_hidden_mult * emb),
+            nn.ReLU(),
+            nn.Linear(ff_hidden_mult * emb, emb),
+        )
 
         self.drop = nn.Dropout(dropout)
 
@@ -284,21 +329,44 @@ class TemporalBlock(nn.Module):
     def __init__(self, n_inputs, n_outputs, kernel_size, stride, dilation, padding, dropout=0.2):
         super(TemporalBlock, self).__init__()
         self.conv1 = weight_norm(
-            nn.Conv1d(n_inputs, n_outputs, kernel_size, stride=stride, padding=padding, dilation=dilation), dim=None
+            nn.Conv1d(
+                n_inputs,
+                n_outputs,
+                kernel_size,
+                stride=stride,
+                padding=padding,
+                dilation=dilation,
+            ),
+            dim=None,
         )
         self.chomp1 = Chomp1d(padding)
         self.relu1 = nn.ReLU()
         self.dropout1 = nn.Dropout(dropout)
 
         self.conv2 = weight_norm(
-            nn.Conv1d(n_outputs, n_outputs, kernel_size, stride=stride, padding=padding, dilation=dilation), dim=None
+            nn.Conv1d(
+                n_outputs,
+                n_outputs,
+                kernel_size,
+                stride=stride,
+                padding=padding,
+                dilation=dilation,
+            ),
+            dim=None,
         )
         self.chomp2 = Chomp1d(padding)
         self.relu2 = nn.ReLU()
         self.dropout2 = nn.Dropout(dropout)
 
         self.net = nn.Sequential(
-            self.conv1, self.chomp1, self.relu1, self.dropout1, self.conv2, self.chomp2, self.relu2, self.dropout2
+            self.conv1,
+            self.chomp1,
+            self.relu1,
+            self.dropout1,
+            self.conv2,
+            self.chomp2,
+            self.relu2,
+            self.dropout2,
         )
         self.downsample = nn.Conv1d(n_inputs, n_outputs, 1) if n_inputs != n_outputs else None
         self.relu = nn.ReLU()

@@ -14,5 +14,3 @@ model/hyperparameter.min_samples_leaf = (1, 2, 4)
 model/hyperparameter.max_features = ['sqrt', 'log2', None]
 model/hyperparameter.bootstrap = [True, False]
 model/hyperparameter.class_weight = [None, 'balanced']
-
-

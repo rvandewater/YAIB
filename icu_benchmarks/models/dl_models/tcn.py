@@ -15,7 +15,17 @@ class TemporalConvNet(DLPredictionWrapper):
 
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, input_size, num_channels, num_classes, *args, max_seq_length=0, kernel_size=2, dropout=0.0, **kwargs):
+    def __init__(
+        self,
+        input_size,
+        num_channels,
+        num_classes,
+        *args,
+        max_seq_length=0,
+        kernel_size=2,
+        dropout=0.0,
+        **kwargs,
+    ):
         super().__init__(
             *args,
             input_size=input_size,

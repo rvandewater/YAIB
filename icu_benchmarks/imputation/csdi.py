@@ -323,7 +323,14 @@ class DiffusionStepEmbedding(nn.Module):
 
 class diff_CSDI(nn.Module):
     def __init__(
-        self, channels, num_diffusion_steps, diffusion_step_embedding_dim, side_dim, nheads, num_residual_blocks, inputdim=2
+        self,
+        channels,
+        num_diffusion_steps,
+        diffusion_step_embedding_dim,
+        side_dim,
+        nheads,
+        num_residual_blocks,
+        inputdim=2,
     ):
         super().__init__()
         self.channels = channels

@@ -1,17 +1,18 @@
 import json
-from datetime import datetime
 import logging
-import gin
+from datetime import datetime
 from pathlib import Path
+from typing import Optional
+
+import gin
 from pytorch_lightning import seed_everything
 
-from icu_benchmarks.wandb_utils import wandb_log
-from icu_benchmarks.run_utils import aggregate_results
+from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.split_process_data import preprocess_data
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
-from icu_benchmarks.run_utils import log_full_line
-from icu_benchmarks.constants import RunMode
+from icu_benchmarks.run_utils import aggregate_results, log_full_line
+from icu_benchmarks.wandb_utils import wandb_log
 
 
 @gin.configurable
@@ -20,20 +21,20 @@ def execute_repeated_cv(
     log_dir: Path,
     seed: int,
     eval_only: bool = False,
-    train_size: int = None,
+    train_size: Optional[int] = None,
     load_weights: bool = False,
-    source_dir: Path = None,
+    source_dir: Path = Path(""),
     cv_repetitions: int = 5,
-    cv_repetitions_to_train: int = None,
+    cv_repetitions_to_train: Optional[int] = None,
     cv_folds: int = 5,
-    cv_folds_to_train: int = None,
+    cv_folds_to_train: Optional[int] = None,
     reproducible: bool = True,
     debug: bool = False,
     generate_cache: bool = False,
     load_cache: bool = False,
     test_on: str = "test",
-    mode: str = RunMode.classification,
-    pretrained_imputation_model: object = None,
+    mode: RunMode = RunMode.classification,
+    pretrained_imputation_model: Optional[str] = None,
     cpu: bool = False,
     verbose: bool = False,
     wandb: bool = False,
@@ -126,7 +127,10 @@ def execute_repeated_cv(
                 f"FINISHED FOLD {fold_index}| PREPROCESSING DURATION {preprocess_time}| PROCEDURE DURATION {train_time}",
                 level=logging.INFO,
             )
-            durations = {"preprocessing_duration": preprocess_time, "train_duration": train_time}
+            durations = {
+                "preprocessing_duration": preprocess_time,
+                "train_duration": train_time,
+            }
 
             with open(repetition_fold_dir / "durations.json", "w") as f:
                 json.dump(durations, f, cls=JsonResultLoggingEncoder)
@@ -137,6 +141,11 @@ def execute_repeated_cv(
                     aggregate_results(log_dir)
                 except Exception as e:
                     logging.error(f"Failed to aggregate results: {e}")
-        log_full_line(f"FINISHED CV REPETITION {repetition}", level=logging.INFO, char="=", num_newlines=3)
+        log_full_line(
+            f"FINISHED CV REPETITION {repetition}",
+            level=logging.INFO,
+            char="=",
+            num_newlines=3,
+        )
 
     return agg_loss / (cv_repetitions_to_train * cv_folds_to_train)

@@ -26,40 +26,114 @@ def build_parser() -> ArgumentParser:
     """
     parser = ArgumentParser(description="Framework for benchmarking ML/DL models on ICU data")
 
-    parser.add_argument("-d", "--data-dir", required=True, type=Path, help="Path to the parquet data directory.")
-    parser.add_argument("-t", "--task", default="BinaryClassification", required=True, help="Name of the task gin.")
+    parser.add_argument(
+        "-d",
+        "--data-dir",
+        required=True,
+        type=Path,
+        help="Path to the parquet data directory.",
+    )
+    parser.add_argument(
+        "-t",
+        "--task",
+        default="BinaryClassification",
+        required=True,
+        help="Name of the task gin.",
+    )
     parser.add_argument("-n", "--name", help="Name of the (target) dataset.")
     parser.add_argument("-tn", "--task-name", help="Name of the task, used for naming experiments.")
     parser.add_argument("-m", "--model", default="LGBMClassifier", help="Name of the model gin.")
     parser.add_argument("-e", "--experiment", help="Name of the experiment gin.")
-    parser.add_argument("-l", "--log-dir", default=Path("../yaib_logs/"), type=Path, help="Log directory for model weights.")
-    parser.add_argument("-s", "--seed", default=1234, type=int, help="Random seed for processing, tuning and training.")
-    parser.add_argument("-v", "--verbose", default=False, action=BOA, help="Set to log verbosly. Disable for clean logs.")
+    parser.add_argument(
+        "-l",
+        "--log-dir",
+        default=Path("../yaib_logs/"),
+        type=Path,
+        help="Log directory for model weights.",
+    )
+    parser.add_argument(
+        "-s",
+        "--seed",
+        default=1234,
+        type=int,
+        help="Random seed for processing, tuning and training.",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        default=False,
+        action=BOA,
+        help="Set to log verbosely. Disable for clean logs.",
+    )
     parser.add_argument("--cpu", default=False, action=BOA, help="Set to use CPU.")
     parser.add_argument("-db", "--debug", default=False, action=BOA, help="Set to load less data.")
     parser.add_argument("--reproducible", default=True, action=BOA, help="Make torch reproducible.")
-    parser.add_argument("-lc", "--load_cache", default=False, action=BOA, help="Set to load generated data cache.")
-    parser.add_argument("-gc", "--generate_cache", default=False, action=BOA, help="Set to generate data cache.")
+    parser.add_argument(
+        "-lc",
+        "--load_cache",
+        default=False,
+        action=BOA,
+        help="Set to load generated data cache.",
+    )
+    parser.add_argument(
+        "-gc",
+        "--generate_cache",
+        default=False,
+        action=BOA,
+        help="Set to generate data cache.",
+    )
     parser.add_argument("-p", "--preprocessor", type=Path, help="Load custom preprocessor from file.")
     parser.add_argument("-pl", "--plot", action=BOA, help="Generate common plots.")
-    parser.add_argument("-wd", "--wandb-sweep", action="store_true", help="Activates wandb hyper parameter sweep.")
-    parser.add_argument("-imp", "--pretrained-imputation", type=str, help="Path to pretrained imputation model.")
+    parser.add_argument(
+        "-wd",
+        "--wandb-sweep",
+        action="store_true",
+        help="Activates wandb hyper parameter sweep.",
+    )
+    parser.add_argument(
+        "-imp",
+        "--pretrained-imputation",
+        type=str,
+        help="Path to pretrained imputation model.",
+    )
     parser.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
     parser.add_argument("--tune", default=False, action=BOA, help="Find best hyperparameters.")
     parser.add_argument("--hp-checkpoint", type=Path, help="Use previous hyperparameter checkpoint.")
     parser.add_argument("--eval", default=False, action=BOA, help="Only evaluate model, skip training.")
-    parser.add_argument("--complete-train", default=False, action=BOA, help="Use all data to train model, skip testing.")
-    parser.add_argument("-ft", "--fine-tune", default=None, type=int, help="Finetune model with amount of train data.")
+    parser.add_argument(
+        "--complete-train",
+        default=False,
+        action=BOA,
+        help="Use all data to train model, skip testing.",
+    )
+    parser.add_argument(
+        "-ft",
+        "--fine-tune",
+        default=None,
+        type=int,
+        help="Finetune model with amount of train data.",
+    )
     parser.add_argument("-sn", "--source-name", type=Path, help="Name of the source dataset.")
     parser.add_argument("--source-dir", type=Path, help="Directory containing gin and model weights.")
-    parser.add_argument("-sa", "--samples", type=int, default=None, help="Number of samples to use for evaluation.")
+    parser.add_argument(
+        "-sa",
+        "--samples",
+        type=int,
+        default=None,
+        help="Number of samples to use for evaluation.",
+    )
     parser.add_argument(
         "-mo",
         "--modalities",
         nargs="+",
         help="Optional modality selection to use. Specify multiple modalities separated by spaces.",
     )
-    parser.add_argument("--label", type=str, help="Label to use for evaluation in case of multiple labels.", default=None)
+    parser.add_argument(
+        "--label",
+        type=str,
+        help="Label to use for evaluation in case of multiple labels.",
+        default=None,
+    )
     return parser
 
 
@@ -194,7 +268,12 @@ def log_full_line(msg: str, level: int = logging.INFO, char: str = "-", num_newl
     reserved_chars = len(logging.getLevelName(level)) + 28
     logging.log(
         level,
-        "{0:{char}^{width}}{1}".format(msg, "\n" * num_newlines, char=char, width=terminal_size.columns - reserved_chars),
+        "{0:{char}^{width}}{1}".format(
+            msg,
+            "\n" * num_newlines,
+            char=char,
+            width=terminal_size.columns - reserved_chars,
+        ),
     )
 
 
@@ -281,19 +360,3 @@ def get_config_files(config_dir: Path):
     logging.info(f"Found tasks: {tasks}")
     logging.info(f"Found models: {models}")
     return tasks, models
-
-
-def check_required_keys(vars, required_keys):
-    """
-    Checks if all required keys are present in the vars dictionary.
-
-    Args:
-        vars (dict): The dictionary to check.
-        required_keys (list): The list of required keys.
-
-    Raises:
-        KeyError: If any required key is missing.
-    """
-    missing_keys = [key for key in required_keys if key not in vars]
-    if missing_keys:
-        raise KeyError(f"Missing required keys in vars: {', '.join(missing_keys)}")

@@ -18,9 +18,12 @@ The following libraries are important to the operation of YAIB:
 - [GIN](https://github.com/google/gin-config): Provides a lightweight configuration framework for Python.
 - [Wandb](https://wandb.ai/): A tool for visualizing and tracking machine learning experiments.
 - [Pytest](https://docs.pytest.org/en/stable/): A testing framework for Python.
+
 ### Imputation
+
 - [HyperImpute](https://github.com/vanderschaarlab/hyperimpute): Imputation library for MissForest and GAIN.
 - [PyPOTS](https://github.com/WenjieDu/PyPOTS): Imputation library.
+
 ## Run Tests
 
 ```

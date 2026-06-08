@@ -3,7 +3,12 @@ from abc import ABC
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 import torchmetrics
-from sklearn.metrics import log_loss, mean_squared_error, average_precision_score, roc_auc_score
+from sklearn.metrics import (
+    log_loss,
+    mean_squared_error,
+    average_precision_score,
+    roc_auc_score,
+)
 
 import torch
 from torch.nn import MSELoss, CrossEntropyLoss
@@ -109,7 +114,11 @@ class BaseModule(LightningModule):
 class DLWrapper(BaseModule, ABC):
     requires_backprop = True
     _metrics_warning_printed = set()
-    _supported_run_modes = [RunMode.classification, RunMode.regression, RunMode.imputation]
+    _supported_run_modes = [
+        RunMode.classification,
+        RunMode.regression,
+        RunMode.imputation,
+    ]
 
     def __init__(
         self,
@@ -199,7 +208,11 @@ class DLWrapper(BaseModule, ABC):
         if self.hparams.lr_scheduler is None or self.hparams.lr_scheduler == "":
             return optimizer
         scheduler = create_scheduler(
-            self.hparams.lr_scheduler, optimizer, self.hparams.lr_factor, self.hparams.lr_steps, self.hparams.epochs
+            self.hparams.lr_scheduler,
+            optimizer,
+            self.hparams.lr_factor,
+            self.hparams.lr_steps,
+            self.hparams.epochs,
         )
         optimizers = {"optimizer": optimizer, "lr_scheduler": scheduler}
         logging.info(f"Using: {optimizers}")
@@ -316,7 +329,11 @@ class DLPredictionWrapper(DLWrapper):
             mask = torch.ones_like(labels).bool()
 
         elif len(element) == 3:
-            data, labels, mask = element[0], element[1].to(self.device), element[2].to(self.device)
+            data, labels, mask = (
+                element[0],
+                element[1].to(self.device),
+                element[2].to(self.device),
+            )
             if isinstance(data, list):
                 for i in range(len(data)):
                     data[i] = data[i].float().to(self.device)
@@ -350,7 +367,12 @@ class DLPredictionWrapper(DLWrapper):
             if isinstance(value, torchmetrics.Metric):
                 if key == "Binary_Fairness":
                     feature_names = key.feature_helper(self.trainer)
-                    value.update(transformed_output[0], transformed_output[1], data, feature_names)
+                    value.update(
+                        transformed_output[0],
+                        transformed_output[1],
+                        data,
+                        feature_names,
+                    )
                 else:
                     value.update(transformed_output[0], transformed_output[1])
             else:
@@ -366,7 +388,15 @@ class MLWrapper(BaseModule, ABC):
     requires_backprop = False
     _supported_run_modes = [RunMode.classification, RunMode.regression]
 
-    def __init__(self, *args, run_mode=RunMode.classification, loss=log_loss, patience=10, mps=False, **kwargs):
+    def __init__(
+        self,
+        *args,
+        run_mode=RunMode.classification,
+        loss=log_loss,
+        patience=10,
+        mps=False,
+        **kwargs,
+    ):
         super().__init__()
         self.save_hyperparameters()
         self.scaler = None
@@ -433,7 +463,10 @@ class MLWrapper(BaseModule, ABC):
 
     def validation_step(self, val_dataset, _):
         val_rep, val_label, row_indicators = val_dataset.get_data_and_labels()
-        val_rep, val_label = torch.from_numpy(val_rep).to(self.device), torch.from_numpy(val_label).to(self.device)
+        val_rep, val_label = (
+            torch.from_numpy(val_rep).to(self.device),
+            torch.from_numpy(val_label).to(self.device),
+        )
         self.set_metrics(val_label)
 
         val_pred = self.predict(val_rep)
@@ -456,7 +489,11 @@ class MLWrapper(BaseModule, ABC):
         if self.explain_features:
             self.explain_model(test_rep, test_label)
         if self.mps:
-            self.log("test/loss", np.float32(self.loss(test_label, test_pred)), sync_dist=True)
+            self.log(
+                "test/loss",
+                np.float32(self.loss(test_label, test_pred)),
+                sync_dist=True,
+            )
             self.log_metrics(np.float32(test_label), np.float32(test_pred), "test")
         else:
             self.log("test/loss", self.loss(test_label, test_pred), sync_dist=True)
@@ -472,14 +509,20 @@ class MLWrapper(BaseModule, ABC):
     def log_metrics(self, label, pred, metric_type):
         """Log metrics to the PL logs."""
         if "Confusion_Matrix" in self.metrics:
-            self.log_dict(confusion_matrix(self.label_transform(label), self.output_transform(pred)), sync_dist=True)
+            self.log_dict(
+                confusion_matrix(self.label_transform(label), self.output_transform(pred)),
+                sync_dist=True,
+            )
         self.log_dict(
             {
                 f"{metric_type}/{name}": (metric(self.label_transform(label), self.output_transform(pred)))
                 # For every metric
                 for name, metric in self.metrics.items()
                 # Filter out metrics that return a tuple (e.g. precision_recall_curve)
-                if not isinstance(metric(self.label_transform(label), self.output_transform(pred)), tuple)
+                if not isinstance(
+                    metric(self.label_transform(label), self.output_transform(pred)),
+                    tuple,
+                )
                 and name != "Confusion_Matrix"
             },
             sync_dist=True,
@@ -496,8 +539,12 @@ class MLWrapper(BaseModule, ABC):
             pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
             pred_indicators = np.hstack((pred_indicators, test_pred))
             # Save as: id, time (hours), ground truth, prediction 0, prediction 1
-            np.savetxt(Path(self.logger.save_dir) / "pred_indicators.csv", pred_indicators, delimiter=",")
-            logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'row_indicators.csv'}")
+            np.savetxt(
+                Path(self.logger.save_dir) / "pred_indicators.csv",
+                pred_indicators,
+                delimiter=",",
+            )
+            logging.debug(f"Saved row indicators to {Path(self.logger.save_dir) / 'pred_indicators.csv'}")
         else:
             logging.warning("Could not save row indicators.")
 
@@ -616,7 +663,10 @@ class ImputationWrapper(DLWrapper):
 
         for metric in self.metrics[step_prefix].values():
             metric.update(
-                (torch.flatten(amputated.detach(), start_dim=1).clone(), torch.flatten(target.detach(), start_dim=1).clone())
+                (
+                    torch.flatten(amputated.detach(), start_dim=1).clone(),
+                    torch.flatten(target.detach(), start_dim=1).clone(),
+                )
             )
         return loss
 

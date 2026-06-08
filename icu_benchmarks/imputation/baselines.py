@@ -40,9 +40,22 @@ class MICEImputation(ImputationWrapper):
 
     requires_backprop = False
 
-    def __init__(self, *args, max_iter=100, verbose=2, imputation_order="random", random_state=0, **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        max_iter=100,
+        verbose=2,
+        imputation_order="random",
+        random_state=0,
+        **kwargs,
+    ) -> None:
         super().__init__(
-            *args, max_iter=max_iter, verbose=verbose, imputation_order=imputation_order, random_state=random_state, **kwargs
+            *args,
+            max_iter=max_iter,
+            verbose=verbose,
+            imputation_order=imputation_order,
+            random_state=random_state,
+            **kwargs,
         )
         self.imputer = IterativeImputer(
             estimator=LinearRegression(),
@@ -198,7 +211,12 @@ class BRITSImputation(ImputationWrapper):
 
     def __init__(self, *args, input_size, epochs=1, rnn_hidden_size=64, batch_size=256, **kwargs) -> None:
         super().__init__(
-            *args, input_size=input_size, epochs=epochs, rnn_hidden_size=rnn_hidden_size, batch_size=batch_size, **kwargs
+            *args,
+            input_size=input_size,
+            epochs=epochs,
+            rnn_hidden_size=rnn_hidden_size,
+            batch_size=batch_size,
+            **kwargs,
         )
         self.imputer = BRITS(
             n_steps=input_size[1],
@@ -231,7 +249,20 @@ class SAITSImputation(ImputationWrapper):
 
     requires_backprop = False
 
-    def __init__(self, *args, input_size, epochs, n_layers, d_model, d_inner, n_head, d_k, d_v, dropout, **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        input_size,
+        epochs,
+        n_layers,
+        d_model,
+        d_inner,
+        n_head,
+        d_k,
+        d_v,
+        dropout,
+        **kwargs,
+    ) -> None:
         super().__init__(
             *args,
             input_size=input_size,
@@ -281,7 +312,20 @@ class AttentionImputation(ImputationWrapper):
     # Handled within the library
     requires_backprop = False
 
-    def __init__(self, *args, input_size, epochs, n_layers, d_model, d_inner, n_head, d_k, d_v, dropout, **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        input_size,
+        epochs,
+        n_layers,
+        d_model,
+        d_inner,
+        n_head,
+        d_k,
+        d_v,
+        dropout,
+        **kwargs,
+    ) -> None:
         super().__init__(
             *args,
             input_size=input_size,

@@ -116,7 +116,7 @@ def MNAR_logistic_mask(X, p, p_params=0.3, exclude_inputs=True):
     Missing not at random mechanism with a logistic masking model. It implements two mechanisms:
     (i) Missing probabilities are selected with a logistic model, taking all variables as inputs. Hence, values that are
     inputs can also be missing.
-    (ii) Variables are split into a set of intputs for a logistic model, and a set whose missing probabilities are
+    (ii) Variables are split into a set of inputs for a logistic model, and a set whose missing probabilities are
     determined by the logistic model. Then inputs are then masked MCAR (hence, missing values from the second set will
     depend on masked values.
     In either case, weights are random and the intercept is selected to attain the desired proportion of missing values.
@@ -173,7 +173,7 @@ def MNAR_logistic_mask(X, p, p_params=0.3, exclude_inputs=True):
     return mask
 
 
-def pick_coeffs(X, idxs_obs=None, idxs_nas=None):
+def pick_coeffs(X, idxs_obs, idxs_nas):
     d_obs = len(idxs_obs)
     d_na = len(idxs_nas)
     coeffs = torch.randn(d_obs, d_na)
@@ -184,13 +184,13 @@ def pick_coeffs(X, idxs_obs=None, idxs_nas=None):
 
 def fit_intercepts(X, coeffs, p):
     d_obs, d_na = coeffs.shape
-    intercepts = torch.zeros(d_na)
+    intercepts: torch.Tensor = torch.zeros(d_na)
     for j in range(d_na):
 
         def f(x):
             return torch.sigmoid(X.mv(coeffs[:, j]) + x).mean().item() - p
 
-        intercepts[j] = optimize.bisect(f, -50, 50)
+        intercepts[j] = torch.tensor(optimize.bisect(f, -50, 50))
     return intercepts
 
 
@@ -228,7 +228,8 @@ def ampute_data(data, mechanism, p_miss, p_obs=0.3):
     elif mechanism == "BO":
         mask = BO_mask(X, p_miss)
     else:
-        logging.error("Not a valid amputation mechanism. Missing-data mechanisms to be used are MCAR, MAR or MNAR.")
+        logging.error("Not a valid amputation mechanism. Missing-data mechanisms to be used are MAR, MCAR, MNAR or BO.")
+        raise ValueError(f"Invalid amputation mechanism: {mechanism}")
 
     amputed_data = data.mask(mask)
     return amputed_data, mask

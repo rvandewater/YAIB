@@ -2,7 +2,11 @@ import gin
 from torch import nn as nn
 
 from icu_benchmarks.constants import RunMode
-from icu_benchmarks.models.dl_models.layers import PositionalEncoding, TransformerBlock, LocalBlock
+from icu_benchmarks.models.dl_models.layers import (
+    PositionalEncoding,
+    TransformerBlock,
+    LocalBlock,
+)
 from icu_benchmarks.models.wrappers import DLPredictionWrapper
 
 

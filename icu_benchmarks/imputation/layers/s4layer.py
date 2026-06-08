@@ -1,3 +1,8 @@
+"""Standalone CSDI + S4 imputer for random missing, non-random missing and black-out missing.
+The notebook contains CSDI and S4 functions and utilities. However the imputer is located in the last Class of
+the notebook, please see more documentation of use there. Additional at this file can be added for CUDA multiplication
+the cauchy kernel."""
+
 # Source: https://github.com/AI4HealthUOL/SSSD
 import numpy as np
 import torch
@@ -12,13 +17,7 @@ import opt_einsum as oe
 contract = oe.contract
 contract_expression = oe.contract_expression
 
-""" Standalone CSDI + S4 imputer for random missing, non-random missing and black-out missing.
-The notebook contains CSDI and S4 functions and utilities. However the imputer is located in the last Class of
-the notebook, please see more documentation of use there. Additional at this file can be added for CUDA multiplication
-the cauchy kernel."""
-
-""" Cauchy kernel """
-
+# Cauchy kernel
 try:  # Try pykeops
     from pykeops.torch import Genred
 
@@ -93,7 +92,7 @@ else:
         return x.conj()
 
 
-""" simple nn.Module components """
+# simple nn.Module components
 
 
 def Activation(activation=None, dim=-1):
@@ -200,7 +199,7 @@ def LinearActivation(
     return linear
 
 
-""" Misc functional utilities """
+# Misc functional utilities
 
 
 def krylov(L, A, b, c=None, return_power=False):
@@ -299,7 +298,7 @@ def power(L, A, v=None):
     return _I, v.squeeze(-1)
 
 
-""" HiPPO utilities """
+# HiPPO utilities
 
 
 def embed_c2r(A):
@@ -500,7 +499,7 @@ class SSKernelNPLR(nn.Module):
 
     def _omega(self, L, dtype, device, cache=True):
         """Calculate (and cache) FFT nodes and their "unprocessed" them with the bilinear transform
-        This should be called everytime the internal length self.L changes"""
+        This should be called every time the internal length self.L changes"""
         omega = torch.tensor(np.exp(-2j * np.pi / (L)), dtype=dtype, device=device)  # \omega_{2L}
         omega = omega ** torch.arange(0, L // 2 + 1, device=device)
         z = 2 * (1 - omega) / (1 + omega)
@@ -1121,7 +1120,7 @@ class S4(nn.Module):
 
         y = self.output_linear(y)
 
-        # ysize = b, k, l, requieres l, b, k
+        # ysize = b, k, l, requires l, b, k
         # y = self.time_transformer(y.permute(2,0,1)).permute(1,2,0)
 
         return y, None

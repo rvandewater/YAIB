@@ -7,8 +7,8 @@ command:
   - ../data/
   - -t
   - BinaryClassification
-# Manually set for regression tasks
-#  - Regression
+  # Manually set for regression tasks
+  #  - Regression
   - --log-dir
   - ../yaib_logs
   - --wandb-sweep

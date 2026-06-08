@@ -1,58 +1,76 @@
+import logging
 import os
+from pathlib import Path
+from typing import Literal, Optional
+
 import gin
 import numpy as np
-import torch
-import logging
 import polars as pl
+import torch
 from joblib import load
-from torch.optim import Adam
-from torch.utils.data import DataLoader
-from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, TQDMProgressBar, LearningRateMonitor
-from pathlib import Path
-from icu_benchmarks.data.loader import PredictionPandasDataset, ImputationPandasDataset, PredictionPolarsDataset
-from icu_benchmarks.models.utils import save_config_file, JSONMetricsLogger
+from pytorch_lightning.callbacks import (
+    EarlyStopping,
+    LearningRateMonitor,
+    ModelCheckpoint,
+    TQDMProgressBar,
+)
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from torch.optim import Adam
+from torch.utils.data import DataLoader, Dataset, ConcatDataset
+
 from icu_benchmarks.constants import RunMode
-from icu_benchmarks.data.constants import DataSplit as Split
+from icu_benchmarks.data.constants import DataSplit as DataSplit
+from icu_benchmarks.data.loader import (
+    ImputationPandasDataset,
+    PredictionPandasDataset,
+    PredictionPolarsDataset,
+)
+from icu_benchmarks.models import DLModel, MLModelClassifier, MLModelRegression
+from icu_benchmarks.models.utils import JSONMetricsLogger, save_config_file
 
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+cpu_core_count = 1 if not cpu_core_count else cpu_core_count  #  os.cpu_count possibly None
 
 
-def assure_minimum_length(dataset):
+def assure_minimum_length(dataset: Dataset) -> Dataset:
     if len(dataset) < 2:
-        return [dataset[0], dataset[0]]
+        return ConcatDataset([dataset, dataset])
     return dataset
 
 
 @gin.configurable("train_common")
 def train_common(
-    data: dict[str, pl.DataFrame],
+    data: dict[str, dict[str, pl.DataFrame]],
     log_dir: Path,
     eval_only: bool = False,
     load_weights: bool = False,
-    source_dir: Path = None,
+    source_dir: Path = Path(""),
     reproducible: bool = True,
     mode: str = RunMode.classification,
-    model: object = gin.REQUIRED,
-    weight: str = None,
+    model: DLModel | MLModelClassifier | MLModelRegression | object = gin.REQUIRED,
+    weight: str = "",
     optimizer: type = Adam,
-    precision=32,
-    batch_size=1,
-    epochs=100,
-    patience=20,
-    min_delta=1e-5,
-    test_on: str = Split.test,
-    dataset_names=None,
+    precision: Optional[Literal[16, 32, 64, "16-mixed", "bf16", "bf16-mixed", "16-true"]] = 32,
+    batch_size: int = 1,
+    epochs: int = 100,
+    patience: int = 20,
+    min_delta: float = 1e-5,
+    test_on: str = DataSplit.test,
+    dataset_names: Optional[dict] = None,
     use_wandb: bool = False,
     cpu: bool = False,
-    verbose=False,
-    ram_cache=False,
-    pl_model=True,
-    train_only=False,
-    num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
-    polars=True,
-    persistent_workers=None,
+    verbose: bool = False,
+    ram_cache: bool = False,
+    pl_model: bool = True,
+    train_only: bool = False,
+    num_workers: int = min(
+        cpu_core_count,
+        torch.cuda.device_count() * 8 * int(torch.cuda.is_available()),
+        32,
+    ),
+    polars: bool = True,
+    persistent_workers: bool = False,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -81,9 +99,12 @@ def train_common(
         num_workers: Number of workers to use for data loading.
     """
 
+    if dataset_names is None:
+        dataset_names = {"train": "default", "val": "default", "test": "default"}
+
     logging.info(f"Training model: {model.__name__}.")
-    # todo: add support for polars versions of datasets
-    dataset_classes = {
+
+    dataset_classes: dict = {
         RunMode.imputation: ImputationPandasDataset,
         RunMode.classification: PredictionPolarsDataset if polars else PredictionPandasDataset,
         RunMode.regression: PredictionPolarsDataset if polars else PredictionPandasDataset,
@@ -93,9 +114,12 @@ def train_common(
     logging.info(f"Using dataset class: {dataset_class.__name__}.")
     logging.info(f"Logging to directory: {log_dir}.")
     save_config_file(log_dir)  # We save the operative config before and also after training
-    train_dataset = dataset_class(data, split=Split.train, ram_cache=ram_cache, name=dataset_names["train"])
-    val_dataset = dataset_class(data, split=Split.val, ram_cache=ram_cache, name=dataset_names["val"])
-    train_dataset, val_dataset = assure_minimum_length(train_dataset), assure_minimum_length(val_dataset)
+    train_dataset = dataset_class(data, split=DataSplit.train, ram_cache=ram_cache, name=dataset_names.get("train", "default"))
+    val_dataset = dataset_class(data, split=DataSplit.val, ram_cache=ram_cache, name=dataset_names.get("val", "default"))
+    train_dataset, val_dataset = (
+        assure_minimum_length(train_dataset),
+        assure_minimum_length(val_dataset),
+    )
     batch_size = min(batch_size, len(train_dataset), len(val_dataset))
 
     if not eval_only:
@@ -111,6 +135,7 @@ def train_common(
         num_workers=num_workers,
         drop_last=True,
         persistent_workers=persistent_workers,
+        pin_memory=not cpu,
     )
     val_loader = DataLoader(
         val_dataset,
@@ -119,29 +144,47 @@ def train_common(
         num_workers=num_workers,
         drop_last=True,
         persistent_workers=persistent_workers,
+        pin_memory=not cpu,
     )
 
     data_shape = next(iter(train_loader))[0].shape
 
     if load_weights:
-        model = load_model(model, source_dir, pl_model=pl_model, cpu=cpu)
+        model: DLModel | MLModelClassifier | MLModelRegression = load_model(model, source_dir, pl_model=pl_model)
     else:
-        model = model(optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode, cpu=cpu)
+        model: DLModel | MLModelClassifier | MLModelRegression = model(
+            optimizer=optimizer,
+            input_size=data_shape,
+            epochs=epochs,
+            run_mode=mode,
+            cpu=cpu,
+        )
 
     model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
+    devices = max(torch.cuda.device_count(), 1)
+
     if use_wandb:
         loggers.append(WandbLogger(save_dir=log_dir))
+        logging.info("Use of wandb is detected. Only single gpu training is supported with wandb.")
+        devices = 1
+
     callbacks = [
-        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False, verbose=verbose),
+        EarlyStopping(
+            monitor="val/loss",
+            min_delta=min_delta,
+            patience=patience,
+            strict=False,
+            verbose=verbose,
+        ),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
         LearningRateMonitor(logging_interval="step"),
     ]
     if verbose:
         callbacks.append(TQDMProgressBar(refresh_rate=min(100, len(train_loader) // 2)))
-    if precision == 16 or "16-mixed":
-        torch.set_float32_matmul_precision("medium")
+    if precision in (16, "16-mixed", "bf16", "bf16-mixed"):
+        torch.set_float32_matmul_precision("high")
 
     trainer = Trainer(
         max_epochs=epochs if model.requires_backprop else 1,
@@ -149,7 +192,7 @@ def train_common(
         callbacks=callbacks,
         precision=precision,
         accelerator="auto" if not cpu else "cpu",
-        devices=max(torch.cuda.device_count(), 1),
+        devices=devices,
         deterministic="warn" if reproducible else False,
         benchmark=not reproducible,
         enable_progress_bar=verbose,
@@ -171,7 +214,7 @@ def train_common(
         logging.info("Finished training full model.")
         save_config_file(log_dir)
         return 0
-    test_dataset = dataset_class(data, split=test_on, name=dataset_names["test"], ram_cache=ram_cache)
+    test_dataset = dataset_class(data, split=test_on, name=dataset_names.get("test", "default"), ram_cache=ram_cache)
     test_dataset = assure_minimum_length(test_dataset)
     logging.info(f"Testing on {test_dataset.name}  with {len(test_dataset)} samples.")
     test_loader = (
@@ -180,7 +223,7 @@ def train_common(
             batch_size=min(batch_size * 4, len(test_dataset)),
             shuffle=False,
             num_workers=num_workers,
-            pin_memory=True,
+            pin_memory=not cpu,
             drop_last=True,
             persistent_workers=persistent_workers,
         )
@@ -205,21 +248,27 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
     try:
         if trainer.lightning_module.test_shap_values is not None:
             shap_values = trainer.lightning_module.test_shap_values
-            shaps_test = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(shap_values.values))
-            with (log_dir / "shap_values_test.parquet").open("wb") as f:
+            shaps_test = pl.DataFrame(
+                schema=trainer.lightning_module.trained_columns,
+                data=np.transpose(shap_values.values),
+            )
+            with (log_dir / "test_shap_values.parquet").open("wb") as f:
                 shaps_test.write_parquet(f)
             logging.info(f"Saved shap values to {log_dir / 'test_shap_values.parquet'}")
         if trainer.lightning_module.train_shap_values is not None:
             shap_values = trainer.lightning_module.train_shap_values
-            shaps_train = pl.DataFrame(schema=trainer.lightning_module.trained_columns, data=np.transpose(shap_values.values))
-            with (log_dir / "shap_values_train.parquet").open("wb") as f:
+            shaps_train = pl.DataFrame(
+                schema=trainer.lightning_module.trained_columns,
+                data=np.transpose(shap_values.values),
+            )
+            with (log_dir / "train_shap_values.parquet").open("wb") as f:
                 shaps_train.write_parquet(f)
 
     except Exception as e:
         logging.error(f"Failed to save shap values: {e}")
 
 
-def load_model(model, source_dir, pl_model=True):
+def load_model(model, source_dir, pl_model=True) -> DLModel | MLModelClassifier | MLModelRegression:
     if source_dir.exists():
         if model.requires_backprop:
             if (source_dir / "model.ckpt").exists():
@@ -229,7 +278,7 @@ def load_model(model, source_dir, pl_model=True):
             elif (source_dir / "last.ckpt").exists():
                 model_path = source_dir / "last.ckpt"
             else:
-                return Exception(f"No weights to load at path : {source_dir}")
+                raise Exception(f"No weights to load at path : {source_dir}")
             if pl_model:
                 model = model.load_from_checkpoint(model_path)
             else:

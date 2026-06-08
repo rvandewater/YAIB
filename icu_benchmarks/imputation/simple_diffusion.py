@@ -26,7 +26,9 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         # Time embedding
         self.time_mlp = nn.Sequential(
-            SinusoidalPositionEmbeddings(time_emb_dim), nn.Linear(time_emb_dim, time_emb_dim), nn.ReLU()
+            SinusoidalPositionEmbeddings(time_emb_dim),
+            nn.Linear(time_emb_dim, time_emb_dim),
+            nn.ReLU(),
         )
 
         # Initial projection
@@ -52,7 +54,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         # output = self.model(model_input)
         # output = output.reshape(amputated.shape)
 
-        # Embedd time
+        # Embed time
         t = self.time_mlp(timestep)
 
         # Initial Convolution
@@ -94,7 +96,10 @@ class SimpleDiffusionModel(ImputationWrapper):
         sqrt_alphas_cumprod_t = self.get_index_from_list(self.sqrt_alphas_cumprod, t, x_0.shape)
         sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t, x_0.shape)
         # mean + variance
-        return sqrt_alphas_cumprod_t * x_0 + sqrt_one_minus_alphas_cumprod_t * noise, noise
+        return (
+            sqrt_alphas_cumprod_t * x_0 + sqrt_one_minus_alphas_cumprod_t * noise,
+            noise,
+        )
 
     # Define beta schedule
     T = 300
@@ -169,7 +174,12 @@ class SimpleDiffusionModel(ImputationWrapper):
         self.log("val/loss", loss.item(), prog_bar=True)
 
         for metric in self.metrics["val"].values():
-            metric.update((torch.flatten(amputated, start_dim=1), torch.flatten(target, start_dim=1)))
+            metric.update(
+                (
+                    torch.flatten(amputated, start_dim=1),
+                    torch.flatten(target, start_dim=1),
+                )
+            )
 
     def test_step(self, batch, batch_index):
         amputated, amputation_mask, target, target_missingness = batch
@@ -201,7 +211,12 @@ class SimpleDiffusionModel(ImputationWrapper):
         self.log("test/loss", loss.item(), prog_bar=True)
 
         for metric in self.metrics["test"].values():
-            metric.update((torch.flatten(amputated, start_dim=1), torch.flatten(target, start_dim=1)))
+            metric.update(
+                (
+                    torch.flatten(amputated, start_dim=1),
+                    torch.flatten(target, start_dim=1),
+                )
+            )
 
 
 class Block(nn.Module):

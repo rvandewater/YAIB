@@ -28,7 +28,7 @@ parameters:
     values: [2]
   execute_repeated_cv.cv_folds:
     values: [2]
-  
+
   ImputationWrapper.lr_scheduler:
     values: ["cosine", ""]
   Adam.lr:

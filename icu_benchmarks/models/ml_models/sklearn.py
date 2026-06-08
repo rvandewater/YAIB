@@ -6,7 +6,7 @@ from icu_benchmarks.models.wrappers import MLWrapper
 
 @gin.configurable
 class LogisticRegression(MLWrapper):
-    __supported_run_modes = [RunMode.classification]
+    _supported_run_modes = [RunMode.classification]
 
     def __init__(self, *args, **kwargs):
         self.model = self.set_model_args(linear_model.LogisticRegression, *args, **kwargs)

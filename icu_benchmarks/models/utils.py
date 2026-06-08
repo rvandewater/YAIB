@@ -15,7 +15,12 @@ from sklearn.metrics import average_precision_score
 from torch.nn import Module
 from torch.optim import Optimizer, Adam, SGD, RAdam
 from typing import Optional, Union
-from torch.optim.lr_scheduler import _LRScheduler, CosineAnnealingLR, MultiStepLR, ExponentialLR
+from torch.optim.lr_scheduler import (
+    _LRScheduler,
+    CosineAnnealingLR,
+    MultiStepLR,
+    ExponentialLR,
+)
 
 
 def save_config_file(log_dir):
@@ -213,7 +218,14 @@ class scorer_wrapper:
 # Source: https://github.com/ratschlab/tls
 @gin.configurable("get_smoothed_labels")
 def get_smoothed_labels(
-    label, event, smoothing_fn=gin.REQUIRED, h_true=gin.REQUIRED, h_min=gin.REQUIRED, h_max=gin.REQUIRED, delta_h=12, gamma=0.1
+    label,
+    event,
+    smoothing_fn=gin.REQUIRED,
+    h_true=gin.REQUIRED,
+    h_min=gin.REQUIRED,
+    h_max=gin.REQUIRED,
+    delta_h=12,
+    gamma=0.1,
 ):
     diffs = np.concatenate([np.zeros(1), event[1:] - event[:-1]], axis=-1)
     pos_event_change_full = np.where((diffs == 1) & (event == 1))[0]
@@ -228,7 +240,7 @@ def get_smoothed_labels(
     diffs_label = np.concatenate([np.zeros(1), label_for_event[1:] - label_for_event[:-1]], axis=-1)
 
     # Event that occurred after the end of the stay for M3B.
-    # In that case event are equal to the number of hours after the end of stay when the event occured.
+    # In that case event are equal to the number of hours after the end of stay when the event occurred.
     pos_event_change_delayed = np.where((diffs >= 1) & (event > 1))[0]
     if len(pos_event_change_delayed) > 0:
         delays = event[pos_event_change_delayed] - 1
@@ -238,7 +250,7 @@ def get_smoothed_labels(
     last_know_label = label_for_event[np.where(label_for_event != -1)][-1]
     last_know_idx = np.where(label_for_event == last_know_label)[0][-1]
 
-    # Need to handle the case where the ts was truncatenated at 2016 for HiB
+    # Need to handle the case where the ts was truncated at 2016 for HiB
     if ((last_know_label == 1) and (len(pos_event_change_full) == 0)) or (
         (last_know_label == 1) and (last_know_idx >= pos_event_change_full[-1])
     ):
@@ -270,7 +282,12 @@ def get_smoothed_labels(
                     list(
                         map(
                             lambda x: smoothing_fn(
-                                x, h_true=h_true[k], h_min=h_min[k], h_max=h_max[k], delta_h=delta_h, gamma=gamma
+                                x,
+                                h_true=h_true[k],
+                                h_min=h_min[k],
+                                h_max=h_max[k],
+                                delta_h=delta_h,
+                                gamma=gamma,
                             ),
                             dte,
                         )
@@ -280,5 +297,17 @@ def get_smoothed_labels(
         return np.stack(smoothed_labels, axis=-1)
     else:
         return np.array(
-            list(map(lambda x: smoothing_fn(x, h_true=h_true, h_min=h_min, h_max=h_max, delta_h=delta_h, gamma=gamma), dte))
+            list(
+                map(
+                    lambda x: smoothing_fn(
+                        x,
+                        h_true=h_true,
+                        h_min=h_min,
+                        h_max=h_max,
+                        delta_h=delta_h,
+                        gamma=gamma,
+                    ),
+                    dte,
+                )
+            )
         )
