@@ -42,7 +42,6 @@ icu-benchmarks train \
   -t ${TASK} \
   -tn ${TASK_NAME} \
   -m ${MODEL_NAME} \
-  -c \
   -s 1111 \
   -l ${EXPERIMENT_PATH} \
   --tune

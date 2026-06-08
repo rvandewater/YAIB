@@ -17,7 +17,7 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torch.optim import Adam
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset, ConcatDataset
 
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.constants import DataSplit as DataSplit
@@ -33,9 +33,9 @@ cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity"
 cpu_core_count = 1 if not cpu_core_count else cpu_core_count  #  os.cpu_count possibly None
 
 
-def assure_minimum_length(dataset: pl.DataFrame) -> pl.DataFrame:
+def assure_minimum_length(dataset: Dataset) -> Dataset:
     if len(dataset) < 2:
-        return pl.concat([dataset, dataset])
+        return ConcatDataset([dataset, dataset])
     return dataset
 
 
@@ -103,7 +103,7 @@ def train_common(
         dataset_names = {"train": "default", "val": "default", "test": "default"}
 
     logging.info(f"Training model: {model.__name__}.")
-    # TODO: add support for polars versions of datasets
+
     dataset_classes: dict = {
         RunMode.imputation: ImputationPandasDataset,
         RunMode.classification: PredictionPolarsDataset if polars else PredictionPandasDataset,
