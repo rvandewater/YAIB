@@ -8,7 +8,6 @@ version = "1.0.3"
 
 description = "🧪Yet Another ICU Benchmark: a holistic framework for the standardization of clinical prediction model experiments. Provide custom datasets, cohorts, prediction tasks, endpoints, preprocessing, and models. Paper: https://arxiv.org/abs/2306.05109"
 readme = "README.md"
-license = { text = "MIT" }
 authors = [
     { name = "Robin van de Water", email = "robin.vandewater@hpi.de" },
     { name = "Hendrik Schmidt"},
@@ -20,13 +19,15 @@ keywords = [
 ]
 classifiers = [
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
   "Natural Language :: English",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.10",
 ]
+
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 
 dependencies = [
