@@ -96,9 +96,8 @@ Because `uv build` uses the version already present in `pyproject.toml`, first u
 
 Example:
 
-```toml
-[project]
-version = "1.0.2"
+```bash
+uv version v1.0.2
 ```
 
 Then commit, tag, and push:
@@ -112,13 +111,6 @@ git commit -m "Release 1.0.2"
 git tag v1.0.2
 git push origin main
 git push origin v1.0.2
-```
-
-If you use plain numeric tags instead of `v`-prefixed tags, this also works:
-
-```bash
-git tag 1.0.2
-git push origin 1.0.2
 ```
 
 ## Recommended release sequence
