@@ -2,11 +2,11 @@
 
 # 🧪 Yet Another ICU Benchmark
 
-[![CI](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/ci.yml)
+[![CI](https://github.com/rvandewater/YAIB/actions/workflows/code-quality.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/code-quality.yml)
 ![Platform](https://img.shields.io/badge/platform-linux--64%20%7C%20win--64%20%7C%20osx--64-lightgrey)
 [![arXiv](https://img.shields.io/badge/arXiv-2306.05109-b31b1b.svg)](http://arxiv.org/abs/2306.05109)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/yaib.svg)](https://pypi.python.org/pypi/yaib/)
-[![python](https://img.shields.io/badge/-Python_3.13-blue?logo=python&logoColor=white)](https://www.python.org/downloads/release/python-3130/)
+[![python](https://img.shields.io/badge/-Python_3.12-blue?logo=python&logoColor=white)](https://www.python.org/downloads/release/python-3120/)
 [![pytorch](https://img.shields.io/badge/PyTorch_2.0+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
 [![lightning](https://img.shields.io/badge/-Lightning_2.0+-792ee5?logo=pytorchlightning&logoColor=white)](https://pytorchlightning.ai/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
