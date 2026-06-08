@@ -12,7 +12,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Yet another ICU benchmark (YAIB) provides a framework for doing clinical machine learning experiments on Intensive Care Unit
-(ICU) EHR data.
+(ICU) and other Electronic Health Record (EHR) data.
 
 We support the following datasets out of the box:
 
