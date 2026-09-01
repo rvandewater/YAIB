@@ -48,7 +48,7 @@ dependencies = [
   "tensorboard>=2.12.2",
   "tqdm==4.66.3",
   "einops==0.6.1",
-  "hydra-core==1.3",
+  "hydra-core==1.3.4",
   "optuna==4.0.0",
   "optuna-integration==4.0.0",
   "wandb>=0.17.3",
