@@ -190,13 +190,13 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         group = self.vars["GROUP"]
 
         if len(labels) == self.num_stays:
-            # One row per stay. group_by does not guarantee the group order, so align the rows to the
-            # label order explicitly (a left join keeps the order of the left frame).
+            # One row per stay. polars group_by does not guarantee the group order, so align the rows to the
+            # label order explicitly
             rep = self.outcome_df.select(group).join(rep.group_by(group).last(), on=group, how="left")
         else:
             # Adding segment count for each stay id and timestep.
             rep = rep.with_columns(pl.col(group).cum_count().over(group).alias("counter"))
-        # The stay id identifies the row; it is not a feature.
+        # Don't use group as model feature
         rep = rep.drop(group).to_numpy().astype(np.float32)
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
