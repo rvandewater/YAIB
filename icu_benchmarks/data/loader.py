@@ -191,9 +191,8 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         if len(labels) == self.num_stays:
             # order of groups could be random, we make sure not to change it
             rep = rep.group_by(self.vars["GROUP"]).last()
-        else:
-            # Adding segment count for each stay id and timestep.
-            rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
+        # Hourly tasks get no separate time counter: the scaled count of an hourly variable (e.g.
+        # hr_count_hist) already carries the elapsed time.
         rep = rep.to_numpy().astype(np.float32)
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
