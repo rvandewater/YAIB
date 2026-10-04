@@ -354,8 +354,8 @@ class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
         else:
             # If the range is not predefined, use MinMaxScaler
             outcome_rec.add_step(StepSklearn(MinMaxScaler(), sel=all_outcomes()))
-        outcome_rec.prep()
-        data[split][DataSegment.outcome] = pl.DataFrame(outcome_rec.bake())
+        
+        data[split][DataSegment.outcome] = outcome_rec.prep()
         return data
 
 
@@ -591,8 +591,8 @@ class PandasRegressionPreprocessor(PandasClassificationPreprocessor):
         else:
             # If the range is not predefined, use MinMaxScaler
             outcome_rec.add_step(StepSklearn(MinMaxScaler(), sel=all_outcomes()))
-        outcome_rec.prep()
-        data[split][DataSegment.outcome] = outcome_rec.bake()
+        
+        data[split][DataSegment.outcome] = outcome_rec.prep()
         return data
 
 
