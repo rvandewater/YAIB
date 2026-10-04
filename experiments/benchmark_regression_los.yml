@@ -5,7 +5,7 @@ command:
   - -d
   - ../data/
   - -t
-  - Regression
+  - RegressionLoS
   - --log-dir
   - ../yaib_logs
   - --tune
@@ -13,14 +13,14 @@ command:
   - -gc
   - -lc
 method: grid
-name: yaib_regression_benchmark
+name: yaib_regression_benchmark_los
 parameters:
   data_dir:
     values:
-      - ../data/kidney_function/miiv
-      - ../data/kidney_function/hirid
-      - ../data/kidney_function/eicu
-      - ../data/kidney_function/aumc
+      - ../data/los/miiv
+      - ../data/los/hirid
+      - ../data/los/eicu
+      - ../data/los/aumc
   model:
     values:
       - ElasticNet
