@@ -20,6 +20,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset, ConcatDataset
 
 from icu_benchmarks.constants import RunMode
+from icu_benchmarks.data.target_transform import TargetTransform
 from icu_benchmarks.data.constants import DataSplit as DataSplit
 from icu_benchmarks.data.loader import (
     ImputationPandasDataset,
@@ -71,6 +72,7 @@ def train_common(
     ),
     polars: bool = True,
     persistent_workers: bool = False,
+    target_transform: Optional[TargetTransform] = None,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -97,8 +99,14 @@ def train_common(
         ram_cache: Whether to cache the data in RAM.
         pl_model: Loading a pytorch lightning model.
         num_workers: Number of workers to use for data loading.
+        target_transform: Fitted preprocessing transform, required for regression.
+
+    Returns:
+        Native-unit MSE for regression, or test loss for other run modes.
     """
 
+    if mode == RunMode.regression and target_transform is None:
+        raise ValueError("Regression training/evaluation requires its preprocessing target transform.")
     if dataset_names is None:
         dataset_names = {"train": "default", "val": "default", "test": "default"}
 
@@ -151,6 +159,8 @@ def train_common(
 
     if load_weights:
         model: DLModel | MLModelClassifier | MLModelRegression = load_model(model, source_dir, pl_model=pl_model)
+        if mode == RunMode.regression and model.target_transform != target_transform:
+            raise ValueError("Model and preprocessing target transforms do not match.")
     else:
         model: DLModel | MLModelClassifier | MLModelRegression = model(
             optimizer=optimizer,
@@ -160,6 +170,9 @@ def train_common(
             cpu=cpu,
         )
 
+    model.target_transform = target_transform
+    if target_transform is not None:
+        target_transform.save(log_dir)
     model.set_weight(weight, train_dataset)
     model.set_trained_columns(train_dataset.get_feature_names())
     loggers = [TensorBoardLogger(log_dir), JSONMetricsLogger(log_dir)]
@@ -232,7 +245,8 @@ def train_common(
     )
 
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
+    score_name = "test/MSE_native" if mode == RunMode.regression else "test/loss"
+    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][score_name]
     persist_shap_data(trainer, log_dir)
     save_config_file(log_dir)
     return test_loss
@@ -245,27 +259,17 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
         trainer: Pytorch lightning trainer object
         log_dir: Log directory
     """
-    try:
-        if trainer.lightning_module.test_shap_values is not None:
-            shap_values = trainer.lightning_module.test_shap_values
-            shaps_test = pl.DataFrame(
-                schema=trainer.lightning_module.trained_columns,
-                data=np.transpose(shap_values.values),
-            )
-            with (log_dir / "test_shap_values.parquet").open("wb") as f:
-                shaps_test.write_parquet(f)
-            logging.info(f"Saved shap values to {log_dir / 'test_shap_values.parquet'}")
-        if trainer.lightning_module.train_shap_values is not None:
-            shap_values = trainer.lightning_module.train_shap_values
-            shaps_train = pl.DataFrame(
-                schema=trainer.lightning_module.trained_columns,
-                data=np.transpose(shap_values.values),
-            )
-            with (log_dir / "train_shap_values.parquet").open("wb") as f:
-                shaps_train.write_parquet(f)
-
-    except Exception as e:
-        logging.error(f"Failed to save shap values: {e}")
+    model = trainer.lightning_module
+    for split in ("train", "test"):
+        explanation = getattr(model, f"{split}_shap_values", None)
+        if explanation is None:
+            continue
+        values = explanation.values
+        if model.target_transform is not None:
+            values = values / model.target_transform.scale
+            np.save(log_dir / f"{split}_shap_base_values.npy", model.inverse_target(explanation.base_values))
+        shaps = pl.DataFrame(schema=model.trained_columns, data=np.transpose(values))
+        shaps.write_parquet(log_dir / f"{split}_shap_values.parquet")
 
 
 def load_model(model, source_dir, pl_model=True) -> DLModel | MLModelClassifier | MLModelRegression:
@@ -279,14 +283,25 @@ def load_model(model, source_dir, pl_model=True) -> DLModel | MLModelClassifier 
                 model_path = source_dir / "last.ckpt"
             else:
                 raise Exception(f"No weights to load at path : {source_dir}")
-            if pl_model:
+            # YAIB checkpoints store the selected model class and RunMode enum.
+            with torch.serialization.safe_globals([model, RunMode]):
                 model = model.load_from_checkpoint(model_path)
-            else:
-                checkpoint = torch.load(model_path)
-                model.load_from_checkpoint(checkpoint)
         else:
             model_path = source_dir / "model.joblib"
-            model = load(model_path)
+            if not model_path.exists():
+                model_path = source_dir / "last.joblib"
+            artifact = load(model_path)
+            if isinstance(artifact, dict) and "target_transform" in artifact:
+                model = model(run_mode=RunMode.regression)
+                model.model = artifact["model"]
+                model.target_transform = TargetTransform(**artifact["target_transform"])
+                model.set_trained_columns(artifact["trained_columns"])
+            else:
+                if RunMode.regression in model._supported_run_modes:
+                    raise ValueError("Regression model has no target transform; retrain legacy models.")
+                model = artifact
+        if getattr(model, "target_transform", None) is not None and model.target_transform != TargetTransform.load(source_dir):
+            raise ValueError("Model and target_transform.json do not match.")
     else:
         raise Exception(f"No weights to load at path : {source_dir}")
     logging.info(f"Loaded {type(model)} model from {model_path}")
