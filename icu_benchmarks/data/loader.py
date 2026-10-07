@@ -202,7 +202,8 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         rep = rep.drop(group).to_numpy().astype(np.float32)
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
-        return rep, labels, row_indicators.to_numpy()
+        valid = np.isfinite(labels.reshape(len(labels), -1)).all(axis=1)
+        return rep[valid], labels[valid], row_indicators.to_numpy()[valid]
 
     def to_tensor(self) -> tuple[Tensor, Tensor, Tensor]:
         data, labels, row_indicators = self.get_data_and_labels()
@@ -345,7 +346,7 @@ class PredictionPandasDataset(CommonPandasDataset):
         counts = self.outcome_df[self.vars["LABEL"]].value_counts()
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
-    def get_data_and_labels(self) -> tuple[np.ndarray, np.ndarray]:
+    def get_data_and_labels(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Function to return all the data and labels aligned at once.
 
         We use this function for the ML methods which don't require an iterator.
@@ -356,16 +357,14 @@ class PredictionPandasDataset(CommonPandasDataset):
         labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(np.float32)
         rep = self.features_df
         if len(labels) == self.num_stays:
-            # order of groups could be random, we make sure not to change it
-            rep = rep.groupby(level=self.vars["GROUP"], sort=False).last()
+            rep = rep.groupby(level=self.vars["GROUP"], sort=False).last().reindex(self.outcome_df.index)
+        row_indicators = self.outcome_df.index.to_numpy().reshape(-1, 1)
         rep = rep.to_numpy().astype(np.float32)
+        valid = np.isfinite(labels.reshape(len(labels), -1)).all(axis=1)
+        return rep[valid], labels[valid], row_indicators[valid]
 
-        return rep, labels
-
-    def to_tensor(self) -> tuple[Tensor, Tensor]:
-        data, labels = self.get_data_and_labels()
-        # Always use float32 for memory efficiency and MPS compatibility
-        return from_numpy(data), from_numpy(labels)
+    def to_tensor(self) -> tuple[Tensor, Tensor, Tensor]:
+        return tuple(from_numpy(value) for value in self.get_data_and_labels())
 
 
 @gin.configurable("ImputationPandasDataset")

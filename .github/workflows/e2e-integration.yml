@@ -16,6 +16,8 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,6 +34,9 @@ jobs:
 
       - name: Install YAIB and dependencies
         run: uv sync
+
+      - name: Test target scaling and model round trips
+        run: uv run pytest tests/test_target_scaling.py
 
       - name: Verify icu-benchmarks CLI is available
         run: uv run icu-benchmarks --help
