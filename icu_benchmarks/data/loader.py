@@ -187,14 +187,17 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         """
         labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(np.float32)
         rep = self.features_df
+        group = self.vars["GROUP"]
 
         if len(labels) == self.num_stays:
-            # order of groups could be random, we make sure not to change it
-            rep = rep.group_by(self.vars["GROUP"]).last()
+            # One row per stay. polars group_by does not guarantee the group order, so align the rows to the
+            # label order explicitly
+            rep = self.outcome_df.select(group).join(rep.group_by(group).last(), on=group, how="left")
         else:
             # Adding segment count for each stay id and timestep.
-            rep = rep.with_columns(pl.col(self.vars["GROUP"]).cum_count().over(self.vars["GROUP"]).alias("counter"))
-        rep = rep.to_numpy().astype(np.float32)
+            rep = rep.with_columns(pl.col(group).cum_count().over(group).alias("counter"))
+        # Don't use group as model feature
+        rep = rep.drop(group).to_numpy().astype(np.float32)
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
         return rep, labels, self.row_indicators.to_numpy()
