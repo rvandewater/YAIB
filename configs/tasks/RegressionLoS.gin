@@ -1,0 +1,6 @@
+# Length of stay regression. Same as Regression.gin, but the outcome is the remaining length of
+# stay in hours, capped at 7 days, so it is scaled with the range [0, 168] instead of [0, 15].
+include "configs/tasks/Regression.gin"
+
+base_regression_preprocessor.outcome_min = 0
+base_regression_preprocessor.outcome_max = 168

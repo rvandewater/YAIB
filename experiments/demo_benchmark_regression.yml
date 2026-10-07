@@ -17,8 +17,6 @@ name: yaib_demo_regression_benchmark
 parameters:
   data_dir:
     values:
-      - demo_data/los/eicu_demo
-      - demo_data/los/mimic_demo
       - demo_data/kidney_function/eicu_demo
       - demo_data/kidney_function/mimic_demo
   model:

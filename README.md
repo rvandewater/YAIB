@@ -173,9 +173,10 @@ Alternatively, the easiest method to train all the models in the paper is to run
 ```bash
 uv run wandb sweep --verbose experiments/benchmark_classification.yml
 uv run wandb sweep --verbose experiments/benchmark_regression.yml
+uv run wandb sweep --verbose experiments/benchmark_regression_los.yml
 ```
 
-This will create two hyperparameter sweeps for Weights & Biases for the classification and regression tasks. You can then run the following command to train the models:
+This will create three hyperparameter sweeps for Weights & Biases: classification, kidney function regression, and length of stay regression. You can then run the following command to train the models:
 
 ```bash
 uv run wandb agent <sweep_id>
@@ -228,9 +229,10 @@ Alternatively, the easiest method to train all the models in the paper is to run
 ```bash
 uv run wandb sweep --verbose experiments/benchmark_classification.yml
 uv run wandb sweep --verbose experiments/benchmark_regression.yml
+uv run wandb sweep --verbose experiments/benchmark_regression_los.yml
 ```
 
-This will create two hyperparameter sweeps for WandB for the classification and regression tasks.
+This will create three hyperparameter sweeps for WandB: classification, kidney function regression, and length of stay regression.
 This configuration will train all the models in the paper. You can then run the following command to train the models:
 
 ```bash

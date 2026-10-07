@@ -24,6 +24,7 @@ preprocess.vars = %vars
 preprocess.use_static = True
 
 # SPECIFYING REGRESSION OUTCOME SCALING
+# Range of the kidney function outcome (creatinine, mg/dL). Length of stay uses RegressionLoS.gin.
 base_regression_preprocessor.outcome_min = 0
 base_regression_preprocessor.outcome_max = 15
 
