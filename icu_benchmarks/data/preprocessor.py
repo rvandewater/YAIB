@@ -10,9 +10,9 @@ import pandas as pd
 import polars as pl
 import torch
 from numpy import nan as np_nan
-from recipys.recipe import Recipe
-from recipys.selector import all_numeric_predictors, all_of, all_outcomes, has_type
-from recipys.step import (
+from recipies.recipe import Recipe
+from recipies.selector import all_numeric_predictors, all_of, all_outcomes, has_type
+from recipies.step import (
     Accumulator,
     Selector,
     StepHistorical,
