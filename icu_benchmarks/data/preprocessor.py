@@ -228,6 +228,13 @@ class PolarsClassificationPreprocessor(Preprocessor):
         data: dict[str, dict[str, pl.DataFrame]],
         vars: dict[str, Union[str, list[str]]],
     ):
+        if self.generate_features:
+            # Hour index within the stay; a feature for the hourly tasks, dropped by the loader for per-stay tasks
+            group = vars["GROUP"]
+            for split in data:
+                data[split][DataSegment.dynamic] = data[split][DataSegment.dynamic].with_columns(
+                    pl.col(group).cum_count().over(group).alias("counter")
+                )
         dyn_rec = Recipe(
             data[DataSplit.train][DataSegment.dynamic],
             [],
@@ -261,8 +268,8 @@ class PolarsClassificationPreprocessor(Preprocessor):
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars_to_apply))
             if self.scaling:
-                # min/max/mean are computed on scaled values; the counts are not
-                dyn_rec.add_step(StepScale(sel=all_of([f"{v}count_hist" for v in vars_to_apply])))
+                # min/max/mean are computed on scaled values; the counts and the counter are not
+                dyn_rec.add_step(StepScale(sel=all_of([f"{v}count_hist" for v in vars_to_apply] + ["counter"])))
         data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
         return data
 

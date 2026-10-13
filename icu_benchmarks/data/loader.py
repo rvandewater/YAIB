@@ -193,10 +193,10 @@ class PredictionPolarsDataset(CommonPolarsDataset):
             # One row per stay. polars group_by does not guarantee the group order, so align the rows to the
             # label order explicitly
             rep = self.outcome_df.select(group).join(rep.group_by(group).last(), on=group, how="left")
+            # The hour index from the preprocessor is a feature for the hourly tasks only
+            rep = rep.drop("counter", strict=False)
             row_indicators = self.outcome_df.select(group)
         else:
-            # Hourly tasks get no separate time counter: the scaled count of an hourly variable (e.g.
-            # hrcount_hist) already carries the elapsed time.
             row_indicators = self.row_indicators
         # Don't use group as model feature
         rep = rep.drop(group).to_numpy().astype(np.float32)
