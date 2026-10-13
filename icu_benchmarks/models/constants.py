@@ -15,7 +15,7 @@ from sklearn.metrics import (
     precision_recall_curve,
     roc_curve,
     r2_score,
-    mean_squared_error,
+    root_mean_squared_error,
 )
 from torchmetrics.classification import (
     AUROC,
@@ -56,7 +56,7 @@ class MLMetrics:
     REGRESSION = {
         "MAE": mean_absolute_error,
         "R2": r2_score,
-        "RMSE": mean_squared_error,
+        "RMSE": root_mean_squared_error,
     }
 
 

@@ -187,16 +187,22 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         """
         labels = self.outcome_df[self.vars["LABEL"]].to_numpy().astype(np.float32)
         rep = self.features_df
+        group = self.vars["GROUP"]
 
         if len(labels) == self.num_stays:
-            # order of groups could be random, we make sure not to change it
-            rep = rep.group_by(self.vars["GROUP"]).last()
-        # Hourly tasks get no separate time counter: the scaled count of an hourly variable (e.g.
-        # hr_count_hist) already carries the elapsed time.
-        rep = rep.to_numpy().astype(np.float32)
+            # One row per stay. polars group_by does not guarantee the group order, so align the rows to the
+            # label order explicitly
+            rep = self.outcome_df.select(group).join(rep.group_by(group).last(), on=group, how="left")
+            row_indicators = self.outcome_df.select(group)
+        else:
+            # Hourly tasks get no separate time counter: the scaled count of an hourly variable (e.g.
+            # hrcount_hist) already carries the elapsed time.
+            row_indicators = self.row_indicators
+        # Don't use group as model feature
+        rep = rep.drop(group).to_numpy().astype(np.float32)
         logging.debug(f"rep shape: {rep.shape}")
         logging.debug(f"labels shape: {labels.shape}")
-        return rep, labels, self.row_indicators.to_numpy()
+        return rep, labels, row_indicators.to_numpy()
 
     def to_tensor(self) -> tuple[Tensor, Tensor, Tensor]:
         data, labels, row_indicators = self.get_data_and_labels()

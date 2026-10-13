@@ -10,9 +10,9 @@ import pandas as pd
 import polars as pl
 import torch
 from numpy import nan as np_nan
-from recipys.recipe import Recipe
-from recipys.selector import all_numeric_predictors, all_of, all_outcomes, has_type
-from recipys.step import (
+from recipies.recipe import Recipe
+from recipies.selector import all_numeric_predictors, all_of, all_outcomes, has_type
+from recipies.step import (
     Accumulator,
     Selector,
     StepHistorical,
@@ -30,22 +30,6 @@ from icu_benchmarks.data.loader import ImputationPredictionDataset
 
 from .constants import DataSegment as DataSegment
 from .constants import DataSplit as DataSplit
-
-
-class StepHistoricalStable(StepHistorical):
-    """StepHistorical that names its columns the same in prep() and every bake().
-
-    recipys 1.0's StepHistorical prepends another "_" to its suffix on every transform, so the validation
-    and test splits get columns like "hr__count_hist" and "hr___count_hist". Later steps that select these
-    columns by name then fail. Fixed in recipies 1.3.
-    """
-
-    def transform(self, data):
-        suffix = self.suffix
-        try:
-            return super().transform(data)
-        finally:
-            self.suffix = suffix
 
 
 class Preprocessor(ABC):
@@ -271,22 +255,22 @@ class PolarsClassificationPreprocessor(Preprocessor):
         )
         if self.generate_features:
             # Count real measurements: after the fills below every variable would count every hour.
-            dyn_rec.add_step(StepHistoricalStable(sel=all_of(vars_to_apply), fun=Accumulator.COUNT, suffix="count_hist"))
+            dyn_rec.add_step(StepHistorical(sel=all_of(vars_to_apply), fun=Accumulator.COUNT, suffix="count_hist"))
         dyn_rec.add_step(StepImputeFill(strategy="forward"))
         dyn_rec.add_step(StepImputeFill(strategy="zero"))
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars_to_apply))
             if self.scaling:
                 # min/max/mean are computed on scaled values; the counts are not
-                dyn_rec.add_step(StepScale(sel=all_of([f"{v}_count_hist" for v in vars_to_apply])))
+                dyn_rec.add_step(StepScale(sel=all_of([f"{v}count_hist" for v in vars_to_apply])))
         data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
         return data
 
     def _dynamic_feature_generation(self, data, dynamic_vars):
         logging.debug("Adding dynamic feature generation.")
-        data.add_step(StepHistoricalStable(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
-        data.add_step(StepHistoricalStable(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
-        data.add_step(StepHistoricalStable(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist"))
         return data
 
     def to_cache_string(self):
@@ -375,8 +359,7 @@ class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
         else:
             # If the range is not predefined, use MinMaxScaler
             outcome_rec.add_step(StepSklearn(MinMaxScaler(), sel=all_outcomes()))
-        outcome_rec.prep()
-        data[split][DataSegment.outcome] = pl.DataFrame(outcome_rec.bake())
+        data[split][DataSegment.outcome] = outcome_rec.prep()
         return data
 
 
@@ -524,7 +507,7 @@ class PandasClassificationPreprocessor(Preprocessor):
         if self.generate_features:
             # Count real measurements: after the fills below every variable would count every hour.
             dyn_rec.add_step(
-                StepHistoricalStable(sel=all_of(vars[DataSegment.dynamic]), fun=Accumulator.COUNT, suffix="count_hist")
+                StepHistorical(sel=all_of(vars[DataSegment.dynamic]), fun=Accumulator.COUNT, suffix="count_hist")
             )
         dyn_rec.add_step(StepImputeFastForwardFill())
         dyn_rec.add_step(StepImputeFastZeroFill())
@@ -532,15 +515,15 @@ class PandasClassificationPreprocessor(Preprocessor):
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars[DataSegment.dynamic]))
             if self.scaling:
                 # min/max/mean are computed on scaled values; the counts are not
-                dyn_rec.add_step(StepScale(sel=all_of([f"{v}_count_hist" for v in vars[DataSegment.dynamic]])))
+                dyn_rec.add_step(StepScale(sel=all_of([f"{v}count_hist" for v in vars[DataSegment.dynamic]])))
         data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
         return data
 
     def _dynamic_feature_generation(self, data: Recipe, dynamic_vars: Selector):
         logging.debug("Adding dynamic feature generation.")
-        data.add_step(StepHistoricalStable(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
-        data.add_step(StepHistoricalStable(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
-        data.add_step(StepHistoricalStable(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
+        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist"))
         return data
 
     def to_cache_string(self) -> str:
@@ -619,8 +602,7 @@ class PandasRegressionPreprocessor(PandasClassificationPreprocessor):
         else:
             # If the range is not predefined, use MinMaxScaler
             outcome_rec.add_step(StepSklearn(MinMaxScaler(), sel=all_outcomes()))
-        outcome_rec.prep()
-        data[split][DataSegment.outcome] = outcome_rec.bake()
+        data[split][DataSegment.outcome] = outcome_rec.prep()
         return data
 
 
