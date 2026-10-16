@@ -85,6 +85,11 @@ def test_legacy_ml_artifacts_by_run_mode(tmp_path):
         load_model(LinearRegression, tmp_path, mode=RunMode.regression)
     # A classification artifact is loaded as-is, even through a wrapper that also supports regression.
     assert not isinstance(load_model(MLWrapper, tmp_path, mode=RunMode.classification), dict)
+    # Without a run mode, a legacy artifact must not be returned unchecked.
+    with pytest.raises(TypeError):
+        load_model(LinearRegression, tmp_path)
+    with pytest.raises(ValueError, match="valid run mode"):
+        load_model(LinearRegression, tmp_path, mode=None)
 
 
 def test_missing_and_infinite_targets():

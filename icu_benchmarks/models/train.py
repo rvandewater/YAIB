@@ -280,7 +280,12 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
             logging.error(f"Failed to save {split} shap values: {e}")
 
 
-def load_model(model, source_dir, pl_model=True, mode=None) -> DLModel | MLModelClassifier | MLModelRegression:
+def load_model(model, source_dir, pl_model=True, *, mode) -> DLModel | MLModelClassifier | MLModelRegression:
+    # The run mode decides whether a legacy artifact without a target transform may be loaded.
+    try:
+        mode = RunMode(mode)
+    except ValueError:
+        raise ValueError(f"load_model requires a valid run mode, got {mode!r}.") from None
     if source_dir.exists():
         if model.requires_backprop:
             if (source_dir / "model.ckpt").exists():
