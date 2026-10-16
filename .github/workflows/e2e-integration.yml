@@ -35,8 +35,8 @@ jobs:
       - name: Install YAIB and dependencies
         run: uv sync
 
-      - name: Test target scaling and model round trips
-        run: uv run pytest tests/test_target_scaling.py
+      - name: Test target scaling and model reloading
+        run: uv run pytest tests/test_target_scaling.py tests/test_ml_model_loading.py
 
       - name: Verify icu-benchmarks CLI is available
         run: uv run icu-benchmarks --help
@@ -60,6 +60,22 @@ jobs:
           fi
           echo "Log directory found:"
           find yaib_logs/ -type f | head -50
+
+      - name: Evaluate the saved model on eICU demo
+        run: |
+          source_dir=$(find yaib_logs/mimic_demo -path "*repetition_0/fold_0" -type d | head -1)
+          uv run icu-benchmarks evaluate \
+            -d demo_data/mortality24/eicu_demo \
+            -n eicu_demo \
+            -t BinaryClassification \
+            -tn Mortality24 \
+            -m XGBClassifier \
+            --seed 2222 \
+            -l yaib_logs/ \
+            -sn mimic \
+            --source-dir "$source_dir" \
+            --eval \
+            --cpu
 
       - name: Upload run logs as artifact
         if: always()
