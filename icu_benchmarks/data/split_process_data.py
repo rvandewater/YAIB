@@ -27,6 +27,7 @@ from icu_benchmarks.data.preprocessor import (
 )
 
 from .constants import DataSegment, DataSplit, VarType
+from .target_transform import TargetTransform
 
 
 @gin.configurable("preprocess")
@@ -53,7 +54,8 @@ def preprocess_data(
     label: Optional[str] = None,
     required_var_types: Optional[list[str]] = None,
     required_segments: Optional[list[str]] = None,
-) -> dict[str, dict[str, pl.DataFrame]]:
+    target_transform: Optional[TargetTransform] = None,
+) -> tuple[dict[str, dict[str, pl.DataFrame]], Optional[TargetTransform]]:
     """
     Perform loading, splitting, imputing and normalising of task data.
 
@@ -77,8 +79,8 @@ def preprocess_data(
         pretrained_imputation_model: pretrained imputation model to use. if None, standard imputation is used.
 
     Returns:
-        Preprocessed data as DataFrame in a hierarchical dict with features type (STATIC) / DYNAMIC/ OUTCOME
-            nested within split (train/val/test).
+        (Preprocessed split data, fitted regression target transform or None).
+        A supplied target_transform is reused without fitting (evaluation/fine-tuning).
     """
     if modality_mapping is None:
         modality_mapping = {}
@@ -110,6 +112,8 @@ def preprocess_data(
 
     if not vars[VarType.label]:
         raise ValueError("No label selected after filtering.")
+    if runmode == RunMode.regression and isinstance(vars[VarType.label], list):
+        vars[VarType.label] = vars[VarType.label][0]
 
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
@@ -124,18 +128,25 @@ def preprocess_data(
         vars_to_exclude = None
 
     cache_dir = data_dir / "cache"
-    cache_filename = f"s_{seed}_r_{repetition_index}_f_{fold_index}_t_{train_size}_d_{debug}"
+    cache_filename = (
+        f"v2_s_{seed}_r_{repetition_index}of{cv_repetitions}_f_{fold_index}of{cv_folds}"
+        f"_t_{train_size}_d_{debug}_full_{complete_train}"
+    )
     preprocessor_instance: Preprocessor = preprocessor(
         use_static_features=use_static,
-        save_cache=data_dir / "preproc" / (cache_filename + "_recipe") if generate_cache else None,
         vars_to_exclude=vars_to_exclude,
     )
     if isinstance(preprocessor_instance, PandasClassificationPreprocessor):
         preprocessor_instance.set_imputation_model(pretrained_imputation_model)
 
-    hash_config = hashlib.md5(f"{preprocessor_instance.to_cache_string()}{dumped_file_names}{dumped_vars}".encode("utf-8"))
+    preprocessor_instance.target_transform = target_transform
+    hash_config = hashlib.md5(
+        f"{preprocessor_instance.to_cache_string()}{dumped_file_names}{dumped_vars}{runmode}{target_transform}".encode("utf-8")
+    )
     cache_filename += f"_{hash_config.hexdigest()}"
     cache_file = cache_dir / cache_filename
+    if generate_cache:
+        preprocessor_instance.save_cache = data_dir / "preproc" / (cache_filename + "_recipe")
 
     if load_cache:
         if cache_file.exists():
@@ -199,6 +210,9 @@ def preprocess_data(
     logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
     for _dict in sanitized_data.values():
         for key, val in _dict.items():
+            # Preserve missing regression labels for dataset masks/filtering, rather than inventing zero targets.
+            if key == DataSegment.outcome and runmode == RunMode.regression:
+                continue
             logging.debug(f"Data type: {key}")
             logging.debug("Is NaN:")
             sel = _dict[key].select(pl.selectors.numeric().is_nan().max())
@@ -214,13 +228,13 @@ def preprocess_data(
 
     # Generate cache
     if generate_cache:
-        caching(cache_dir, cache_file, sanitized_data, load_cache)
+        caching(cache_dir, cache_file, (sanitized_data, preprocessor_instance.target_transform))
     else:
         logging.info("Cache will not be saved.")
 
     logging.info("Finished preprocessing.")
 
-    return sanitized_data
+    return sanitized_data, preprocessor_instance.target_transform
 
 
 def flatten_column_names(*args: object) -> list[str]:
@@ -585,7 +599,7 @@ def make_single_split_polars(
             )
 
         if train_size:
-            outer_cv = StratifiedShuffleSplit(cv_repetitions, train_size=train_size)
+            outer_cv = StratifiedShuffleSplit(cv_repetitions, train_size=train_size, random_state=seed)
         else:
             outer_cv = StratifiedKFold(cv_repetitions, shuffle=True, random_state=seed)
 
@@ -597,7 +611,7 @@ def make_single_split_polars(
     else:
         # If there are no labels, or the task is regression, use regular k-fold.
         if train_size:
-            outer_cv = ShuffleSplit(cv_repetitions, train_size=train_size)
+            outer_cv = ShuffleSplit(cv_repetitions, train_size=train_size, random_state=seed)
         else:
             outer_cv = KFold(cv_repetitions, shuffle=True, random_state=seed)
         inner_cv = KFold(cv_folds, shuffle=True, random_state=seed)
@@ -695,14 +709,11 @@ def make_single_split(
         )
 
 
-def caching(cache_dir, cache_file, data, use_cache, overwrite=True):
-    if use_cache and (not overwrite or not cache_file.exists()):
-        if not cache_dir.exists():
-            cache_dir.mkdir()
-        cache_file.touch()
-        with open(cache_file, "wb") as f:
-            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-        logging.info(f"Cached data in {cache_file}.")
+def caching(cache_dir, cache_file, data):
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    with open(cache_file, "wb") as f:
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+    logging.info(f"Cached data and target transform in {cache_file}.")
 
 
 def check_required_keys(vars, required_keys):

@@ -9,6 +9,7 @@ from pytorch_lightning import seed_everything
 
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.split_process_data import preprocess_data
+from icu_benchmarks.data.target_transform import TargetTransform
 from icu_benchmarks.models.train import train_common
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.run_utils import aggregate_results, log_full_line
@@ -67,12 +68,13 @@ def execute_repeated_cv(
         cpu: Whether to run on CPU.
         verbose: Enable detailed logging.
     Returns:
-        The average loss of all folds.
+        The average native-unit MSE for regression, or loss for other run modes.
     """
     if not cv_repetitions_to_train:
         cv_repetitions_to_train = cv_repetitions
     if not cv_folds_to_train:
         cv_folds_to_train = cv_folds
+    source_transform = TargetTransform.load(source_dir) if load_weights and mode == RunMode.regression else None
     agg_loss = 0
     seed_everything(seed, reproducible)
     if complete_train:
@@ -90,7 +92,7 @@ def execute_repeated_cv(
             repetition_fold_dir.mkdir(parents=True, exist_ok=True)
 
             start_time = datetime.now()
-            data = preprocess_data(
+            data, target_transform = preprocess_data(
                 data_dir,
                 seed=seed,
                 debug=debug,
@@ -104,6 +106,7 @@ def execute_repeated_cv(
                 pretrained_imputation_model=pretrained_imputation_model,
                 runmode=mode,
                 complete_train=complete_train,
+                target_transform=source_transform,
             )
             preprocess_time = datetime.now() - start_time
             start_time = datetime.now()
@@ -120,6 +123,7 @@ def execute_repeated_cv(
                 verbose=verbose,
                 use_wandb=wandb,
                 train_only=complete_train,
+                target_transform=target_transform,
             )
             train_time = datetime.now() - start_time
 

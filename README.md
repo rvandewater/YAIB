@@ -241,6 +241,28 @@ uv run wandb agent <sweep_id>
 
 > Note: You will need to have a WandB account and be logged in to run the above commands.
 
+## Regression target scaling
+
+Use `-t Regression` for both length of stay and kidney function. Targets are min/max scaled using only the training partition of each fold; validation/test reuse that transform without clipping. Feature scaling is independent. Targets must use consistent units across datasets.
+
+Regression metrics `MAE_native`, `MSE_native`, and `RMSE_native` (ML) are in original target units (squared units for MSE). `R2` is unchanged. `train/loss`, `val/loss`, and `test/loss` remain in model space for optimization/early stopping; regression tuning returns native-unit MSE instead. Do not compare the new native metrics to older scaled metrics or average errors across different clinical units.
+
+Override the default with Gin bindings, for example:
+
+```bash
+# No target scaling
+-hp 'base_regression_preprocessor.target_scaling="none"'
+
+# Explicit fixed bounds, for reproducing prescribed normalization
+-hp 'base_regression_preprocessor.target_scaling="fixed"' \
+    'base_regression_preprocessor.outcome_min=0' \
+    'base_regression_preprocessor.outcome_max=168'
+```
+
+Every regression fold saves `target_transform.json` alongside its model. Keep these together: evaluation and fine-tuning reuse the source transform, and reject missing/mismatched state. Regression ML `.joblib` exports now contain a dictionary with `model`, `target_transform`, and `trained_columns`; DL checkpoints also embed the transform. Only load trusted model/cache artifacts. Legacy regression models must be retrained; old preprocessing caches are invalidated. A complete legacy bounds pair still selects fixed scaling with a deprecation warning.
+
+For custom integrations, `preprocess_data()` now returns `(data, target_transform)`; pass both to `train_common()`. Non-regression preprocessing returns `None` as its transform. Cache hits restore data and fitted state together. Input files are still assumed immutable within a cached run. Saved regression predictions and SHAP contributions are in native units; SHAP base values are saved separately as `*_shap_base_values.npy`.
+
 ## Evaluate or Finetune
 
 It is possible to evaluate a model trained on another dataset without additional training. In this case, the source dataset is the demo data from MIMIC and the target is the eICU demo:

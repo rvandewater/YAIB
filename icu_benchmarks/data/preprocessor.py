@@ -11,7 +11,7 @@ import polars as pl
 import torch
 from numpy import nan as np_nan
 from recipies.recipe import Recipe
-from recipies.selector import all_numeric_predictors, all_of, all_outcomes, has_type
+from recipies.selector import all_numeric_predictors, all_of, has_type
 from recipies.step import (
     Accumulator,
     Selector,
@@ -24,15 +24,18 @@ from recipies.step import (
     StepSklearn,
 )
 from sklearn.impute import MissingIndicator, SimpleImputer
-from sklearn.preprocessing import FunctionTransformer, LabelEncoder, MinMaxScaler
+from sklearn.preprocessing import LabelEncoder
 
 from icu_benchmarks.data.loader import ImputationPredictionDataset
 
 from .constants import DataSegment as DataSegment
 from .constants import DataSplit as DataSplit
+from .target_transform import target_scaling_policy, transform_outcomes
 
 
 class Preprocessor(ABC):
+    target_transform = None
+
     def __init__(
         self,
         generate_features: bool = False,
@@ -288,6 +291,7 @@ class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
         save_cache: Optional[Union[str, Path]] = None,
         load_cache: Optional[Union[str, Path]] = None,
         vars_to_exclude: Optional[list[str]] = None,
+        target_scaling=None,
     ):
         """
         Args:
@@ -311,6 +315,7 @@ class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
         )
         self.outcome_max = outcome_max
         self.outcome_min = outcome_min
+        self.target_scaling = target_scaling_policy(target_scaling, outcome_min, outcome_max)
 
     def apply(
         self,
@@ -324,38 +329,13 @@ class PolarsRegressionPreprocessor(PolarsClassificationPreprocessor):
         Returns:
             Preprocessed data.
         """
-        for split in [DataSplit.train, DataSplit.val, DataSplit.test]:
-            data = self._process_outcome(data, vars, split)
+        self.target_transform = transform_outcomes(
+            data, vars["LABEL"], self.target_scaling, self.outcome_min, self.outcome_max, self.target_transform
+        )
+        return super().apply(data, vars)
 
-        data = super().apply(data, vars)
-        return data
-
-    def _process_outcome(
-        self,
-        data: dict[str, dict[str, pl.DataFrame]],
-        vars: dict[str, Union[str, list[str]]],
-        split: str,
-    ) -> dict[str, dict[str, pl.DataFrame]]:
-        logging.debug(f"Processing {split} outcome values.")
-        outcome_rec = Recipe(data[split][DataSegment.outcome], vars["LABEL"], [], vars["GROUP"])
-        # If the range is predefined, use predefined transformation function
-        if self.outcome_max is not None and self.outcome_min is not None:
-            if self.outcome_max == self.outcome_min:
-                logging.warning("outcome_max equals outcome_min. Skipping outcome scaling.")
-            else:
-                outcome_rec.add_step(
-                    StepSklearn(
-                        sklearn_transformer=FunctionTransformer(
-                            func=lambda x: (x - self.outcome_min) / (self.outcome_max - self.outcome_min)
-                        ),
-                        sel=all_outcomes(),
-                    )
-                )
-        else:
-            # If the range is not predefined, use MinMaxScaler
-            outcome_rec.add_step(StepSklearn(MinMaxScaler(), sel=all_outcomes()))
-        data[split][DataSegment.outcome] = outcome_rec.prep()
-        return data
+    def to_cache_string(self):
+        return super().to_cache_string() + f"_target_v1_{self.target_scaling}_{self.outcome_min}_{self.outcome_max}"
 
 
 @gin.configurable("pandas_classification_preprocessor")
@@ -533,6 +513,7 @@ class PandasRegressionPreprocessor(PandasClassificationPreprocessor):
         outcome_min=None,
         save_cache: Optional[Union[str, Path]] = None,
         load_cache: Optional[Union[str, Path]] = None,
+        target_scaling=None,
     ):
         """
         Args:
@@ -555,6 +536,7 @@ class PandasRegressionPreprocessor(PandasClassificationPreprocessor):
         )
         self.outcome_max = outcome_max
         self.outcome_min = outcome_min
+        self.target_scaling = target_scaling_policy(target_scaling, outcome_min, outcome_max)
 
     def apply(
         self,
@@ -568,30 +550,13 @@ class PandasRegressionPreprocessor(PandasClassificationPreprocessor):
         Returns:
             Preprocessed data.
         """
-        for split in [DataSplit.train, DataSplit.val, DataSplit.test]:
-            data = self._process_outcome(data, vars, split)
+        self.target_transform = transform_outcomes(
+            data, vars["LABEL"], self.target_scaling, self.outcome_min, self.outcome_max, self.target_transform
+        )
+        return super().apply(data, vars)
 
-        data = super().apply(data, vars)
-        return data
-
-    def _process_outcome(self, data, vars, split):
-        logging.debug(f"Processing {split} outcome values.")
-        outcome_rec = Recipe(data[split][DataSegment.outcome], vars["LABEL"], [], vars["GROUP"])
-        # If the range is predefined, use predefined transformation function
-        if self.outcome_max is not None and self.outcome_min is not None:
-            outcome_rec.add_step(
-                StepSklearn(
-                    sklearn_transformer=FunctionTransformer(
-                        func=lambda x: (x - self.outcome_min) / (self.outcome_max - self.outcome_min)
-                    ),
-                    sel=all_outcomes(),
-                )
-            )
-        else:
-            # If the range is not predefined, use MinMaxScaler
-            outcome_rec.add_step(StepSklearn(MinMaxScaler(), sel=all_outcomes()))
-        data[split][DataSegment.outcome] = outcome_rec.prep()
-        return data
+    def to_cache_string(self):
+        return super().to_cache_string() + f"_target_v1_{self.target_scaling}_{self.outcome_min}_{self.outcome_max}"
 
 
 @gin.configurable("base_imputation_preprocessor")
@@ -697,12 +662,12 @@ def apply_recipe_to_splits(
     """
 
     if isinstance(load_cache, (str, Path)):
-        load_cache = Path(load_cache)
+        load_cache = Path(str(load_cache) + f"_{type}")
         # Load existing recipe
         recipe = restore_recipe(load_cache)
         data[DataSplit.train][type] = recipe.bake(data[DataSplit.train][type])
     elif isinstance(save_cache, (str, Path)):
-        save_cache = Path(save_cache)
+        save_cache = Path(str(save_cache) + f"_{type}")
         # Save prepped recipe
         data[DataSplit.train][type] = recipe.prep()
         cache_recipe(recipe, save_cache)
