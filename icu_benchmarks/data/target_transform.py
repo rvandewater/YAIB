@@ -19,7 +19,11 @@ def target_scaling_policy(policy, lower, upper):
     if policy is None:
         policy = "fixed" if has_bounds else "minmax"
         if has_bounds:
-            warnings.warn("Set target_scaling='fixed' when using outcome bounds.", DeprecationWarning, stacklevel=2)
+            warnings.warn(
+                "Implicit fixed scaling from outcome bounds is deprecated; set target_scaling='fixed'.",
+                FutureWarning,
+                stacklevel=2,
+            )
     if policy not in ("minmax", "fixed", "none"):
         raise ValueError(f"Unknown target scaling policy: {policy}")
     if policy == "fixed":

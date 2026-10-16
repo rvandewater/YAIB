@@ -71,6 +71,22 @@ def test_invalid_policy(policy, lower, upper):
             preprocessor(target_scaling=policy, outcome_min=lower, outcome_max=upper)
 
 
+def test_legacy_bounds_select_fixed_with_visible_warning():
+    for preprocessor in (PolarsRegressionPreprocessor, PandasRegressionPreprocessor):
+        with pytest.warns(FutureWarning, match="target_scaling='fixed'"):
+            assert preprocessor(outcome_min=0, outcome_max=15).target_scaling == "fixed"
+
+
+def test_legacy_ml_artifacts_by_run_mode(tmp_path):
+    from joblib import dump
+
+    dump(object(), tmp_path / "model.joblib")
+    with pytest.raises(ValueError, match="retrain legacy"):
+        load_model(LinearRegression, tmp_path, mode=RunMode.regression)
+    # A classification artifact is loaded as-is, even through a wrapper that also supports regression.
+    assert not isinstance(load_model(MLWrapper, tmp_path, mode=RunMode.classification), dict)
+
+
 def test_missing_and_infinite_targets():
     for values in ([np.nan], [1, np.inf], []):
         with pytest.raises(ValueError):
@@ -217,7 +233,7 @@ def test_training_and_reload(model_cls, upper, tmp_path, monkeypatch):
         metrics = json.loads((tmp_path / "test_metrics.json").read_text())
         assert score == pytest.approx(metrics["MSE_native"])
         assert np.isfinite(score)
-        loaded = load_model(model_cls, tmp_path)
+        loaded = load_model(model_cls, tmp_path, mode=RunMode.regression)
         assert loaded.target_transform == state
         replay_dir = tmp_path / "replay"
         replay_dir.mkdir()
@@ -226,10 +242,10 @@ def test_training_and_reload(model_cls, upper, tmp_path, monkeypatch):
         assert replay == pytest.approx(score, rel=1e-5, abs=1e-5)
         replace(state, offset=state.offset + 1).save(tmp_path)
         with pytest.raises(ValueError, match="do not match"):
-            load_model(model_cls, tmp_path)
+            load_model(model_cls, tmp_path, mode=RunMode.regression)
         (tmp_path / "target_transform.json").unlink()
         with pytest.raises(ValueError, match="Missing"):
-            load_model(model_cls, tmp_path)
+            load_model(model_cls, tmp_path, mode=RunMode.regression)
     finally:
         gin.clear_config()
 

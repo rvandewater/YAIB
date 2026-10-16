@@ -158,7 +158,7 @@ def train_common(
     data_shape = next(iter(train_loader))[0].shape
 
     if load_weights:
-        model: DLModel | MLModelClassifier | MLModelRegression = load_model(model, source_dir, pl_model=pl_model)
+        model: DLModel | MLModelClassifier | MLModelRegression = load_model(model, source_dir, pl_model=pl_model, mode=mode)
         if mode == RunMode.regression and model.target_transform != target_transform:
             raise ValueError("Model and preprocessing target transforms do not match.")
     else:
@@ -246,7 +246,10 @@ def train_common(
 
     model.set_weight("balanced", train_dataset)
     score_name = "test/MSE_native" if mode == RunMode.regression else "test/loss"
-    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0][score_name]
+    test_results = trainer.test(model, dataloaders=test_loader, verbose=verbose)
+    if not test_results or score_name not in test_results[0]:
+        raise ValueError(f"Test evaluation did not produce {score_name}; check that the test split has labeled targets.")
+    test_loss = test_results[0][score_name]
     persist_shap_data(trainer, log_dir)
     save_config_file(log_dir)
     return test_loss
@@ -264,15 +267,20 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
         explanation = getattr(model, f"{split}_shap_values", None)
         if explanation is None:
             continue
-        values = explanation.values
-        if model.target_transform is not None:
-            values = values / model.target_transform.scale
-            np.save(log_dir / f"{split}_shap_base_values.npy", model.inverse_target(explanation.base_values))
-        shaps = pl.DataFrame(schema=model.trained_columns, data=np.transpose(values))
-        shaps.write_parquet(log_dir / f"{split}_shap_values.parquet")
+        try:
+            values = explanation.values
+            if model.target_transform is not None:
+                values = values / model.target_transform.scale
+                np.save(log_dir / f"{split}_shap_base_values.npy", model.inverse_target(explanation.base_values))
+            shaps = pl.DataFrame(schema=model.trained_columns, data=np.transpose(values))
+            shaps.write_parquet(log_dir / f"{split}_shap_values.parquet")
+            logging.info(f"Saved {split} shap values to {log_dir / f'{split}_shap_values.parquet'}")
+        except Exception as e:
+            # SHAP export is auxiliary; do not fail a completed run over it.
+            logging.error(f"Failed to save {split} shap values: {e}")
 
 
-def load_model(model, source_dir, pl_model=True) -> DLModel | MLModelClassifier | MLModelRegression:
+def load_model(model, source_dir, pl_model=True, mode=None) -> DLModel | MLModelClassifier | MLModelRegression:
     if source_dir.exists():
         if model.requires_backprop:
             if (source_dir / "model.ckpt").exists():
@@ -297,7 +305,7 @@ def load_model(model, source_dir, pl_model=True) -> DLModel | MLModelClassifier 
                 model.target_transform = TargetTransform(**artifact["target_transform"])
                 model.set_trained_columns(artifact["trained_columns"])
             else:
-                if RunMode.regression in model._supported_run_modes:
+                if mode == RunMode.regression:
                     raise ValueError("Regression model has no target transform; retrain legacy models.")
                 model = artifact
         if getattr(model, "target_transform", None) is not None and model.target_transform != TargetTransform.load(source_dir):
