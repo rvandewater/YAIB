@@ -304,15 +304,17 @@ def load_model(model, source_dir, pl_model=True, *, mode) -> DLModel | MLModelCl
             if not model_path.exists():
                 model_path = source_dir / "last.joblib"
             artifact = load(model_path)
-            if isinstance(artifact, dict) and "target_transform" in artifact:
-                model = model(run_mode=RunMode.regression)
-                model.model = artifact["model"]
+            # Exports hold the fitted estimator (bare, or in a dict with regression state), not the YAIB wrapper.
+            if not isinstance(artifact, dict):
+                artifact = {"model": artifact}
+            if mode == RunMode.regression and "target_transform" not in artifact:
+                raise ValueError("Regression model has no target transform; retrain legacy models.")
+            model = model(run_mode=mode)
+            model.model = artifact["model"]
+            if "target_transform" in artifact:
                 model.target_transform = TargetTransform(**artifact["target_transform"])
+            if artifact.get("trained_columns") is not None:
                 model.set_trained_columns(artifact["trained_columns"])
-            else:
-                if mode == RunMode.regression:
-                    raise ValueError("Regression model has no target transform; retrain legacy models.")
-                model = artifact
         if getattr(model, "target_transform", None) is not None and model.target_transform != TargetTransform.load(source_dir):
             raise ValueError("Model and target_transform.json do not match.")
     else:
