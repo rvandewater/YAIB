@@ -232,11 +232,12 @@ class PolarsClassificationPreprocessor(Preprocessor):
         vars: dict[str, Union[str, list[str]]],
     ):
         if self.generate_features:
-            # Hour index within the stay; a feature for the hourly tasks, dropped by the loader for per-stay tasks
+            # Hour index within the stay, ranked by time so it does not depend on the input row order;
+            # a feature for the hourly tasks, dropped by the loader for per-stay tasks
             group = vars["GROUP"]
             for split in data:
                 data[split][DataSegment.dynamic] = data[split][DataSegment.dynamic].with_columns(
-                    pl.col(group).cum_count().over(group).alias("counter")
+                    pl.col(vars["SEQUENCE"]).rank("ordinal").over(group).alias("counter")
                 )
         dyn_rec = Recipe(
             data[DataSplit.train][DataSegment.dynamic],
