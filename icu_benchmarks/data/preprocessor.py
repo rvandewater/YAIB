@@ -248,8 +248,6 @@ class PolarsClassificationPreprocessor(Preprocessor):
         )
         if self.scaling:
             dyn_rec.add_step(StepScale())
-        if self.imputation_model is not None:
-            dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[DataSegment.dynamic])))
 
         vars_to_apply: Union[str, list[str]]
         if self.vars_to_exclude is not None:
@@ -267,6 +265,9 @@ class PolarsClassificationPreprocessor(Preprocessor):
         if self.generate_features:
             # Count real measurements: after the fills below every variable would count every hour.
             dyn_rec.add_step(StepHistorical(sel=all_of(vars_to_apply), fun=Accumulator.COUNT, suffix="count_hist"))
+        if self.imputation_model is not None:
+            # After the missing indicators and counts, so that they reflect only real measurements
+            dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[DataSegment.dynamic])))
         dyn_rec.add_step(StepImputeFill(strategy="forward"))
         dyn_rec.add_step(StepImputeFill(strategy="zero"))
         if self.generate_features:
@@ -483,8 +484,6 @@ class PandasClassificationPreprocessor(Preprocessor):
         )
         if self.scaling:
             dyn_rec.add_step(StepScale())
-        if self.imputation_model is not None:
-            dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[DataSegment.dynamic])))
         dyn_rec.add_step(
             StepSklearn(
                 MissingIndicator(),
@@ -495,6 +494,9 @@ class PandasClassificationPreprocessor(Preprocessor):
         if self.generate_features:
             # Count real measurements: after the fills below every variable would count every hour.
             dyn_rec.add_step(StepHistorical(sel=all_of(vars[DataSegment.dynamic]), fun=Accumulator.COUNT, suffix="count_hist"))
+        if self.imputation_model is not None:
+            # After the missing indicators and counts, so that they reflect only real measurements
+            dyn_rec.add_step(StepImputeModel(model=self.model_impute, sel=all_of(vars[DataSegment.dynamic])))
         dyn_rec.add_step(StepImputeFastForwardFill())
         dyn_rec.add_step(StepImputeFastZeroFill())
         if self.generate_features:
