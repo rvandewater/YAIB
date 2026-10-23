@@ -377,6 +377,12 @@ def make_train_val_pandas(
     return data_split
 
 
+def _time_sort_key(df: pl.DataFrame, vars: dict[str, Union[str, list[str]]]) -> list[str]:
+    """The sequence column to sort a segment by within each stay, if the segment has one."""
+    sequence = vars.get(VarType.sequence)
+    return [sequence] if isinstance(sequence, str) and sequence in df.columns else []
+
+
 def make_train_val_polars(
     data: dict[str, pl.DataFrame],
     vars: dict[str, Union[str, list[str]]],
@@ -433,7 +439,8 @@ def make_train_val_polars(
                 on=_id,
                 how="left",
             )
-            .sort(by=_id)
+            # Within a stay, keep the rows in time order: the recipe steps (fills, historical features) are row-ordered
+            .sort(by=[_id, *_time_sort_key(data[data_type], vars)], maintain_order=True)
             for data_type in data.keys()
         }
 
@@ -636,7 +643,8 @@ def make_single_split_polars(
                 on=_id,
                 how="left",
             )
-            .sort(by=_id)
+            # Within a stay, keep the rows in time order: the recipe steps (fills, historical features) are row-ordered
+            .sort(by=[_id, *_time_sort_key(data[data_type], vars)], maintain_order=True)
             for data_type in data.keys()
         }
 
