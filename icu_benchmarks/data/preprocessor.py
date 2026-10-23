@@ -493,9 +493,7 @@ class PandasClassificationPreprocessor(Preprocessor):
         )
         if self.generate_features:
             # Count real measurements: after the fills below every variable would count every hour.
-            dyn_rec.add_step(
-                StepHistorical(sel=all_of(vars[DataSegment.dynamic]), fun=Accumulator.COUNT, suffix="count_hist")
-            )
+            dyn_rec.add_step(StepHistorical(sel=all_of(vars[DataSegment.dynamic]), fun=Accumulator.COUNT, suffix="count_hist"))
         dyn_rec.add_step(StepImputeFastForwardFill())
         dyn_rec.add_step(StepImputeFastZeroFill())
         if self.generate_features:
