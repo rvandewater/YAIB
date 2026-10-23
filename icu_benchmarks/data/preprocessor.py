@@ -231,6 +231,14 @@ class PolarsClassificationPreprocessor(Preprocessor):
         data: dict[str, dict[str, pl.DataFrame]],
         vars: dict[str, Union[str, list[str]]],
     ):
+        if self.generate_features:
+            # Hour index within the stay, ranked by time so it does not depend on the input row order;
+            # a feature for the hourly tasks, dropped by the loader for per-stay tasks
+            group = vars["GROUP"]
+            for split in data:
+                data[split][DataSegment.dynamic] = data[split][DataSegment.dynamic].with_columns(
+                    pl.col(vars["SEQUENCE"]).rank("ordinal").over(group).alias("counter")
+                )
         dyn_rec = Recipe(
             data[DataSplit.train][DataSegment.dynamic],
             [],
@@ -256,10 +264,16 @@ class PolarsClassificationPreprocessor(Preprocessor):
                 in_place=False,
             )
         )
+        if self.generate_features:
+            # Count real measurements: after the fills below every variable would count every hour.
+            dyn_rec.add_step(StepHistorical(sel=all_of(vars_to_apply), fun=Accumulator.COUNT, suffix="count_hist"))
         dyn_rec.add_step(StepImputeFill(strategy="forward"))
         dyn_rec.add_step(StepImputeFill(strategy="zero"))
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars_to_apply))
+            if self.scaling:
+                # min/max/mean are computed on scaled values; the counts and the counter are not
+                dyn_rec.add_step(StepScale(sel=all_of([f"{v}count_hist" for v in vars_to_apply] + ["counter"])))
         data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
         return data
 
@@ -267,7 +281,6 @@ class PolarsClassificationPreprocessor(Preprocessor):
         logging.debug("Adding dynamic feature generation.")
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
-        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.COUNT, suffix="count_hist"))
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist"))
         return data
 
@@ -479,10 +492,16 @@ class PandasClassificationPreprocessor(Preprocessor):
                 in_place=False,
             )
         )
+        if self.generate_features:
+            # Count real measurements: after the fills below every variable would count every hour.
+            dyn_rec.add_step(StepHistorical(sel=all_of(vars[DataSegment.dynamic]), fun=Accumulator.COUNT, suffix="count_hist"))
         dyn_rec.add_step(StepImputeFastForwardFill())
         dyn_rec.add_step(StepImputeFastZeroFill())
         if self.generate_features:
             dyn_rec = self._dynamic_feature_generation(dyn_rec, all_of(vars[DataSegment.dynamic]))
+            if self.scaling:
+                # min/max/mean are computed on scaled values; the counts are not
+                dyn_rec.add_step(StepScale(sel=all_of([f"{v}count_hist" for v in vars[DataSegment.dynamic]])))
         data = apply_recipe_to_splits(dyn_rec, data, DataSegment.dynamic, self.save_cache, self.load_cache)
         return data
 
@@ -490,7 +509,6 @@ class PandasClassificationPreprocessor(Preprocessor):
         logging.debug("Adding dynamic feature generation.")
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MIN, suffix="min_hist"))
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MAX, suffix="max_hist"))
-        data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.COUNT, suffix="count_hist"))
         data.add_step(StepHistorical(sel=dynamic_vars, fun=Accumulator.MEAN, suffix="mean_hist"))
         return data
 

@@ -193,10 +193,10 @@ class PredictionPolarsDataset(CommonPolarsDataset):
             # One row per stay. polars group_by does not guarantee the group order, so align the rows to the
             # label order explicitly
             rep = self.outcome_df.select(group).join(rep.group_by(group).last(), on=group, how="left")
+            # The hour index from the preprocessor is a feature for the hourly tasks only
+            rep = rep.drop("counter", strict=False)
             row_indicators = self.outcome_df.select(group)
         else:
-            # Adding segment count for each stay id and timestep.
-            rep = rep.with_columns(pl.col(group).cum_count().over(group).alias("counter"))
             row_indicators = self.row_indicators
         # Don't use group as model feature
         rep = rep.drop(group).to_numpy().astype(np.float32)
