@@ -35,8 +35,8 @@ jobs:
       - name: Install YAIB and dependencies
         run: uv sync
 
-      - name: Test target scaling and model round trips
-        run: uv run pytest tests/test_target_scaling.py
+      - name: Test target scaling, model round trips and SHAP export
+        run: uv run pytest tests/test_target_scaling.py tests/test_shap_export.py
 
       - name: Verify icu-benchmarks CLI is available
         run: uv run icu-benchmarks --help
