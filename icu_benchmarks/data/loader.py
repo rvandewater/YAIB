@@ -75,7 +75,8 @@ class CommonPolarsDataset(Dataset):
         return self.num_stays
 
     def get_feature_names(self) -> List[str]:
-        return self.features_df.columns
+        # The group column is not a model input, see get_data_and_labels and _build_item
+        return [c for c in self.features_df.columns if c != self.vars["GROUP"]]
 
     def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], ...]:
         values: list[list] = []
@@ -165,6 +166,13 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
         return self._build_item(idx)
+
+    def get_feature_names(self) -> List[str]:
+        names = super().get_feature_names()
+        if len(self.outcome_df) == self.num_stays:
+            # get_data_and_labels drops the hour index for one-row-per-stay tasks
+            names = [c for c in names if c != "counter"]
+        return names
 
     def get_balance(self) -> list:
         """Return the weight balance for the split of interest.
