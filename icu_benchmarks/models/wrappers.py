@@ -403,6 +403,8 @@ class MLWrapper(BaseModule, ABC):
 
     requires_backprop = False
     _supported_run_modes = [RunMode.classification, RunMode.regression]
+    # Set by models that support SHAP explanations, e.g. XGBClassifier
+    explainer = None
 
     def __init__(
         self,
@@ -498,7 +500,7 @@ class MLWrapper(BaseModule, ABC):
         if self.debug:
             self._save_model_outputs(pred_indicators, test_pred, test_label)
         if self.explain_features:
-            self.explain_model(test_rep, test_label)
+            self._explain_model(test_rep, test_label)
         if self.mps:
             self.log(
                 "test/loss",
