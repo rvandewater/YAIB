@@ -52,6 +52,18 @@ jobs:
             --seed 2222 \
             -l yaib_logs/ \
 
+      # Mortality24 has one label per stay; AKI has one label per hour, which takes a different ML feature path
+      - name: Run E2E integration test on an hourly task (XGBClassifier / AKI)
+        run: |
+          uv run icu-benchmarks train \
+            -d demo_data/aki/mimic_demo \
+            -n mimic_demo \
+            -t BinaryClassification \
+            -tn AKI \
+            -m XGBClassifier \
+            --seed 2222 \
+            -l yaib_logs/
+
       - name: Verify log output was created
         run: |
           if [ ! -d "yaib_logs/mimic_demo" ]; then
