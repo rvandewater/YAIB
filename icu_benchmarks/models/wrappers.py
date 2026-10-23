@@ -1,5 +1,6 @@
 import logging
 from abc import ABC
+from dataclasses import asdict
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 import torchmetrics
@@ -28,6 +29,7 @@ from pytorch_lightning import LightningModule
 
 from icu_benchmarks.models.constants import MLMetrics, DLMetrics
 from icu_benchmarks.constants import RunMode
+from icu_benchmarks.data.target_transform import TargetTransform
 
 gin.config.external_configurable(nn.functional.nll_loss, module="torch.nn.functional")
 gin.config.external_configurable(nn.functional.cross_entropy, module="torch.nn.functional")
@@ -53,6 +55,10 @@ class BaseModule(LightningModule):
     run_mode = None
     debug = False
     explain_features = False
+    target_transform = None
+
+    def inverse_target(self, values):
+        return self.target_transform.inverse_transform(values) if self.target_transform is not None else values
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError()
@@ -99,7 +105,16 @@ class BaseModule(LightningModule):
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         checkpoint["class"] = self.__class__
         checkpoint["trained_columns"] = self.trained_columns
+        if self.target_transform is not None:
+            checkpoint["target_transform"] = asdict(self.target_transform)
         return super().on_save_checkpoint(checkpoint)
+
+    def on_load_checkpoint(self, checkpoint):
+        if self.run_mode == RunMode.regression:
+            if "target_transform" not in checkpoint:
+                raise ValueError("Regression checkpoint has no target transform; retrain legacy models.")
+            self.target_transform = TargetTransform(**checkpoint["target_transform"])
+        self.trained_columns = checkpoint.get("trained_columns")
 
     def save_model(self, save_path, file_name, file_extension):
         raise NotImplementedError()
@@ -152,7 +167,6 @@ class DLWrapper(BaseModule, ABC):
         self.epochs = epochs
         self.input_size = input_size
         self.initialization_method = initialization_method
-        self.scaler = None
 
     def on_fit_start(self):
         self.metrics = {
@@ -301,7 +315,7 @@ class DLPredictionWrapper(DLWrapper):
                 metrics = DLMetrics.MULTICLASS_CLASSIFICATION
         # Regression
         elif self.run_mode == RunMode.regression:
-            self.output_transform = lambda x: x
+            self.output_transform = lambda x: (self.inverse_target(x[0]), self.inverse_target(x[1]))
             metrics = DLMetrics.REGRESSION
         else:
             raise ValueError(f"Run mode {self.run_mode} not supported.")
@@ -351,6 +365,8 @@ class DLPredictionWrapper(DLWrapper):
         # Get prediction and target
         prediction = torch.masked_select(out, mask.unsqueeze(-1)).reshape(-1, out.shape[-1]).to(self.device)
         target = torch.masked_select(labels, mask).to(self.device)
+        if not target.numel():
+            return out.sum() * 0  # Entirely unlabeled/padded batch: no loss or metric contribution.
 
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
@@ -399,7 +415,6 @@ class MLWrapper(BaseModule, ABC):
     ):
         super().__init__()
         self.save_hyperparameters()
-        self.scaler = None
         self.check_supported_runmode(run_mode)
         self.run_mode = run_mode
         self.loss = loss
@@ -425,12 +440,8 @@ class MLWrapper(BaseModule, ABC):
 
         # Regression
         else:
-            if self.scaler is not None:  # We invert transform the labels and predictions if they were scaled.
-                self.output_transform = lambda x: self.scaler.inverse_transform(x.reshape(-1, 1))
-                self.label_transform = lambda x: self.scaler.inverse_transform(x.reshape(-1, 1))
-            else:
-                self.output_transform = lambda x: x
-                self.label_transform = lambda x: x
+            self.output_transform = self.inverse_target
+            self.label_transform = self.inverse_target
             self.metrics = MLMetrics.REGRESSION
 
     def fit(self, train_dataset, val_dataset):
@@ -478,9 +489,9 @@ class MLWrapper(BaseModule, ABC):
     def test_step(self, dataset, _):
         test_rep, test_label, pred_indicators = dataset
         test_rep, test_label, pred_indicators = (
-            test_rep.squeeze().cpu().numpy(),
-            test_label.squeeze().cpu().numpy(),
-            pred_indicators.squeeze().cpu().numpy(),
+            test_rep.squeeze(0).cpu().numpy(),
+            test_label.squeeze(0).cpu().numpy(),
+            pred_indicators.squeeze(0).cpu().numpy(),
         )
         self.set_metrics(test_label)
         test_pred = self.predict(test_rep)
@@ -535,6 +546,13 @@ class MLWrapper(BaseModule, ABC):
             logging.warning("No explainer or explain_features values set.")
 
     def _save_model_outputs(self, pred_indicators, test_pred, test_label):
+        if self.run_mode == RunMode.regression:
+            np.savetxt(
+                Path(self.logger.save_dir) / "pred_indicators.csv",
+                np.column_stack((pred_indicators, self.inverse_target(test_label), self.inverse_target(test_pred))),
+                delimiter=",",
+            )
+            return
         if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1 and pred_indicators.shape[1] == test_pred.shape[1]:
             pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
             pred_indicators = np.hstack((pred_indicators, test_pred))
@@ -553,14 +571,21 @@ class MLWrapper(BaseModule, ABC):
 
     def __getstate__(self) -> Dict[str, Any]:
         state = self.__dict__.copy()
-        del state["label_transform"]
-        del state["output_transform"]
+        state.pop("label_transform", None)
+        state.pop("output_transform", None)
         return state
 
     def save_model(self, save_path, file_name, file_extension=".joblib"):
         path = save_path / (file_name + file_extension)
         try:
-            dump(self.model, path)
+            artifact = self.model
+            if self.target_transform is not None:
+                artifact = {
+                    "model": self.model,
+                    "target_transform": asdict(self.target_transform),
+                    "trained_columns": self.trained_columns,
+                }
+            dump(artifact, path)
             logging.info(f"Model saved to {str(path.resolve())}.")
         except Exception as e:
             logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")

@@ -4,7 +4,7 @@ from ignite.contrib.metrics import (
     RocCurve,
     PrecisionRecallCurve,
 )
-from ignite.metrics import Accuracy, RootMeanSquaredError
+from ignite.metrics import Accuracy, MeanSquaredError, RootMeanSquaredError
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     average_precision_score,
@@ -12,6 +12,7 @@ from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
     mean_absolute_error,
+    mean_squared_error,
     precision_recall_curve,
     roc_curve,
     r2_score,
@@ -54,9 +55,10 @@ class MLMetrics:
     }
 
     REGRESSION = {
-        "MAE": mean_absolute_error,
+        "MAE_native": mean_absolute_error,
+        "MSE_native": mean_squared_error,
         "R2": r2_score,
-        "RMSE": root_mean_squared_error,
+        "RMSE_native": root_mean_squared_error,
     }
 
 
@@ -85,7 +87,8 @@ class DLMetrics:
     }
 
     REGRESSION = {
-        "MAE": MAE,
+        "MAE_native": MAE,
+        "MSE_native": MeanSquaredError,
     }
 
     IMPUTATION = {

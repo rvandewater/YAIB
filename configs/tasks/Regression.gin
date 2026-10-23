@@ -23,9 +23,8 @@ preprocess.preprocessor = @base_regression_preprocessor
 preprocess.vars = %vars
 preprocess.use_static = True
 
-# SPECIFYING REGRESSION OUTCOME SCALING
-base_regression_preprocessor.outcome_min = 0
-base_regression_preprocessor.outcome_max = 15
+# Targets default to min/max scaling fitted on each training fold.
+# No endpoint-specific bounds; metrics are reported in original target units.
 
 # SELECTING DATASET
 include "configs/tasks/common/Dataloader.gin"
