@@ -231,6 +231,11 @@ class PolarsClassificationPreprocessor(Preprocessor):
         data: dict[str, dict[str, pl.DataFrame]],
         vars: dict[str, Union[str, list[str]]],
     ):
+        # Polars treats NaN as a value; make it missing so the indicators, counts and fills see it
+        for split in data:
+            dyn = data[split][DataSegment.dynamic]
+            float_vars = [v for v in vars[DataSegment.dynamic] if dyn.schema[v].is_float()]
+            data[split][DataSegment.dynamic] = dyn.with_columns(pl.col(float_vars).fill_nan(None))
         if self.generate_features:
             # Hour index within the stay, ranked by time so it does not depend on the input row order;
             # a feature for the hourly tasks, dropped by the loader for per-stay tasks
