@@ -93,6 +93,13 @@ torch = [
 ]
 
 
+[tool.coverage.run]
+source = ["icu_benchmarks"]
+
+[tool.coverage.report]
+skip_empty = true
+sort = "-cover"
+
 [tool.ruff]
 line-length = 127
 include = ["*.py"]
