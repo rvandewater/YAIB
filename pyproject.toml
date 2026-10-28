@@ -43,7 +43,7 @@ dependencies = [
   "numpy==1.26.0",
   "pandas>=2.2.2",
   "polars>=1.9.0",
-  "pyarrow>=20.0.0",
+  "pyarrow>=20.0.0,<26",  # pyarrow 26 requires NumPy 2, and numpy is pinned to 1.26
   "scikit-learn==1.5.2",
   "tensorboard>=2.12.2",
   "tqdm==4.66.3",
