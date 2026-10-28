@@ -205,13 +205,29 @@ def test_save_model_stores_whole_module(tmp_path):
     ids=["binary", "multiclass", "regression"],
 )
 def test_save_model_after_metrics_are_set(mode, num_classes, tmp_path):
-    # Training sets the output transforms through set_metrics; they must stay picklable
+    # Training sets the output transforms and metric instances; the model must still pickle
     model = GRUNet(INPUT_SIZE, hidden_dim=5, layer_dim=1, num_classes=num_classes, run_mode=mode)
-    model.metrics = {step: model.set_metrics() for step in ("train", "val", "test")}
+    model.on_train_start()
     model.save_model(tmp_path, "trained")
     loaded = torch.load(tmp_path / "trained.ckpt", weights_only=False)
+    assert model.metrics["train"] and loaded.metrics == {}  # Rebuilt when training starts again
     prediction, target = torch.randn(4, num_classes), torch.tensor([0, 1, 0, 1])
     for transformed, expected in zip(
         loaded.output_transform((prediction, target)), model.output_transform((prediction, target))
     ):
         torch.testing.assert_close(transformed, expected)
+
+
+def test_failed_save_keeps_existing_checkpoint(tmp_path, monkeypatch):
+    model = MODELS["gru"]()
+    model.save_model(tmp_path, "saved")
+    saved = (tmp_path / "saved.ckpt").read_bytes()
+
+    def fail(obj, path):
+        open(path, "wb").write(b"partial")
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(torch, "save", fail)
+    model.save_model(tmp_path, "saved")
+    assert (tmp_path / "saved.ckpt").read_bytes() == saved
+    assert [p.name for p in tmp_path.iterdir()] == ["saved.ckpt"]

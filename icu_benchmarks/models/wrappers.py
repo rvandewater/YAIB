@@ -239,13 +239,22 @@ class DLWrapper(BaseModule, ABC):
         }
         return super().on_test_epoch_start()
 
+    def __getstate__(self) -> Dict[str, Any]:
+        # Metric instances hold lambdas that cannot be pickled; on_fit_start and on_train_start rebuild them
+        state = super().__getstate__()
+        state["metrics"] = {}
+        return state
+
     def save_model(self, save_path, file_name, file_extension=".ckpt"):
         path = save_path / (file_name + file_extension)
+        # Write next to the target and replace it once complete, so a failed save keeps an existing checkpoint
+        partial_path = path.with_name(path.name + ".partial")
         try:
-            torch.save(self, path)
+            torch.save(self, partial_path)
+            partial_path.replace(path)
             logging.info(f"Model saved to {str(path.resolve())}.")
         except Exception as e:
-            path.unlink(missing_ok=True)  # Do not leave a partially written checkpoint behind
+            partial_path.unlink(missing_ok=True)
             logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
 
 
