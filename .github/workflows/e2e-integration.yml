@@ -35,8 +35,12 @@ jobs:
       - name: Install YAIB and dependencies
         run: uv sync --locked
 
-      - name: Run the test suite
-        run: uv run pytest tests/
+      - name: Run the test suite with coverage
+        run: |
+          uv run coverage run -m pytest tests/
+          uv run coverage report
+          echo "## Test coverage (Python ${{ matrix.python-version }})" >> "$GITHUB_STEP_SUMMARY"
+          uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify icu-benchmarks CLI is available
         run: uv run icu-benchmarks --help
