@@ -176,13 +176,13 @@ def test_evaluation_step_gives_finite_loss(name, prefix):
 
 # ImputationWrapper.predict calls forward(data, mask), which these models neither implement nor override
 PREDICT_BROKEN = {
-    "diffusion": (RuntimeError, "Diffusion.forward takes a diffusion timestep, so predict passes the mask as one"),
+    "diffusion": (RuntimeError, "#273: Diffusion.forward takes a diffusion timestep, so predict passes the mask as one"),
     "simple_diffusion": (
         RuntimeError,
-        "Simple_Diffusion.forward takes a diffusion timestep, so predict passes the mask as one",
+        "#273: Simple_Diffusion.forward takes a diffusion timestep, so predict passes the mask as one",
     ),
-    "diffwave": (TypeError, "DiffWave.forward takes one (noise, conditional, mask, steps) tuple"),
-    "sssdsa": (TypeError, "SSSDSA.forward takes one (noise, conditional, mask, steps) tuple"),
+    "diffwave": (TypeError, "#273: DiffWave.forward takes one (noise, conditional, mask, steps) tuple"),
+    "sssdsa": (TypeError, "#273: SSSDSA.forward takes one (noise, conditional, mask, steps) tuple"),
 }
 
 
@@ -256,7 +256,7 @@ STALE_MODULE = "icu_benchmarks.data.preprocess"
     [
         pytest.param(
             module,
-            marks=[pytest.mark.xfail(strict=True, reason="renamed to icu_benchmarks.data.preprocessor")]
+            marks=[pytest.mark.xfail(strict=True, reason="#272: renamed to icu_benchmarks.data.preprocessor")]
             if module == STALE_MODULE
             else [],
         )
@@ -283,7 +283,11 @@ def test_config_model_is_registered(config):
             config,
             id=config.stem,
             marks=(
-                [pytest.mark.xfail(strict=True, raises=ValueError, reason="binds ImputationDataset, which is not registered")]
+                [
+                    pytest.mark.xfail(
+                        strict=True, raises=ValueError, reason="#272: binds ImputationDataset, which is not registered"
+                    )
+                ]
                 if config.stem == "Mean"
                 else []
             ),
