@@ -41,6 +41,17 @@ jobs:
           uv run coverage report
           echo "## Test coverage (Python ${{ matrix.python-version }})" >> "$GITHUB_STEP_SUMMARY"
           uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+          uv run coverage xml
+
+      # One upload per commit is enough for the badge and PR comments
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          # Pull requests from forks have no access to the token; don't fail their CI over the upload
+          fail_ci_if_error: false
 
       - name: Verify icu-benchmarks CLI is available
         run: uv run icu-benchmarks --help
