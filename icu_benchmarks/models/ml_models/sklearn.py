@@ -44,8 +44,9 @@ class RFClassifier(MLWrapper):
 class SVMClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
 
-    def __init__(self, *args, **kwargs):
-        self.model = self.model_args(svm.SVC, *args, **kwargs)
+    def __init__(self, *args, probability=True, **kwargs):
+        # MLWrapper.predict needs predict_proba, which SVC only offers with probability=True
+        self.model = self.set_model_args(svm.SVC, *args, probability=probability, **kwargs)
         super().__init__(*args, **kwargs)
 
 
@@ -54,7 +55,7 @@ class SVMRegressor(MLWrapper):
     _supported_run_modes = [RunMode.regression]
 
     def __init__(self, *args, **kwargs):
-        self.model = self.model_args(svm.SVR, *args, **kwargs)
+        self.model = self.set_model_args(svm.SVR, *args, **kwargs)
         super().__init__(*args, **kwargs)
 
 
