@@ -117,6 +117,8 @@ def preprocess_data(
 
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
+    # The modality selection changes vars and the excluded variables later on, so it must be part of the cache key
+    dumped_modalities = json.dumps({"mapping": modality_mapping, "selected": selected_modalities}, sort_keys=True)
 
     logging.info(f"Using preprocessor: {preprocessor.__name__}")
 
@@ -141,7 +143,8 @@ def preprocess_data(
 
     preprocessor_instance.target_transform = target_transform
     hash_config = hashlib.md5(
-        f"{preprocessor_instance.to_cache_string()}{dumped_file_names}{dumped_vars}{runmode}{target_transform}".encode("utf-8")
+        f"{preprocessor_instance.to_cache_string()}{dumped_file_names}{dumped_vars}{dumped_modalities}{runmode}"
+        f"{target_transform}".encode("utf-8")
     )
     cache_filename += f"_{hash_config.hexdigest()}"
     cache_file = cache_dir / cache_filename
