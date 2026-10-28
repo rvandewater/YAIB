@@ -197,3 +197,21 @@ def test_save_model_stores_whole_module(tmp_path):
     # A failed save is logged, not raised
     model.save_model(tmp_path / "missing", "saved")
     assert not (tmp_path / "missing").exists()
+
+
+@pytest.mark.parametrize(
+    ("mode", "num_classes"),
+    [(RunMode.classification, 2), (RunMode.classification, 3), (RunMode.regression, 1)],
+    ids=["binary", "multiclass", "regression"],
+)
+def test_save_model_after_metrics_are_set(mode, num_classes, tmp_path):
+    # Training sets the output transforms through set_metrics; they must stay picklable
+    model = GRUNet(INPUT_SIZE, hidden_dim=5, layer_dim=1, num_classes=num_classes, run_mode=mode)
+    model.metrics = {step: model.set_metrics() for step in ("train", "val", "test")}
+    model.save_model(tmp_path, "trained")
+    loaded = torch.load(tmp_path / "trained.ckpt", weights_only=False)
+    prediction, target = torch.randn(4, num_classes), torch.tensor([0, 1, 0, 1])
+    for transformed, expected in zip(
+        loaded.output_transform((prediction, target)), model.output_transform((prediction, target))
+    ):
+        torch.testing.assert_close(transformed, expected)

@@ -245,7 +245,23 @@ class DLWrapper(BaseModule, ABC):
             torch.save(self, path)
             logging.info(f"Model saved to {str(path.resolve())}.")
         except Exception as e:
+            path.unlink(missing_ok=True)  # Do not leave a partially written checkpoint behind
             logging.error(f"Cannot save model to path {str(path.resolve())}: {e}.")
+
+
+# Module-level output transforms, so that models remain picklable (DLWrapper.save_model) after set_metrics
+def softmax_binary_output_transform(output):
+    with torch.no_grad():
+        y_pred, y = output
+        y_pred = torch.softmax(y_pred, dim=1)
+        return y_pred[:, -1], y
+
+
+def softmax_multi_output_transform(output):
+    with torch.no_grad():
+        y_pred, y = output
+        y_pred = torch.softmax(y_pred, dim=1)
+        return y_pred, y
 
 
 @gin.configurable("DLPredictionWrapper")
@@ -290,19 +306,6 @@ class DLPredictionWrapper(DLWrapper):
 
     def set_metrics(self, *args):
         """Set the evaluation metrics for the prediction model."""
-
-        def softmax_binary_output_transform(output):
-            with torch.no_grad():
-                y_pred, y = output
-                y_pred = torch.softmax(y_pred, dim=1)
-                return y_pred[:, -1], y
-
-        def softmax_multi_output_transform(output):
-            with torch.no_grad():
-                y_pred, y = output
-                y_pred = torch.softmax(y_pred, dim=1)
-                return y_pred, y
-
         # Output transform is not applied for contrib metrics, so we do our own.
         if self.run_mode == RunMode.classification:
             # Binary classification
@@ -315,7 +318,7 @@ class DLPredictionWrapper(DLWrapper):
                 metrics = DLMetrics.MULTICLASS_CLASSIFICATION
         # Regression
         elif self.run_mode == RunMode.regression:
-            self.output_transform = lambda x: (self.inverse_target(x[0]), self.inverse_target(x[1]))
+            self.output_transform = self.inverse_output_transform
             metrics = DLMetrics.REGRESSION
         else:
             raise ValueError(f"Run mode {self.run_mode} not supported.")
@@ -324,6 +327,10 @@ class DLPredictionWrapper(DLWrapper):
             if isinstance(value, torchmetrics.Metric):
                 value.to(self.device)
         return metrics
+
+    def inverse_output_transform(self, output):
+        """Maps regression predictions and targets back to label units."""
+        return self.inverse_target(output[0]), self.inverse_target(output[1])
 
     def step_fn(self, element, step_prefix=""):
         """Perform a step in the DL prediction model training loop.

@@ -262,8 +262,11 @@ def test_preprocess_selects_modalities(selected):
     data, _ = run_preprocess(DEMO / "mortality24" / "mimic_demo", modality_mapping=mapping, selected_modalities=selected)
     columns = set(data[Split.train][Segment.features].columns)
     assert {"hr", "map", "age", "MissingIndicator_hr"} <= columns
-    # Without a selection, all variables are kept
-    assert ("sbp" in columns and "sex" in columns) == (selected == ["all"])
+    unselected = {"sbp", "sex"}
+    if selected == ["all"]:  # Without a selection, all variables are kept
+        assert unselected <= columns
+    else:
+        assert not unselected & columns
 
 
 def test_modality_selection_requires_a_single_label():
