@@ -33,7 +33,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install YAIB and dependencies
-        run: uv sync
+        run: uv sync --locked
 
       - name: Run the test suite
         run: uv run pytest tests/
