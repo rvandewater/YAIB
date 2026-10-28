@@ -106,6 +106,12 @@ To install development dependencies as well:
 uv sync --dev
 ```
 
+The hyperimpute and PyPOTS imputation baselines and the SSSD imputation models need the optional `imputation` extra. It adds about 100 packages, including TensorFlow:
+
+```bash
+uv sync --extra imputation
+```
+
 ### Platform notes
 
 - On macOS, YAIB should use the default PyPI `torch` wheel.

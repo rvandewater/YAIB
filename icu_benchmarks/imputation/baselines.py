@@ -13,14 +13,16 @@ import gin
 
 
 def import_optional(module: str, package: str):
-    """Import a package that is installed separately through imputation_env.yml."""
+    """Import a package from the optional imputation extra (pip install "yaib[imputation]")."""
     try:
         return importlib.import_module(module)
     except ModuleNotFoundError as error:
         if (error.name or "").split(".")[0] != package:
             raise  # The package is installed, but one of its own dependencies is missing
         raise ModuleNotFoundError(
-            f"{package} is required for this imputation model; install it with imputation_env.yml", name=package
+            f"{package} is required for this imputation model; install it with the imputation extra: "
+            'pip install "yaib[imputation]" or uv sync --extra imputation',
+            name=package,
         ) from error
 
 
@@ -216,6 +218,18 @@ MiwaeImputation = wrap_hyperimpute_model("miwae", "Miwae")
 HyperImputation = wrap_hyperimpute_model("hyperimpute", "HyperImpute")
 
 
+def pypots_fit(imputer, train_dataset):
+    """PyPOTS models train on a dict holding the (stays, time steps, features) array with missing values."""
+    values = train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
+    imputer.fit({"X": values})
+
+
+def pypots_impute(imputer, amputated_values):
+    """Imputes a batch with a fitted PyPOTS model, keeping the batch shape and device."""
+    values = amputated_values.reshape(-1, *amputated_values.shape[-2:]).to("cpu").numpy()
+    return torch.Tensor(imputer.impute({"X": values})).reshape(amputated_values.shape).to(amputated_values.device)
+
+
 @gin.configurable("BRITS")
 class BRITSImputation(ImputationWrapper):
     """Bidirectional Recurrent Imputation for Time Series (BRITS) imputation using PyPots package."""
@@ -242,19 +256,10 @@ class BRITSImputation(ImputationWrapper):
         )
 
     def fit(self, train_dataset, val_dataset):
-        self.imputer.fit(
-            torch.Tensor(
-                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
-            )
-        )
+        pypots_fit(self.imputer, train_dataset)
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to(self.imputer.device).squeeze()
-        self.imputer.model = self.imputer.model.to(self.imputer.device)
-        output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
-
-        output = output.reshape(amputated_values.shape)
-        return output
+        return pypots_impute(self.imputer, amputated_values)
 
 
 @gin.configurable("SAITS")
@@ -296,8 +301,8 @@ class SAITSImputation(ImputationWrapper):
             n_features=input_size[2],
             n_layers=n_layers,
             d_model=d_model,
-            d_inner=d_inner,
-            n_head=n_head,
+            d_ffn=d_inner,
+            n_heads=n_head,
             d_k=d_k,
             d_v=d_v,
             dropout=dropout,
@@ -305,19 +310,10 @@ class SAITSImputation(ImputationWrapper):
         )
 
     def fit(self, train_dataset, val_dataset):
-        self.imputer.fit(
-            torch.Tensor(
-                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
-            )
-        )
+        pypots_fit(self.imputer, train_dataset)
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to(self.imputer.device).squeeze()
-        self.imputer.model = self.imputer.model.to(self.imputer.device)
-        output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
-
-        output = output.reshape(amputated_values.shape)
-        return output
+        return pypots_impute(self.imputer, amputated_values)
 
 
 @gin.configurable("Attention")
@@ -360,8 +356,8 @@ class AttentionImputation(ImputationWrapper):
             n_features=input_size[2],
             n_layers=n_layers,
             d_model=d_model,
-            d_inner=d_inner,
-            n_head=n_head,
+            d_ffn=d_inner,
+            n_heads=n_head,
             d_k=d_k,
             d_v=d_v,
             dropout=dropout,
@@ -369,16 +365,7 @@ class AttentionImputation(ImputationWrapper):
         )
 
     def fit(self, train_dataset, val_dataset):
-        self.imputer.fit(
-            torch.Tensor(
-                train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
-            )
-        )
+        pypots_fit(self.imputer, train_dataset)
 
     def forward(self, amputated_values, amputation_mask):
-        debatched_values = amputated_values.to(self.imputer.device).squeeze()
-        self.imputer.model = self.imputer.model.to(self.imputer.device)
-        output = torch.Tensor(self.imputer.impute(debatched_values)).to(self.device)
-
-        output = output.reshape(amputated_values.shape)
-        return output
+        return pypots_impute(self.imputer, amputated_values)

@@ -21,13 +21,16 @@ from icu_benchmarks.imputation.mlp import MLPImputation
 from icu_benchmarks.imputation.np import NPImputation
 from icu_benchmarks.imputation.rnn import BRNNImputation, RNNImputation
 from icu_benchmarks.imputation.simple_diffusion import SimpleDiffusionModel as SimpleDiffusion
-from icu_benchmarks.imputation.sssds4 import SSSDS4
-from icu_benchmarks.imputation.sssdsa import SSSDSA
 
 BATCH, STEPS, FEATURES = 2, 8, 6  # Simple_Diffusion hard-codes six features
 INPUT_SIZE = (BATCH, STEPS, FEATURES)
 CONFIGS = sorted(Path(__file__).parents[1].glob("configs/imputation_models/*.gin"))
-INSTALLED = {package: find_spec(package) is not None for package in ["hyperimpute", "pypots"]}
+INSTALLED = {package: find_spec(package) is not None for package in ["hyperimpute", "pypots", "einops", "opt_einsum"]}
+# The SSSD models' S4 layers need einops and opt_einsum from the imputation extra
+S4_INSTALLED = INSTALLED["einops"] and INSTALLED["opt_einsum"]
+if S4_INSTALLED:
+    from icu_benchmarks.imputation.sssds4 import SSSDS4
+    from icu_benchmarks.imputation.sssdsa import SSSDSA
 
 DIFFUSION_STEPS = dict(diffusion_time_steps=3, beta_0=1e-4, beta_T=2e-2)
 STEP_EMBEDDING = dict(diffusion_step_embed_dim_in=8, diffusion_step_embed_dim_mid=8, diffusion_step_embed_dim_out=8)
@@ -121,6 +124,8 @@ MODELS = {
         predict_sample_times=2,
     ),
 }
+if not S4_INSTALLED:
+    MODELS = {name: factory for name, factory in MODELS.items() if not name.startswith("sssd")}
 
 
 def batch(seed=0):
@@ -239,9 +244,28 @@ WRAPPED = {  # Name: (package, model, parameters)
 def test_wrapped_package_models_construct(package, model, params):
     if INSTALLED[package]:
         assert model(**params).imputer is not None
-    else:  # The package is installed separately through imputation_env.yml
+    else:  # The package is installed with the imputation extra
         with pytest.raises(ModuleNotFoundError, match=package):
             model(**params)
+
+
+# MissForest goes through the same wrapper as ICE but takes about 25 s
+@pytest.mark.parametrize("name", ["ICE", "SoftImpute", "BRITS", "SAITS", "Attention"])
+def test_wrapped_package_models_fit_and_impute(name):
+    package, model, params = WRAPPED[name]
+    if not INSTALLED[package]:
+        pytest.skip(f"{package} is installed with the imputation extra")
+    torch.manual_seed(0)
+    stays = torch.randn(4 * BATCH, STEPS, FEATURES)
+    stays[torch.rand(stays.shape) < 0.2] = float("nan")
+    rows = pd.DataFrame(stays.reshape(-1, FEATURES).numpy())
+    imputer = model(**params)
+    imputer.fit(SimpleNamespace(amputated_values=rows, maxlen=STEPS, features_df=rows), None)
+    batch = stays[:BATCH]
+    observed = ~batch.isnan()
+    imputed = imputer(batch, observed)
+    assert imputed.shape == batch.shape and not imputed.isnan().any()
+    assert torch.allclose(imputed[observed], batch[observed], atol=1e-5)
 
 
 def imports(config):
@@ -249,6 +273,12 @@ def imports(config):
 
 
 STALE_MODULE = "icu_benchmarks.data.preprocess"
+S4_MODULES = {"icu_benchmarks.imputation.sssds4", "icu_benchmarks.imputation.sssdsa"}
+
+
+def skip_without_s4(config):
+    if not S4_INSTALLED and S4_MODULES & set(imports(config)):
+        pytest.skip("The SSSD models need einops and opt_einsum from the imputation extra")
 
 
 @pytest.mark.parametrize(
@@ -269,6 +299,7 @@ def test_config_imports_exist(module):
 
 @pytest.mark.parametrize("config", CONFIGS, ids=lambda config: config.stem)
 def test_config_model_is_registered(config):
+    skip_without_s4(config)
     for module in imports(config):
         if module.startswith("icu_benchmarks.imputation."):
             importlib.import_module(module)
@@ -296,6 +327,7 @@ def test_config_model_is_registered(config):
     ],
 )
 def test_config_bindings_parse(config):
+    skip_without_s4(config)
     gin.clear_config()
     try:  # The stale import is covered by test_config_imports_exist
         gin.parse_config(config.read_text().replace(f"import {STALE_MODULE}\n", ""))
