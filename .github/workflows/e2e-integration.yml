@@ -36,7 +36,7 @@ jobs:
         run: uv sync
 
       - name: Test target scaling, model reloading and SHAP export
-        run: uv run pytest tests/test_target_scaling.py tests/test_ml_model_loading.py tests/test_shap_export.py
+        run: uv run pytest tests/test_target_scaling.py tests/test_ml_model_loading.py tests/test_shap_export.py tests/test_explain_features.py
 
       - name: Verify icu-benchmarks CLI is available
         run: uv run icu-benchmarks --help

@@ -55,6 +55,8 @@ class BaseModule(LightningModule):
     run_mode = None
     debug = False
     explain_features = False
+    # SHAP explainer class (e.g. shap.TreeExplainer), set by models that support feature attribution
+    explainer_cls = None
     target_transform = None
 
     def inverse_target(self, values):
@@ -71,6 +73,12 @@ class BaseModule(LightningModule):
 
     def set_metrics(self, *args, **kwargs):
         self.metrics = {}
+
+    def set_explain_features(self, explain_features: bool):
+        """Enables SHAP values for the test set; fails before training for models without an explainer."""
+        if explain_features and self.explainer_cls is None:
+            raise NotImplementedError(f"{type(self).__name__} does not support SHAP explanations.")
+        self.explain_features = explain_features
 
     def set_trained_columns(self, columns: List[str]):
         self.trained_columns = columns
@@ -403,8 +411,6 @@ class MLWrapper(BaseModule, ABC):
 
     requires_backprop = False
     _supported_run_modes = [RunMode.classification, RunMode.regression]
-    # Set by models that support SHAP explanations, e.g. XGBClassifier
-    explainer = None
 
     def __init__(
         self,
@@ -542,10 +548,11 @@ class MLWrapper(BaseModule, ABC):
         )
 
     def _explain_model(self, test_rep, test_label):
-        if self.explainer is not None:
-            self.test_shap_values = self.explainer(test_rep)
-        else:
-            logging.warning("No explainer or explain_features values set.")
+        explanation = self.explainer_cls(self.model)(test_rep)
+        # Random forests explain every class; keep the positive class like the other classifiers.
+        if explanation.values.ndim == 3:
+            explanation = explanation[:, :, 1]
+        self.test_shap_values = explanation
 
     def _save_model_outputs(self, pred_indicators, test_pred, test_label):
         if self.run_mode == RunMode.regression:

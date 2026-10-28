@@ -107,6 +107,12 @@ def build_parser() -> ArgumentParser:
         help="Use all data to train model, skip testing.",
     )
     parser.add_argument(
+        "--explain-features",
+        default=False,
+        action=BOA,
+        help="Save SHAP values of the test set (tree-based ML models only).",
+    )
+    parser.add_argument(
         "-ft",
         "--fine-tune",
         default=None,
@@ -203,14 +209,10 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                     shap_values_test.append(pl.read_parquet(fold_iter / "test_shap_values.parquet"))
 
     if shap_values_test:
-        shap_values = pl.concat(shap_values_test)
-        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
-
-    try:
-        shap_values = pl.concat(shap_values_test)
-        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
-    except Exception as e:
-        logging.error(f"Error aggregating or writing SHAP values: {e}")
+        try:
+            pl.concat(shap_values_test).write_parquet(log_dir / "aggregated_shap_values.parquet")
+        except Exception as e:
+            logging.error(f"Error aggregating or writing SHAP values: {e}")
     # Aggregate results per metric
     list_scores = {}
     for repetition, folds in aggregated.items():

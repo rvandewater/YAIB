@@ -40,12 +40,14 @@ def execute_repeated_cv(
     verbose: bool = False,
     wandb: bool = False,
     complete_train: bool = False,
+    explain_features: bool = False,
 ) -> float:
     """Preprocesses data and trains a model for each fold.
 
     Args:
 
         complete_train: Use the full data for training instead of held out test splits.
+        explain_features: Save SHAP values of the test set for each fold.
         wandb: Use wandb for logging.
         data_dir: Path to the data directory.
         log_dir: Path to the log directory.
@@ -124,6 +126,7 @@ def execute_repeated_cv(
                 use_wandb=wandb,
                 train_only=complete_train,
                 target_transform=target_transform,
+                explain_features=explain_features,
             )
             train_time = datetime.now() - start_time
 

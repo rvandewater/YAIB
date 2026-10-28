@@ -1,6 +1,7 @@
 import gin
 import lightgbm as lgbm
 import numpy as np
+import shap
 import wandb
 from wandb.integration.lightgbm import wandb_callback as wandb_lgbm
 
@@ -9,6 +10,8 @@ from icu_benchmarks.models.wrappers import MLWrapper
 
 
 class LGBMWrapper(MLWrapper):
+    explainer_cls = shap.TreeExplainer
+
     def fit_model(self, train_data, train_labels, val_data, val_labels):
         """Fitting function for LGBM models."""
         self.model.set_params(random_state=np.random.get_state()[1][0])

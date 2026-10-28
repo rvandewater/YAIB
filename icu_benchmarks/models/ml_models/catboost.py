@@ -1,5 +1,6 @@
 import gin
 import catboost as cb
+import shap
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
 
@@ -7,6 +8,7 @@ from icu_benchmarks.models.wrappers import MLWrapper
 @gin.configurable
 class CBClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
+    explainer_cls = shap.TreeExplainer
 
     def __init__(self, task_type="CPU", *args, **kwargs):
         model_kwargs = {"task_type": task_type, **kwargs}

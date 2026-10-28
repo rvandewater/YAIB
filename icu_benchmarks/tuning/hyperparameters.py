@@ -121,6 +121,8 @@ def choose_and_bind_hyperparameters_scikit_optimize(
                 debug=debug,
                 verbose=verbose,
                 wandb=wandb,
+                # SHAP values are expensive and unused while tuning
+                explain_features=False,
             )
 
     header = ["ITERATION"] + hyperparams_names + ["LOSS AT ITERATION"]
@@ -332,6 +334,8 @@ def choose_and_bind_hyperparameters_optuna(
                 debug=debug,
                 verbose=verbose,
                 wandb=wandb,
+                # SHAP values are expensive and unused while tuning
+                explain_features=False,
             )
             logging.info(f"Score: {score}")
             return score
