@@ -1,5 +1,7 @@
 """DL models must be tested with the weights of the best validation epoch, not the last one (#244)."""
 
+import json
+
 import gin
 import gin.torch.external_configurables  # noqa: F401  registers torch.optim.Adam
 import numpy as np
@@ -46,7 +48,7 @@ def gru_config():
 def test_dl_tests_best_validation_checkpoint(gru_config, tmp_path):
     optimizer = gin.get_configurable("torch.optim.Adam")
     kwargs = dict(optimizer=optimizer, model=GRUNet, mode=RunMode.classification, weight="balanced", batch_size=8, cpu=True)
-    score = train_common(random_label_splits(), log_dir=tmp_path, epochs=EPOCHS, patience=100, num_workers=0, **kwargs)
+    train_common(random_label_splits(), log_dir=tmp_path, epochs=EPOCHS, patience=100, num_workers=0, **kwargs)
 
     best = torch.load(tmp_path / "model.ckpt", weights_only=False)
     callback = next(state for key, state in best["callbacks"].items() if "ModelCheckpoint" in key)
@@ -54,10 +56,11 @@ def test_dl_tests_best_validation_checkpoint(gru_config, tmp_path):
     # Validation loss rises while overfitting, so the best epoch is not the last one
     assert best["epoch"] < EPOCHS - 1
 
-    # Evaluating model.ckpt reproduces the training run's test score, so that run tested the best weights
+    # Evaluating model.ckpt reproduces the training run's test predictions, so that run tested the best weights.
+    # Compare the AUC: the balanced loss weights can come out in a different order per run until #243 is fixed.
     eval_dir = tmp_path / "eval"
     eval_dir.mkdir()
-    replay = train_common(
+    train_common(
         random_label_splits(),
         log_dir=eval_dir,
         source_dir=tmp_path,
@@ -66,4 +69,6 @@ def test_dl_tests_best_validation_checkpoint(gru_config, tmp_path):
         num_workers=0,
         **kwargs,
     )
-    assert replay == pytest.approx(score)
+    original = json.loads((tmp_path / "test_metrics.json").read_text())
+    replay = json.loads((eval_dir / "test_metrics.json").read_text())
+    assert replay["AUC"] == pytest.approx(original["AUC"])
