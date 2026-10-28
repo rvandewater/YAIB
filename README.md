@@ -3,6 +3,7 @@
 # 🧪 Yet Another ICU Benchmark
 
 [![CI](https://github.com/rvandewater/YAIB/actions/workflows/code-quality.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/code-quality.yml)
+[![codecov](https://codecov.io/gh/rvandewater/YAIB/branch/development/graph/badge.svg)](https://codecov.io/gh/rvandewater/YAIB)
 ![Platform](https://img.shields.io/badge/platform-linux--64%20%7C%20win--64%20%7C%20osx--64-lightgrey)
 [![arXiv](https://img.shields.io/badge/arXiv-2306.05109-b31b1b.svg)](http://arxiv.org/abs/2306.05109)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/yaib.svg)](https://pypi.python.org/pypi/yaib/)
