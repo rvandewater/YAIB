@@ -54,7 +54,7 @@ setup-env:
 	source activate yaib
 
 test: ## run tests quickly with the default Python
-	pytest
+	uv run python -m pytest
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source icu-benchmarks -m pytest

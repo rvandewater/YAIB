@@ -75,7 +75,7 @@ jobs:
 
       - name: Evaluate the saved model on eICU demo
         run: |
-          source_dir=$(find yaib_logs/mimic_demo -path "*repetition_0/fold_0" -type d | head -1)
+          source_dir=$(find yaib_logs/mimic_demo/Mortality24 -path "*repetition_0/fold_0" -type d | head -1)
           uv run icu-benchmarks evaluate \
             -d demo_data/mortality24/eicu_demo \
             -n eicu_demo \
