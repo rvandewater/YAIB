@@ -239,8 +239,20 @@ class DLWrapper(BaseModule, ABC):
         }
         return super().on_test_epoch_start()
 
+    def on_validation_start(self) -> None:
+        # A model reloaded with torch.load has no metrics (see __getstate__); build them for a standalone validation run
+        if "val" not in self.metrics:
+            self.metrics = {
+                step_name: {
+                    metric_name: (metric() if isinstance(metric, type) else metric)
+                    for metric_name, metric in self.set_metrics().items()
+                }
+                for step_name in ["train", "val", "test"]
+            }
+        return super().on_validation_start()
+
     def __getstate__(self) -> Dict[str, Any]:
-        # Metric instances hold lambdas that cannot be pickled; on_fit_start and on_train_start rebuild them
+        # Metric instances hold lambdas that cannot be pickled; the fit, train, validation and test hooks rebuild them
         state = super().__getstate__()
         state["metrics"] = {}
         return state

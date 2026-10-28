@@ -7,9 +7,12 @@ import numpy as np
 import polars as pl
 import pytest
 import torch
+from pytorch_lightning import Trainer
+from torch.utils.data import DataLoader
 
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.constants import DataSegment as Segment, DataSplit as Split
+from icu_benchmarks.data.loader import PredictionPolarsDataset
 from icu_benchmarks.models.dl_models.layers import SelfAttention, SparseBlock, parallel_recomb
 from icu_benchmarks.models.dl_models.rnn import GRUNet, LSTMNet, RNNet
 from icu_benchmarks.models.dl_models.tcn import TemporalConvNet
@@ -216,6 +219,22 @@ def test_save_model_after_metrics_are_set(mode, num_classes, tmp_path):
         loaded.output_transform((prediction, target)), model.output_transform((prediction, target))
     ):
         torch.testing.assert_close(transformed, expected)
+
+
+def test_reloaded_model_validates(tmp_path):
+    # save_model drops the metrics; validating the reloaded module must rebuild them
+    gin.bind_parameter("DLPredictionWrapper.loss", torch.nn.functional.cross_entropy)
+    val_dataset = PredictionPolarsDataset(classification_splits(), split=Split.val, vars=VARS, ram_cache=False)
+    loader = DataLoader(val_dataset, batch_size=4)
+    input_size = next(iter(loader))[0].shape
+    model = GRUNet(input_size, **MODEL_PARAMS[GRUNet], num_classes=2, run_mode=RunMode.classification)
+    model.on_train_start()
+    model.set_weight("balanced", val_dataset)
+    model.save_model(tmp_path, "trained")
+    loaded = torch.load(tmp_path / "trained.ckpt", weights_only=False)
+    trainer = Trainer(accelerator="cpu", logger=False, enable_checkpointing=False, enable_progress_bar=False)
+    (results,) = trainer.validate(loaded, dataloaders=loader, verbose=False)
+    assert np.isfinite(results["val/loss"])
 
 
 def test_failed_save_keeps_existing_checkpoint(tmp_path, monkeypatch):
