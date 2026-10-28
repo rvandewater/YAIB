@@ -1,15 +1,27 @@
 """Baseline imputation methods. These methods imported from other frameworks and are used as baselines for comparison."""
 
+import importlib
+
 import torch
-from hyperimpute.plugins.imputers import Imputers as HyperImpute
 from sklearn.experimental import enable_iterative_imputer  # noqa: F401
 from sklearn.impute import KNNImputer, SimpleImputer, IterativeImputer
 from sklearn.linear_model import LinearRegression
 from typing import Type
 
 from icu_benchmarks.models.wrappers import ImputationWrapper
-from pypots.imputation import BRITS, SAITS, Transformer
 import gin
+
+
+def import_optional(module: str, package: str):
+    """Import a package that is installed separately through imputation_env.yml."""
+    try:
+        return importlib.import_module(module)
+    except ModuleNotFoundError as error:
+        if (error.name or "").split(".")[0] != package:
+            raise  # The package is installed, but one of its own dependencies is missing
+        raise ModuleNotFoundError(
+            f"{package} is required for this imputation model; install it with imputation_env.yml", name=package
+        ) from error
 
 
 @gin.configurable("KNN")
@@ -173,6 +185,7 @@ def wrap_hyperimpute_model(methodName: str, configName: str) -> Type:
 
         def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
+            HyperImpute = import_optional("hyperimpute.plugins.imputers", "hyperimpute").Imputers
             self.imputer = HyperImpute().get(methodName, **self.model_params())
 
         @gin.configurable(module=configName)
@@ -218,6 +231,7 @@ class BRITSImputation(ImputationWrapper):
             batch_size=batch_size,
             **kwargs,
         )
+        BRITS = import_optional("pypots.imputation", "pypots").BRITS
         self.imputer = BRITS(
             n_steps=input_size[1],
             n_features=input_size[2],
@@ -276,6 +290,7 @@ class SAITSImputation(ImputationWrapper):
             dropout=dropout,
             **kwargs,
         )
+        SAITS = import_optional("pypots.imputation", "pypots").SAITS
         self.imputer = SAITS(
             n_steps=input_size[1],
             n_features=input_size[2],
@@ -339,6 +354,7 @@ class AttentionImputation(ImputationWrapper):
             dropout=dropout,
             **kwargs,
         )
+        Transformer = import_optional("pypots.imputation", "pypots").Transformer
         self.imputer = Transformer(
             n_steps=input_size[1],
             n_features=input_size[2],

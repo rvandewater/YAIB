@@ -3,11 +3,9 @@
 import importlib
 import inspect
 import re
-import sys
-from functools import partial
 from importlib.util import find_spec
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 
 import gin
 import pandas as pd
@@ -15,6 +13,7 @@ import pytest
 import torch
 
 import icu_benchmarks.models.train  # noqa: F401  (registers train_common for the config tests)
+from icu_benchmarks.imputation import baselines
 from icu_benchmarks.imputation.csdi import CSDI
 from icu_benchmarks.imputation.diffusion import SimpleDiffusionModel as Diffusion
 from icu_benchmarks.imputation.diffwave import DiffWaveImputer
@@ -22,53 +21,13 @@ from icu_benchmarks.imputation.mlp import MLPImputation
 from icu_benchmarks.imputation.np import NPImputation
 from icu_benchmarks.imputation.rnn import BRNNImputation, RNNImputation
 from icu_benchmarks.imputation.simple_diffusion import SimpleDiffusionModel as SimpleDiffusion
+from icu_benchmarks.imputation.sssds4 import SSSDS4
+from icu_benchmarks.imputation.sssdsa import SSSDSA
 
 BATCH, STEPS, FEATURES = 2, 8, 6  # Simple_Diffusion hard-codes six features
 INPUT_SIZE = (BATCH, STEPS, FEATURES)
 CONFIGS = sorted(Path(__file__).parents[1].glob("configs/imputation_models/*.gin"))
-MISSING = {name: find_spec(name) is None for name in ["hyperimpute", "pypots", "opt_einsum"]}
-
-
-class _NotInstalled:
-    def __init__(self, *args, **kwargs):
-        raise ModuleNotFoundError(f"{self.package} is not installed")
-
-
-def _stub(name, **attributes):
-    module = ModuleType(name)
-    module.__dict__.update(attributes)
-    return module
-
-
-def _import_with_stubs(name):
-    """Import a module whose optional dependencies may be missing, standing in for them only during the import.
-
-    opt_einsum is replaced by torch.einsum, which takes the same equations; hyperimpute and pypots models raise on use.
-    """
-    stubs = {}
-    if MISSING["opt_einsum"]:
-        stubs["opt_einsum"] = _stub(
-            "opt_einsum", contract=torch.einsum, contract_expression=lambda eq, *shapes, **kwargs: partial(torch.einsum, eq)
-        )
-    if MISSING["hyperimpute"]:
-        imputers = type("Imputers", (_NotInstalled,), {"package": "hyperimpute"})
-        stubs |= {name: _stub(name) for name in ["hyperimpute", "hyperimpute.plugins"]}
-        stubs["hyperimpute.plugins.imputers"] = _stub("hyperimpute.plugins.imputers", Imputers=imputers)
-    if MISSING["pypots"]:
-        models = {model: type(model, (_NotInstalled,), {"package": "pypots"}) for model in ["BRITS", "SAITS", "Transformer"]}
-        stubs |= {"pypots": _stub("pypots"), "pypots.imputation": _stub("pypots.imputation", **models)}
-    stubs = {key: module for key, module in stubs.items() if key not in sys.modules}
-    sys.modules |= stubs
-    try:
-        return importlib.import_module(name)
-    finally:
-        for key in stubs:
-            sys.modules.pop(key)
-
-
-baselines = _import_with_stubs("icu_benchmarks.imputation.baselines")
-SSSDS4 = _import_with_stubs("icu_benchmarks.imputation.sssds4").SSSDS4
-SSSDSA = _import_with_stubs("icu_benchmarks.imputation.sssdsa").SSSDSA
+INSTALLED = {package: find_spec(package) is not None for package in ["hyperimpute", "pypots"]}
 
 DIFFUSION_STEPS = dict(diffusion_time_steps=3, beta_0=1e-4, beta_T=2e-2)
 STEP_EMBEDDING = dict(diffusion_step_embed_dim_in=8, diffusion_step_embed_dim_mid=8, diffusion_step_embed_dim_out=8)
@@ -276,22 +235,13 @@ WRAPPED = {  # Name: (package, model, parameters)
 }
 
 
-@pytest.mark.parametrize(
-    "model, params",
-    [
-        pytest.param(
-            model,
-            params,
-            id=name,
-            marks=pytest.mark.xfail(
-                MISSING[package], strict=True, raises=ModuleNotFoundError, reason=f"{package} is not a declared dependency"
-            ),
-        )
-        for name, (package, model, params) in WRAPPED.items()
-    ],
-)
-def test_wrapped_package_models_construct(model, params):
-    assert model(**params).imputer is not None
+@pytest.mark.parametrize("package, model, params", list(WRAPPED.values()), ids=list(WRAPPED))
+def test_wrapped_package_models_construct(package, model, params):
+    if INSTALLED[package]:
+        assert model(**params).imputer is not None
+    else:  # The package is installed separately through imputation_env.yml
+        with pytest.raises(ModuleNotFoundError, match=package):
+            model(**params)
 
 
 def imports(config):
@@ -321,7 +271,7 @@ def test_config_imports_exist(module):
 def test_config_model_is_registered(config):
     for module in imports(config):
         if module.startswith("icu_benchmarks.imputation."):
-            _import_with_stubs(module)
+            importlib.import_module(module)
     model = re.search(r"^train_common\.model\s*=\s*@(\w+)", config.read_text(), re.MULTILINE).group(1)
     assert gin.config._REGISTRY.get_match(model) is not None
 
