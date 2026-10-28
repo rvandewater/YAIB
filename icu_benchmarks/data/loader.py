@@ -15,6 +15,12 @@ from .constants import DataSegment as DataSegment
 from .constants import DataSplit as DataSplit
 
 
+def check_class_labels(classes: np.ndarray):
+    """Balanced weights are indexed by class, so the labels must be 0..K-1."""
+    if not np.array_equal(classes, np.arange(len(classes))):
+        raise ValueError(f"Balanced class weights need labels 0..K-1, got {classes.tolist()}.")
+
+
 @gin.configurable("CommonPolarsDataset")
 class CommonPolarsDataset(Dataset):
     def __init__(
@@ -180,7 +186,12 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         Returns:
             Weights for each label.
         """
-        counts = self.outcome_df[self.vars["LABEL"]].value_counts(parallel=True).get_columns()[1]
+        labels = self.outcome_df[self.vars["LABEL"]].drop_nulls()
+        if labels.dtype.is_float():
+            labels = labels.drop_nans()
+        # value_counts has no fixed order, so sort by label: weight i must belong to class i
+        classes, counts = labels.value_counts(sort=False).sort(labels.name).get_columns()
+        check_class_labels(classes.to_numpy())
         counts = counts.to_numpy()
         weights = list((1 / counts) * np.sum(counts) / counts.shape[0])
         return weights
@@ -351,7 +362,9 @@ class PredictionPandasDataset(CommonPandasDataset):
         Returns:
             Weights for each label.
         """
-        counts = self.outcome_df[self.vars["LABEL"]].value_counts()
+        # Pandas sorts value_counts by frequency, so sort by label: weight i must belong to class i
+        counts = self.outcome_df[self.vars["LABEL"]].value_counts().sort_index()
+        check_class_labels(counts.index.to_numpy())
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
     def get_data_and_labels(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

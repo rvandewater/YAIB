@@ -78,7 +78,10 @@ class BaseModule(LightningModule):
     def set_weight(self, weight, dataset):
         """Set the weight for the loss function."""
 
-        if isinstance(weight, list):
+        if self.run_mode != RunMode.classification or weight in (None, ""):
+            # Class weights only apply to the classification loss
+            weight = None
+        elif isinstance(weight, list):
             weight = FloatTensor(weight).to(self.device)
         elif weight == "balanced":
             weight = FloatTensor(dataset.get_balance()).to(self.device)
@@ -370,7 +373,8 @@ class DLPredictionWrapper(DLWrapper):
 
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
-            loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
+            weight = self.loss_weights.to(self.device) if self.loss_weights is not None else None
+            loss = self.loss(prediction, target.long(), weight=weight) + aux_loss
             # Returns torch.long because negative log likelihood loss
         elif self.run_mode == RunMode.regression:
             # Regression task
