@@ -33,10 +33,26 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install YAIB and dependencies
-        run: uv sync
+        # The imputation extra lets the tests exercise the hyperimpute/pypots models
+        run: uv sync --locked --extra imputation
 
-      - name: Test target scaling, model reloading and SHAP export
-        run: uv run pytest tests/test_target_scaling.py tests/test_ml_model_loading.py tests/test_shap_export.py tests/test_complete_train_split.py
+      - name: Run the test suite with coverage
+        run: |
+          uv run coverage run -m pytest tests/
+          uv run coverage report
+          echo "## Test coverage (Python ${{ matrix.python-version }})" >> "$GITHUB_STEP_SUMMARY"
+          uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+          uv run coverage xml
+
+      # One upload per commit is enough for the badge and PR comments
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          # Pull requests from forks have no access to the token; don't fail their CI over the upload
+          fail_ci_if_error: false
 
       - name: Verify icu-benchmarks CLI is available
         run: uv run icu-benchmarks --help
