@@ -159,7 +159,7 @@ def test_train_common_one_epoch(model_cls, tmp_path):
             marks=pytest.mark.xfail(
                 strict=True,
                 raises=TypeError,
-                reason="BaseTransformer does not pass input_size to the wrapper, so it is missing from the checkpoint",
+                reason="#259: BaseTransformer does not pass input_size to the wrapper, so it is missing from the checkpoint",
             ),
         ),
     ],

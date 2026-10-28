@@ -21,7 +21,7 @@ def clean_gin():
 
 
 def run(args, monkeypatch):
-    # main reads the configs relative to the repository. setup_logging expects the handlers that lightning only adds
+    # main reads the configs relative to the repository. setup_logging (#260) expects the handlers that lightning only adds
     # when the root logger has none (not under pytest), and it would silence warnings for the remaining tests.
     monkeypatch.chdir(ROOT)
     monkeypatch.setattr(icu_benchmarks.run, "setup_logging", lambda *args: None)

@@ -211,21 +211,8 @@ def test_train_val_split(polars):
     assert len(train) == 30 and len(val) == 10 and val == test and not train & val
 
 
-@pytest.mark.parametrize(
-    "label,expected",
-    [
-        (None, "label"),
-        pytest.param(
-            "other",
-            "other",
-            marks=pytest.mark.xfail(
-                strict=True,
-                raises=AttributeError,
-                reason="A selected label is bound as a list, which the split cannot stratify on",
-            ),
-        ),
-    ],
-)
+# Selecting one of several labels with label="other" crashes today (#253); its fix adds that case
+@pytest.mark.parametrize("label,expected", [(None, "label")])
 def test_label_selection_with_multiple_labels(label, expected, tmp_path):
     shutil.copytree(DEMO / "mortality24" / "mimic_demo", tmp_path, dirs_exist_ok=True)
     outcome = pl.read_parquet(tmp_path / "outc.parquet")

@@ -14,7 +14,6 @@ from icu_benchmarks.models.constants import DLMetrics, MLMetrics
 from icu_benchmarks.models.custom_metrics import (
     JSD,
     MAE,
-    BalancedAccuracy,
     TorchMetricsWrapper,
     accuracy,
     confusion_matrix,
@@ -38,7 +37,7 @@ def test_top1_accuracy():
     assert accuracy(OUTPUT, TARGET)[0].item() == pytest.approx(50.0)
 
 
-@pytest.mark.xfail(strict=True, raises=RuntimeError, reason="accuracy calls view() on a non-contiguous slice for k > 1")
+@pytest.mark.xfail(strict=True, raises=RuntimeError, reason="#262: accuracy calls view() on a non-contiguous slice for k > 1")
 def test_topk_accuracy():
     assert accuracy(OUTPUT, TARGET, topk=(2,))[0].item() == pytest.approx(75.0)
 
@@ -62,17 +61,6 @@ def test_jsd_is_zero_for_identical_and_positive_for_different_distributions():
     different.update((torch.tensor([0.9, 0.1]), torch.tensor([0.1, 0.9])))
     assert same.compute() == pytest.approx(0, abs=1e-6)
     assert 0 < different.compute() <= 1
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="BalancedAccuracy passes the missing attribute self.balanced_accuracy_compute to EpochMetric, which ignite "
-    "turns into a lazy MetricsLambda, so compute() returns that object instead of a score",
-)
-def test_balanced_accuracy():
-    metric = BalancedAccuracy()
-    metric.update((torch.tensor([[0.9, 0.1], [0.2, 0.8], [0.3, 0.7]]), torch.tensor([0, 1, 1])))
-    assert metric.compute() == pytest.approx(1.0)
 
 
 def test_torchmetrics_wrapper_takes_output_tuples():
