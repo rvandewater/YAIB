@@ -210,8 +210,8 @@ def preprocess_data(
     logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
     for _dict in sanitized_data.values():
         for key, val in _dict.items():
-            # Preserve missing regression labels for dataset masks/filtering, rather than inventing zero targets.
-            if key == DataSegment.outcome and runmode == RunMode.regression:
+            # Preserve missing labels for dataset masks/filtering, rather than inventing zero targets or negatives.
+            if key == DataSegment.outcome:
                 continue
             logging.debug(f"Data type: {key}")
             logging.debug("Is NaN:")
