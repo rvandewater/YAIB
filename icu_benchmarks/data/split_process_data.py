@@ -102,12 +102,15 @@ def preprocess_data(
         file_names.pop(DataSegment.static)
         vars.pop(DataSegment.static)
 
-    if isinstance(vars[VarType.label], list) and len(vars[VarType.label]) > 1:
-        if label is not None:
-            vars[VarType.label] = [label]
-        else:
-            logging.debug(f"Multiple labels found and no value provided. Using first label: {vars[VarType.label]}")
-            vars[VarType.label] = vars[VarType.label][0]
+    if label is not None:
+        configured_labels = vars[VarType.label] if isinstance(vars[VarType.label], list) else [vars[VarType.label]]
+        if label not in configured_labels:
+            raise ValueError(f"Label {label} is not one of the configured labels: {configured_labels}.")
+        vars[VarType.label] = label
+        logging.info(f"Using label: {vars[VarType.label]}")
+    elif isinstance(vars[VarType.label], list) and len(vars[VarType.label]) > 1:
+        logging.debug(f"Multiple labels found and no value provided. Using first label: {vars[VarType.label]}")
+        vars[VarType.label] = vars[VarType.label][0]
         logging.info(f"Using label: {vars[VarType.label]}")
 
     if not vars[VarType.label]:
@@ -424,9 +427,11 @@ def make_train_val_polars(
         train_val_splitter = ShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
         train_indices, val_indices = list(train_val_splitter.split(stays))[0]
 
+    # Cast the IDs of all segments to one dtype for the joins; integer IDs are widened, others (e.g. strings) kept
+    id_dtype = pl.datatypes.Int64 if stays.dtype.is_integer() else stays.dtype
     split = {
-        DataSplit.train: stays[train_indices].cast(pl.datatypes.Int64).to_frame(),
-        DataSplit.val: stays[val_indices].cast(pl.datatypes.Int64).to_frame(),
+        DataSplit.train: stays[train_indices].cast(id_dtype).to_frame(),
+        DataSplit.val: stays[val_indices].cast(id_dtype).to_frame(),
     }
 
     data_split: dict[str, dict[str, pl.DataFrame]] = {}
@@ -435,7 +440,7 @@ def make_train_val_polars(
         data_split[fold] = {
             data_type: split[fold]
             .join(
-                data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)),
+                data[data_type].with_columns(pl.col(_id).cast(id_dtype)),
                 on=_id,
                 how="left",
             )
@@ -626,10 +631,12 @@ def make_single_split_polars(
         dev_stays = stays[dev]
         train, val = list(inner_cv.split(dev_stays))[fold_index]
 
+    # Cast the IDs of all segments to one dtype for the joins; integer IDs are widened, others (e.g. strings) kept
+    id_dtype = pl.datatypes.Int64 if stays.dtype.is_integer() else stays.dtype
     split = {
-        DataSplit.train: dev_stays[train].cast(pl.datatypes.Int64).to_frame(),
-        DataSplit.val: dev_stays[val].cast(pl.datatypes.Int64).to_frame(),
-        DataSplit.test: stays[test].cast(pl.datatypes.Int64).to_frame(),
+        DataSplit.train: dev_stays[train].cast(id_dtype).to_frame(),
+        DataSplit.val: dev_stays[val].cast(id_dtype).to_frame(),
+        DataSplit.test: stays[test].cast(id_dtype).to_frame(),
     }
 
     data_split = {}
@@ -639,7 +646,7 @@ def make_single_split_polars(
         data_split[fold] = {
             data_type: split[fold]
             .join(
-                data[data_type].with_columns(pl.col(_id).cast(pl.datatypes.Int64)),
+                data[data_type].with_columns(pl.col(_id).cast(id_dtype)),
                 on=_id,
                 how="left",
             )

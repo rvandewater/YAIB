@@ -125,7 +125,7 @@ class PolarsClassificationPreprocessor(Preprocessor):
         else:
             self.use_static_features = False
 
-        if all(DataSegment.dynamic in value for value in data.values()):
+        if all(DataSegment.dynamic in value for value in data.values()) and len(vars[DataSegment.dynamic]) > 0:
             logging.info("Preprocessing dynamic features.")
             logging.info(data.keys())
             data = self._process_dynamic(data, vars)
@@ -195,15 +195,16 @@ class PolarsClassificationPreprocessor(Preprocessor):
             sta_rec.add_step(StepScale())
         sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), strategy="zero"))
         types = ["String", "Object", "Categorical"]
-        sel = has_type(types)
+        # Only the static features, not a string stay ID
+        sel = Selector(description="categorical predictors", roles="predictor", types=types)
         if len(sel(sta_rec.data)) > 0:
             sta_rec.add_step(
                 StepSklearn(
                     SimpleImputer(missing_values=np_nan, strategy="most_frequent"),
-                    sel=has_type(types),
+                    sel=sel,
                 )
             )
-            sta_rec.add_step(StepSklearn(LabelEncoder(), sel=has_type(types), columnwise=True))
+            sta_rec.add_step(StepSklearn(LabelEncoder(), sel=sel, columnwise=True))
 
         data = apply_recipe_to_splits(sta_rec, data, DataSegment.static, self.save_cache, self.load_cache)
 
