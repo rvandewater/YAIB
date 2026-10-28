@@ -27,12 +27,15 @@ The following libraries are important to the operation of YAIB:
 ## Run Tests
 
 ```
-python -m pytest ./tests/recipes
-coverage run -m pytest ./tests/recipes
+uv run pytest tests/
+# with coverage of the icu_benchmarks package (configured in pyproject.toml)
+uv run coverage run -m pytest tests/
 # then use either of the following
-coverage report
-coverage html
+uv run coverage report
+uv run coverage html  # opens as htmlcov/index.html
 ```
+
+CI runs the tests with coverage and adds the coverage table to each job's summary page.
 
 ## Autoformat and lint
 
