@@ -47,7 +47,6 @@ dependencies = [
   "scikit-learn==1.5.2",
   "tensorboard>=2.12.2",
   "tqdm==4.66.3",
-  "einops==0.6.1",
   "hydra-core==1.3.8",
   "optuna==4.0.0",
   "optuna-integration==4.0.0",
@@ -71,6 +70,18 @@ testpaths = ["tests"]
 [tool.uv.build-backend]
 module-root = ""
 module-name = "icu_benchmarks"
+
+[project.optional-dependencies]
+# Packages used only by imputation models (hyperimpute/PyPOTS baselines, SSSD's S4 layers); they add ~100 dependencies
+imputation = [
+  "hyperimpute>=0.1.17",
+  "pypots>=1.0",
+  "einops==0.6.1",
+  "opt-einsum>=3.3.0",
+  # hyperimpute's MIRACLE pulls in TensorFlow with Keras 3; transformers (from PyPOTS) needs tf-keras next to it,
+  # or importing it (e.g. through SHAP) fails
+  "tf-keras",
+]
 
 [dependency-groups]
 dev = [
