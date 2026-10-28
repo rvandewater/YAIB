@@ -414,10 +414,11 @@ def make_train_val_polars(
         if DataSegment.static in data:
             data[DataSegment.static] = data[DataSegment.static].filter(pl.col(_id).is_in(sampled_ids))
 
-    stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique())
+    # Sort the stays and their labels the same way, so the split is reproducible and the labels line up with the stays
+    stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique()).sort()
 
     if VarType.label in vars and runmode is RunMode.classification:
-        labels = data[DataSegment.outcome].group_by(_id).max()[label]
+        labels = data[DataSegment.outcome].group_by(_id).max().sort(_id)[label]
         train_val_splitter = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
         train_indices, val_indices = list(train_val_splitter.split(stays, labels))[0]
     else:
