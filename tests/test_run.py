@@ -120,8 +120,10 @@ def test_fine_tune_retrains_on_target_data(source, tmp_path, monkeypatch):
     assert [p.relative_to(run_dir).as_posix() for p in run_dir.glob("repetition_*/fold_*")] == ["repetition_0/fold_0"]
     fold = run_dir / "repetition_0" / "fold_0"
     assert bound(fold, "LogisticRegression.C") == bound(source, "LogisticRegression.C")
-    # Unlike evaluation, fine-tuning fits and saves a new model
-    assert not np.allclose(joblib.load(fold / "last.joblib").coef_, joblib.load(source / "last.joblib").coef_)
+    # Unlike evaluation, fine-tuning fits and saves a new model. Strong regularization can zero every coefficient,
+    # so compare the unpenalized intercept too
+    tuned, original = joblib.load(fold / "last.joblib"), joblib.load(source / "last.joblib")
+    assert not (np.allclose(tuned.coef_, original.coef_) and np.allclose(tuned.intercept_, original.intercept_))
     assert 0 <= json.loads((fold / "test_metrics.json").read_text())["AUC"] <= 1
 
 
