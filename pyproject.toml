@@ -34,7 +34,7 @@ dependencies = [
   "gin-config==0.5.0",
   "pytorch-ignite==0.5.0.post2",
   "torch==2.6.0",
-  "lightning==2.6.6",
+  "pytorch-lightning==2.6.6",
   "torchmetrics==1.0.3",
   "lightgbm==4.6.0",
   "xgboost==2.1.0",
