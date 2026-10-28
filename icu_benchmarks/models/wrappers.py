@@ -189,24 +189,24 @@ class DLWrapper(BaseModule, ABC):
         return super().on_train_start()
 
     def finalize_step(self, step_prefix=""):
+        values = {}
         try:
-            self.log_dict(
-                {
-                    f"{step_prefix}/{name}": (
-                        np.float32(metric.compute()) if isinstance(metric.compute(), np.float64) else metric.compute()
-                    )
-                    for name, metric in self.metrics[step_prefix].items()
-                    if "_Curve" not in name
-                },
-                sync_dist=True,
-            )
+            for name, metric in self.metrics[step_prefix].items():
+                if "_Curve" in name:
+                    continue
+                # Compute each metric separately, so one that is not computable (e.g. AUC on one class) skips only itself
+                try:
+                    value = metric.compute()
+                except (NotComputableError, ValueError):
+                    if (step_prefix, name) not in self._metrics_warning_printed:
+                        self._metrics_warning_printed.add((step_prefix, name))
+                        logging.warning(f"Metric {name} for {step_prefix} not computable")
+                    continue
+                values[f"{step_prefix}/{name}"] = np.float32(value) if isinstance(value, np.float64) else value
+            self.log_dict(values, sync_dist=True)
+        finally:
             for metric in self.metrics[step_prefix].values():
                 metric.reset()
-        except (NotComputableError, ValueError):
-            if step_prefix not in self._metrics_warning_printed:
-                self._metrics_warning_printed.add(step_prefix)
-                logging.warning(f"Metrics for {step_prefix} not computable")
-            pass
 
     def configure_optimizers(self):
         """Configure optimizers and learning rate schedulers."""
