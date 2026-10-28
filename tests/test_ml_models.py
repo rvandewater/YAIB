@@ -159,7 +159,7 @@ def test_debug_saves_hourly_class_probabilities(tmp_path, monkeypatch):
 @pytest.mark.xfail(
     strict=True,
     raises=AssertionError,
-    reason="The probabilities of one-row-per-stay tasks are not saved: their indicators have 1 column",
+    reason="#275: The probabilities of one-row-per-stay tasks are not saved: their indicators have 1 column",
 )
 def test_debug_saves_per_stay_class_probabilities(tmp_path, monkeypatch):
     monkeypatch.setattr(MLWrapper, "debug", True)
@@ -196,7 +196,9 @@ def test_fitted_wrapper_pickles_without_transforms():
     np.testing.assert_array_equal(restored.predict(features), model.predict(features))
 
 
-@pytest.mark.xfail(strict=True, raises=TypeError, reason="validation_step passes the val loss to log_metrics instead of log")
+@pytest.mark.xfail(
+    strict=True, raises=TypeError, reason="#275: validation_step passes the val loss to log_metrics instead of log"
+)
 def test_validation_step_logs_loss_and_metrics(monkeypatch):
     train_set, val_set, _ = datasets(splits(regression=False))
     model = LogisticRegression(run_mode=RunMode.classification)

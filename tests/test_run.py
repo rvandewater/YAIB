@@ -158,7 +158,7 @@ def test_experiment_config_replaces_model_and_task_configs(tmp_path, monkeypatch
 @pytest.mark.xfail(
     strict=True,
     raises=AssertionError,
-    reason="main binds the custom preprocessor before it parses the task config, which binds the default one again",
+    reason="#274: main binds the custom preprocessor before it parses the task config, which binds the default one again",
 )
 def test_custom_preprocessor_is_used(tmp_path, monkeypatch):
     marker = tmp_path / "applied"

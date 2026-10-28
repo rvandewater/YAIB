@@ -83,7 +83,7 @@ def test_tuning_stores_trials_and_binds_the_best(tuned):
 @pytest.mark.xfail(
     strict=True,
     raises=AssertionError,
-    reason="The optuna.visualization plots are plotly figures, so plt.savefig saves an empty matplotlib figure",
+    reason="#275: The optuna.visualization plots are plotly figures, so plt.savefig saves an empty matplotlib figure",
 )
 @pytest.mark.parametrize("name", ["param_importances.png", "optimization_history.png"])
 def test_tuning_plots_are_not_blank(name, tuned):
