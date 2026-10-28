@@ -184,3 +184,16 @@ def test_load_model_without_weights_fails(tmp_path):
         load_model(GRUNet, tmp_path / "missing", mode=RunMode.classification)
     with pytest.raises(ValueError, match="valid run mode"):
         load_model(GRUNet, tmp_path, mode="Clustering")
+
+
+def test_save_model_stores_whole_module(tmp_path):
+    torch.manual_seed(0)
+    model = MODELS["gru"]().eval()
+    model.save_model(tmp_path, "saved")
+    loaded = torch.load(tmp_path / "saved.ckpt", weights_only=False).eval()
+    assert isinstance(loaded, GRUNet)
+    x = torch.randn(INPUT_SIZE)
+    torch.testing.assert_close(loaded(x), model(x))
+    # A failed save is logged, not raised
+    model.save_model(tmp_path / "missing", "saved")
+    assert not (tmp_path / "missing").exists()
