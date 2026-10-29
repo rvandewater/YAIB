@@ -2,7 +2,7 @@
 command:
   - ${env}
   - ${program}
-  - --full-train
+  - --complete-train
   - -d
   - ../data/
   - -t
@@ -12,7 +12,6 @@ command:
   - ../yaib_logs
   - --tune
   - --wandb-sweep
-  - --tune
 method: grid
 name: yaib_full_benchmark
 parameters:
