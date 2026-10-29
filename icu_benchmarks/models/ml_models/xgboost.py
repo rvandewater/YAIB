@@ -1,9 +1,9 @@
-import inspect
 import logging
 from statistics import mean
 
 import gin
 import shap
+import torch
 import wandb
 import xgboost as xgb
 from xgboost.callback import EarlyStopping
@@ -22,9 +22,21 @@ class XGBClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
     _explain_values = False
 
-    def __init__(self, *args, **kwargs):
-        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, device="cpu")
+    def __init__(self, *args, device: str = "cpu", verbosity: int = 0, **kwargs):
+        device = self.resolve_device(device, cpu=kwargs.get("cpu", False))
+        self.model = self.set_model_args(xgb.XGBClassifier, *args, **kwargs, device=device, verbosity=verbosity)
         super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def resolve_device(device: str, cpu: bool = False) -> str:
+        """Returns the XGBoost device; "auto" picks CUDA when available, and the --cpu flag always forces the CPU."""
+        if cpu:
+            if device not in ("cpu", "auto"):
+                logging.warning(f"Ignoring XGBoost device={device!r} because the CPU was requested.")
+            return "cpu"
+        if device == "auto":
+            return "cuda" if torch.cuda.is_available() else "cpu"
+        return device
 
     def predict(self, features):
         """
@@ -46,6 +58,8 @@ class XGBClassifier(MLWrapper):
             callbacks.append(wandb_xgb())
         logging.debug(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
         logging.debug(train_labels)
+        # XGBoost >= 2.0 takes callbacks as an estimator parameter, not as a fit() argument.
+        self.model.set_params(callbacks=callbacks)
         self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=False)
         if self._explain_values:
             self.explainer = shap.TreeExplainer(self.model)
@@ -55,12 +69,11 @@ class XGBClassifier(MLWrapper):
         # self.log_dict(self.model.get_booster().get_score(importance_type='weight'))
         # Return the first metric we use for validation
         eval_score = mean(next(iter(self.model.evals_result_["validation_0"].values())))
-        return eval_score  # , callbacks=callbacks)
+        return eval_score
 
     def set_model_args(self, model, *args, **kwargs):
-        """XGBoost signature does not include the hyperparams so we need to pass them manually."""
-        signature = inspect.signature(model.__init__).parameters
-        valid_params = signature.keys()
+        """XGBoost takes its hyperparameters as **kwargs, so validate them against get_params() instead of the signature."""
+        valid_params = model().get_params().keys()
 
         # Filter out invalid arguments
         valid_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
