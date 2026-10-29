@@ -1,0 +1,13 @@
+# Settings for Support Vector Machine regressor.
+# Note: kernel SVMs scale quadratically with the number of training samples.
+
+# Common settings for ML models
+include "configs/prediction_models/common/MLCommon.gin"
+
+# Train params
+train_common.model = @SVMRegressor
+
+model/hyperparameter.class_to_tune = @SVMRegressor
+model/hyperparameter.C = (1e-2, 1e2, "log")
+model/hyperparameter.kernel = ["rbf", "linear"]
+model/hyperparameter.gamma = ["scale", "auto"]
