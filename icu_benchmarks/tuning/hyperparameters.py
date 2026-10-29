@@ -247,36 +247,7 @@ def choose_and_bind_hyperparameters_optuna(
         hyperparams = {}
         logging.info(f"Bounds: {hyperparams_bounds}, Names: {hyperparams_names}")
         for name, value in zip(hyperparams_names, hyperparams_bounds):
-            if isinstance(value, tuple):
-
-                def suggest_int_param(trial, name, value):
-                    return trial.suggest_int(
-                        name,
-                        value[0],
-                        value[1],
-                        log=value[2] == "log" if len(value) == 3 else False,
-                    )
-
-                def suggest_float_param(trial, name, value):
-                    return trial.suggest_float(
-                        name,
-                        value[0],
-                        value[1],
-                        log=value[2] == "log" if len(value) == 3 else False,
-                    )
-
-                def suggest_categorical_param(trial, name, value):
-                    return trial.suggest_categorical(name, value)
-
-                # Then in the objective function:
-                if isinstance(value[0], int) and isinstance(value[1], int):
-                    hyperparams[name] = suggest_int_param(trial, name, value)
-                elif isinstance(value[0], (int, float)) and isinstance(value[1], (int, float)):
-                    hyperparams[name] = suggest_float_param(trial, name, value)
-                else:
-                    hyperparams[name] = suggest_categorical_param(trial, name, value)
-            else:
-                hyperparams[name] = trial.suggest_categorical(name, value)
+            hyperparams[name] = suggest_hyperparameter(trial, name, value)
         return bind_params_and_train(hyperparams)
 
     def tune_step_callback(study: optuna.study.Study, trial: optuna.trial.FrozenTrial):
@@ -336,10 +307,7 @@ def choose_and_bind_hyperparameters_optuna(
             logging.info(f"Score: {score}")
             return score
 
-    if isinstance(sampler, optuna.samplers.GPSampler):
-        sampler = sampler(seed=seed, n_startup_trials=n_initial_points, deterministic_objective=True)
-    else:
-        sampler = sampler(seed=seed)
+    sampler = make_sampler(sampler, seed, n_initial_points)
     pruner = optuna.pruners.HyperbandPruner()
     # Optuna study
     # Attempt checkpoint loading
@@ -406,6 +374,34 @@ def choose_and_bind_hyperparameters_optuna(
             plt.savefig(log_dir / "optimization_history.png")
         except Exception as e:
             logging.error(f"Failed to plot hyperparameter importances: {e}")
+
+
+def make_sampler(sampler: type, seed: int, n_initial_points: int) -> optuna.samplers.BaseSampler:
+    """Instantiates the sampler class; the GP sampler explores n_initial_points random trials first."""
+    if isinstance(sampler, type) and issubclass(sampler, optuna.samplers.GPSampler):
+        return sampler(seed=seed, n_startup_trials=n_initial_points, deterministic_objective=True)
+    return sampler(seed=seed)
+
+
+# Log priors of the Optuna configs and the skopt spelling still used by older configs
+LOG_PRIORS = ("log", "log-uniform")
+
+
+def suggest_hyperparameter(trial: optuna.trial.Trial, name: str, value):
+    """Samples one hyperparameter from its gin bound.
+
+    Tuples of numbers are ranges: (low, high), optionally followed by a prior ("log" or "log-uniform") and a log base,
+    which is ignored because the base does not change a log-uniform distribution. Anything else is a list of choices.
+    """
+    numeric = isinstance(value, tuple) and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in value[:2])
+    if not numeric:
+        return trial.suggest_categorical(name, value)
+    if len(value) > 2 and not isinstance(value[2], str):
+        raise ValueError(f"Hyperparameter {name} = {value} is ambiguous; use a list for choices or (low, high, prior).")
+    log = len(value) > 2 and value[2].lower() in LOG_PRIORS
+    if isinstance(value[0], int) and isinstance(value[1], int):
+        return trial.suggest_int(name, value[0], value[1], log=log)
+    return trial.suggest_float(name, value[0], value[1], log=log)
 
 
 def collect_bound_hyperparameters(hyperparams, scopes):
