@@ -220,3 +220,57 @@ def test_label_selection_with_multiple_labels(label, expected, tmp_path):
     vars = {**demo_vars(tmp_path), "LABEL": ["label", "other"]}
     preprocess_data(tmp_path, file_names=dict(FILE_NAMES), vars=vars, label=label, cv_repetitions=2, cv_folds=2)
     assert vars["LABEL"] == expected
+
+
+@pytest.mark.parametrize("complete_train", [False, True], ids=["cv", "complete_train"])
+def test_debug_keeps_one_percent_of_stays(complete_train):
+    raw = synthetic_raw(2000)
+    raw[Segment.static] = pl.DataFrame({"stay_id": np.arange(2000), "age": np.arange(2000) % 90})
+    if complete_train:
+        data = make_train_val(raw, VARS, train_size=0.75, debug=True)
+    else:
+        data = make_single_split(raw, VARS, 2, 0, 2, 0, debug=True)
+    ids = split_ids(data)
+    assert len(set.union(*ids)) == 20
+    assert not ids[0] & ids[1] and not ids[0] & ids[2]
+    for split, stay_ids in zip(SPLITS, ids):
+        for segment in (Segment.dynamic, Segment.static):
+            assert set(data[split][segment]["stay_id"].to_list()) == stay_ids
+
+
+@pytest.mark.parametrize("runmode", [RunMode.classification, RunMode.regression])
+def test_train_size_fixes_the_development_split(runmode):
+    folds = [
+        make_single_split(synthetic_raw(), VARS, 2, repetition, 2, 0, train_size=0.5, runmode=runmode) for repetition in (0, 1)
+    ]
+    for data in folds:
+        train, val, test = split_ids(data)
+        assert (len(train), len(val), len(test)) == (10, 10, 20)
+        assert not (train | val) & test
+    # Repetitions draw their test stays independently instead of partitioning the stays
+    assert split_ids(folds[0])[2] != split_ids(folds[1])[2]
+
+
+def test_regression_train_val_split():
+    train, val, test = split_ids(make_train_val(synthetic_raw(), VARS, train_size=0.75, runmode=RunMode.regression))
+    assert len(train) == 30 and len(val) == 10 and val == test and not train & val
+
+
+@pytest.mark.parametrize("selected", [["vitals", "demographics"], ["all"]])
+def test_preprocess_selects_modalities(selected):
+    mapping = {"vitals": ["hr", "map"], "demographics": ["age"]}
+    data, _ = run_preprocess(DEMO / "mortality24" / "mimic_demo", modality_mapping=mapping, selected_modalities=selected)
+    columns = set(data[Split.train][Segment.features].columns)
+    assert {"hr", "map", "age", "MissingIndicator_hr"} <= columns
+    unselected = {"sbp", "sex"}
+    if selected == ["all"]:  # Without a selection, all variables are kept
+        assert unselected <= columns
+    else:
+        assert not unselected & columns
+
+
+def test_modality_selection_requires_a_single_label():
+    vars = {"GROUP": "stay_id", "SEQUENCE": "time", "LABEL": ["label", "other"], "DYNAMIC": ["hr"]}
+    data = {Segment.dynamic: pl.DataFrame({"stay_id": [1], "time": [0], "hr": [80]})}
+    with pytest.raises(TypeError, match="to be of type str"):
+        modality_selection(data, {"vitals": ["hr"]}, ["vitals"], vars)
