@@ -73,6 +73,7 @@ def train_common(
     polars: bool = True,
     persistent_workers: bool = False,
     target_transform: Optional[TargetTransform] = None,
+    explain_features: bool = False,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -100,6 +101,7 @@ def train_common(
         pl_model: Loading a pytorch lightning model.
         num_workers: Number of workers to use for data loading.
         target_transform: Fitted preprocessing transform, required for regression.
+        explain_features: Save SHAP values of the test set. Only supported by models that set an explainer_cls.
 
     Returns:
         Native-unit MSE for regression, or test loss for other run modes.
@@ -170,6 +172,7 @@ def train_common(
             cpu=cpu,
         )
 
+    model.set_explain_features(explain_features)
     model.target_transform = target_transform
     if target_transform is not None:
         target_transform.save(log_dir)
