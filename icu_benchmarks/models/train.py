@@ -194,7 +194,8 @@ def train_common(
             strict=False,
             verbose=verbose,
         ),
-        ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
+        # model.ckpt keeps the epoch with the best validation loss
+        ModelCheckpoint(log_dir, filename="model", monitor="val/loss", mode="min", save_top_k=1, save_last=True),
         LearningRateMonitor(logging_interval="step"),
     ]
     if verbose:
@@ -249,7 +250,11 @@ def train_common(
 
     model.set_weight("balanced", train_dataset)
     score_name = "test/MSE_native" if mode == RunMode.regression else "test/loss"
-    test_results = trainer.test(model, dataloaders=test_loader, verbose=verbose)
+    # EarlyStopping does not restore weights, so test a trained DL model on its best validation checkpoint
+    ckpt_path = "best" if model.requires_backprop and not eval_only else None
+    # YAIB checkpoints store the model class and RunMode enum, as in load_model.
+    with torch.serialization.safe_globals([type(model), RunMode]):
+        test_results = trainer.test(model, dataloaders=test_loader, ckpt_path=ckpt_path, verbose=verbose)
     if not test_results or score_name not in test_results[0]:
         raise ValueError(f"Test evaluation did not produce {score_name}; check that the test split has labeled targets.")
     test_loss = test_results[0][score_name]

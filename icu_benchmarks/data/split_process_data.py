@@ -117,6 +117,8 @@ def preprocess_data(
 
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
+    # The modality selection changes vars and the excluded variables later on, so it must be part of the cache key
+    dumped_modalities = json.dumps({"mapping": modality_mapping, "selected": selected_modalities}, sort_keys=True)
 
     logging.info(f"Using preprocessor: {preprocessor.__name__}")
 
@@ -141,7 +143,8 @@ def preprocess_data(
 
     preprocessor_instance.target_transform = target_transform
     hash_config = hashlib.md5(
-        f"{preprocessor_instance.to_cache_string()}{dumped_file_names}{dumped_vars}{runmode}{target_transform}".encode("utf-8")
+        f"{preprocessor_instance.to_cache_string()}{dumped_file_names}{dumped_vars}{dumped_modalities}{runmode}"
+        f"{target_transform}".encode("utf-8")
     )
     cache_filename += f"_{hash_config.hexdigest()}"
     cache_file = cache_dir / cache_filename
@@ -210,8 +213,8 @@ def preprocess_data(
     logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
     for _dict in sanitized_data.values():
         for key, val in _dict.items():
-            # Preserve missing regression labels for dataset masks/filtering, rather than inventing zero targets.
-            if key == DataSegment.outcome and runmode == RunMode.regression:
+            # Preserve missing labels for dataset masks/filtering, rather than inventing zero targets or negatives.
+            if key == DataSegment.outcome:
                 continue
             logging.debug(f"Data type: {key}")
             logging.debug("Is NaN:")
@@ -414,10 +417,11 @@ def make_train_val_polars(
         if DataSegment.static in data:
             data[DataSegment.static] = data[DataSegment.static].filter(pl.col(_id).is_in(sampled_ids))
 
-    stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique())
+    # Sort the stays and their labels the same way, so the split is reproducible and the labels line up with the stays
+    stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique()).sort()
 
     if VarType.label in vars and runmode is RunMode.classification:
-        labels = data[DataSegment.outcome].group_by(_id).max()[label]
+        labels = data[DataSegment.outcome].group_by(_id).max().sort(_id)[label]
         train_val_splitter = StratifiedShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
         train_indices, val_indices = list(train_val_splitter.split(stays, labels))[0]
     else:
