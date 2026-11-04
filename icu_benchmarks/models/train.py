@@ -280,7 +280,8 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
             if model.target_transform is not None:
                 values = values / model.target_transform.scale
                 np.save(log_dir / f"{split}_shap_base_values.npy", model.inverse_target(explanation.base_values))
-            shaps = pl.DataFrame(schema=model.trained_columns, data=np.transpose(values))
+            # One row per sample; with orient given, Polars cannot transpose a square matrix based on its memory layout
+            shaps = pl.DataFrame(values, schema=model.trained_columns, orient="row")
             shaps.write_parquet(log_dir / f"{split}_shap_values.parquet")
             logging.info(f"Saved {split} shap values to {log_dir / f'{split}_shap_values.parquet'}")
         except Exception as e:

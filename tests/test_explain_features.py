@@ -16,7 +16,8 @@ from icu_benchmarks.models.ml_models.lgbm import LGBMClassifier
 from icu_benchmarks.models.ml_models.sklearn import LogisticRegression, RFClassifier
 from icu_benchmarks.models.ml_models.xgboost import XGBClassifier
 from icu_benchmarks.models.train import train_common
-from icu_benchmarks.run_utils import aggregate_results, build_parser
+from icu_benchmarks import cross_validation
+from icu_benchmarks.run_utils import aggregate_results, build_parser, check_explain_features
 
 VARS = {"GROUP": "stay_id", "SEQUENCE": "time", "LABEL": "label", "DYNAMIC": ["x", "noise"], "STATIC": []}
 
@@ -75,8 +76,40 @@ def test_unsupported_model_fails_before_training(model_cls, tmp_path):
 
 def test_cli_flag():
     required = ["-d", "data", "-t", "Mortality24"]
-    assert build_parser().parse_args([*required, "--explain-features"]).explain_features
-    assert not build_parser().parse_args(required).explain_features
+    assert build_parser().parse_args([*required, "--explain-features"]).explain_features is True
+    assert build_parser().parse_args([*required, "--no-explain-features"]).explain_features is False
+    # Without the flag, a gin binding of train_common.explain_features decides
+    assert build_parser().parse_args(required).explain_features is None
+
+
+@pytest.mark.parametrize(
+    ("flag", "binding", "model", "fails"),
+    [
+        (True, None, "LogisticRegression", True),
+        (None, True, "LogisticRegression", True),
+        (False, True, "LogisticRegression", False),
+        (None, None, "LogisticRegression", False),
+        (True, None, "XGBClassifier", False),
+    ],
+)
+def test_unsupported_model_is_rejected_before_tuning(flag, binding, model, fails):
+    gin.parse_config(f"train_common.model = @{model}")
+    if binding is not None:
+        gin.bind_parameter("train_common.explain_features", binding)
+    if fails:
+        with pytest.raises(NotImplementedError, match="does not support SHAP"):
+            check_explain_features(flag)
+    else:
+        check_explain_features(flag)
+
+
+@pytest.mark.parametrize(("flag", "passed"), [(None, {}), (True, {"explain_features": True})])
+def test_absent_flag_does_not_override_the_gin_binding(flag, passed, monkeypatch, tmp_path):
+    calls = []
+    monkeypatch.setattr(cross_validation, "preprocess_data", lambda *args, **kwargs: (classification_splits(), None))
+    monkeypatch.setattr(cross_validation, "train_common", lambda *args, **kwargs: calls.append(kwargs) or 0.0)
+    cross_validation.execute_repeated_cv(tmp_path, tmp_path, seed=0, cv_repetitions=1, cv_folds=1, explain_features=flag)
+    assert {key: value for key, value in calls[0].items() if key == "explain_features"} == passed
 
 
 @pytest.mark.parametrize("with_shap", [False, True])
