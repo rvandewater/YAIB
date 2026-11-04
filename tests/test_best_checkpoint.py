@@ -8,6 +8,7 @@ import numpy as np
 import polars as pl
 import pytest
 import torch
+from pytorch_lightning import seed_everything
 from torch.nn.functional import cross_entropy
 
 from icu_benchmarks.constants import RunMode
@@ -48,6 +49,8 @@ def gru_config():
 def test_dl_tests_best_validation_checkpoint(gru_config, tmp_path):
     optimizer = gin.get_configurable("torch.optim.Adam")
     kwargs = dict(optimizer=optimizer, model=GRUNet, mode=RunMode.classification, weight="balanced", batch_size=8, cpu=True)
+    # Unseeded, about 1 in 20 initialisations still improves in the last epoch; seed 0 peaks at epoch 6
+    seed_everything(0)
     train_common(random_label_splits(), log_dir=tmp_path, epochs=EPOCHS, patience=100, num_workers=0, **kwargs)
 
     best = torch.load(tmp_path / "model.ckpt", weights_only=False)
