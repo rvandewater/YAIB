@@ -49,3 +49,22 @@ def test_generate_pools_stratified_samples_and_saves_held_out_stays(tmp_path):
         held_out_stays = set(held_out[Segment.outcome]["stay_id"])
         assert len(held_out_stays) == STAYS - SAMPLES and not held_out_stays & stays
         assert set(held_out[Segment.dynamic]["stay_id"]) == held_out_stays
+
+
+def test_stratification_labels_follow_the_stay_order(tmp_path):
+    # The labels were sorted by stay ID while the stays kept the outcome's row order, so an unsorted outcome frame
+    # stratified on the wrong labels. Here a quarter of the stays are positive and the outcome is in reverse order.
+    stay_ids = np.arange(1, STAYS + 1)
+    label = (stay_ids > STAYS * 3 // 4).astype(int)
+    segments = {
+        Segment.outcome: pd.DataFrame({"stay_id": stay_ids, "label": label}).iloc[::-1],
+        Segment.static: pd.DataFrame({"stay_id": stay_ids, "age": 0.0}),
+        Segment.dynamic: pd.DataFrame({"stay_id": stay_ids, "time": 0, "hr": 0.0}),
+    }
+    (tmp_path / "a").mkdir()
+    for segment, file_name in FILES.items():
+        segments[segment].to_parquet(tmp_path / "a" / file_name)
+    samples = 8
+    PooledData(tmp_path, VARS, ["a"], FILES, shuffle=True).generate(["a"], samples=samples)
+    pooled = read_segments(tmp_path / f"a_{samples}")
+    assert pooled[Segment.outcome]["label"].sum() == samples // 4

@@ -144,8 +144,9 @@ class PooledData:
             stays = pd.Series(outcome[id].unique())
 
             if runmode is RunMode.classification:
-                # If we have more outcomes than stays, check max label value per stay id
-                labels = outcome.groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+                # If we have more outcomes than stays, check max label value per stay id. groupby sorts by stay ID, so
+                # reorder the labels to match stays, which follows the outcome's row order
+                labels = outcome.groupby(id)[vars[Var.label]].max().loc[stays].to_numpy()
                 # if pd.Series(outcome[id].unique()) is outcome[id]):
                 selected_stays = train_test_split(
                     stays,
