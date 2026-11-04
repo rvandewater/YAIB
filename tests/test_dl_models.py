@@ -14,6 +14,7 @@ from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.constants import DataSegment as Segment, DataSplit as Split
 from icu_benchmarks.data.loader import PredictionPolarsDataset
 from icu_benchmarks.models.dl_models.layers import SelfAttention, SparseBlock, parallel_recomb
+from icu_benchmarks.models.dl_models.mamba import Mamba
 from icu_benchmarks.models.dl_models.rnn import GRUNet, LSTMNet, RNNet
 from icu_benchmarks.models.dl_models.tcn import TemporalConvNet
 from icu_benchmarks.models.dl_models.transformer import LocalTransformer, Transformer
@@ -33,6 +34,7 @@ MODELS = {
     "local_transformer": lambda: LocalTransformer(
         INPUT_SIZE, hidden=8, heads=2, ff_hidden_mult=2, depth=2, num_classes=CLASSES, local_context=2
     ),
+    "mamba": lambda: Mamba(INPUT_SIZE, hidden=8, depth=2, num_classes=CLASSES, d_state=4, d_conv=3),
 }
 
 
@@ -128,6 +130,7 @@ MODEL_PARAMS = {
     GRUNet: {"hidden_dim": 4, "layer_dim": 1},
     TemporalConvNet: {"num_channels": [4]},
     Transformer: {"hidden": 4, "heads": 1, "ff_hidden_mult": 1, "depth": 1},
+    Mamba: {"hidden": 4, "depth": 1, "d_state": 4},
 }
 
 
@@ -157,6 +160,7 @@ def test_train_common_one_epoch(model_cls, tmp_path):
     [
         GRUNet,
         TemporalConvNet,
+        Mamba,
         pytest.param(
             Transformer,
             marks=pytest.mark.xfail(

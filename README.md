@@ -305,6 +305,7 @@ The benchmark provides (among others) the following built-in models:
 - [Gated Recurrent Unit (GRU)](https://arxiv.org/abs/1406.1078): An extension to LSTM which showed improvements ([paper](https://arxiv.org/abs/1412.3555)).
 - [Temporal Convolutional Networks (TCN)](https://arxiv.org/pdf/1803.01271): 1D convolution approach to sequence data. By using dilated convolution to extend the receptive field of the network it has shown great performance on long-term dependencies.
 - [Transformers](https://papers.nips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf): The most common attention-based approach.
+- [Mamba](https://arxiv.org/abs/2312.00752): A selective state-space model that scales linearly with sequence length. [EHRMamba](https://arxiv.org/abs/2405.14567) showed that it works well on EHR data; YAIB includes the Mamba backbone, trained from scratch on the hourly features rather than pretrained on tokenized events, so results are not comparable to EHRMamba's (see [`mamba.py`](icu_benchmarks/models/dl_models/mamba.py) for the differences). Runs in plain PyTorch, or with the fused kernels of [`mamba-ssm`](https://github.com/state-spaces/mamba) if installed on an NVIDIA GPU.
 
 # 🛠️ Development
 
