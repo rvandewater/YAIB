@@ -63,6 +63,9 @@ def test_train_then_evaluate_on_demo_data(tmp_path, monkeypatch):
     assert 0 <= evaluated["AUC"] <= 1
     # Evaluation reuses the trained model instead of fitting a new one
     assert not (eval_dir / "repetition_0" / "fold_0" / "last.joblib").exists()
+    # The names of the source run, which its train_config.gin binds, are replaced (#275)
+    names = bound(eval_dir / "repetition_0" / "fold_0", "train_common.dataset_names")
+    assert names == {"train": "mimic", "val": "mimic", "test": "eicu_demo"}
 
 
 def test_complete_train_of_dl_model_on_hourly_task(tmp_path, monkeypatch):
@@ -123,6 +126,9 @@ def test_fine_tune_retrains_on_target_data(source, tmp_path, monkeypatch):
     # Unlike evaluation, fine-tuning fits and saves a new model
     assert not np.allclose(joblib.load(fold / "last.joblib").coef_, joblib.load(source / "last.joblib").coef_)
     assert 0 <= json.loads((fold / "test_metrics.json").read_text())["AUC"] <= 1
+    # The names of the source run, which its train_config.gin binds, are replaced (#275)
+    assert bound(source, "train_common.dataset_names")["test"] == "mimic_demo"
+    assert bound(fold, "train_common.dataset_names") == {"train": "eicu_demo", "val": "eicu_demo", "test": "eicu_demo"}
 
 
 def test_samples_train_new_model_with_source_config(source, tmp_path, monkeypatch):

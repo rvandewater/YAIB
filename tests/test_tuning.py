@@ -80,11 +80,6 @@ def test_tuning_stores_trials_and_binds_the_best(tuned):
     assert not [p for p in log_dir.iterdir() if p.is_dir()]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="#275: The optuna.visualization plots are plotly figures, so plt.savefig saves an empty matplotlib figure",
-)
 @pytest.mark.parametrize("name", ["param_importances.png", "optimization_history.png"])
 def test_tuning_plots_are_not_blank(name, tuned):
     image = plt.imread(tuned[0] / name)
@@ -114,6 +109,14 @@ def test_missing_checkpoint_starts_a_new_study(tmp_path):
     tune(tmp_path, checkpoint=tmp_path / "missing.db", n_calls=1)
     assert not (tmp_path / "missing.db").exists()
     assert len(load(tmp_path / "hyperparameter_tuning_logs.db").trials) == 1
+
+
+def test_missing_checkpoint_without_tuning_is_rejected(tmp_path, monkeypatch):
+    forbid_training(monkeypatch)
+    with pytest.raises(ValueError, match="does not exist"):
+        tune(tmp_path, checkpoint=tmp_path / "missing.db", do_tune=False)
+    # Loading the study would have created an empty sqlite file
+    assert not any(tmp_path.iterdir())
 
 
 def test_without_tuning_or_checkpoint_binds_one_untrained_point(tmp_path, monkeypatch):

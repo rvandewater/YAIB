@@ -161,6 +161,14 @@ def test_modality_selection():
         modality_selection(data, mapping, ["labs"], dict(vars))
 
 
+def test_modality_without_columns_keeps_all_columns():
+    vars = {"GROUP": "stay_id", "SEQUENCE": "time", "LABEL": "label", "DYNAMIC": ["hr", "map"], "STATIC": ["age"]}
+    data = {Segment.dynamic: pl.DataFrame({"stay_id": [1], "time": [0], "hr": [80], "map": [70]})}
+    selected, new_vars = modality_selection(data, {"vitals": ["hr"], "all_columns": []}, ["all_columns"], dict(vars))
+    assert selected[Segment.dynamic].columns == ["stay_id", "time", "hr", "map"]
+    assert new_vars == vars
+
+
 def synthetic_raw(n=40):
     rng = np.random.default_rng(0)
     ids = np.arange(n)

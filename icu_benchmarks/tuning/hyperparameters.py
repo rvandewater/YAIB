@@ -15,7 +15,7 @@ from icu_benchmarks.run_utils import log_full_line
 from icu_benchmarks.tuning.gin_utils import get_gin_hyperparameters, bind_gin_params
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.wandb_utils import wandb_log
-from optuna.visualization import plot_param_importances, plot_optimization_history
+from optuna.visualization.matplotlib import plot_param_importances, plot_optimization_history
 
 TUNE = 25
 logging.addLevelName(25, "TUNE")
@@ -222,7 +222,7 @@ def choose_and_bind_hyperparameters_optuna(
         verbose: Set to true to increase log output.
 
     Raises:
-        ValueError: If checkpoint is not None and the checkpoint does not exist.
+        ValueError: If tuning is disabled and the checkpoint does not exist. With tuning, a new study is started instead.
     """
     hyperparams = {}
 
@@ -300,6 +300,9 @@ def choose_and_bind_hyperparameters_optuna(
     else:
         logging.log(TUNE, "Hyperparameter tuning disabled")
         if checkpoint:
+            # Loading a missing sqlite storage would create an empty file and fail on the missing study
+            if not Path(checkpoint).exists():
+                raise ValueError(f"Hyperparameter checkpoint {checkpoint} does not exist.")
             study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(checkpoint))
             configuration = study.best_params
             # We have loaded a checkpoint, use the best hyperparameters.
@@ -400,10 +403,14 @@ def choose_and_bind_hyperparameters_optuna(
     if plot:
         try:
             logging.info("Plotting hyperparameter importances.")
-            plot_param_importances(study)
-            plt.savefig(log_dir / "param_importances.png")
-            plot_optimization_history(study)
-            plt.savefig(log_dir / "optimization_history.png")
+            # The optuna.visualization.matplotlib plots: the default optuna.visualization ones are plotly figures.
+            # They set the ggplot style globally, which rc_context restores afterwards
+            plots = {"param_importances": plot_param_importances, "optimization_history": plot_optimization_history}
+            with plt.rc_context():
+                for name, plot_study in plots.items():
+                    figure = plot_study(study).figure
+                    figure.savefig(log_dir / f"{name}.png", bbox_inches="tight")
+                    plt.close(figure)
         except Exception as e:
             logging.error(f"Failed to plot hyperparameter importances: {e}")
 

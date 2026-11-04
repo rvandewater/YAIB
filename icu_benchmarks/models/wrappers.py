@@ -516,7 +516,7 @@ class MLWrapper(BaseModule, ABC):
 
         val_pred = self.predict(val_rep)
 
-        self.log_metrics("val/loss", self.loss(val_label, val_pred), sync_dist=True)
+        self.log("val/loss", self.loss(val_label, val_pred), sync_dist=True)
         logging.info(f"Val loss: {self.loss(val_label, val_pred)}")
         self.log_metrics(val_label, val_pred, "val")
 
@@ -587,10 +587,11 @@ class MLWrapper(BaseModule, ABC):
                 delimiter=",",
             )
             return
-        if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1 and pred_indicators.shape[1] == test_pred.shape[1]:
+        # The indicators have one column (id) for the one-row-per-stay tasks and two (id, time) for the hourly ones
+        if len(pred_indicators.shape) > 1 and len(test_pred.shape) > 1:
             pred_indicators = np.hstack((pred_indicators, test_label.reshape(-1, 1)))
             pred_indicators = np.hstack((pred_indicators, test_pred))
-            # Save as: id, time (hours), ground truth, prediction 0, prediction 1
+            # Save as: id, time (hours, hourly tasks only), ground truth, prediction 0, prediction 1
             np.savetxt(
                 Path(self.logger.save_dir) / "pred_indicators.csv",
                 pred_indicators,
