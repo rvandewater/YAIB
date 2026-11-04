@@ -47,6 +47,26 @@ class SimpleDiffusionModel(ImputationWrapper):
         # Final Output
         self.output = nn.ConvTranspose1d(up_channels[-1], input_size[1], 2)
 
+        # Pre-calculate the terms of the closed-form diffusion. As buffers they move with the model, also when a
+        # restored model is moved to a GPU for test or predict (on_fit_start does not run there). They follow from
+        # T, so they are not saved in checkpoints.
+        betas = self.linear_beta_schedule(timesteps=self.T)
+        alphas = 1.0 - betas
+        alphas_cumprod = torch.cumprod(alphas, dim=0)
+        alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
+        schedule = {
+            "betas": betas,
+            "alphas": alphas,
+            "alphas_cumprod": alphas_cumprod,
+            "alphas_cumprod_prev": alphas_cumprod_prev,
+            "sqrt_recip_alphas": torch.sqrt(1.0 / alphas),
+            "sqrt_alphas_cumprod": torch.sqrt(alphas_cumprod),
+            "sqrt_one_minus_alphas_cumprod": torch.sqrt(1.0 - alphas_cumprod),
+            "posterior_variance": betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod),
+        }
+        for name, values in schedule.items():
+            self.register_buffer(name, values, persistent=False)
+
     def forward(self, amputated, timestep):
         amputated = torch.nan_to_num(amputated, nan=0.0)
         # model_input = torch.cat((amputated, amputation_mask), dim=1)
@@ -75,6 +95,7 @@ class SimpleDiffusionModel(ImputationWrapper):
 
         return output
 
+    @staticmethod
     def linear_beta_schedule(timesteps, start=0.0001, end=0.02):
         return torch.linspace(start, end, timesteps)
 
@@ -101,34 +122,13 @@ class SimpleDiffusionModel(ImputationWrapper):
             noise,
         )
 
-    # Define beta schedule
+    # Number of diffusion steps; the schedule buffers are built from it in __init__
     T = 300
-    betas = linear_beta_schedule(timesteps=T)
-
-    # Pre-calculate different terms for closed form
-    alphas = 1.0 - betas
-    alphas_cumprod = torch.cumprod(alphas, axis=0)
-    alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
-    sqrt_recip_alphas = torch.sqrt(1.0 / alphas)
-    sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
-    sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
-    posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
 
     def get_loss(self, x_0, t):
         x_noisy, noise = self.forward_diffusion_sample(x_0, t)
         noise_pred = self(x_noisy, t)
         return F.l1_loss(noise, noise_pred)
-
-    def on_fit_start(self) -> None:
-        self.betas = self.betas.to(self.device)
-        self.alphas = self.alphas.to(self.device)
-        self.alphas_cumprod = self.alphas_cumprod.to(self.device)
-        self.alphas_cumprod_prev = self.alphas_cumprod_prev.to(self.device)
-        self.sqrt_recip_alphas = self.sqrt_recip_alphas.to(self.device)
-        self.sqrt_alphas_cumprod = self.sqrt_alphas_cumprod.to(self.device)
-        self.sqrt_one_minus_alphas_cumprod = self.sqrt_one_minus_alphas_cumprod.to(self.device)
-        self.posterior_variance = self.posterior_variance.to(self.device)
-        super().on_fit_start()
 
     def training_step(self, batch):
         amputated, amputation_mask, target, target_missingness = batch

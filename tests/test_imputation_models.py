@@ -199,6 +199,32 @@ def test_diffusion_test_step_imputes_values_in_place(monkeypatch):
     assert logged == pytest.approx(0)
 
 
+@pytest.mark.parametrize("name", ["diffusion", "simple_diffusion"])
+def test_diffusion_schedule_moves_with_the_model(name):
+    model = MODELS[name]()
+    assert {"betas", "sqrt_alphas_cumprod", "posterior_variance"} <= dict(model.named_buffers()).keys()
+    # Derived from the configuration and not saved, so checkpoints from before the schedule became buffers still load
+    assert "betas" not in model.state_dict()
+    model.to(torch.float64)
+    assert model.betas.dtype == torch.float64
+
+
+ACCELERATOR = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else None
+
+
+@pytest.mark.skipif(ACCELERATOR is None, reason="needs a CUDA or MPS device")
+@pytest.mark.parametrize("name", ["diffusion", "simple_diffusion", "diffwave", "sssdsa"])
+def test_restored_diffusion_model_predicts_on_accelerator(name):
+    # A restored model is moved to the device without on_fit_start, so everything predict uses must follow .to()
+    if name == "sssdsa" and not S4_INSTALLED:
+        pytest.skip("SSSDSA needs einops and opt_einsum")
+    torch.manual_seed(0)
+    model = MODELS[name]().to(ACCELERATOR)
+    with torch.no_grad():
+        imputed = model.predict(batch()[0].to(ACCELERATOR))
+    assert imputed.device.type == ACCELERATOR and torch.isfinite(imputed).all()
+
+
 @pytest.mark.parametrize("schedule", ["linear", "quadratic", "cosine", "sigmoid"])
 def test_diffusion_noise_schedules_are_valid(schedule):
     model = Diffusion(
