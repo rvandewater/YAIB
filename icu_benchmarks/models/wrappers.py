@@ -429,6 +429,52 @@ class DLPredictionWrapper(DLWrapper):
         return loss
 
 
+MISSING_INDICATOR_PREFIX = "MissingIndicator_"
+
+
+class ObservationMaskWrapper(DLPredictionWrapper):
+    """Prediction wrapper for models that treat measured and imputed values differently, such as GRU-D and BAT.
+
+    YAIB's preprocessing recipe standardises the features, adds a ``MissingIndicator_<name>`` column that is 1 where
+    ``<name>`` was not measured, and then forward-fills the missing values (and fills the hours before the first
+    measurement with 0, the training mean). The observation mask is therefore already part of every input, so these models
+    need no extra dataset or input: once the column names are known, each column is paired with its indicator column and
+    ``observed_mask`` returns 1 where a value was measured and 0 where it was imputed.
+
+    train_common passes the dataset's feature names to ``set_trained_columns`` before training and evaluation. The pairing
+    is kept in buffers, so it is stored in checkpoints and pickled models and follows the model between devices. Columns
+    without an indicator (the indicators themselves, variables in the preprocessor's ``vars_to_exclude``, generated
+    features) count as always observed, and so does every column until the names are set.
+    """
+
+    def __init__(self, *args, input_size, **kwargs):
+        super().__init__(*args, input_size=input_size, **kwargs)
+        num_columns = input_size[2]
+        # Position of each column's missingness indicator column, or -1 if it has none
+        self.register_buffer("indicator_index", torch.full((num_columns,), -1, dtype=torch.long))
+        # Whether a column is the missingness indicator of another column
+        self.register_buffer("is_indicator", torch.zeros(num_columns, dtype=torch.bool))
+
+    def set_trained_columns(self, columns: List[str]):
+        super().set_trained_columns(columns)
+        columns = list(columns)
+        if len(columns) != len(self.indicator_index):
+            raise ValueError(
+                f"{type(self).__name__} reads the observation mask from the input columns by name, but got "
+                f"{len(columns)} names for {len(self.indicator_index)} input columns."
+            )
+        position = {name: i for i, name in enumerate(columns)}
+        index = torch.tensor([position.get(MISSING_INDICATOR_PREFIX + name, -1) for name in columns])
+        self.indicator_index.copy_(index)
+        self.is_indicator.zero_()
+        self.is_indicator[index[index >= 0]] = True
+
+    def observed_mask(self, x: Tensor) -> Tensor:
+        """Return 1 where a value of x (batch, time, columns) was measured and 0 where it was imputed."""
+        indicators = x[..., self.indicator_index.clamp(min=0)]
+        return torch.where(self.indicator_index >= 0, 1 - indicators, torch.ones_like(x))
+
+
 @gin.configurable("MLWrapper")
 class MLWrapper(BaseModule, ABC):
     """Interface for prediction with traditional Scikit-learn-like Machine Learning models."""
