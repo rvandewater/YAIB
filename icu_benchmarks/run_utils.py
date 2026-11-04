@@ -115,6 +115,13 @@ def build_parser() -> ArgumentParser:
         help="Use all data to train model, skip testing.",
     )
     parser.add_argument(
+        "--explain-features",
+        default=None,
+        action=BOA,
+        help="Save SHAP values of the test set (tree-based ML models only). Without the flag, a gin binding of "
+        "train_common.explain_features applies (default: off).",
+    )
+    parser.add_argument(
         "-ft",
         "--fine-tune",
         default=None,
@@ -218,14 +225,10 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                     shap_values_test.append(pl.read_parquet(fold_iter / "test_shap_values.parquet"))
 
     if shap_values_test:
-        shap_values = pl.concat(shap_values_test)
-        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
-
-    try:
-        shap_values = pl.concat(shap_values_test)
-        shap_values.write_parquet(log_dir / "aggregated_shap_values.parquet")
-    except Exception as e:
-        logging.error(f"Error aggregating or writing SHAP values: {e}")
+        try:
+            pl.concat(shap_values_test).write_parquet(log_dir / "aggregated_shap_values.parquet")
+        except Exception as e:
+            logging.error(f"Error aggregating or writing SHAP values: {e}")
     # Aggregate results per metric
     list_scores = {}
     for repetition, folds in aggregated.items():
@@ -322,6 +325,23 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
         pretrained_imputation_model = None
 
     return pretrained_imputation_model
+
+
+def check_explain_features(explain_features: bool | None) -> None:
+    """Fail before tuning, rather than after it, when SHAP values are requested for a model without an explainer.
+
+    Args:
+        explain_features: The --explain-features flag; None falls back to the train_common.explain_features binding.
+    """
+    if explain_features is None:
+        try:
+            explain_features = gin.query_parameter("train_common.explain_features")
+        except ValueError:
+            explain_features = False
+    if explain_features:
+        model = gin.query_parameter("train_common.model").configurable.wrapped
+        if getattr(model, "explainer_cls", None) is None:
+            raise NotImplementedError(f"{model.__name__} does not support SHAP explanations.")
 
 
 def setup_logging(date_format, log_format, verbose):

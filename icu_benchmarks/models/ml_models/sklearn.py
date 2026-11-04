@@ -1,4 +1,5 @@
 import gin
+import shap
 from sklearn import linear_model, ensemble, svm, neural_network
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
@@ -34,6 +35,7 @@ class ElasticNet(MLWrapper):
 @gin.configurable
 class RFClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
+    explainer_cls = shap.TreeExplainer
 
     def __init__(self, *args, **kwargs):
         self.model = self.set_model_args(ensemble.RandomForestClassifier, *args, **kwargs)
