@@ -18,7 +18,7 @@ name: Attention hyperparameter sweep
 parameters:
   model:
     values: ["Attention"] # DiffWave not working yet
-  ImputationDataset.mask_method:
+  ImputationPandasDataset.mask_method:
     values: ["MCAR"]
   seed:
     values: [1111]

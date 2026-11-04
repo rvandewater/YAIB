@@ -15,7 +15,7 @@ parameters:
   # gin config parameter name:
     # values: [a, b, etc...]
   # example:
-  ImputationDataset.mask_method:
+  ImputationPandasDataset.mask_method:
     values: [MCAR, MAR, MNAR]
 ```
 
