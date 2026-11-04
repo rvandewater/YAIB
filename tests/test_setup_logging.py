@@ -12,12 +12,17 @@ LOG_FORMAT, DATE_FORMAT = "%(levelname)s|%(message)s", "%H"
 
 @pytest.fixture
 def restore_loggers():
-    saved = {name: (logging.getLogger(name).level, list(logging.getLogger(name).handlers)) for name in LOGGERS}
+    # setup_logging reformats existing handlers (such as pytest's), so their formatters are restored too
+    saved = {
+        name: (logging.getLogger(name).level, [(h, h.formatter) for h in logging.getLogger(name).handlers]) for name in LOGGERS
+    }
     yield
     for name, (level, handlers) in saved.items():
         logger = logging.getLogger(name)
         logger.setLevel(level)
-        logger.handlers[:] = handlers
+        logger.handlers[:] = [handler for handler, _ in handlers]
+        for handler, formatter in handlers:
+            handler.setFormatter(formatter)
 
 
 def test_lightning_loggers_without_handlers(restore_loggers):
@@ -40,3 +45,12 @@ def test_lightning_handlers_get_the_format(restore_loggers, verbose):
         logger = logging.getLogger(name)
         assert logger.level == level
         assert all(h.formatter._fmt == LOG_FORMAT and h.formatter.datefmt == DATE_FORMAT for h in logger.handlers)
+
+
+def test_existing_root_handlers_get_the_format(restore_loggers):
+    # basicConfig does not touch a root logger that already has handlers, so they are formatted in place
+    handler = logging.StreamHandler()
+    logging.getLogger().handlers[:] = [handler]
+    setup_logging(DATE_FORMAT, LOG_FORMAT, verbose=False)
+    assert logging.getLogger().handlers == [handler]
+    assert handler.formatter._fmt == LOG_FORMAT and handler.formatter.datefmt == DATE_FORMAT

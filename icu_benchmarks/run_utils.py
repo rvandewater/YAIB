@@ -335,8 +335,9 @@ def setup_logging(date_format, log_format, verbose):
     """
     logging.basicConfig(format=log_format, datefmt=date_format)
     loggers = ["pytorch_lightning", "lightning_fabric"]
-    for logger in loggers:
-        # Lightning only adds its own handler when the root logger had none, so there may be none to format
+    # basicConfig leaves the root handlers alone when logging was configured before YAIB (a notebook, pytest), and
+    # Lightning only adds its own handler when the root logger had none, so format whichever handlers exist
+    for logger in ["", *loggers]:
         for handler in logging.getLogger(logger).handlers:
             handler.setFormatter(logging.Formatter(log_format, datefmt=date_format))
 
