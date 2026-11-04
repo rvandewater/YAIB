@@ -96,10 +96,11 @@ def test_finished_checkpoint_binds_best_without_training(do_tune, tuned, tmp_pat
     assert len(load(db).trials) == 2
 
 
-def test_resuming_runs_only_the_remaining_trials(tuned, tmp_path):
+def test_resuming_runs_only_the_remaining_trials(tuned, tmp_path, caplog):
     db = tmp_path / "checkpoint.db"
     db.write_bytes((tuned[0] / "hyperparameter_tuning_logs.db").read_bytes())
     tune(tmp_path, checkpoint=db, n_calls=3)
+    assert "does not exist" not in caplog.text  # The checkpoint exists
     study = load(db)
     assert len(study.trials) == 3
     assert bound(TUNED) == study.best_params
@@ -119,11 +120,13 @@ def test_missing_checkpoint_without_tuning_is_rejected(tmp_path, monkeypatch):
     assert not any(tmp_path.iterdir())
 
 
-def test_without_tuning_or_checkpoint_binds_one_untrained_point(tmp_path, monkeypatch):
+def test_without_tuning_or_checkpoint_binds_one_untrained_point(tmp_path, monkeypatch, caplog):
     forbid_training(monkeypatch)
-    tune(tmp_path, do_tune=False)
+    tune(tmp_path, do_tune=False, plot=True)
     (trial,) = load(tmp_path / "hyperparameter_tuning_logs.db").trials
     assert bound(TUNED) == trial.params
+    # A single untrained trial has no importances to plot; this logged an error on every run without --tune
+    assert "Failed to plot" not in caplog.text and not list(tmp_path.glob("*.png"))
 
 
 @pytest.mark.parametrize("kwargs", [{"scopes": []}, {"folds_to_tune_on": None}], ids=["no_scopes", "no_folds"])

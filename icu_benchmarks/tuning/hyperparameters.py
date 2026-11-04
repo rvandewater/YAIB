@@ -347,7 +347,6 @@ def choose_and_bind_hyperparameters_optuna(
     # Optuna study
     # Attempt checkpoint loading
     if checkpoint and checkpoint.exists():
-        logging.warning(f"Hyperparameter checkpoint {checkpoint} does not exist.")
         # logging.info("Attempting to find latest checkpoint file.")
         # checkpoint_path = find_checkpoint(log_dir.parent, checkpoint_file)
         # Check if we found a checkpoint file
@@ -400,7 +399,8 @@ def choose_and_bind_hyperparameters_optuna(
     logging.info("Training with these hyperparameters:")
     bind_gin_params(study.best_params)
 
-    if plot:
+    # Without tuning, the study holds a single untrained trial: there is nothing to plot
+    if plot and do_tune:
         try:
             logging.info("Plotting hyperparameter importances.")
             # The optuna.visualization.matplotlib plots: the default optuna.visualization ones are plotly figures.
