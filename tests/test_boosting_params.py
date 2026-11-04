@@ -4,10 +4,14 @@ import gin
 import numpy as np
 import pytest
 import torch
+import wandb
+import xgboost as xgb
+from joblib import dump
 
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.ml_models.lgbm import LGBMClassifier, LGBMRegressor
 from icu_benchmarks.models.ml_models.xgboost import XGBClassifier
+from icu_benchmarks.models.train import load_model
 
 
 @pytest.fixture(autouse=True)
@@ -63,3 +67,32 @@ def test_xgb_early_stopping_uses_patience():
     model = XGBClassifier(run_mode=RunMode.classification, n_estimators=500, learning_rate=0.5)
     model.fit_model(x[:100], y[:100], x[100:], y[100:])
     assert model.model.best_iteration + 1 < 500
+
+
+def test_xgb_booster_parameters_reach_estimator():
+    # Booster-specific parameters such as DART's are not in a default estimator's get_params()
+    params = XGBClassifier(run_mode=RunMode.classification, booster="dart", rate_drop=0.5, patience=3).model.get_params()
+    assert (params["booster"], params["rate_drop"]) == ("dart", 0.5)
+    assert not {"run_mode", "cpu", "patience"} & params.keys()  # The wrapper's own arguments stay out
+
+
+def test_xgb_fits_with_an_active_wandb_run(monkeypatch):
+    # XGBoost >= 2.0 rejects the legacy callback function that wandb_callback() returns
+    monkeypatch.setenv("WANDB_SILENT", "true")
+    rng = np.random.default_rng(0)
+    features = rng.normal(size=(80, 3))
+    labels = (features[:, 0] > 0).astype(int)
+    run = wandb.init(mode="disabled")
+    try:
+        model = XGBClassifier(run_mode=RunMode.classification, n_estimators=5)
+        model.fit_model(features[:60], labels[:60], features[60:], labels[60:])
+    finally:
+        run.finish()
+
+
+@pytest.mark.parametrize(("cpu", "device"), [(True, "cpu"), (False, "cuda")])
+def test_restored_xgb_estimator_honours_cpu(tmp_path, cpu, device):
+    # A restored estimator keeps the device it was trained on unless --cpu is given
+    dump(xgb.XGBClassifier(device="cuda"), tmp_path / "model.joblib")
+    loaded = load_model(XGBClassifier, tmp_path, mode=RunMode.classification, cpu=cpu)
+    assert loaded.model.get_params()["device"] == device

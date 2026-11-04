@@ -158,7 +158,9 @@ def train_common(
     data_shape = next(iter(train_loader))[0].shape
 
     if load_weights:
-        model: DLModel | MLModelClassifier | MLModelRegression = load_model(model, source_dir, pl_model=pl_model, mode=mode)
+        model: DLModel | MLModelClassifier | MLModelRegression = load_model(
+            model, source_dir, pl_model=pl_model, mode=mode, cpu=cpu
+        )
         if mode == RunMode.regression and model.target_transform != target_transform:
             raise ValueError("Model and preprocessing target transforms do not match.")
     else:
@@ -280,7 +282,9 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
             logging.error(f"Failed to save {split} shap values: {e}")
 
 
-def load_model(model, source_dir, pl_model=True, *, mode) -> DLModel | MLModelClassifier | MLModelRegression:
+def load_model(
+    model, source_dir, pl_model=True, *, mode, cpu: bool = False
+) -> DLModel | MLModelClassifier | MLModelRegression:
     # The run mode decides whether a legacy artifact without a target transform may be loaded.
     try:
         mode = RunMode(mode)
@@ -309,8 +313,11 @@ def load_model(model, source_dir, pl_model=True, *, mode) -> DLModel | MLModelCl
                 artifact = {"model": artifact}
             if mode == RunMode.regression and "target_transform" not in artifact:
                 raise ValueError("Regression model has no target transform; retrain legacy models.")
-            model = model(run_mode=mode)
+            model = model(run_mode=mode, cpu=cpu)
             model.model = artifact["model"]
+            if cpu and "device" in model.model.get_params():
+                # The estimator keeps the device it was trained on (e.g. XGBoost's "cuda"), but --cpu holds here too
+                model.model.set_params(device="cpu")
             if "target_transform" in artifact:
                 model.target_transform = TargetTransform(**artifact["target_transform"])
             if artifact.get("trained_columns") is not None:

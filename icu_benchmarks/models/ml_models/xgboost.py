@@ -7,7 +7,7 @@ import torch
 import wandb
 import xgboost as xgb
 from xgboost.callback import EarlyStopping
-from wandb.integration.xgboost import wandb_callback as wandb_xgb
+from wandb.integration.xgboost import WandbCallback
 
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
@@ -55,7 +55,8 @@ class XGBClassifier(MLWrapper):
         callbacks = [EarlyStopping(self.hparams.patience)]
 
         if wandb.run is not None:
-            callbacks.append(wandb_xgb())
+            # XGBoost >= 2.0 only accepts TrainingCallback instances; wandb_callback() returns a legacy function
+            callbacks.append(WandbCallback())
         logging.debug(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
         logging.debug(train_labels)
         # XGBoost >= 2.0 takes callbacks as an estimator parameter, not as a fit() argument.
@@ -71,15 +72,18 @@ class XGBClassifier(MLWrapper):
         eval_score = mean(next(iter(self.model.evals_result_["validation_0"].values())))
         return eval_score
 
+    # Arguments that train_common and MLWrapper pass to the wrapper itself, not to XGBoost
+    _wrapper_args = {"optimizer", "input_size", "epochs", "run_mode", "cpu", "loss", "patience", "mps"}
+
     def set_model_args(self, model, *args, **kwargs):
-        """XGBoost takes its hyperparameters as **kwargs, so validate them against get_params() instead of the signature."""
-        valid_params = model().get_params().keys()
+        """Pass every argument except the wrapper's own to XGBoost, which takes its hyperparameters as **kwargs.
 
-        # Filter out invalid arguments
-        valid_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
-
-        logging.debug(f"Creating model with: {valid_kwargs}.")
-        return model(**valid_kwargs)
+        Booster-specific parameters (such as DART's rate_drop) are not in get_params(), so filtering against it would
+        drop them. XGBoost warns about parameters it does not use.
+        """
+        xgb_kwargs = {k: v for k, v in kwargs.items() if k not in self._wrapper_args}
+        logging.debug(f"Creating model with: {xgb_kwargs}.")
+        return model(**xgb_kwargs)
 
     def get_feature_importance(self):
         if not hasattr(self.model, "feature_importances_"):
