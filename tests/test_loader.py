@@ -1,5 +1,8 @@
 """The prediction datasets must pad, mask and align stays the same way for the DL and ML models."""
 
+from pathlib import Path
+
+import gin
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -98,3 +101,20 @@ def test_imputation_prediction_dataset_groups_rows_per_stay():
     dataset = ImputationPredictionDataset(frame, "stay_id", ["x"], ram_cache=False)
     assert len(dataset) == 2 and dataset.maxlen == 2
     assert dataset[0].shape == (2, 1) and dataset[1].tolist() == [[3.0]]
+
+
+@pytest.mark.parametrize("task", ["BinaryClassification", "Regression"])
+def test_ram_cache_is_configured_through_train_common(task, monkeypatch):
+    # train_common passes ram_cache explicitly, so a dataset-level binding would silently do nothing
+    import icu_benchmarks.run  # noqa: F401 (registers the configurables of the task configs)
+
+    monkeypatch.chdir(Path(__file__).parent.parent)
+    gin.clear_config()
+    try:
+        gin.parse_config_files_and_bindings([f"configs/tasks/{task}.gin"], [], finalize_config=False)
+        assert gin.query_parameter("train_common.ram_cache") is True
+        for dataset in ["PredictionPandasDataset", "PredictionPolarsDataset", "ImputationPandasDataset"]:
+            with pytest.raises(ValueError):
+                gin.query_parameter(f"{dataset}.ram_cache")
+    finally:
+        gin.clear_config()
