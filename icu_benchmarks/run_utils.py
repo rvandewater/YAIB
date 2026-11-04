@@ -6,7 +6,8 @@ from math import sqrt
 import gin
 import torch
 import json
-from argparse import ArgumentParser, BooleanOptionalAction as BOA
+from argparse import ArgumentParser, BooleanOptionalAction as BOA, Namespace
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 import logging
 from pathlib import Path
@@ -26,6 +27,13 @@ def build_parser() -> ArgumentParser:
     """
     parser = ArgumentParser(description="Framework for benchmarking ML/DL models on ICU data")
 
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=["train", "evaluate"],
+        default="train",
+        help="Train a model (default), or evaluate a model from --source-dir (same as --eval).",
+    )
     parser.add_argument(
         "-d",
         "--data-dir",
@@ -135,6 +143,13 @@ def build_parser() -> ArgumentParser:
         default=None,
     )
     return parser
+
+
+def parse_args(args: Sequence[str]) -> Namespace:
+    """Parses the command line, rejecting unknown arguments; the evaluate command is the same as --eval."""
+    parsed = build_parser().parse_args(args)
+    parsed.eval = parsed.eval or parsed.command == "evaluate"
+    return parsed
 
 
 def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:

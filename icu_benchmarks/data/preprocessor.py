@@ -24,7 +24,7 @@ from recipies.step import (
     StepSklearn,
 )
 from sklearn.impute import MissingIndicator, SimpleImputer
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, OrdinalEncoder
 
 from icu_benchmarks.data.loader import ImputationPredictionDataset
 
@@ -198,13 +198,20 @@ class PolarsClassificationPreprocessor(Preprocessor):
         # Only the static features, not a string stay ID
         sel = Selector(description="categorical predictors", roles="predictor", types=types)
         if len(sel(sta_rec.data)) > 0:
+            # Polars nulls in string columns reach sklearn as None, not NaN
             sta_rec.add_step(
                 StepSklearn(
-                    SimpleImputer(missing_values=np_nan, strategy="most_frequent"),
+                    SimpleImputer(missing_values=None, strategy="most_frequent"),
                     sel=sel,
                 )
             )
-            sta_rec.add_step(StepSklearn(LabelEncoder(), sel=sel, columnwise=True))
+            # Categories not seen in the train split get code -1 instead of failing on val/test
+            sta_rec.add_step(
+                StepSklearn(
+                    OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1, dtype=int),
+                    sel=sel,
+                )
+            )
 
         data = apply_recipe_to_splits(sta_rec, data, DataSegment.static, self.save_cache, self.load_cache)
 
