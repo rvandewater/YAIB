@@ -128,6 +128,7 @@ MODEL_PARAMS = {
     GRUNet: {"hidden_dim": 4, "layer_dim": 1},
     TemporalConvNet: {"num_channels": [4]},
     Transformer: {"hidden": 4, "heads": 1, "ff_hidden_mult": 1, "depth": 1},
+    LocalTransformer: {"hidden": 4, "heads": 1, "ff_hidden_mult": 1, "depth": 1, "local_context": 2},
 }
 
 
@@ -154,18 +155,7 @@ def test_train_common_one_epoch(model_cls, tmp_path):
 
 @pytest.mark.parametrize(
     "model_cls",
-    [
-        GRUNet,
-        TemporalConvNet,
-        pytest.param(
-            Transformer,
-            marks=pytest.mark.xfail(
-                strict=True,
-                raises=TypeError,
-                reason="#259: BaseTransformer does not pass input_size to the wrapper, so it is missing from the checkpoint",
-            ),
-        ),
-    ],
+    [GRUNet, TemporalConvNet, Transformer, LocalTransformer],
 )
 def test_reload_reproduces_test_predictions(model_cls, tmp_path):
     train(model_cls, tmp_path, weight="balanced")
