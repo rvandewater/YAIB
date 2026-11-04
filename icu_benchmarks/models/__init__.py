@@ -1,5 +1,7 @@
 from typing import Union
 
+from icu_benchmarks.models.dl_models.bat import BAT
+from icu_benchmarks.models.dl_models.grud import GRUD
 from icu_benchmarks.models.dl_models.rnn import GRUNet, LSTMNet, RNNet
 from icu_benchmarks.models.dl_models.tcn import TemporalConvNet
 from icu_benchmarks.models.dl_models.transformer import (
@@ -25,6 +27,8 @@ from icu_benchmarks.models.ml_models.xgboost import XGBClassifier
 
 DLModel = Union[
     GRUNet,
+    GRUD,
+    BAT,
     RNNet,
     LSTMNet,
     TemporalConvNet,
@@ -54,6 +58,8 @@ MLModelRegression = Union[
 
 __all__ = [
     "GRUNet",
+    "GRUD",
+    "BAT",
     "RNNet",
     "LSTMNet",
     "TemporalConvNet",

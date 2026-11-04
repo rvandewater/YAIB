@@ -13,6 +13,8 @@ from torch.utils.data import DataLoader
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.constants import DataSegment as Segment, DataSplit as Split
 from icu_benchmarks.data.loader import PredictionPolarsDataset
+from icu_benchmarks.models.dl_models.bat import BAT
+from icu_benchmarks.models.dl_models.grud import GRUD
 from icu_benchmarks.models.dl_models.layers import SelfAttention, SparseBlock, parallel_recomb
 from icu_benchmarks.models.dl_models.rnn import GRUNet, LSTMNet, RNNet
 from icu_benchmarks.models.dl_models.tcn import TemporalConvNet
@@ -27,9 +29,11 @@ MODELS = {
     "rnn": lambda: RNNet(INPUT_SIZE, hidden_dim=5, layer_dim=1, num_classes=CLASSES),
     "lstm": lambda: LSTMNet(INPUT_SIZE, hidden_dim=5, layer_dim=2, num_classes=CLASSES),
     "gru": lambda: GRUNet(INPUT_SIZE, hidden_dim=5, layer_dim=1, num_classes=CLASSES),
+    "grud": lambda: GRUD(INPUT_SIZE, hidden_dim=5, num_classes=CLASSES),
     "tcn": lambda: TemporalConvNet(INPUT_SIZE, num_channels=[5, 5], num_classes=CLASSES, kernel_size=2),
     "tcn_depth_from_length": lambda: TemporalConvNet(INPUT_SIZE, num_channels=5, num_classes=CLASSES, max_seq_length=STEPS),
     "transformer": lambda: Transformer(INPUT_SIZE, hidden=7, heads=2, ff_hidden_mult=2, depth=1, num_classes=CLASSES),
+    "bat": lambda: BAT(INPUT_SIZE, num_classes=CLASSES, value_embed_size=4, depth=1, heads=2, ff_hidden_mult=1),
     "local_transformer": lambda: LocalTransformer(
         INPUT_SIZE, hidden=8, heads=2, ff_hidden_mult=2, depth=2, num_classes=CLASSES, local_context=2
     ),
@@ -125,7 +129,9 @@ def classification_splits(stays=16, hours=4):
 
 
 MODEL_PARAMS = {
+    BAT: {"value_embed_size": 2, "depth": 1, "heads": 1, "ff_hidden_mult": 1},
     GRUNet: {"hidden_dim": 4, "layer_dim": 1},
+    GRUD: {"hidden_dim": 4},
     TemporalConvNet: {"num_channels": [4]},
     Transformer: {"hidden": 4, "heads": 1, "ff_hidden_mult": 1, "depth": 1},
     LocalTransformer: {"hidden": 4, "heads": 1, "ff_hidden_mult": 1, "depth": 1, "local_context": 2},
@@ -155,7 +161,7 @@ def test_train_common_one_epoch(model_cls, tmp_path):
 
 @pytest.mark.parametrize(
     "model_cls",
-    [GRUNet, TemporalConvNet, Transformer, LocalTransformer],
+    [BAT, GRUNet, GRUD, TemporalConvNet, Transformer, LocalTransformer],
 )
 def test_reload_reproduces_test_predictions(model_cls, tmp_path):
     train(model_cls, tmp_path, weight="balanced")
