@@ -306,6 +306,7 @@ The benchmark provides (among others) the following built-in models:
 - [GRU-D](https://doi.org/10.1038/s41598-018-24271-9): A GRU that decays its inputs and hidden state with the time since each variable was last measured, using the missingness indicators of the preprocessing. Ported from the [YAIB fork](https://github.com/Katja-Jagd/YAIB) of Katja Jagd and Rachael DeVries.
 - [Temporal Convolutional Networks (TCN)](https://arxiv.org/pdf/1803.01271): 1D convolution approach to sequence data. By using dilated convolution to extend the receptive field of the network it has shown great performance on long-term dependencies.
 - [Transformers](https://papers.nips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf): The most common attention-based approach.
+- [Bi-Axial Transformer (BAT)](https://arxiv.org/abs/2508.12418): Attends across the variables within each hour and causally across the hours of each variable, with the missingness indicators as observation flags ([pretraining on YAIB](https://arxiv.org/abs/2509.19885)). Ported from the [YAIB fork](https://github.com/Katja-Jagd/YAIB) of Katja Jagd and Rachael DeVries.
 
 # 🛠️ Development
 

@@ -1,0 +1,22 @@
+# Settings for the Bi-Axial Transformer (BAT) (see icu_benchmarks/models/dl_models/bat.py).
+
+# Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
+
+# Train params
+train_common.model = @BAT
+
+# Optimizer params
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = (1e-5, 1e-3, "log")
+
+# Encoder params
+model/hyperparameter.class_to_tune = @BAT
+model/hyperparameter.num_classes = %NUM_CLASSES
+# Attention runs across all variables of every hour and all hours of every variable, so the model is kept small
+model/hyperparameter.value_embed_size = [8, 16, 32, 64]
+model/hyperparameter.depth = (1, 4)
+model/hyperparameter.heads = [1, 2, 4]
+model/hyperparameter.dropout = (0.0, 0.4)
+model/hyperparameter.dropout_att = (0.0, 0.4)

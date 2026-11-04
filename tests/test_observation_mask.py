@@ -15,6 +15,7 @@ from icu_benchmarks.data.constants import DataSegment as Segment, DataSplit as S
 from icu_benchmarks.data.loader import PredictionPolarsDataset
 from icu_benchmarks.data.target_transform import transform_outcomes
 from icu_benchmarks.models.train import load_model, train_common
+from icu_benchmarks.models.dl_models.bat import BAT
 from icu_benchmarks.models.dl_models.grud import GRUD
 from icu_benchmarks.models.wrappers import ObservationMaskWrapper
 
@@ -38,6 +39,7 @@ class ObservationMaskProbe(ObservationMaskWrapper):
 MODELS = {
     "probe": (ObservationMaskProbe, {}),
     "grud": (GRUD, {"hidden_dim": 4, "dropout": 0.1, "recurrent_dropout": 0.1}),
+    "bat": (BAT, {"value_embed_size": 4, "depth": 2, "heads": 2, "dropout": 0.1}),
 }
 
 
