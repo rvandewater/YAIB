@@ -155,12 +155,9 @@ def test_experiment_config_replaces_model_and_task_configs(tmp_path, monkeypatch
     assert (fold / "test_metrics.json").exists()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="#274: main binds the custom preprocessor before it parses the task config, which binds the default one again",
-)
-def test_custom_preprocessor_is_used(tmp_path, monkeypatch):
+@pytest.fixture
+def custom_preprocessor(tmp_path, monkeypatch):
+    """A custom preprocessor file, and the marker file it creates when it is applied."""
     marker = tmp_path / "applied"
     path = tmp_path / "custom.py"
     path.write_text(
@@ -172,6 +169,25 @@ def test_custom_preprocessor_is_used(tmp_path, monkeypatch):
         "        return super().apply(data, vars)\n"
     )
     monkeypatch.setitem(sys.modules, "preprocessor", None)
+    return path, marker
+
+
+def test_custom_preprocessor_is_used(custom_preprocessor, tmp_path, monkeypatch):
+    # The task config binds the default preprocessor (#274)
+    path, marker = custom_preprocessor
     args = ["-d", "demo_data/mortality24/mimic_demo", *MORTALITY, "-l", str(tmp_path / "logs"), "-p", str(path)]
     run([*args, "-hp", *ONE_FOLD], monkeypatch)
+    assert marker.exists()
+
+
+@pytest.mark.parametrize(
+    "transfer",
+    [["--eval", "-sn", "mimic"], ["-ft", "40", "-sn", "mimic"], ["--samples", "40"]],
+    ids=["eval", "fine_tune", "samples"],
+)
+def test_custom_preprocessor_is_used_with_source_config(transfer, custom_preprocessor, source, tmp_path, monkeypatch):
+    # The train_config.gin of the source run binds the default preprocessor (#274)
+    assert bound(source, "preprocess.preprocessor").selector == "base_classification_preprocessor"
+    path, marker = custom_preprocessor
+    run([*EICU, "-l", str(tmp_path / "logs"), *transfer, "--source-dir", str(source), "-p", str(path)], monkeypatch)
     assert marker.exists()
