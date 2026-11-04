@@ -30,6 +30,19 @@ from .constants import DataSegment, DataSplit, VarType
 from .target_transform import TargetTransform
 
 
+def select_label(vars: dict[str, Any], label: Optional[str] = None) -> Union[str, list[str]]:
+    """The label to train on: the requested one, which must be configured, else the first of several configured labels."""
+    configured_labels = vars[VarType.label] if isinstance(vars[VarType.label], list) else [vars[VarType.label]]
+    if label is not None:
+        if label not in configured_labels:
+            raise ValueError(f"Label {label} is not one of the configured labels: {configured_labels}.")
+        return label
+    if len(configured_labels) > 1:
+        logging.debug(f"Multiple labels found and no value provided. Using first label: {configured_labels}")
+        return configured_labels[0]
+    return vars[VarType.label]
+
+
 @gin.configurable("preprocess")
 def preprocess_data(
     data_dir: Path,
@@ -102,15 +115,9 @@ def preprocess_data(
         file_names.pop(DataSegment.static)
         vars.pop(DataSegment.static)
 
-    if label is not None:
-        configured_labels = vars[VarType.label] if isinstance(vars[VarType.label], list) else [vars[VarType.label]]
-        if label not in configured_labels:
-            raise ValueError(f"Label {label} is not one of the configured labels: {configured_labels}.")
-        vars[VarType.label] = label
-        logging.info(f"Using label: {vars[VarType.label]}")
-    elif isinstance(vars[VarType.label], list) and len(vars[VarType.label]) > 1:
-        logging.debug(f"Multiple labels found and no value provided. Using first label: {vars[VarType.label]}")
-        vars[VarType.label] = vars[VarType.label][0]
+    selected_label = select_label(vars, label)
+    if selected_label != vars[VarType.label]:
+        vars[VarType.label] = selected_label
         logging.info(f"Using label: {vars[VarType.label]}")
 
     if not vars[VarType.label]:
@@ -389,6 +396,21 @@ def _time_sort_key(df: pl.DataFrame, vars: dict[str, Union[str, list[str]]]) -> 
     return [sequence] if isinstance(sequence, str) and sequence in df.columns else []
 
 
+def join_id_dtype(stays: pl.Series, data: dict[str, pl.DataFrame], id_col: str) -> pl.DataType:
+    """The dtype all segments' IDs are cast to for the split joins: integer IDs are widened, others (e.g. strings) kept.
+
+    Integer IDs in one file and string IDs in another would not match after the cast ("001" is not "1"), so the join
+    would silently drop those stays' features; that is rejected instead.
+    """
+    for segment, frame in data.items():
+        if frame.schema[id_col].is_integer() != stays.dtype.is_integer():
+            raise ValueError(
+                f"Stay IDs ({id_col}) are {stays.dtype} in the outcome data but {frame.schema[id_col]} in the {segment} "
+                "data; use the same ID type in every file."
+            )
+    return pl.datatypes.Int64 if stays.dtype.is_integer() else stays.dtype
+
+
 def make_train_val_polars(
     data: dict[str, pl.DataFrame],
     vars: dict[str, Union[str, list[str]]],
@@ -431,8 +453,7 @@ def make_train_val_polars(
         train_val_splitter = ShuffleSplit(train_size=train_size, random_state=seed, n_splits=1)
         train_indices, val_indices = list(train_val_splitter.split(stays))[0]
 
-    # Cast the IDs of all segments to one dtype for the joins; integer IDs are widened, others (e.g. strings) kept
-    id_dtype = pl.datatypes.Int64 if stays.dtype.is_integer() else stays.dtype
+    id_dtype = join_id_dtype(stays, data, _id)
     split = {
         DataSplit.train: stays[train_indices].cast(id_dtype).to_frame(),
         DataSplit.val: stays[val_indices].cast(id_dtype).to_frame(),
@@ -635,8 +656,7 @@ def make_single_split_polars(
         dev_stays = stays[dev]
         train, val = list(inner_cv.split(dev_stays))[fold_index]
 
-    # Cast the IDs of all segments to one dtype for the joins; integer IDs are widened, others (e.g. strings) kept
-    id_dtype = pl.datatypes.Int64 if stays.dtype.is_integer() else stays.dtype
+    id_dtype = join_id_dtype(stays, data, _id)
     split = {
         DataSplit.train: dev_stays[train].cast(id_dtype).to_frame(),
         DataSplit.val: dev_stays[val].cast(id_dtype).to_frame(),

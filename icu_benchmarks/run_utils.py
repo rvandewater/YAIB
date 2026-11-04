@@ -14,6 +14,8 @@ from pathlib import Path
 import scipy.stats as stats
 import shutil
 from statistics import mean, pstdev
+from icu_benchmarks.data.constants import VarType
+from icu_benchmarks.data.split_process_data import select_label
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
 from icu_benchmarks.wandb_utils import wandb_log
 import polars as pl
@@ -322,6 +324,21 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
         pretrained_imputation_model = None
 
     return pretrained_imputation_model
+
+
+def bind_selected_label(label: str | None = None) -> None:
+    """Bind the label that preprocessing trains on into the vars macro, so the datasets use that label too.
+
+    preprocess_data picks one of the configured labels (--label, else the first), but the datasets get their own copy of
+    %vars from gin and would otherwise read every configured label.
+    """
+    try:
+        vars = gin.query_parameter("vars/gin.macro.value")
+    except ValueError:
+        return  # The configs define no vars macro
+    selected_label = select_label(vars, label)
+    if selected_label != vars[VarType.label]:
+        gin.bind_parameter("vars/gin.macro.value", {**vars, VarType.label: selected_label})
 
 
 def setup_logging(date_format, log_format, verbose):

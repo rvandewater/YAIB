@@ -195,9 +195,11 @@ class PolarsClassificationPreprocessor(Preprocessor):
             sta_rec.add_step(StepScale())
         sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), strategy="zero"))
         types = ["String", "Object", "Categorical"]
-        # Only the static features, not a string stay ID
-        sel = Selector(description="categorical predictors", roles="predictor", types=types)
-        if len(sel(sta_rec.data)) > 0:
+        # Every categorical static column is encoded (also ones not listed in vars, which stay in the features), but not
+        # a string stay ID
+        categorical = [column for column in has_type(types)(sta_rec.data) if column != vars["GROUP"]]
+        if categorical:
+            sel = all_of(categorical)
             # Polars nulls in string columns reach sklearn as None, not NaN
             sta_rec.add_step(
                 StepSklearn(

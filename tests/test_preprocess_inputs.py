@@ -5,7 +5,9 @@ import polars as pl
 import pytest
 
 from icu_benchmarks.data.constants import DataSegment as Segment, DataSplit as Split
+from icu_benchmarks.data.loader import PredictionPolarsDataset
 from icu_benchmarks.data.split_process_data import preprocess_data
+from icu_benchmarks.run_utils import bind_selected_label
 
 FILES = {Segment.dynamic: "dyn.parquet", Segment.static: "sta.parquet", Segment.outcome: "outc.parquet"}
 
@@ -55,3 +57,41 @@ def test_string_stay_ids(tmp_path, complete_train):
     # Every stay keeps its own features; the ID itself is not encoded as a static categorical
     assert sorted(features["stay_id"].to_list()) == sorted(stays)
     assert features.filter(pl.col("stay_id") == "s1")["sex"].item() == 1
+
+
+@pytest.mark.parametrize(("label", "expected"), [("label2", "label2"), (None, "label")])
+def test_selected_label_reaches_the_dataset(tmp_path, label, expected):
+    # The datasets get their own copy of %vars, so run.py binds the selected label into the macro
+    write_data(tmp_path, list(range(24)))
+    gin.clear_config()
+    try:
+        gin.parse_config(
+            'vars = {"GROUP": "stay_id", "SEQUENCE": "time", "LABEL": ["label", "label2"], "DYNAMIC": ["x"], '
+            '"STATIC": ["age", "sex"]}\npreprocess.vars = %vars\nPredictionPolarsDataset.vars = %vars'
+        )
+        bind_selected_label(label)
+        data, _ = preprocess_data(data_dir=tmp_path, file_names=dict(FILES), cv_repetitions=2, cv_folds=2, label=label)
+        dataset = PredictionPolarsDataset(data, split=Split.train)
+    finally:
+        gin.clear_config()
+    _, labels, _ = dataset[0]
+    assert dataset.vars["LABEL"] == expected and labels.ndim == 1
+
+
+def test_unconfigured_string_static_column_is_encoded(tmp_path):
+    # Static columns not listed in vars stay in the features, so string ones must be encoded; a string ID must not be
+    stays = [f"s{i}" for i in range(24)]
+    write_data(tmp_path, stays)
+    static = pl.read_parquet(tmp_path / FILES[Segment.static])
+    static.with_columns(unit=pl.Series(["icu", "ccu", "micu"] * 8)).write_parquet(tmp_path / FILES[Segment.static])
+    features = preprocess(tmp_path)[Split.train][Segment.features]
+    assert features.schema["unit"].is_integer() and features.schema["stay_id"] == pl.String
+
+
+def test_mixed_id_types_are_rejected(tmp_path):
+    # String outcome IDs would not match integer feature IDs after the cast ("001" is not "1")
+    write_data(tmp_path, list(range(24)))
+    outcome = pl.read_parquet(tmp_path / FILES[Segment.outcome])
+    outcome.with_columns(pl.col("stay_id").cast(pl.String).str.zfill(3)).write_parquet(tmp_path / FILES[Segment.outcome])
+    with pytest.raises(ValueError, match="same ID type"):
+        preprocess(tmp_path)

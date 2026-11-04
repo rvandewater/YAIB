@@ -15,6 +15,7 @@ from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameter
 from scripts.plotting.utils import plot_aggregated_results
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import (
+    bind_selected_label,
     parse_args,
     create_run_dir,
     aggregate_results,
@@ -130,9 +131,11 @@ def main(my_args=tuple(sys.argv[1:])):
         source_dir = args.source_dir
         logging.info(f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
         gin.parse_config_file(source_dir / "train_config.gin")
+        bind_selected_label(args.label)
     elif args.samples and args.source_dir is not None:  # Train model with limited samples and bind existing config
         logging.info("Binding train gin-config. Note: this might override your config.")
         gin.parse_config_file(args.source_dir / "train_config.gin")
+        bind_selected_label(args.label)
         log_dir /= f"samples_{args.samples}"
         name_datasets(args.name, args.name, args.name)
         run_dir = create_run_dir(log_dir)
@@ -149,6 +152,8 @@ def main(my_args=tuple(sys.argv[1:])):
             else [model_path, Path(f"configs/tasks/{task}.gin")]
         )
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
+        # Before tuning, whose trials train on the label too
+        bind_selected_label(args.label)
         log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
         run_dir = create_run_dir(log_dir)
         choose_and_bind_hyperparameters_optuna(
