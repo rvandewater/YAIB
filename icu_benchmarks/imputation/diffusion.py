@@ -211,7 +211,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         x_0 = self.backward_diffusion_sample(noise_pred, x_t, t)
 
         # Use the prediction only where the original data is missing
-        x_0 = amputated.masked_scatter_(amputation_mask.bool(), x_0)
+        x_0 = torch.where(amputation_mask.bool(), x_0, amputated)
 
         # Calculate Loss: Difference between imputed and target
         loss = self.loss(x_0, target)
@@ -222,6 +222,21 @@ class SimpleDiffusionModel(ImputationWrapper):
         # Update Metrics
         for metric in self.metrics["test"].values():
             metric.update((torch.flatten(x_0, start_dim=1), torch.flatten(target, start_dim=1)))
+
+    def predict_step(self, data, amputation_mask):
+        """Impute the missing values by running the reverse diffusion from pure noise. At each timestep, the
+        observed values are replaced by their forward diffusion sample for that timestep."""
+        amputated = torch.nan_to_num(data, nan=0.0)
+        amputation_mask = amputation_mask.bool()
+
+        x = torch.randn_like(amputated)
+        for t in range(self.T - 1, -1, -1):
+            t_batch = torch.full((amputated.shape[0],), t)
+            observed_t, _ = self.forward_diffusion_sample(amputated, t_batch)
+            x = torch.where(amputation_mask, x, observed_t)
+            x = self.backward_diffusion_sample(self(x, t_batch), x, t_batch, t_index=t)
+
+        return torch.where(amputation_mask, x, amputated)
 
     # Helper function to return a value for a specific timestep t from a list reformatted for the current input size
     def get_index_from_list(self, values, t, x_shape):

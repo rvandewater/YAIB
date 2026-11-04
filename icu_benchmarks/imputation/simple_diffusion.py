@@ -218,6 +218,28 @@ class SimpleDiffusionModel(ImputationWrapper):
                 )
             )
 
+    def predict_step(self, data, amputation_mask):
+        """Impute the missing values by running the reverse diffusion from pure noise. At each timestep, the
+        observed values are replaced by their forward diffusion sample for that timestep."""
+        amputated = torch.nan_to_num(data, nan=0.0)
+        amputation_mask = amputation_mask.bool()
+
+        x = torch.randn_like(amputated)
+        for t in range(self.T - 1, -1, -1):
+            t_batch = torch.full((amputated.shape[0],), t, device=self.device, dtype=torch.long)
+            observed_t, _ = self.forward_diffusion_sample(amputated, t_batch)
+            x = torch.where(amputation_mask, x, observed_t)
+
+            betas_t = self.get_index_from_list(self.betas, t_batch, x.shape)
+            sqrt_one_minus_alphas_cumprod_t = self.get_index_from_list(self.sqrt_one_minus_alphas_cumprod, t_batch, x.shape)
+            sqrt_recip_alphas_t = self.get_index_from_list(self.sqrt_recip_alphas, t_batch, x.shape)
+            x = sqrt_recip_alphas_t * (x - betas_t * self(x, t_batch) / sqrt_one_minus_alphas_cumprod_t)
+            if t > 0:
+                posterior_variance_t = self.get_index_from_list(self.posterior_variance, t_batch, x.shape)
+                x = x + torch.sqrt(posterior_variance_t) * torch.randn_like(x)
+
+        return torch.where(amputation_mask, x, amputated)
+
 
 class Block(nn.Module):
     def __init__(self, in_ch, out_ch, time_emb_dim, up=False):

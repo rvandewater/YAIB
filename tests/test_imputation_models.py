@@ -179,31 +179,7 @@ def test_evaluation_step_gives_finite_loss(name, prefix):
     assert torch.isfinite(torch.as_tensor(logged))
 
 
-# ImputationWrapper.predict calls forward(data, mask), which these models neither implement nor override
-PREDICT_BROKEN = {
-    "diffusion": (RuntimeError, "#273: Diffusion.forward takes a diffusion timestep, so predict passes the mask as one"),
-    "simple_diffusion": (
-        RuntimeError,
-        "#273: Simple_Diffusion.forward takes a diffusion timestep, so predict passes the mask as one",
-    ),
-    "diffwave": (TypeError, "#273: DiffWave.forward takes one (noise, conditional, mask, steps) tuple"),
-    "sssdsa": (TypeError, "#273: SSSDSA.forward takes one (noise, conditional, mask, steps) tuple"),
-}
-
-
-@pytest.mark.parametrize(
-    "name",
-    [
-        pytest.param(
-            name,
-            marks=[pytest.mark.xfail(strict=True, raises=PREDICT_BROKEN[name][0], reason=PREDICT_BROKEN[name][1])]
-            if name in PREDICT_BROKEN
-            else [],
-        )
-        for name in MODELS
-        if name not in {"mlp", "rnn", "brnn"}  # Covered in test_imputation
-    ],
-)
+@pytest.mark.parametrize("name", [name for name in MODELS if name not in {"mlp", "rnn", "brnn"}])  # Covered in test_imputation
 def test_predict_fills_only_missing_values(name):
     model = ready(name)
     data = batch()[0]
@@ -211,7 +187,16 @@ def test_predict_fills_only_missing_values(name):
     with torch.no_grad():
         imputed = model.predict(data.clone())
     assert imputed.shape == data.shape and torch.isfinite(imputed).all()
-    torch.testing.assert_close(imputed[observed], data[observed])
+    assert torch.equal(imputed[observed], data[observed])  # Observed values are returned unchanged
+
+
+def test_diffusion_test_step_imputes_values_in_place(monkeypatch):
+    model = ready("diffusion")
+    target = batch()[2]
+    # With a reverse step that recovers the target exactly, imputing at the missing positions reproduces the target
+    monkeypatch.setattr(model, "backward_diffusion_sample", lambda *args, **kwargs: target.clone())
+    _, logged = run_step(model, "test")
+    assert logged == pytest.approx(0)
 
 
 @pytest.mark.parametrize("schedule", ["linear", "quadratic", "cosine", "sigmoid"])
