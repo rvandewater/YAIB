@@ -287,7 +287,8 @@ class CommonPandasDataset(Dataset):
         return self.num_stays
 
     def get_feature_names(self) -> list[str]:
-        return self.features_df.columns
+        # A plain list, so checkpoints that store it as trained_columns load with torch's weights_only default
+        return list(self.features_df.columns)
 
     def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], ...]:
         values: list[list] = []
@@ -401,6 +402,7 @@ class ImputationPandasDataset(CommonPandasDataset):
         mask_method="MCAR",
         mask_observation_proportion=0.3,
         ram_cache: bool = True,
+        name: str = "",
     ):
         """
         Args:
@@ -412,10 +414,11 @@ class ImputationPandasDataset(CommonPandasDataset):
             mask_observation_proportion (float, optional): poportion of the observed data to be masked. Defaults to 0.3.
             ram_cache (bool, optional): if the dataset should be completely stored in ram and not generated on the fly during
                 training. Defaults to True.
+            name (str, optional): name of the dataset, used in log messages. Defaults to "".
         """
         if not isinstance(vars, dict):
             raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
-        super().__init__(data, split, vars, grouping_segment=DataSegment.static)
+        super().__init__(data, split, vars, grouping_segment=DataSegment.static, name=name)
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion
         )

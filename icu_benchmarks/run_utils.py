@@ -307,7 +307,11 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
 
     if use_pretrained_imputation is not None:
         logging.info("Using pretrained imputation from" + str(use_pretrained_imputation))
-        pretrained_imputation_model_checkpoint = torch.load(use_pretrained_imputation, map_location=torch.device("cpu"))
+        # Checkpoints are whole pickled models or Lightning checkpoints that store the model class, which the
+        # weights_only default of torch>=2.6 rejects. They are local files the user trained, so full unpickling is fine.
+        pretrained_imputation_model_checkpoint = torch.load(
+            use_pretrained_imputation, map_location=torch.device("cpu"), weights_only=False
+        )
         if isinstance(pretrained_imputation_model_checkpoint, dict):
             imputation_model_class = pretrained_imputation_model_checkpoint["class"]
             pretrained_imputation_model = imputation_model_class(**pretrained_imputation_model_checkpoint["hyper_parameters"])
