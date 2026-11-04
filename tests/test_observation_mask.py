@@ -15,6 +15,7 @@ from icu_benchmarks.data.constants import DataSegment as Segment, DataSplit as S
 from icu_benchmarks.data.loader import PredictionPolarsDataset
 from icu_benchmarks.data.target_transform import transform_outcomes
 from icu_benchmarks.models.train import load_model, train_common
+from icu_benchmarks.models.dl_models.grud import GRUD
 from icu_benchmarks.models.wrappers import ObservationMaskWrapper
 
 VARS = {"GROUP": "stay_id", "SEQUENCE": "time", "LABEL": "label"}
@@ -36,6 +37,7 @@ class ObservationMaskProbe(ObservationMaskWrapper):
 # Model class and the hyperparameters of a small instance
 MODELS = {
     "probe": (ObservationMaskProbe, {}),
+    "grud": (GRUD, {"hidden_dim": 4, "dropout": 0.1, "recurrent_dropout": 0.1}),
 }
 
 
