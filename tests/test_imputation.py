@@ -1,16 +1,22 @@
 """Amputation and the imputation models must only fill the values that are missing."""
 
+import logging
+
+import gin
 import numpy as np
 import pandas as pd
 import pytest
 import torch
 
+from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.constants import DataSegment as Segment, DataSplit as Split
 from icu_benchmarks.data.loader import ImputationPandasDataset
 from icu_benchmarks.imputation.amputations import ampute_data
 from icu_benchmarks.imputation.mlp import MLPImputation
 from icu_benchmarks.imputation.rnn import BRNNImputation, RNNImputation
 from icu_benchmarks.models.constants import ImputationInit
+from icu_benchmarks.models.train import train_common
+from icu_benchmarks.run_utils import load_pretrained_imputation_model
 
 VARS = {"GROUP": "stay_id", "SEQUENCE": "time", "DYNAMIC": ["x", "y", "z"], "STATIC": []}
 
@@ -48,13 +54,46 @@ def test_imputation_dataset_masks_amputated_and_missing_values():
     features.loc[0, "x"] = np.nan
     data = {Split.train: {Segment.features: features, Segment.static: pd.DataFrame({"stay_id": [1, 2]})}}
     with pytest.warns(DeprecationWarning):
-        dataset = ImputationPandasDataset(data, vars=VARS, mask_proportion=0.5, ram_cache=False)
-    assert len(dataset) == 2
+        dataset = ImputationPandasDataset(data, vars=VARS, mask_proportion=0.5, ram_cache=False, name="demo")
+    assert len(dataset) == 2 and dataset.name == "demo"
     amputated, amputation_mask, target, target_missing = dataset[0]
     assert amputated.shape == amputation_mask.shape == target.shape == (4, 3)
     # The originally missing value is masked for the model and filled with zero in the target
     assert amputation_mask[0, 0] == 1 and target_missing[0, 0] == 1 and target[0, 0] == 0
     assert torch.isnan(amputated[amputation_mask.bool() & (target_missing == 0)]).all()
+
+
+@pytest.fixture
+def clean_gin():
+    gin.clear_config()
+    yield
+    gin.clear_config()
+
+
+def imputation_splits(stays=8, steps=4):
+    rng = np.random.default_rng(0)
+    data = {}
+    for offset, split in enumerate([Split.train, Split.val, Split.test]):
+        stay_ids = np.arange(stays) + 100 * offset
+        features = pd.DataFrame({"stay_id": np.repeat(stay_ids, steps), "time": np.tile(range(steps), stays)})
+        features[VARS["DYNAMIC"]] = rng.normal(size=(stays * steps, 3))
+        data[split] = {Segment.features: features, Segment.static: pd.DataFrame({"stay_id": stay_ids})}
+    return data
+
+
+def test_train_common_trains_and_reloads_imputation_model(tmp_path, clean_gin, caplog):
+    # #261: train_common names its datasets, and tests on a best checkpoint that holds the ImputationInit enum
+    torch.manual_seed(0)
+    gin.bind_parameter("ImputationPandasDataset.vars", VARS)
+    names = {"train": "train-set", "val": "val-set", "test": "test-set"}
+    kwargs = dict(model=MLPImputation, mode=RunMode.imputation, epochs=1, batch_size=4, cpu=True, num_workers=0)
+    with caplog.at_level(logging.INFO):
+        loss = train_common(imputation_splits(), log_dir=tmp_path, dataset_names=names, **kwargs)
+    assert np.isfinite(loss)
+    assert "Training on train-set" in caplog.text and "validating on val-set" in caplog.text
+    assert "Testing on test-set" in caplog.text
+    loaded = load_pretrained_imputation_model(str(tmp_path / "model.ckpt"))
+    assert isinstance(loaded, MLPImputation) and loaded.trained_columns == VARS["DYNAMIC"]
 
 
 @pytest.mark.parametrize(

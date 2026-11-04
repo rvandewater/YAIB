@@ -16,6 +16,7 @@ from scripts.plotting.utils import plot_aggregated_results
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import (
     bind_selected_label,
+    check_explain_features,
     parse_args,
     create_run_dir,
     aggregate_results,
@@ -156,6 +157,7 @@ def main(my_args=tuple(sys.argv[1:])):
         bind_selected_label(args.label)
         log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
         run_dir = create_run_dir(log_dir)
+        check_explain_features(args.explain_features)
         choose_and_bind_hyperparameters_optuna(
             do_tune=args.tune,
             data_dir=data_dir,
@@ -198,6 +200,7 @@ def main(my_args=tuple(sys.argv[1:])):
         cpu=args.cpu,
         wandb=args.wandb_sweep,
         complete_train=args.complete_train,
+        explain_features=args.explain_features,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)

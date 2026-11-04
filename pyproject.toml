@@ -20,6 +20,7 @@ keywords = [
 classifiers = [
   "Intended Audience :: Developers",
   "Natural Language :: English",
+  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.10",
@@ -27,7 +28,7 @@ classifiers = [
 
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"  # torch 2.6.0 and TensorFlow (imputation extra) have no 3.14 wheels
 
 dependencies = [
   "matplotlib",
@@ -40,10 +41,10 @@ dependencies = [
   "xgboost==2.1.0",
   "imbalanced-learn==0.12.3",
   "catboost==1.2.8",
-  "numpy==1.26.0",
+  "numpy==2.2.6",  # last NumPy for Python 3.10; 1.26 has no 3.13 wheels
   "pandas>=2.2.2",
   "polars>=1.9.0",
-  "pyarrow>=20.0.0,<26",  # pyarrow 26 requires NumPy 2, and numpy is pinned to 1.26
+  "pyarrow>=20.0.0",
   "scikit-learn==1.5.2",
   "tensorboard>=2.12.2",
   "tqdm==4.66.3",

@@ -2,11 +2,13 @@ from imblearn.ensemble import BalancedRandomForestClassifier, RUSBoostClassifier
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.models.wrappers import MLWrapper
 import gin
+import shap
 
 
 @gin.configurable
 class BRFClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
+    explainer_cls = shap.TreeExplainer
 
     def __init__(self, *args, **kwargs):
         self.model = self.set_model_args(BalancedRandomForestClassifier, *args, **kwargs)
