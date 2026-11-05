@@ -226,6 +226,11 @@ def choose_and_bind_hyperparameters_optuna(
     """
     hyperparams = {}
 
+    # Checked first so that a run that skips tuning does not silently ignore the checkpoint.
+    # Loading a missing sqlite storage would create an empty file and fail on the missing study
+    if not do_tune and checkpoint and not Path(checkpoint).exists():
+        raise ValueError(f"Hyperparameter checkpoint {checkpoint} does not exist.")
+
     if len(scopes) == 0 or folds_to_tune_on is None:
         logging.warning("No scopes and/or folds to tune on, skipping tuning.")
         return
@@ -300,9 +305,6 @@ def choose_and_bind_hyperparameters_optuna(
     else:
         logging.log(TUNE, "Hyperparameter tuning disabled")
         if checkpoint:
-            # Loading a missing sqlite storage would create an empty file and fail on the missing study
-            if not Path(checkpoint).exists():
-                raise ValueError(f"Hyperparameter checkpoint {checkpoint} does not exist.")
             study = optuna.load_study(study_name="tuning", storage="sqlite:///" + str(checkpoint))
             configuration = study.best_params
             # We have loaded a checkpoint, use the best hyperparameters.
@@ -401,18 +403,20 @@ def choose_and_bind_hyperparameters_optuna(
 
     # Without tuning, the study holds a single untrained trial: there is nothing to plot
     if plot and do_tune:
-        try:
-            logging.info("Plotting hyperparameter importances.")
-            # The optuna.visualization.matplotlib plots: the default optuna.visualization ones are plotly figures.
-            # They set the ggplot style globally, which rc_context restores afterwards
-            plots = {"param_importances": plot_param_importances, "optimization_history": plot_optimization_history}
-            with plt.rc_context():
-                for name, plot_study in plots.items():
+        logging.info("Plotting hyperparameter importances.")
+        # The optuna.visualization.matplotlib plots: the default optuna.visualization ones are plotly figures.
+        # They set the ggplot style globally, which rc_context restores afterwards
+        plots = {"param_importances": plot_param_importances, "optimization_history": plot_optimization_history}
+        with plt.rc_context():
+            for name, plot_study in plots.items():
+                # Each plot on its own: the importances need two completed trials, the history only one
+                try:
                     figure = plot_study(study).figure
                     figure.savefig(log_dir / f"{name}.png", bbox_inches="tight")
-                    plt.close(figure)
-        except Exception as e:
-            logging.error(f"Failed to plot hyperparameter importances: {e}")
+                except Exception as e:
+                    logging.error(f"Failed to plot {name}: {e}")
+                finally:
+                    plt.close("all")
 
 
 def collect_bound_hyperparameters(hyperparams, scopes):

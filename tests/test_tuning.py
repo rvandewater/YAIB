@@ -138,6 +138,20 @@ def test_tuning_is_skipped_without_scopes_or_folds(kwargs, tmp_path, monkeypatch
         gin.query_parameter("LogisticRegression.C")
 
 
+@pytest.mark.parametrize("kwargs", [{"scopes": []}, {"folds_to_tune_on": None}], ids=["no_scopes", "no_folds"])
+def test_missing_checkpoint_is_rejected_when_tuning_is_skipped(kwargs, tmp_path, monkeypatch):
+    forbid_training(monkeypatch)
+    with pytest.raises(ValueError, match="does not exist"):
+        tune(tmp_path, checkpoint=tmp_path / "missing.db", do_tune=False, **kwargs)
+
+
+def test_one_trial_still_plots_the_optimization_history(tmp_path, caplog):
+    tune(tmp_path, n_calls=1, plot=True)
+    # Optuna cannot compute importances from one trial; that must not cost the history plot
+    assert (tmp_path / "optimization_history.png").exists()
+    assert not (tmp_path / "param_importances.png").exists() and "Failed to plot param_importances" in caplog.text
+
+
 def test_tuning_is_skipped_when_everything_is_bound(tmp_path, monkeypatch):
     forbid_training(monkeypatch)
     for name, value in {"C": 1.0, "penalty": "l2", "l1_ratio": 0.5}.items():

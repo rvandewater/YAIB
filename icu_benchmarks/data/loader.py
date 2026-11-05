@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 import gin
 import numpy as np
 import polars as pl
+import pandas as pd
 from pandas import DataFrame
 from torch import Tensor, cat, float32, from_numpy
 from torch.utils.data import Dataset
@@ -262,9 +263,13 @@ class CommonPandasDataset(Dataset):
         self.split = split
         self.vars = vars
         self.grouping_df = data[split][grouping_segment].set_index(self.vars["GROUP"])
-        self.features_df = (
-            data[split][DataSegment.features].set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
-        )
+        features = data[split][DataSegment.features]
+        hours = features[self.vars["SEQUENCE"]]
+        if pd.api.types.is_timedelta64_dtype(hours):
+            hours = hours / pd.Timedelta(hours=1)
+        # Identifies the rows of the hourly tasks in the saved predictions, as in the polars dataset
+        self.hours = hours.to_numpy()
+        self.features_df = features.set_index(self.vars["GROUP"]).drop(labels=self.vars["SEQUENCE"], axis=1)
 
         # calculate basic info for the data
         self.num_stays = self.grouping_df.index.unique().shape[0]
@@ -379,7 +384,9 @@ class PredictionPandasDataset(CommonPandasDataset):
         rep = self.features_df
         if len(labels) == self.num_stays:
             rep = rep.groupby(level=self.vars["GROUP"], sort=False).last().reindex(self.outcome_df.index)
-        row_indicators = self.outcome_df.index.to_numpy().reshape(-1, 1)
+            row_indicators = self.outcome_df.index.to_numpy().reshape(-1, 1)
+        else:
+            row_indicators = np.column_stack((self.features_df.index.to_numpy(), self.hours))
         rep = rep.to_numpy().astype(np.float32)
         valid = np.isfinite(labels.reshape(len(labels), -1)).all(axis=1)
         return rep[valid], labels[valid], row_indicators[valid]
