@@ -2,6 +2,7 @@ from typing import Union
 
 from icu_benchmarks.models.dl_models.bat import BAT
 from icu_benchmarks.models.dl_models.grud import GRUD
+from icu_benchmarks.models.dl_models.mamba import Mamba
 from icu_benchmarks.models.dl_models.rnn import GRUNet, LSTMNet, RNNet
 from icu_benchmarks.models.dl_models.tcn import TemporalConvNet
 from icu_benchmarks.models.dl_models.transformer import (
@@ -35,6 +36,7 @@ DLModel = Union[
     BaseTransformer,
     Transformer,
     LocalTransformer,
+    Mamba,
 ]
 MLModelClassifier = Union[
     XGBClassifier,
@@ -66,6 +68,7 @@ __all__ = [
     "BaseTransformer",
     "Transformer",
     "LocalTransformer",
+    "Mamba",
     "CBClassifier",
     "RUSBClassifier",
     "BRFClassifier",
