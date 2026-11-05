@@ -103,6 +103,26 @@ def test_unsupported_model_is_rejected_before_tuning(flag, binding, model, fails
         check_explain_features(flag)
 
 
+@pytest.mark.parametrize(
+    ("config", "fails"),
+    [
+        # A macro binding is a reference until resolved; unresolved, it is truthy even when the macro is False
+        ("EXPLAIN = False\ntrain_common.explain_features = %EXPLAIN\ntrain_common.model = @LogisticRegression", False),
+        ("EXPLAIN = True\ntrain_common.explain_features = %EXPLAIN\ntrain_common.model = @LogisticRegression", True),
+        # A macro-bound model resolves to the model class, not to gin's macro function
+        ("MODEL = @XGBClassifier\ntrain_common.explain_features = True\ntrain_common.model = %MODEL", False),
+        ("MODEL = @LogisticRegression\ntrain_common.explain_features = True\ntrain_common.model = %MODEL", True),
+    ],
+)
+def test_explain_check_resolves_gin_macros(config, fails):
+    gin.parse_config(config)
+    if fails:
+        with pytest.raises(NotImplementedError, match="LogisticRegression does not support SHAP"):
+            check_explain_features(None)
+    else:
+        check_explain_features(None)
+
+
 @pytest.mark.parametrize(("flag", "passed"), [(None, {}), (True, {"explain_features": True})])
 def test_absent_flag_does_not_override_the_gin_binding(flag, passed, monkeypatch, tmp_path):
     calls = []

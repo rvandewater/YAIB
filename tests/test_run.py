@@ -65,6 +65,26 @@ def test_train_then_evaluate_on_demo_data(tmp_path, monkeypatch):
     assert not (eval_dir / "repetition_0" / "fold_0" / "last.joblib").exists()
 
 
+def test_explain_features_flag_is_saved_and_replayed(tmp_path, monkeypatch):
+    common = ["-t", "BinaryClassification", "-tn", "Mortality24", "-m", "XGBClassifier", "--cpu", "-l", str(tmp_path)]
+    one_fold = ["execute_repeated_cv.cv_repetitions_to_train=1", "execute_repeated_cv.cv_folds_to_train=1"]
+    run(
+        ["-d", "demo_data/mortality24/mimic_demo", "-n", "mimic_demo", *common, "--explain-features", "-hp", *one_fold],
+        monkeypatch,
+    )
+    (run_dir,) = (tmp_path / "mimic_demo" / "Mortality24" / "XGBClassifier").iterdir()
+    source = run_dir / "repetition_0" / "fold_0"
+    assert (source / "test_shap_values.parquet").exists()
+    # The flag is a gin binding, so the saved config records it
+    assert "train_common.explain_features = True" in (source / "train_config.gin").read_text()
+
+    # Evaluating with the saved config, without the flag, explains the features again
+    evaluate = ["-d", "demo_data/mortality24/eicu_demo", "-n", "eicu_demo", *common, "--eval", "-sn", "mimic"]
+    run([*evaluate, "--source-dir", str(source)], monkeypatch)
+    (eval_dir,) = (tmp_path / "eicu_demo" / "Mortality24" / "XGBClassifier" / "_from_mimic").iterdir()
+    assert (eval_dir / "repetition_0" / "fold_0" / "test_shap_values.parquet").exists()
+
+
 def test_complete_train_of_dl_model_on_hourly_task(tmp_path, monkeypatch):
     hyperparams = ["train_common.epochs=1", "GRUNet.hidden_dim=4", "GRUNet.layer_dim=1"]
     args = ["-d", "demo_data/aki/mimic_demo", "-t", "BinaryClassification", "-tn", "AKI", "-m", "GRU", "--cpu"]
