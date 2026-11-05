@@ -15,7 +15,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     env:
       UV_PYTHON: ${{ matrix.python-version }}
     steps:

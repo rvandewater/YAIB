@@ -63,11 +63,13 @@ def test_polars_hourly_ml_rows_drop_missing_labels():
 def test_balance_weights_inverse_class_frequency():
     data = splits(hourly=False)
     data[Split.train][Segment.outcome] = pl.DataFrame({"stay_id": [1, 2], "label": [1.0, 1.0]})
-    assert PredictionPolarsDataset(data, vars=VARS).get_balance() == pytest.approx([1.0])
+    # Weights are indexed by class, so a split without class 0 cannot be weighted (#243)
+    with pytest.raises(ValueError, match="labels 0..K-1"):
+        PredictionPolarsDataset(data, vars=VARS).get_balance()
     data[Split.train][Segment.outcome] = pl.DataFrame({"stay_id": [1, 2, 3, 4], "label": [1.0, 0.0, 0.0, 0.0]})
     data[Split.train][Segment.features] = pl.DataFrame({"stay_id": [1, 2, 3, 4], "time": [0] * 4, "x": [0.0] * 4})
-    # One positive in four stays: one weight is three times the other (sorted, the order is not fixed by the label)
-    assert sorted(PredictionPolarsDataset(data, vars=VARS).get_balance()) == pytest.approx([2 / 3, 2.0])
+    # One positive in four stays: the minority class 1 gets three times the weight of class 0
+    assert PredictionPolarsDataset(data, vars=VARS).get_balance() == pytest.approx([2 / 3, 2.0])
 
 
 def test_vars_must_be_dict():

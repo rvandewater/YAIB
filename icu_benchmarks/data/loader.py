@@ -15,6 +15,12 @@ from .constants import DataSegment as DataSegment
 from .constants import DataSplit as DataSplit
 
 
+def check_class_labels(classes: np.ndarray):
+    """Balanced weights are indexed by class, so the labels must be 0..K-1."""
+    if not np.array_equal(classes, np.arange(len(classes))):
+        raise ValueError(f"Balanced class weights need labels 0..K-1, got {classes.tolist()}.")
+
+
 @gin.configurable("CommonPolarsDataset")
 class CommonPolarsDataset(Dataset):
     def __init__(
@@ -180,7 +186,12 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         Returns:
             Weights for each label.
         """
-        counts = self.outcome_df[self.vars["LABEL"]].value_counts(parallel=True).get_columns()[1]
+        labels = self.outcome_df[self.vars["LABEL"]].drop_nulls()
+        if labels.dtype.is_float():
+            labels = labels.drop_nans()
+        # value_counts has no fixed order, so sort by label: weight i must belong to class i
+        classes, counts = labels.value_counts(sort=False).sort(labels.name).get_columns()
+        check_class_labels(classes.to_numpy())
         counts = counts.to_numpy()
         weights = list((1 / counts) * np.sum(counts) / counts.shape[0])
         return weights
@@ -276,7 +287,8 @@ class CommonPandasDataset(Dataset):
         return self.num_stays
 
     def get_feature_names(self) -> list[str]:
-        return self.features_df.columns
+        # A plain list, so checkpoints that store it as trained_columns load with torch's weights_only default
+        return list(self.features_df.columns)
 
     def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], ...]:
         values: list[list] = []
@@ -351,7 +363,9 @@ class PredictionPandasDataset(CommonPandasDataset):
         Returns:
             Weights for each label.
         """
-        counts = self.outcome_df[self.vars["LABEL"]].value_counts()
+        # Pandas sorts value_counts by frequency, so sort by label: weight i must belong to class i
+        counts = self.outcome_df[self.vars["LABEL"]].value_counts().sort_index()
+        check_class_labels(counts.index.to_numpy())
         return list((1 / counts) * np.sum(counts) / counts.shape[0])
 
     def get_data_and_labels(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -388,6 +402,7 @@ class ImputationPandasDataset(CommonPandasDataset):
         mask_method="MCAR",
         mask_observation_proportion=0.3,
         ram_cache: bool = True,
+        name: str = "",
     ):
         """
         Args:
@@ -399,10 +414,11 @@ class ImputationPandasDataset(CommonPandasDataset):
             mask_observation_proportion (float, optional): poportion of the observed data to be masked. Defaults to 0.3.
             ram_cache (bool, optional): if the dataset should be completely stored in ram and not generated on the fly during
                 training. Defaults to True.
+            name (str, optional): name of the dataset, used in log messages. Defaults to "".
         """
         if not isinstance(vars, dict):
             raise ValueError(f"Expected vars to be of type dict, got {type(vars)} instead")
-        super().__init__(data, split, vars, grouping_segment=DataSegment.static)
+        super().__init__(data, split, vars, grouping_segment=DataSegment.static, name=name)
         self.amputated_values, self.amputation_mask = ampute_data(
             self.features_df, mask_method, mask_proportion, mask_observation_proportion
         )

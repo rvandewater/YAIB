@@ -20,7 +20,7 @@ from icu_benchmarks.models.wrappers import MLWrapper
 @gin.configurable
 class XGBClassifier(MLWrapper):
     _supported_run_modes = [RunMode.classification]
-    _explain_values = False
+    explainer_cls = shap.TreeExplainer
 
     def __init__(self, *args, device: str = "cpu", verbosity: int = 0, **kwargs):
         device = self.resolve_device(device, cpu=kwargs.get("cpu", False))
@@ -64,9 +64,6 @@ class XGBClassifier(MLWrapper):
         # XGBoost >= 2.0 takes callbacks as an estimator parameter, not as a fit() argument.
         self.model.set_params(callbacks=callbacks)
         self.model.fit(train_data, train_labels, eval_set=[(val_data, val_labels)], verbose=False)
-        if self._explain_values:
-            self.explainer = shap.TreeExplainer(self.model)
-            self.train_shap_values = self.explainer(train_data)
         # shap.summary_plot(shap_values, X_test, feature_names=features)
         # logging.info(self.model.get_booster().get_score(importance_type='weight'))
         # self.log_dict(self.model.get_booster().get_score(importance_type='weight'))

@@ -15,7 +15,8 @@ from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameter
 from scripts.plotting.utils import plot_aggregated_results
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import (
-    build_parser,
+    check_explain_features,
+    parse_args,
     create_run_dir,
     aggregate_results,
     log_full_line,
@@ -36,7 +37,7 @@ def get_mode(mode: gin.REQUIRED):
 
 
 def main(my_args=tuple(sys.argv[1:])):
-    args, _ = build_parser().parse_known_args(my_args)
+    args = parse_args(my_args)
     # Set arguments for wandb sweep
     if args.wandb_sweep:
         args = apply_wandb_sweep(args)
@@ -133,7 +134,7 @@ def main(my_args=tuple(sys.argv[1:])):
     elif args.samples and args.source_dir is not None:  # Train model with limited samples and bind existing config
         logging.info("Binding train gin-config. Note: this might override your config.")
         gin.parse_config_file(args.source_dir / "train_config.gin")
-        log_dir /= f"samples_{args.fine_tune}"
+        log_dir /= f"samples_{args.samples}"
         name_datasets(args.name, args.name, args.name)
         run_dir = create_run_dir(log_dir)
     else:
@@ -151,6 +152,7 @@ def main(my_args=tuple(sys.argv[1:])):
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
         run_dir = create_run_dir(log_dir)
+        check_explain_features(args.explain_features)
         choose_and_bind_hyperparameters_optuna(
             do_tune=args.tune,
             data_dir=data_dir,
@@ -193,6 +195,7 @@ def main(my_args=tuple(sys.argv[1:])):
         cpu=args.cpu,
         wandb=args.wandb_sweep,
         complete_train=args.complete_train,
+        explain_features=args.explain_features,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)

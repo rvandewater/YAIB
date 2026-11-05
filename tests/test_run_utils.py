@@ -10,8 +10,10 @@ from types import SimpleNamespace
 import gin
 import polars as pl
 import pytest
+import torch
 
 from icu_benchmarks.constants import RunMode
+from icu_benchmarks.imputation.mlp import MLPImputation
 from icu_benchmarks.run import get_mode
 import icu_benchmarks.wandb_utils
 from icu_benchmarks.run_utils import (
@@ -117,6 +119,17 @@ def test_log_full_line_centers_message(caplog):
 def test_missing_pretrained_imputation_model_is_ignored(tmp_path):
     assert load_pretrained_imputation_model(None) is None
     assert load_pretrained_imputation_model(str(tmp_path / "missing.pt")) is None
+
+
+def test_load_pretrained_imputation_model_from_pickled_model(tmp_path):
+    # #261: torch>=2.6 loads with weights_only=True by default, which cannot unpickle a whole model
+    model = MLPImputation(input_size=(2, 4, 3), num_hidden_layers=1, hidden_layer_size=5)
+    model.set_trained_columns(["x", "y", "z"])
+    path = tmp_path / "imputer.pt"
+    torch.save(model, path)
+    loaded = load_pretrained_imputation_model(str(path))
+    assert isinstance(loaded, MLPImputation) and loaded.trained_columns == ["x", "y", "z"]
+    torch.testing.assert_close(loaded.state_dict(), model.state_dict())
 
 
 def test_import_preprocessor_without_custom_class_binds_nothing(tmp_path, monkeypatch):
