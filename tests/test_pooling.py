@@ -68,3 +68,14 @@ def test_stratification_labels_follow_the_stay_order(tmp_path):
     PooledData(tmp_path, VARS, ["a"], FILES, shuffle=True).generate(["a"], samples=samples)
     pooled = read_segments(tmp_path / f"a_{samples}")
     assert pooled[Segment.outcome]["label"].sum() == samples // 4
+
+
+def test_default_configuration_pools_classification_with_custom_file_names(tmp_path):
+    # Stratified splitting needs shuffling, which used to be off by default; held-out sets used hard-coded file names
+    files = {Segment.static: "static.parquet", Segment.dynamic: "dynamic.parquet", Segment.outcome: "outcome.parquet"}
+    write_dataset(tmp_path / "a", 0)
+    for segment, file_name in FILES.items():
+        (tmp_path / "a" / file_name).rename(tmp_path / "a" / files[segment])
+    PooledData(tmp_path, VARS, ["a"], files).generate(["a"], samples=SAMPLES)
+    held_out = tmp_path / f"a_test_{STAYS - SAMPLES}"
+    assert sorted(p.name for p in held_out.iterdir()) == sorted(files.values())

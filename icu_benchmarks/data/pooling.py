@@ -22,7 +22,7 @@ class PooledData:
         vars,
         datasets,
         file_names,
-        shuffle=False,
+        shuffle=True,
         stratify=None,
         runmode=RunMode.classification,
         save_test=True,
@@ -34,7 +34,7 @@ class PooledData:
             vars: Variables dictionary
             datasets: Which datasets to pool
             file_names: Which files to read from
-            shuffle: Whether to shuffle data
+            shuffle: Whether to shuffle data; classification pools are stratified, which needs shuffling
             stratify: Stratify data
             runmode: Which task runmode
             save_test: Save left over test data to test on without leakage
@@ -175,10 +175,14 @@ class PooledData:
                 save_dir = data_dir / save_folder
                 if not save_dir.exists():
                     save_dir.mkdir()
-                test_outcome.to_parquet(save_dir / Path("outc.parquet"))
-                test_static.to_parquet(save_dir / Path("sta.parquet"))
-                test_dynamic.to_parquet(save_dir / Path("dyn.parquet"))
-                logging.info(f"Saved train data at {save_dir}")
+                # Under the configured file names, so the held-out set loads with the same configuration
+                for segment, frame in (
+                    (Segment.outcome, test_outcome),
+                    (Segment.static, test_static),
+                    (Segment.dynamic, test_dynamic),
+                ):
+                    frame.to_parquet(save_dir / self.file_names[segment])
+                logging.info(f"Saved held-out test data at {save_dir}")
             selected_stays = selected_stays[0]
             outcome, static, dynamic = self._select_stays(
                 outcome=outcome,
