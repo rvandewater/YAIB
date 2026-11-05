@@ -76,15 +76,16 @@ def test_xgb_booster_parameters_reach_estimator():
     assert not {"run_mode", "cpu", "patience"} & params.keys()  # The wrapper's own arguments stay out
 
 
-def test_xgb_fits_with_an_active_wandb_run(monkeypatch):
-    # XGBoost >= 2.0 rejects the legacy callback function that wandb_callback() returns
+@pytest.mark.parametrize("booster", ["gbtree", "gblinear"])
+def test_xgb_fits_with_an_active_wandb_run(monkeypatch, booster):
+    # XGBoost >= 2.0 rejects the legacy callback function that wandb_callback() returns, and gblinear has no "gain"
     monkeypatch.setenv("WANDB_SILENT", "true")
     rng = np.random.default_rng(0)
     features = rng.normal(size=(80, 3))
     labels = (features[:, 0] > 0).astype(int)
     run = wandb.init(mode="disabled")
     try:
-        model = XGBClassifier(run_mode=RunMode.classification, n_estimators=5)
+        model = XGBClassifier(run_mode=RunMode.classification, n_estimators=5, booster=booster)
         model.fit_model(features[:60], labels[:60], features[60:], labels[60:])
     finally:
         run.finish()
@@ -96,3 +97,14 @@ def test_restored_xgb_estimator_honours_cpu(tmp_path, cpu, device):
     dump(xgb.XGBClassifier(device="cuda"), tmp_path / "model.joblib")
     loaded = load_model(XGBClassifier, tmp_path, mode=RunMode.classification, cpu=cpu)
     assert loaded.model.get_params()["device"] == device
+
+
+@pytest.mark.parametrize("model_cls", [LGBMClassifier, LGBMRegressor])
+def test_lgbm_trains_quietly(model_cls, capfd):
+    # verbosity=-1 silences the estimator, but the early-stopping callback prints on its own unless verbose=False
+    rng = np.random.default_rng(0)
+    features = rng.normal(size=(80, 3))
+    labels = (features[:, 0] > 0).astype(int)
+    mode = RunMode.classification if model_cls is LGBMClassifier else RunMode.regression
+    model_cls(run_mode=mode, n_estimators=20, patience=2).fit_model(features[:60], labels[:60], features[60:], labels[60:])
+    assert capfd.readouterr().out == ""

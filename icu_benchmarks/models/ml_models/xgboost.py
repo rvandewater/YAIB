@@ -56,7 +56,9 @@ class XGBClassifier(MLWrapper):
 
         if wandb.run is not None:
             # XGBoost >= 2.0 only accepts TrainingCallback instances; wandb_callback() returns a legacy function
-            callbacks.append(WandbCallback())
+            # gblinear only defines the "weight" feature importance that the callback logs after training
+            importance_type = "weight" if self.model.get_params().get("booster") == "gblinear" else "gain"
+            callbacks.append(WandbCallback(importance_type=importance_type))
         logging.debug(f"train_data: {train_data.shape}, train_labels: {train_labels.shape}")
         logging.debug(train_labels)
         # XGBoost >= 2.0 takes callbacks as an estimator parameter, not as a fit() argument.

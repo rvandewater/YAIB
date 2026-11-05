@@ -13,7 +13,7 @@ class LGBMWrapper(MLWrapper):
         """Fitting function for LGBM models."""
         self.model.set_params(random_state=np.random.get_state()[1][0])
         callbacks = [
-            lgbm.early_stopping(self.hparams.patience, verbose=True),
+            lgbm.early_stopping(self.hparams.patience, verbose=False),
             lgbm.log_evaluation(period=-1),
         ]
 
