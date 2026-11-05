@@ -180,6 +180,42 @@ def test_custom_preprocessor_is_used(custom_preprocessor, tmp_path, monkeypatch)
     assert marker.exists()
 
 
+def test_runs_from_a_custom_preprocessor_run_use_it_without_p(custom_preprocessor, tmp_path, monkeypatch):
+    path, marker = custom_preprocessor
+    args = ["-d", "demo_data/mortality24/mimic_demo", "-n", "mimic_demo", *MORTALITY, "-l", str(tmp_path / "source")]
+    run([*args, "-p", str(path), "-hp", *ONE_FOLD], monkeypatch)
+    (fold,) = (tmp_path / "source").glob("mimic_demo/Mortality24/LogisticRegression/*/repetition_0/fold_0")
+    # gin cannot save the class itself, so evaluating from this run used the default preprocessor
+    assert bound(fold, "custom_preprocessor.path") == str(path.resolve())
+    marker.unlink()
+    run([*EICU, "-l", str(tmp_path / "logs"), "--eval", "-sn", "mimic", "--source-dir", str(fold)], monkeypatch)
+    assert marker.exists()
+
+
+def test_hp_binds_parameters_of_a_custom_preprocessor(tmp_path, monkeypatch):
+    marker = tmp_path / "applied"
+    path = tmp_path / "custom.py"
+    path.write_text(
+        "from pathlib import Path\n"
+        "import gin\n"
+        "from icu_benchmarks.data.preprocessor import PolarsClassificationPreprocessor\n\n\n"
+        '@gin.configurable("hp_custom_preprocessor")\n'
+        "class CustomPreprocessor(PolarsClassificationPreprocessor):\n"
+        "    def __init__(self, marker=None, **kwargs):\n"
+        "        super().__init__(**kwargs)\n"
+        "        self.marker = marker\n\n"
+        "    def apply(self, data, vars):\n"
+        "        Path(self.marker).touch()\n"
+        "        return super().apply(data, vars)\n"
+    )
+    monkeypatch.setitem(sys.modules, "preprocessor", None)
+    # gin parses -hp before the training path binds the custom preprocessor, so the file must be imported first
+    hp = [*ONE_FOLD, f"hp_custom_preprocessor.marker = {str(marker)!r}"]
+    args = ["-d", "demo_data/mortality24/mimic_demo", *MORTALITY, "-l", str(tmp_path / "logs"), "-p", str(path)]
+    run([*args, "-hp", *hp], monkeypatch)
+    assert marker.exists()
+
+
 @pytest.mark.parametrize(
     "transfer",
     [["--eval", "-sn", "mimic"], ["-ft", "40", "-sn", "mimic"], ["--samples", "40"]],

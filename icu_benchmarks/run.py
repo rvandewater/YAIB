@@ -22,6 +22,7 @@ from icu_benchmarks.run_utils import (
     load_pretrained_imputation_model,
     setup_logging,
     import_preprocessor,
+    bind_custom_preprocessor,
     name_datasets,
     get_config_files,
 )
@@ -114,6 +115,10 @@ def main(my_args=tuple(sys.argv[1:])):
             level=logging.WARNING,
         )
 
+    if args.preprocessor:
+        # Before the configs are parsed, so that they and -hp can bind the gin parameters of the custom preprocessor
+        import_preprocessor(args.preprocessor)
+
     # Load pretrained model in evaluate mode or when finetuning
     if load_weights:
         if args.source_dir is None:
@@ -129,12 +134,12 @@ def main(my_args=tuple(sys.argv[1:])):
         gin.parse_config_file(source_dir / "train_config.gin")
         # Each path binds the custom preprocessor after parsing its configs, which bind the default one (#274)
         if args.preprocessor:
-            import_preprocessor(args.preprocessor)
+            bind_custom_preprocessor(args.preprocessor)
     elif args.samples and args.source_dir is not None:  # Train model with limited samples and bind existing config
         logging.info("Binding train gin-config. Note: this might override your config.")
         gin.parse_config_file(args.source_dir / "train_config.gin")
         if args.preprocessor:
-            import_preprocessor(args.preprocessor)
+            bind_custom_preprocessor(args.preprocessor)
         log_dir /= f"samples_{args.samples}"
         name_datasets(args.name, args.name, args.name)
         run_dir = create_run_dir(log_dir)
@@ -152,7 +157,7 @@ def main(my_args=tuple(sys.argv[1:])):
         )
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         if args.preprocessor:
-            import_preprocessor(args.preprocessor)
+            bind_custom_preprocessor(args.preprocessor)
         log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
         run_dir = create_run_dir(log_dir)
         choose_and_bind_hyperparameters_optuna(
