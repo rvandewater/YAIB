@@ -57,6 +57,11 @@ def test_svm_classifier_trains(tmp_path):
         gin.clear_config()
 
 
+def test_svm_classifier_rejects_disabled_probabilities():
+    with pytest.raises(ValueError, match="probability=True"):
+        SVMClassifier(run_mode=RunMode.classification, probability=False)
+
+
 def test_svm_regressor_predicts():
     model = SVMRegressor(run_mode=RunMode.regression)
     x = np.linspace(0, 1, 20).reshape(-1, 1)
