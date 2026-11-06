@@ -672,6 +672,24 @@ wheels = [
 ]
 
 [[package]]
+name = "captum"
+version = "0.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib", version = "3.10.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "matplotlib", version = "3.11.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "torch", version = "2.6.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.6.0+cu118", source = { registry = "https://download.pytorch.org/whl/cu118" }, marker = "sys_platform != 'darwin'" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f7/9e/f31758e20c3d2b42b05420936b75f663e7aeae9ba63b84aee5cad1b044a3/captum-0.9.0.tar.gz", hash = "sha256:e4868e22b68224f1a5355d2b7966803c021cf9fe5d893f51f587b4002a666b54", size = 363381, upload-time = "2026-04-17T06:11:39.577Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/01/75/c99571fee171bb9d34d3e1df5fdb16d57e2c4c15339eb220e6e6e4539f1c/captum-0.9.0-py3-none-any.whl", hash = "sha256:cda38e1d42c37591d71560bb2f5813ac4cae8d8543afac45279c7efd5945997e", size = 455196, upload-time = "2026-04-17T06:11:38.229Z" },
+]
+
+[[package]]
 name = "catboost"
 version = "1.2.8"
 source = { registry = "https://pypi.org/simple" }
@@ -7516,6 +7534,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+explain = [
+    { name = "captum" },
+]
 imputation = [
     { name = "einops" },
     { name = "hyperimpute" },
@@ -7542,6 +7563,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
+    { name = "captum", marker = "extra == 'explain'", specifier = ">=0.9.0" },
     { name = "catboost", specifier = "==1.2.8" },
     { name = "einops", marker = "extra == 'imputation'", specifier = "==0.6.1" },
     { name = "gin-config", specifier = "==0.5.0" },
@@ -7575,7 +7597,7 @@ requires-dist = [
     { name = "wandb", specifier = ">=0.17.3" },
     { name = "xgboost", specifier = "==2.1.0" },
 ]
-provides-extras = ["imputation"]
+provides-extras = ["imputation", "explain"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -58,10 +58,10 @@ See [Evaluation and transfer](evaluation-and-transfer.md).
 
 ## Output
 
-| Option               | Description                                                                                                        |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `-v`, `--verbose`    | Log debug messages.                                                                                                |
-| `-pl`, `--plot`      | Save common plots.                                                                                                 |
-| `--explain-features` | Save SHAP values of the test set (tree-based ML models only); see [Feature explanations](feature-explanations.md). |
+| Option               | Description                                                                                                                                                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-v`, `--verbose`    | Log debug messages.                                                                                                                                                                                                           |
+| `-pl`, `--plot`      | Save common plots.                                                                                                                                                                                                            |
+| `--explain-features` | Save feature attributions of the test set: SHAP values for tree-based models, attributions and their quality metrics for deep learning models (needs `--extra explain`); see [Feature explanations](feature-explanations.md). |
 
 Boolean flags also have a `--no-` form, e.g. `--no-tune`.

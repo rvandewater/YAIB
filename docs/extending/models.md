@@ -34,10 +34,10 @@ class RFClassifier(MLWrapper):
         super().__init__(*args, **kwargs)
 ```
 
-| Attribute              | Meaning                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------------------- |
-| `_supported_run_modes` | `RunMode.classification` and/or `RunMode.regression`; other tasks are rejected.                   |
-| `explainer_cls`        | A SHAP explainer class, to support [feature explanations](../user-guide/feature-explanations.md). |
+| Attribute              | Meaning                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `_supported_run_modes` | `RunMode.classification` and/or `RunMode.regression`; other tasks are rejected.                                                                  |
+| `explainer_cls`        | A SHAP explainer class, to support [feature explanations](../user-guide/feature-explanations.md). Deep learning models are explained without it. |
 
 Override `fit_model` for estimators that need special fitting, such as early stopping on the validation set; see
 `LGBMWrapper` in `icu_benchmarks/models/ml_models/lgbm.py`.

@@ -227,6 +227,7 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
     """
     aggregated = {}
     shap_values_test = []
+    feature_importance = []
     for repetition in log_dir.iterdir():
         if repetition.is_dir():
             aggregated[repetition.name] = {}
@@ -247,12 +248,27 @@ def aggregate_results(log_dir: Path, execution_time: timedelta = None):
                         aggregated[repetition.name][fold_iter.name].update(result)
                 if (fold_iter / "test_shap_values.parquet").is_file():
                     shap_values_test.append(pl.read_parquet(fold_iter / "test_shap_values.parquet"))
+                # Explanation metrics of DL models, averaged over the folds like the test metrics
+                if (fold_iter / "test_explanation_metrics.json").is_file():
+                    with open(fold_iter / "test_explanation_metrics.json", "r") as f:
+                        aggregated[repetition.name][fold_iter.name].update(json.load(f))
+                if (fold_iter / "test_feature_importance.parquet").is_file():
+                    feature_importance.append(
+                        pl.read_parquet(fold_iter / "test_feature_importance.parquet").with_columns(
+                            pl.lit(repetition.name).alias("repetition"), pl.lit(fold_iter.name).alias("fold")
+                        )
+                    )
 
     if shap_values_test:
         try:
             pl.concat(shap_values_test).write_parquet(log_dir / "aggregated_shap_values.parquet")
         except Exception as e:
             logging.error(f"Error aggregating or writing SHAP values: {e}")
+    if feature_importance:
+        try:
+            pl.concat(feature_importance).write_parquet(log_dir / "aggregated_feature_importance.parquet")
+        except Exception as e:
+            logging.error(f"Error aggregating or writing feature importances: {e}")
     # Aggregate results per metric
     list_scores = {}
     for repetition, folds in aggregated.items():
@@ -375,7 +391,7 @@ def bind_selected_label(label: str | None = None) -> None:
 
 
 def check_explain_features(explain_features: bool | None) -> None:
-    """Fail before tuning, rather than after it, when SHAP values are requested for a model without an explainer.
+    """Fail before tuning, rather than after it, when explanations are requested for a model that cannot provide them.
 
     Args:
         explain_features: The --explain-features flag; None falls back to the train_common.explain_features binding.
@@ -385,7 +401,27 @@ def check_explain_features(explain_features: bool | None) -> None:
     if explain_features is None:
         explain_features = bindings.get("explain_features", False)
     model = bindings.get("model")
-    if explain_features and model is not None and getattr(model, "explainer_cls", None) is None:
+    if not explain_features or model is None:
+        return
+    if getattr(model, "explain_with_captum", False):
+        from icu_benchmarks.models.explain import require_captum, require_polars
+
+        require_captum()
+        require_polars(bindings.get("polars", True))
+        # Tuning binds the model's num_classes later, from model/hyperparameter (set by the task config's NUM_CLASSES)
+        num_classes = None
+        for selector in ("model/hyperparameter", model.__name__):
+            try:
+                num_classes = gin.get_bindings(selector).get("num_classes")
+            except ValueError:  # No configurable of that name
+                continue
+            if num_classes is not None:
+                break
+        if isinstance(num_classes, int) and num_classes > 2:
+            raise NotImplementedError(
+                f"{model.__name__} explanations support binary classification and regression, not {num_classes} classes."
+            )
+    elif getattr(model, "explainer_cls", None) is None:
         raise NotImplementedError(f"{model.__name__} does not support SHAP explanations.")
 
 

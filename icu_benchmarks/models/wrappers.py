@@ -57,6 +57,8 @@ class BaseModule(LightningModule):
     explain_features = False
     # SHAP explainer class (e.g. shap.TreeExplainer), set by models that support feature attribution
     explainer_cls = None
+    # Deep learning prediction models are explained with Captum (icu_benchmarks.models.explain) instead of SHAP
+    explain_with_captum = False
     target_transform = None
 
     def inverse_target(self, values):
@@ -301,6 +303,17 @@ class DLPredictionWrapper(DLWrapper):
     """Interface for Deep Learning models."""
 
     _supported_run_modes = [RunMode.classification, RunMode.regression]
+    explain_with_captum = True
+
+    def set_explain_features(self, explain_features: bool):
+        """Enables attributions of the test predictions; fails before training if they cannot be computed."""
+        if explain_features:
+            from icu_benchmarks.models.explain import require_captum
+
+            require_captum()
+            if self.run_mode == RunMode.classification and self.logit.out_features != 2:
+                raise NotImplementedError("Explanations support binary classification and regression models only.")
+        self.explain_features = explain_features
 
     def __init__(
         self,

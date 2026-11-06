@@ -11,3 +11,14 @@
 ::: icu_benchmarks.models.custom_metrics
 
 ::: icu_benchmarks.models.utils
+
+## Explanations
+
+Attributions and explanation-quality metrics for the deep learning models; see
+[Feature explanations](../user-guide/feature-explanations.md).
+
+::: icu_benchmarks.models.explain
+
+::: icu_benchmarks.models.explain.attribution
+
+::: icu_benchmarks.models.explain.metrics

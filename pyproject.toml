@@ -83,6 +83,10 @@ imputation = [
   # or importing it (e.g. through SHAP) fails
   "tf-keras",
 ]
+# Feature attributions for the deep learning models (--explain-features), see icu_benchmarks/models/explain
+explain = [
+  "captum>=0.9.0",
+]
 
 [dependency-groups]
 dev = [

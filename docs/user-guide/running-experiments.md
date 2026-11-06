@@ -101,16 +101,16 @@ flags together to create the cache on the first run and reuse it afterwards.
 
 ## Useful options
 
-| Option                         | Effect                                                                                       |
-| ------------------------------ | -------------------------------------------------------------------------------------------- |
-| `-hp <binding> ...`            | Override any gin binding, e.g. `-hp train_common.epochs=10`.                                 |
-| `--cpu`                        | Train on the CPU even if a GPU is available.                                                 |
-| `-db` / `--debug`              | Load only a small part of the data, for quick tests.                                         |
-| `--reproducible`               | Make PyTorch deterministic.                                                                  |
-| `--complete-train`             | Train on all the data, without a test split.                                                 |
-| `-mo DYNAMIC` / `--modalities` | Train on a subset of the modalities (keys of `modality_mapping`).                            |
-| `--label <name>`               | Choose one label when the task config lists several.                                         |
-| `-pl` / `--plot`               | Save common plots of the results.                                                            |
-| `--explain-features`           | Save SHAP values for tree-based models; see [Feature explanations](feature-explanations.md). |
+| Option                         | Effect                                                                                                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-hp <binding> ...`            | Override any gin binding, e.g. `-hp train_common.epochs=10`.                                                                                                        |
+| `--cpu`                        | Train on the CPU even if a GPU is available.                                                                                                                        |
+| `-db` / `--debug`              | Load only a small part of the data, for quick tests.                                                                                                                |
+| `--reproducible`               | Make PyTorch deterministic.                                                                                                                                         |
+| `--complete-train`             | Train on all the data, without a test split.                                                                                                                        |
+| `-mo DYNAMIC` / `--modalities` | Train on a subset of the modalities (keys of `modality_mapping`).                                                                                                   |
+| `--label <name>`               | Choose one label when the task config lists several.                                                                                                                |
+| `-pl` / `--plot`               | Save common plots of the results.                                                                                                                                   |
+| `--explain-features`           | Save feature attributions: SHAP for tree-based models, Integrated Gradients and more for deep learning models; see [Feature explanations](feature-explanations.md). |
 
 The [CLI reference](cli.md) lists every option.

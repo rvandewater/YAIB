@@ -28,6 +28,7 @@ from icu_benchmarks.data.loader import (
     PredictionPolarsDataset,
 )
 from icu_benchmarks.models import DLModel, MLModelClassifier, MLModelRegression
+from icu_benchmarks.models.explain import explain_predictions, require_polars  # registers its gin configurable
 from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import JSONMetricsLogger, save_config_file
 
@@ -102,7 +103,8 @@ def train_common(
         pl_model: Loading a pytorch lightning model.
         num_workers: Number of workers to use for data loading.
         target_transform: Fitted preprocessing transform, required for regression.
-        explain_features: Save SHAP values of the test set. Only supported by models that set an explainer_cls.
+        explain_features: Save SHAP values of the test set (models that set an explainer_cls) or, for deep learning
+            models, attributions and their quality metrics (icu_benchmarks.models.explain).
 
     Returns:
         Native-unit MSE for regression, or test loss for other run modes.
@@ -110,6 +112,8 @@ def train_common(
 
     if mode == RunMode.regression and target_transform is None:
         raise ValueError("Regression training/evaluation requires its preprocessing target transform.")
+    if explain_features and getattr(model, "explain_with_captum", False):
+        require_polars(polars)
     if dataset_names is None:
         dataset_names = {"train": "default", "val": "default", "test": "default"}
 
@@ -262,6 +266,13 @@ def train_common(
         raise ValueError(f"Test evaluation did not produce {score_name}; check that the test split has labeled targets.")
     test_loss = test_results[0][score_name]
     persist_shap_data(trainer, log_dir)
+    if explain_features and getattr(model, "explain_with_captum", False):
+        # After testing, which leaves the model with the weights it was tested with (the best checkpoint)
+        try:
+            explain_predictions(model, test_dataset, log_dir)
+        except Exception:
+            # Explanations are auxiliary; do not fail a completed run over them, like the SHAP export
+            logging.exception("Failed to explain the test predictions.")
     save_config_file(log_dir)
     return test_loss
 
