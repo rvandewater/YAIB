@@ -272,7 +272,6 @@ def imports(config):
     return re.findall(r"^import ([\w.]+)", config.read_text(), re.MULTILINE)
 
 
-STALE_MODULE = "icu_benchmarks.data.preprocess"
 S4_MODULES = {"icu_benchmarks.imputation.sssds4", "icu_benchmarks.imputation.sssdsa"}
 
 
@@ -281,18 +280,7 @@ def skip_without_s4(config):
         pytest.skip("The SSSD models need einops and opt_einsum from the imputation extra")
 
 
-@pytest.mark.parametrize(
-    "module",
-    [
-        pytest.param(
-            module,
-            marks=[pytest.mark.xfail(strict=True, reason="#272: renamed to icu_benchmarks.data.preprocessor")]
-            if module == STALE_MODULE
-            else [],
-        )
-        for module in sorted({module for config in CONFIGS for module in imports(config)})
-    ],
-)
+@pytest.mark.parametrize("module", sorted({module for config in CONFIGS for module in imports(config)}))
 def test_config_imports_exist(module):
     assert find_spec(module) is not None
 
@@ -307,29 +295,11 @@ def test_config_model_is_registered(config):
     assert gin.config._REGISTRY.get_match(model) is not None
 
 
-@pytest.mark.parametrize(
-    "config",
-    [
-        pytest.param(
-            config,
-            id=config.stem,
-            marks=(
-                [
-                    pytest.mark.xfail(
-                        strict=True, raises=ValueError, reason="#272: binds ImputationDataset, which is not registered"
-                    )
-                ]
-                if config.stem == "Mean"
-                else []
-            ),
-        )
-        for config in CONFIGS
-    ],
-)
+@pytest.mark.parametrize("config", CONFIGS, ids=lambda config: config.stem)
 def test_config_bindings_parse(config):
     skip_without_s4(config)
     gin.clear_config()
-    try:  # The stale import is covered by test_config_imports_exist
-        gin.parse_config(config.read_text().replace(f"import {STALE_MODULE}\n", ""))
+    try:
+        gin.parse_config(config.read_text())
     finally:
         gin.clear_config()

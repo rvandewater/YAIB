@@ -33,11 +33,11 @@ parameters:
         "RNN",
         "Simple_Diffusion",
       ]
-  ImputationDataset.mask_method:
+  ImputationPandasDataset.mask_method:
     values: ["MCAR", "MAR", "MNAR"]
   seed:
     values: [2222]
-  ImputationDataset.mask_proportion:
+  ImputationPandasDataset.mask_proportion:
     values: [0.3, 0.5, 0.7]
   data_dir:
     values: ["../data/miiv", "../data/eicu", "../data/hirid"]
