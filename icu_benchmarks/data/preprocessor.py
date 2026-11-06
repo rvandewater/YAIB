@@ -125,7 +125,7 @@ class PolarsClassificationPreprocessor(Preprocessor):
         else:
             self.use_static_features = False
 
-        if all(DataSegment.dynamic in value for value in data.values()):
+        if all(DataSegment.dynamic in value for value in data.values()) and len(vars[DataSegment.dynamic]) > 0:
             logging.info("Preprocessing dynamic features.")
             logging.info(data.keys())
             data = self._process_dynamic(data, vars)
@@ -195,20 +195,23 @@ class PolarsClassificationPreprocessor(Preprocessor):
             sta_rec.add_step(StepScale())
         sta_rec.add_step(StepImputeFill(sel=all_numeric_predictors(), strategy="zero"))
         types = ["String", "Object", "Categorical"]
-        sel = has_type(types)
-        if len(sel(sta_rec.data)) > 0:
+        # Every categorical static column is encoded (also ones not listed in vars, which stay in the features), but not
+        # a string stay ID
+        categorical = [column for column in has_type(types)(sta_rec.data) if column != vars["GROUP"]]
+        if categorical:
+            sel = all_of(categorical)
             # Polars nulls in string columns reach sklearn as None, not NaN
             sta_rec.add_step(
                 StepSklearn(
                     SimpleImputer(missing_values=None, strategy="most_frequent"),
-                    sel=has_type(types),
+                    sel=sel,
                 )
             )
             # Categories not seen in the train split get code -1 instead of failing on val/test
             sta_rec.add_step(
                 StepSklearn(
                     OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1, dtype=int),
-                    sel=has_type(types),
+                    sel=sel,
                 )
             )
 

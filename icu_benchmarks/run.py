@@ -15,6 +15,7 @@ from icu_benchmarks.tuning.hyperparameters import choose_and_bind_hyperparameter
 from scripts.plotting.utils import plot_aggregated_results
 from icu_benchmarks.cross_validation import execute_repeated_cv
 from icu_benchmarks.run_utils import (
+    bind_selected_label,
     check_explain_features,
     parse_args,
     create_run_dir,
@@ -139,11 +140,13 @@ def main(my_args=tuple(sys.argv[1:])):
         # Each path binds the custom preprocessor after parsing its configs, which bind the default one (#274)
         if args.preprocessor:
             bind_custom_preprocessor(args.preprocessor)
+        bind_selected_label(args.label)
     elif args.samples and args.source_dir is not None:  # Train model with limited samples and bind existing config
         logging.info("Binding train gin-config. Note: this might override your config.")
         gin.parse_config_file(args.source_dir / "train_config.gin")
         if args.preprocessor:
             bind_custom_preprocessor(args.preprocessor)
+        bind_selected_label(args.label)
         log_dir /= f"samples_{args.samples}"
         name_datasets(args.name, args.name, args.name)
         run_dir = create_run_dir(log_dir)
@@ -162,6 +165,8 @@ def main(my_args=tuple(sys.argv[1:])):
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         if args.preprocessor:
             bind_custom_preprocessor(args.preprocessor)
+        # Before tuning, whose trials train on the label too
+        bind_selected_label(args.label)
         log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
         run_dir = create_run_dir(log_dir)
         check_explain_features(args.explain_features)
