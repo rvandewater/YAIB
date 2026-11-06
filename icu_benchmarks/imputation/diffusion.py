@@ -54,21 +54,21 @@ class SimpleDiffusionModel(ImputationWrapper):
         # == Noise Schedulers == #
         # Linear
         if self.noise_scheduler == "linear":
-            self.betas = torch.linspace(self.min_noise, self.max_noise, self.T)
+            betas = torch.linspace(self.min_noise, self.max_noise, self.T)
         # Quadratic
         elif self.noise_scheduler == "quadratic":
-            self.betas = torch.linspace(self.min_noise**0.5, self.max_noise**0.5, self.T) ** 2
+            betas = torch.linspace(self.min_noise**0.5, self.max_noise**0.5, self.T) ** 2
         # Cosine
         elif self.noise_scheduler == "cosine":
             x = torch.linspace(0, self.T, self.T + 1)
             alphas_cumprod = torch.cos(((x / self.T) + 0.008) / (1 + 0.008) * torch.pi * 0.5) ** 2
             alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
             betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
-            self.betas = torch.clip(betas, 0.0001, 0.9999)
+            betas = torch.clip(betas, 0.0001, 0.9999)
         # Sigmoid
         elif self.noise_scheduler == "sigmoid":
             betas = torch.linspace(-6, 6, self.T)
-            self.betas = torch.sigmoid(betas) * (self.max_noise - self.min_noise) + self.min_noise
+            betas = torch.sigmoid(betas) * (self.max_noise - self.min_noise) + self.min_noise
         # Error
         else:
             raise NotImplementedError(
@@ -76,14 +76,23 @@ class SimpleDiffusionModel(ImputationWrapper):
                 % self.noise_scheduler
             )
 
-        # Helper Values
-        self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = torch.cumprod(self.alphas, axis=0)
-        self.alphas_cumprod_prev = F.pad(self.alphas_cumprod[:-1], (1, 0), value=1.0)
-        self.sqrt_recip_alphas = torch.sqrt(1.0 / self.alphas)
-        self.sqrt_alphas_cumprod = torch.sqrt(self.alphas_cumprod)
-        self.sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - self.alphas_cumprod)
-        self.posterior_variance = self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+        # Helper Values. As buffers they move with the model, also when a restored model is moved to a GPU for test
+        # or predict. They follow from the noise schedule, so they are not saved in checkpoints.
+        alphas = 1.0 - betas
+        alphas_cumprod = torch.cumprod(alphas, dim=0)
+        alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
+        schedule = {
+            "betas": betas,
+            "alphas": alphas,
+            "alphas_cumprod": alphas_cumprod,
+            "alphas_cumprod_prev": alphas_cumprod_prev,
+            "sqrt_recip_alphas": torch.sqrt(1.0 / alphas),
+            "sqrt_alphas_cumprod": torch.sqrt(alphas_cumprod),
+            "sqrt_one_minus_alphas_cumprod": torch.sqrt(1.0 - alphas_cumprod),
+            "posterior_variance": betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod),
+        }
+        for name, values in schedule.items():
+            self.register_buffer(name, values, persistent=False)
 
         # Store Input Size
         self.input_size = input_size
@@ -152,7 +161,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         x_0 = amputated
 
         # Take a random timestep
-        t = torch.randint(0, self.T, (self.input_size[0],)).long()
+        t = torch.randint(0, self.T, (self.input_size[0],), device=self.device).long()
 
         # Introduce Noise into the samples according
         x_t, noise = self.forward_diffusion_sample(x_0, t)
@@ -177,7 +186,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         x_0 = amputated
 
         # Take a random timestep
-        t = torch.randint(0, self.T, (self.input_size[0],)).long()
+        t = torch.randint(0, self.T, (self.input_size[0],), device=self.device).long()
 
         # Introduce Noise into the samples according
         x_t, noise = self.forward_diffusion_sample(x_0, t)
@@ -199,7 +208,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         x_0 = amputated
 
         # Take the last timestep
-        t = torch.full((self.input_size[0],), self.T - 1)
+        t = torch.full((self.input_size[0],), self.T - 1, device=self.device, dtype=torch.long)
 
         # Let the Model predict the noise
         noise_pred = self(x_0, t)
@@ -211,7 +220,7 @@ class SimpleDiffusionModel(ImputationWrapper):
         x_0 = self.backward_diffusion_sample(noise_pred, x_t, t)
 
         # Use the prediction only where the original data is missing
-        x_0 = amputated.masked_scatter_(amputation_mask.bool(), x_0)
+        x_0 = torch.where(amputation_mask.bool(), x_0, amputated)
 
         # Calculate Loss: Difference between imputed and target
         loss = self.loss(x_0, target)
@@ -222,6 +231,21 @@ class SimpleDiffusionModel(ImputationWrapper):
         # Update Metrics
         for metric in self.metrics["test"].values():
             metric.update((torch.flatten(x_0, start_dim=1), torch.flatten(target, start_dim=1)))
+
+    def predict_step(self, data, amputation_mask):
+        """Impute the missing values by running the reverse diffusion from pure noise. At each timestep, the
+        observed values are replaced by their forward diffusion sample for that timestep."""
+        amputated = torch.nan_to_num(data, nan=0.0)
+        amputation_mask = amputation_mask.bool()
+
+        x = torch.randn_like(amputated)
+        for t in range(self.T - 1, -1, -1):
+            t_batch = torch.full((amputated.shape[0],), t, device=amputated.device, dtype=torch.long)
+            observed_t, _ = self.forward_diffusion_sample(amputated, t_batch)
+            x = torch.where(amputation_mask, x, observed_t)
+            x = self.backward_diffusion_sample(self(x, t_batch), x, t_batch, t_index=t)
+
+        return torch.where(amputation_mask, x, amputated)
 
     # Helper function to return a value for a specific timestep t from a list reformatted for the current input size
     def get_index_from_list(self, values, t, x_shape):
@@ -311,7 +335,7 @@ class SinusoidalPositionEmbeddings(nn.Module):
     def forward(self, time):
         half_dim = self.dim // 2
         embeddings = math.log(10000) / (half_dim - 1 + 0.05)
-        embeddings = torch.exp(torch.arange(half_dim) * -embeddings)
+        embeddings = torch.exp(torch.arange(half_dim, device=time.device) * -embeddings)
         embeddings = time[:, None] * embeddings[None, :]
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
         return embeddings

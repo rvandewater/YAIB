@@ -200,24 +200,24 @@ class DLWrapper(BaseModule, ABC):
         return super().on_train_start()
 
     def finalize_step(self, step_prefix=""):
+        values = {}
         try:
-            self.log_dict(
-                {
-                    f"{step_prefix}/{name}": (
-                        np.float32(metric.compute()) if isinstance(metric.compute(), np.float64) else metric.compute()
-                    )
-                    for name, metric in self.metrics[step_prefix].items()
-                    if "_Curve" not in name
-                },
-                sync_dist=True,
-            )
+            for name, metric in self.metrics[step_prefix].items():
+                if "_Curve" in name:
+                    continue
+                # Compute each metric separately, so one that is not computable (e.g. AUC on one class) skips only itself
+                try:
+                    value = metric.compute()
+                except (NotComputableError, ValueError):
+                    if (step_prefix, name) not in self._metrics_warning_printed:
+                        self._metrics_warning_printed.add((step_prefix, name))
+                        logging.warning(f"Metric {name} for {step_prefix} not computable")
+                    continue
+                values[f"{step_prefix}/{name}"] = np.float32(value) if isinstance(value, np.float64) else value
+            self.log_dict(values, sync_dist=True)
+        finally:
             for metric in self.metrics[step_prefix].values():
                 metric.reset()
-        except (NotComputableError, ValueError):
-            if step_prefix not in self._metrics_warning_printed:
-                self._metrics_warning_printed.add(step_prefix)
-                logging.warning(f"Metrics for {step_prefix} not computable")
-            pass
 
     def configure_optimizers(self):
         """Configure optimizers and learning rate schedulers."""
@@ -606,10 +606,9 @@ class MLWrapper(BaseModule, ABC):
     def log_metrics(self, label, pred, metric_type):
         """Log metrics to the PL logs."""
         if "Confusion_Matrix" in self.metrics:
-            self.log_dict(
-                confusion_matrix(self.label_transform(label), self.output_transform(pred)),
-                sync_dist=True,
-            )
+            confusion = confusion_matrix(self.label_transform(label), self.output_transform(pred))
+            # Prefix with the split like the other metrics, so the JSON logger writes it to e.g. test_metrics.json
+            self.log_dict({f"{metric_type}/{name}": count for name, count in confusion.items()}, sync_dist=True)
         self.log_dict(
             {
                 f"{metric_type}/{name}": (metric(self.label_transform(label), self.output_transform(pred)))
@@ -742,6 +741,8 @@ class ImputationWrapper(DLWrapper):
             if hasattr(m, "weight") and (classname.find("Conv") != -1 or classname.find("Linear") != -1):
                 if init_type == ImputationInit.NORMAL:
                     nn.init.normal_(m.weight.data, 0.0, gain)
+                elif init_type == ImputationInit.UNIFORM:
+                    nn.init.uniform_(m.weight.data, -gain, gain)
                 elif init_type == ImputationInit.XAVIER:
                     nn.init.xavier_normal_(m.weight.data, gain=gain)
                 elif init_type == ImputationInit.KAIMING:
@@ -789,6 +790,7 @@ class ImputationWrapper(DLWrapper):
     def predict_step(self, data, amputation_mask=None):
         return self(data, amputation_mask)
 
+    @torch.no_grad()  # The diffusion imputers' reverse loop would otherwise keep a graph over all T steps
     def predict(self, data):
         self.eval()
         data = data.to(self.device)

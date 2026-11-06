@@ -29,37 +29,40 @@ def accuracy(output, target, topk=(1,)):
 
         res = []
         for k in topk:
-            correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+            correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 
 
+def balanced_accuracy_compute(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
+    y_true = y_targets.numpy()
+    y_pred = np.argmax(y_preds.numpy(), axis=-1)
+    return balanced_accuracy_score(y_true, y_pred)
+
+
 class BalancedAccuracy(EpochMetric):
     def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
+        # The compute function must exist before EpochMetric stores it, or ignite resolves it to a MetricsLambda
         super(BalancedAccuracy, self).__init__(
-            self.balanced_accuracy_compute,
+            balanced_accuracy_compute,
             output_transform=output_transform,
             check_compute_fn=check_compute_fn,
         )
 
-        def balanced_accuracy_compute(y_preds: torch.Tensor, y_targets: torch.Tensor) -> float:
-            y_true = y_targets.numpy()
-            y_pred = np.argmax(y_preds.numpy(), axis=-1)
-            return balanced_accuracy_score(y_true, y_pred)
+
+def ece_curve_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, n_bins=10) -> float:
+    y_true = y_targets.numpy()
+    y_pred = y_preds.numpy()
+    return calibration_curve(y_true, y_pred, n_bins=n_bins)
 
 
 class CalibrationCurve(EpochMetric):
     def __init__(self, output_transform: Callable = lambda x: x, check_compute_fn: bool = False) -> None:
         super(CalibrationCurve, self).__init__(
-            self.ece_curve_compute_fn,
+            ece_curve_compute_fn,
             output_transform=output_transform,
             check_compute_fn=check_compute_fn,
         )
-
-        def ece_curve_compute_fn(y_preds: torch.Tensor, y_targets: torch.Tensor, n_bins=10) -> float:
-            y_true = y_targets.numpy()
-            y_pred = y_preds.numpy()
-            return calibration_curve(y_true, y_pred, n_bins=n_bins)
 
 
 class MAE(EpochMetric):

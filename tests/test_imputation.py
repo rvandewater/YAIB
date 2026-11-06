@@ -123,12 +123,19 @@ def test_rnn_imputation_rejects_unknown_cell():
         RNNImputation(input_size=(2, 4, 3), cell="transformer")
 
 
-@pytest.mark.parametrize(
-    "init", [ImputationInit.NORMAL, ImputationInit.XAVIER, ImputationInit.KAIMING, ImputationInit.ORTHOGONAL]
-)
+@pytest.mark.parametrize("init", list(ImputationInit))
 def test_init_weights_resets_linear_layers(init):
     model = MLPImputation(input_size=(2, 4, 3), num_hidden_layers=1, hidden_layer_size=5)
     linear = model.model[1]
     torch.nn.init.constant_(linear.bias, 1.0)
     model.init_weights(init)
     assert torch.all(linear.bias == 0) and linear.weight.std() > 0
+
+
+def test_uniform_init_draws_within_gain():
+    torch.manual_seed(0)
+    model = MLPImputation(input_size=(2, 4, 3), num_hidden_layers=1, hidden_layer_size=5)
+    model.init_weights(ImputationInit.UNIFORM, gain=0.5)
+    weights = torch.cat([m.weight.flatten() for m in model.modules() if isinstance(m, torch.nn.Linear)])
+    # U(-0.5, 0.5) has a standard deviation of about 0.29
+    assert weights.abs().max() <= 0.5 and weights.std() > 0.2

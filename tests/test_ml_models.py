@@ -80,6 +80,10 @@ def test_classifiers_learn_separable_task(model_cls, hyperparams, tmp_path):
     loss, metrics = train(model_cls, tmp_path, RunMode.classification, hyperparams, splits(regression=False))
     assert metrics["loss"] == pytest.approx(loss) and np.isfinite(loss)
     assert metrics["AUC"] > 0.85 and metrics["PR"] > 0.75
+    # #262: the confusion matrix is logged under the test/ prefix, so it reaches test_metrics.json
+    confusion = {name: count for name, count in metrics.items() if name.startswith("class_")}
+    assert set(confusion) == {f"class_{i}_pred_{j}" for i in (0, 1) for j in (0, 1)}
+    assert sum(confusion.values()) == STAYS
     assert (tmp_path / "last.joblib").exists()
 
 

@@ -16,7 +16,7 @@ class LGBMWrapper(MLWrapper):
         """Fitting function for LGBM models."""
         self.model.set_params(random_state=np.random.get_state()[1][0])
         callbacks = [
-            lgbm.early_stopping(self.hparams.patience, verbose=True),
+            lgbm.early_stopping(self.hparams.patience, verbose=False),
             lgbm.log_evaluation(period=-1),
         ]
 
@@ -37,8 +37,10 @@ class LGBMWrapper(MLWrapper):
 class LGBMClassifier(LGBMWrapper):
     _supported_run_modes = [RunMode.classification]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, verbosity: int = -1, **kwargs):
         self.model = self.set_model_args(lgbm.LGBMClassifier, *args, **kwargs)
+        # verbosity is not in the LightGBM signature, so set_model_args would drop it.
+        self.model.set_params(verbosity=verbosity)
         super().__init__(*args, **kwargs)
 
     def predict(self, features):
@@ -58,6 +60,8 @@ class LGBMClassifier(LGBMWrapper):
 class LGBMRegressor(LGBMWrapper):
     _supported_run_modes = [RunMode.regression]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, verbosity: int = -1, **kwargs):
         self.model = self.set_model_args(lgbm.LGBMRegressor, *args, **kwargs)
+        # verbosity is not in the LightGBM signature, so set_model_args would drop it.
+        self.model.set_params(verbosity=verbosity)
         super().__init__(*args, **kwargs)

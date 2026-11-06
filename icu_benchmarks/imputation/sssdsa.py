@@ -387,6 +387,23 @@ class SSSDSA(ImputationWrapper):
         self.log(f"{step_prefix}/loss", loss.item(), prog_bar=True)
         return loss
 
+    def predict_step(self, amputated_data, amputation_mask):
+        amputated_data = torch.nan_to_num(amputated_data).permute(0, 2, 1)
+        amputation_mask = amputation_mask.permute(0, 2, 1).float()
+
+        # Pad the sequence length to the next power of 2 as in step_fn; the padding counts as observed
+        length = amputated_data.shape[2]
+        padding_size = next_power(length) - length
+        amputated_data = F.pad(amputated_data, (0, padding_size))
+        amputation_mask = F.pad(amputation_mask, (0, padding_size))
+
+        observed_mask = 1 - amputation_mask
+        amputation_mask = amputation_mask.bool()
+        imputed_data = self.sampling(amputated_data, observed_mask)
+        amputated_data[amputation_mask] = imputed_data[amputation_mask]
+        amputated_data = amputated_data[:, :, :length].permute(0, 2, 1)
+        return amputated_data
+
     def default_state(self, *args, **kwargs):
         layers = list(self.d_layers) + list(self.c_layers) + [layer for block in self.u_layers for layer in block]
         return [layer.default_state(*args, **kwargs) for layer in layers]

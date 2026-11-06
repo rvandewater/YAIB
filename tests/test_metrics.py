@@ -37,7 +37,6 @@ def test_top1_accuracy():
     assert accuracy(OUTPUT, TARGET)[0].item() == pytest.approx(50.0)
 
 
-@pytest.mark.xfail(strict=True, raises=RuntimeError, reason="#262: accuracy calls view() on a non-contiguous slice for k > 1")
 def test_topk_accuracy():
     assert accuracy(OUTPUT, TARGET, topk=(2,))[0].item() == pytest.approx(75.0)
 
@@ -156,3 +155,11 @@ def test_smoothed_labels_mark_hours_before_event(label, event, expected):
         np.array(label, dtype=float), np.array(event, dtype=float), smoothing_fn=step_smoothing, h_true=2, h_min=0, h_max=4
     )
     np.testing.assert_array_equal(smoothed, expected)
+
+
+def test_multihorizon_smoothed_labels_infer_event_from_first_horizon():
+    # #262: one label column per horizon. Positive at the end of the stay without an event, so the event is assumed
+    # h_true[0] hours after the first horizon's label onset (t=4 + 2), which each horizon then smooths with its h_true.
+    label = np.array([[0, 0], [0, 0], [0, 0], [0, 1], [1, 1], [1, 1]], dtype=float)
+    smoothed = get_smoothed_labels(label, np.zeros(6), smoothing_fn=step_smoothing, h_true=[2, 3], h_min=[0, 0], h_max=[4, 6])
+    np.testing.assert_array_equal(smoothed, label)

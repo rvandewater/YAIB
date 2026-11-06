@@ -22,6 +22,8 @@ from icu_benchmarks.run_utils import (
     create_run_dir,
     get_config_files,
     import_preprocessor,
+    bind_custom_preprocessor,
+    custom_preprocessor,
     load_pretrained_imputation_model,
     log_full_line,
     name_datasets,
@@ -132,21 +134,28 @@ def test_load_pretrained_imputation_model_from_pickled_model(tmp_path):
     torch.testing.assert_close(loaded.state_dict(), model.state_dict())
 
 
-def test_import_preprocessor_without_custom_class_binds_nothing(tmp_path, monkeypatch):
+def test_import_preprocessor_without_custom_class_is_rejected(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "preprocessor", None)
     path = tmp_path / "custom.py"
     path.write_text("class OtherPreprocessor:\n    pass\n")
-    import_preprocessor(str(path))
-    with pytest.raises(ValueError):
-        gin.query_parameter("preprocess.preprocessor")
+    # This used to log an error and train with the default preprocessor
+    with pytest.raises(ValueError, match="CustomPreprocessor"):
+        import_preprocessor(str(path))
 
 
-def test_import_custom_preprocessor(tmp_path, monkeypatch):
+def test_bound_custom_preprocessor_is_saved_by_file(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "preprocessor", None)
     path = tmp_path / "custom.py"
-    path.write_text("class CustomPreprocessor:\n    marker = 'custom'\n")
-    import_preprocessor(str(path))
-    assert gin.query_parameter("preprocess.preprocessor").marker == "custom"
+    path.write_text("class CustomPreprocessor:\n    def __init__(self, **kwargs):\n        self.kwargs = kwargs\n")
+    bind_custom_preprocessor(path)
+    assert gin.query_parameter("preprocess.preprocessor").selector == "custom_preprocessor"
+    instance = custom_preprocessor(use_static_features=True)
+    assert type(instance).__name__ == "CustomPreprocessor" and instance.kwargs == {"use_static_features": True}
+    # train_config.gin can record the file, unlike the class itself
+    saved = gin.operative_config_str()
+    gin.clear_config()
+    gin.parse_config(saved)
+    assert gin.query_parameter("custom_preprocessor.path") == str(path.resolve())
 
 
 @gin.configurable

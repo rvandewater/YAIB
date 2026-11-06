@@ -22,7 +22,7 @@ class PooledData:
         vars,
         datasets,
         file_names,
-        shuffle=False,
+        shuffle=True,
         stratify=None,
         runmode=RunMode.classification,
         save_test=True,
@@ -34,7 +34,7 @@ class PooledData:
             vars: Variables dictionary
             datasets: Which datasets to pool
             file_names: Which files to read from
-            shuffle: Whether to shuffle data
+            shuffle: Whether to shuffle data; classification pools are stratified, which needs shuffling
             stratify: Stratify data
             runmode: Which task runmode
             save_test: Save left over test data to test on without leakage
@@ -71,9 +71,8 @@ class PooledData:
         data = self._pool_datasets(
             datasets=data,
             samples=samples,
-            vars=vars,
+            vars=self.vars,
             shuffle=self.shuffle,
-            stratify=self.stratify,
             seed=seed,
             runmode=self.runmode,
             data_dir=self.data_dir,
@@ -145,8 +144,9 @@ class PooledData:
             stays = pd.Series(outcome[id].unique())
 
             if runmode is RunMode.classification:
-                # If we have more outcomes than stays, check max label value per stay id
-                labels = outcome.groupby(id).max()[vars[Var.label]].reset_index(drop=True)
+                # If we have more outcomes than stays, check max label value per stay id. groupby sorts by stay ID, so
+                # reorder the labels to match stays, which follows the outcome's row order
+                labels = outcome.groupby(id)[vars[Var.label]].max().loc[stays].to_numpy()
                 # if pd.Series(outcome[id].unique()) is outcome[id]):
                 selected_stays = train_test_split(
                     stays,
@@ -161,11 +161,13 @@ class PooledData:
             # Save test sets to test on without leakage
             if save_test:
                 select = selected_stays[1]
-                outcome, static, dynamic = self._select_stays(
+                # Keep outcome, static and dynamic intact: the training stays are selected from them below
+                test_outcome, test_static, test_dynamic = self._select_stays(
                     outcome=outcome,
                     static=static,
                     dynamic=dynamic,
                     select=select,
+                    group=id,
                     repeated_digit=repeated_digit,
                 )
                 save_folder = key
@@ -173,16 +175,21 @@ class PooledData:
                 save_dir = data_dir / save_folder
                 if not save_dir.exists():
                     save_dir.mkdir()
-                outcome.to_parquet(save_dir / Path("outc.parquet"))
-                static.to_parquet(save_dir / Path("sta.parquet"))
-                dynamic.to_parquet(save_dir / Path("dyn.parquet"))
-                logging.info(f"Saved train data at {save_dir}")
+                # Under the configured file names, so the held-out set loads with the same configuration
+                for segment, frame in (
+                    (Segment.outcome, test_outcome),
+                    (Segment.static, test_static),
+                    (Segment.dynamic, test_dynamic),
+                ):
+                    frame.to_parquet(save_dir / self.file_names[segment])
+                logging.info(f"Saved held-out test data at {save_dir}")
             selected_stays = selected_stays[0]
             outcome, static, dynamic = self._select_stays(
                 outcome=outcome,
                 static=static,
                 dynamic=dynamic,
                 select=selected_stays,
+                group=id,
                 repeated_digit=repeated_digit,
             )
             # Adding to pooled data
@@ -194,7 +201,7 @@ class PooledData:
             pooled_data[key] = pd.concat(value, ignore_index=True)
         return pooled_data
 
-    def _select_stays(self, outcome, static, dynamic, select, repeated_digit=1):
+    def _select_stays(self, outcome, static, dynamic, select, group, repeated_digit=1):
         """Selects stays for outcome, static, dynamic dataframes.
 
         Args:
@@ -202,13 +209,15 @@ class PooledData:
             static: Static dataframe
             dynamic: Dynamic dataframe
             select: Stay IDs to select
+            group: Name of the stay ID column
             repeated_digit: Digit to repeat for ID clashing
         """
-        outcome = outcome.loc[outcome[id].isin(select)]
-        static = static.loc[static[id].isin(select)]
-        dynamic = dynamic.loc[dynamic[id].isin(select)]
+        # Copy, so that renaming the IDs below leaves the caller's frames unchanged
+        outcome = outcome.loc[outcome[group].isin(select)].copy()
+        static = static.loc[static[group].isin(select)].copy()
+        dynamic = dynamic.loc[dynamic[group].isin(select)].copy()
         # Preventing id clashing
-        outcome[id] = outcome[id].map(lambda x: int(str(x) + repeated_digit))
-        static[id] = static[id].map(lambda x: int(str(x) + repeated_digit))
-        dynamic[id] = dynamic[id].map(lambda x: int(str(x) + repeated_digit))
+        outcome[group] = outcome[group].map(lambda x: int(str(x) + repeated_digit))
+        static[group] = static[group].map(lambda x: int(str(x) + repeated_digit))
+        dynamic[group] = dynamic[group].map(lambda x: int(str(x) + repeated_digit))
         return outcome, static, dynamic
