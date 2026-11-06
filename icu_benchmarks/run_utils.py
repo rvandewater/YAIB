@@ -1,3 +1,4 @@
+import functools
 import importlib
 import sys
 import warnings
@@ -181,17 +182,38 @@ def create_run_dir(log_dir: Path, randomly_searched_params: str = None) -> Path:
     return log_dir_run
 
 
-def import_preprocessor(preprocessor_path: str):
-    # Import custom supplied preprocessor
-    log_full_line(f"Importing custom preprocessor from {preprocessor_path}.", logging.INFO)
-    try:
-        spec = importlib.util.spec_from_file_location("CustomPreprocessor", preprocessor_path)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules["preprocessor"] = module
-        spec.loader.exec_module(module)
-        gin.bind_parameter("preprocess.preprocessor", module.CustomPreprocessor)
-    except Exception as e:
-        logging.error(f"Could not import custom preprocessor from {preprocessor_path}: {e}")
+@functools.cache
+def load_custom_preprocessor(path: str) -> type:
+    """Imports the CustomPreprocessor class of a file, once per file: gin registers its configurables on import."""
+    log_full_line(f"Importing custom preprocessor from {path}.", logging.INFO)
+    spec = importlib.util.spec_from_file_location("CustomPreprocessor", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["preprocessor"] = module
+    spec.loader.exec_module(module)
+    if not hasattr(module, "CustomPreprocessor"):
+        raise ValueError(f"{path} does not define a CustomPreprocessor class.")
+    return module.CustomPreprocessor
+
+
+@gin.configurable("custom_preprocessor")
+def custom_preprocessor(path: str = gin.REQUIRED, **kwargs):
+    """Instantiates the CustomPreprocessor class of a file.
+
+    preprocess.preprocessor refers to this function instead of the class: gin cannot save a class it does not know, so
+    train_config.gin records the file, and the runs that parse it (--eval, fine-tuning, --samples) load the same class.
+    """
+    return load_custom_preprocessor(path)(**kwargs)
+
+
+def import_preprocessor(preprocessor_path: str | Path):
+    """Imports a custom preprocessor file before the configs are parsed, so that they can bind its gin parameters."""
+    load_custom_preprocessor(str(Path(preprocessor_path).resolve()))
+
+
+def bind_custom_preprocessor(preprocessor_path: str | Path):
+    """Selects the custom preprocessor. Call this after parsing the configs, which bind the default one (#274)."""
+    gin.bind_parameter("custom_preprocessor.path", str(Path(preprocessor_path).resolve()))
+    gin.parse_config("preprocess.preprocessor = @custom_preprocessor")
 
 
 def aggregate_results(log_dir: Path, execution_time: timedelta = None):

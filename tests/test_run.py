@@ -163,12 +163,9 @@ def test_experiment_config_replaces_model_and_task_configs(tmp_path, monkeypatch
     assert (fold / "test_metrics.json").exists()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="#274: main binds the custom preprocessor before it parses the task config, which binds the default one again",
-)
-def test_custom_preprocessor_is_used(tmp_path, monkeypatch):
+@pytest.fixture
+def custom_preprocessor(tmp_path, monkeypatch):
+    """A custom preprocessor file, and the marker file it creates when it is applied."""
     marker = tmp_path / "applied"
     path = tmp_path / "custom.py"
     path.write_text(
@@ -180,6 +177,61 @@ def test_custom_preprocessor_is_used(tmp_path, monkeypatch):
         "        return super().apply(data, vars)\n"
     )
     monkeypatch.setitem(sys.modules, "preprocessor", None)
+    return path, marker
+
+
+def test_custom_preprocessor_is_used(custom_preprocessor, tmp_path, monkeypatch):
+    # The task config binds the default preprocessor (#274)
+    path, marker = custom_preprocessor
     args = ["-d", "demo_data/mortality24/mimic_demo", *MORTALITY, "-l", str(tmp_path / "logs"), "-p", str(path)]
     run([*args, "-hp", *ONE_FOLD], monkeypatch)
+    assert marker.exists()
+
+
+def test_runs_from_a_custom_preprocessor_run_use_it_without_p(custom_preprocessor, tmp_path, monkeypatch):
+    path, marker = custom_preprocessor
+    args = ["-d", "demo_data/mortality24/mimic_demo", "-n", "mimic_demo", *MORTALITY, "-l", str(tmp_path / "source")]
+    run([*args, "-p", str(path), "-hp", *ONE_FOLD], monkeypatch)
+    (fold,) = (tmp_path / "source").glob("mimic_demo/Mortality24/LogisticRegression/*/repetition_0/fold_0")
+    # gin cannot save the class itself, so evaluating from this run used the default preprocessor
+    assert bound(fold, "custom_preprocessor.path") == str(path.resolve())
+    marker.unlink()
+    run([*EICU, "-l", str(tmp_path / "logs"), "--eval", "-sn", "mimic", "--source-dir", str(fold)], monkeypatch)
+    assert marker.exists()
+
+
+def test_hp_binds_parameters_of_a_custom_preprocessor(tmp_path, monkeypatch):
+    marker = tmp_path / "applied"
+    path = tmp_path / "custom.py"
+    path.write_text(
+        "from pathlib import Path\n"
+        "import gin\n"
+        "from icu_benchmarks.data.preprocessor import PolarsClassificationPreprocessor\n\n\n"
+        '@gin.configurable("hp_custom_preprocessor")\n'
+        "class CustomPreprocessor(PolarsClassificationPreprocessor):\n"
+        "    def __init__(self, marker=None, **kwargs):\n"
+        "        super().__init__(**kwargs)\n"
+        "        self.marker = marker\n\n"
+        "    def apply(self, data, vars):\n"
+        "        Path(self.marker).touch()\n"
+        "        return super().apply(data, vars)\n"
+    )
+    monkeypatch.setitem(sys.modules, "preprocessor", None)
+    # gin parses -hp before the training path binds the custom preprocessor, so the file must be imported first
+    hp = [*ONE_FOLD, f"hp_custom_preprocessor.marker = {str(marker)!r}"]
+    args = ["-d", "demo_data/mortality24/mimic_demo", *MORTALITY, "-l", str(tmp_path / "logs"), "-p", str(path)]
+    run([*args, "-hp", *hp], monkeypatch)
+    assert marker.exists()
+
+
+@pytest.mark.parametrize(
+    "transfer",
+    [["--eval", "-sn", "mimic"], ["-ft", "40", "-sn", "mimic"], ["--samples", "40"]],
+    ids=["eval", "fine_tune", "samples"],
+)
+def test_custom_preprocessor_is_used_with_source_config(transfer, custom_preprocessor, source, tmp_path, monkeypatch):
+    # The train_config.gin of the source run binds the default preprocessor (#274)
+    assert bound(source, "preprocess.preprocessor").selector == "base_classification_preprocessor"
+    path, marker = custom_preprocessor
+    run([*EICU, "-l", str(tmp_path / "logs"), *transfer, "--source-dir", str(source), "-p", str(path)], monkeypatch)
     assert marker.exists()
