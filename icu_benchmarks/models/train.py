@@ -28,6 +28,7 @@ from icu_benchmarks.data.loader import (
     PredictionPolarsDataset,
 )
 from icu_benchmarks.models import DLModel, MLModelClassifier, MLModelRegression
+from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import JSONMetricsLogger, save_config_file
 
 cpu_core_count = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
@@ -73,6 +74,7 @@ def train_common(
     polars: bool = True,
     persistent_workers: bool = False,
     target_transform: Optional[TargetTransform] = None,
+    explain_features: bool = False,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -100,6 +102,7 @@ def train_common(
         pl_model: Loading a pytorch lightning model.
         num_workers: Number of workers to use for data loading.
         target_transform: Fitted preprocessing transform, required for regression.
+        explain_features: Save SHAP values of the test set. Only supported by models that set an explainer_cls.
 
     Returns:
         Native-unit MSE for regression, or test loss for other run modes.
@@ -170,6 +173,7 @@ def train_common(
             cpu=cpu,
         )
 
+    model.set_explain_features(explain_features)
     model.target_transform = target_transform
     if target_transform is not None:
         target_transform.save(log_dir)
@@ -249,8 +253,8 @@ def train_common(
     score_name = "test/MSE_native" if mode == RunMode.regression else "test/loss"
     # EarlyStopping does not restore weights, so test a trained DL model on its best validation checkpoint
     ckpt_path = "best" if model.requires_backprop and not eval_only else None
-    # YAIB checkpoints store the model class and RunMode enum, as in load_model.
-    with torch.serialization.safe_globals([type(model), RunMode]):
+    # YAIB checkpoints store the model class and RunMode enum (and imputation models their ImputationInit), as in load_model.
+    with torch.serialization.safe_globals([type(model), RunMode, ImputationInit]):
         test_results = trainer.test(model, dataloaders=test_loader, ckpt_path=ckpt_path, verbose=verbose)
     if not test_results or score_name not in test_results[0]:
         raise ValueError(f"Test evaluation did not produce {score_name}; check that the test split has labeled targets.")
@@ -277,7 +281,8 @@ def persist_shap_data(trainer: Trainer, log_dir: Path):
             if model.target_transform is not None:
                 values = values / model.target_transform.scale
                 np.save(log_dir / f"{split}_shap_base_values.npy", model.inverse_target(explanation.base_values))
-            shaps = pl.DataFrame(schema=model.trained_columns, data=np.transpose(values))
+            # One row per sample; with orient given, Polars cannot transpose a square matrix based on its memory layout
+            shaps = pl.DataFrame(values, schema=model.trained_columns, orient="row")
             shaps.write_parquet(log_dir / f"{split}_shap_values.parquet")
             logging.info(f"Saved {split} shap values to {log_dir / f'{split}_shap_values.parquet'}")
         except Exception as e:
@@ -301,8 +306,8 @@ def load_model(model, source_dir, pl_model=True, *, mode) -> DLModel | MLModelCl
                 model_path = source_dir / "last.ckpt"
             else:
                 raise Exception(f"No weights to load at path : {source_dir}")
-            # YAIB checkpoints store the selected model class and RunMode enum.
-            with torch.serialization.safe_globals([model, RunMode]):
+            # YAIB checkpoints store the selected model class and RunMode enum (and imputation models their ImputationInit).
+            with torch.serialization.safe_globals([model, RunMode, ImputationInit]):
                 model = model.load_from_checkpoint(model_path)
         else:
             model_path = source_dir / "model.joblib"

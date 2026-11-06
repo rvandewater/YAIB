@@ -37,6 +37,7 @@ parameters:
       - LSTM
       - TCN
       - Transformer
+      - Mamba
   seed:
     values:
       - 1111

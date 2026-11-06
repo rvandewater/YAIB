@@ -24,7 +24,9 @@ def test_command(argv, evaluate):
     assert parse_args(argv).eval == evaluate
 
 
-@pytest.mark.parametrize("extra", [["--tunee"], ["predict"], ["--explain-feature"]])
+# argparse accepts unambiguous prefixes (the imputation sweeps pass --wandb for --wandb-sweep),
+# so each typo here must not be a prefix of a real flag
+@pytest.mark.parametrize("extra", [["--tunee"], ["predict"], ["--explain-featurs"]])
 def test_unknown_arguments_are_rejected(extra):
     with pytest.raises(SystemExit):
         parse_args([*REQUIRED, *extra])
