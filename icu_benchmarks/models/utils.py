@@ -232,7 +232,8 @@ def get_smoothed_labels(
 
     multihorizon = isinstance(h_true, list)
     if multihorizon:
-        label_for_event = label[0]
+        # label is (time, horizon): the event times are inferred from the first horizon's labels
+        label_for_event = label[:, 0]
         h_for_event = h_true[0]
     else:
         label_for_event = label

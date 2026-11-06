@@ -606,10 +606,9 @@ class MLWrapper(BaseModule, ABC):
     def log_metrics(self, label, pred, metric_type):
         """Log metrics to the PL logs."""
         if "Confusion_Matrix" in self.metrics:
-            self.log_dict(
-                confusion_matrix(self.label_transform(label), self.output_transform(pred)),
-                sync_dist=True,
-            )
+            confusion = confusion_matrix(self.label_transform(label), self.output_transform(pred))
+            # Prefix with the split like the other metrics, so the JSON logger writes it to e.g. test_metrics.json
+            self.log_dict({f"{metric_type}/{name}": count for name, count in confusion.items()}, sync_dist=True)
         self.log_dict(
             {
                 f"{metric_type}/{name}": (metric(self.label_transform(label), self.output_transform(pred)))
@@ -742,6 +741,8 @@ class ImputationWrapper(DLWrapper):
             if hasattr(m, "weight") and (classname.find("Conv") != -1 or classname.find("Linear") != -1):
                 if init_type == ImputationInit.NORMAL:
                     nn.init.normal_(m.weight.data, 0.0, gain)
+                elif init_type == ImputationInit.UNIFORM:
+                    nn.init.uniform_(m.weight.data, -gain, gain)
                 elif init_type == ImputationInit.XAVIER:
                     nn.init.xavier_normal_(m.weight.data, gain=gain)
                 elif init_type == ImputationInit.KAIMING:
