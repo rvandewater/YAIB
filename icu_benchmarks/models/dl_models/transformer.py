@@ -31,7 +31,8 @@ class BaseTransformer(DLPredictionWrapper):
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        # Pass input_size on so it is saved in the checkpoint's hyperparameters, which load_from_checkpoint needs (#259)
+        super().__init__(*args, input_size=input_size, **kwargs)
         if local_context is not None and self._get_name() == "Transformer":
             raise ValueError("Local context is only supported for LocalTransformer")
         hidden = hidden if hidden % 2 == 0 else hidden + 1  # Make sure hidden is even
@@ -73,13 +74,13 @@ class BaseTransformer(DLPredictionWrapper):
 class Transformer(BaseTransformer):
     """Transformer model."""
 
-    def __init__(self, *kwargs, **args):
-        super().__init__(TransformerBlock, *kwargs, **args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(TransformerBlock, *args, **kwargs)
 
 
 @gin.configurable
 class LocalTransformer(BaseTransformer):
     """Transformer model with local context."""
 
-    def __init__(self, *kwargs, **args):
-        super().__init__(LocalBlock, *kwargs, **args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(LocalBlock, *args, **kwargs)
