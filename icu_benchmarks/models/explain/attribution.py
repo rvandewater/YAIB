@@ -91,6 +91,7 @@ def remove_variables(x: Tensor, removed: Tensor, group_of: Tensor, baseline: Ten
 
 
 def chunks(n: int, size: int) -> Iterator[slice]:
+    """Slices of at most ``size`` consecutive indices that cover ``range(n)``, for batched forward passes."""
     for start in range(0, n, size):
         yield slice(start, min(start + size, n))
 
