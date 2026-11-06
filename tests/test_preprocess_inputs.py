@@ -106,10 +106,22 @@ def test_unconfigured_string_static_column_is_encoded(tmp_path):
     assert features.schema["unit"].is_integer() and features.schema["stay_id"] == pl.String
 
 
-def test_mixed_id_types_are_rejected(tmp_path):
-    # String outcome IDs would not match integer feature IDs after the cast ("001" is not "1")
+@pytest.mark.parametrize(
+    ("outcome_id", "feature_id"),
+    [
+        # String outcome IDs would not match integer feature IDs after the cast ("001" is not "1")
+        (pl.col("stay_id").cast(pl.String).str.zfill(3), pl.col("stay_id")),
+        # Distinct string feature IDs can cast to the same float ("1" and "01" are both 1.0)
+        (pl.col("stay_id").cast(pl.Float64), pl.col("stay_id").cast(pl.String)),
+        # Float feature IDs would not match string outcome IDs after the cast ("1.0" is not "1")
+        (pl.col("stay_id").cast(pl.String), pl.col("stay_id").cast(pl.Float64)),
+    ],
+    ids=["string-integer", "float-string", "string-float"],
+)
+def test_mixed_id_types_are_rejected(tmp_path, outcome_id, feature_id):
     write_data(tmp_path, list(range(24)))
-    outcome = pl.read_parquet(tmp_path / FILES[Segment.outcome])
-    outcome.with_columns(pl.col("stay_id").cast(pl.String).str.zfill(3)).write_parquet(tmp_path / FILES[Segment.outcome])
+    for segment in FILES:
+        frame = pl.read_parquet(tmp_path / FILES[segment])
+        frame.with_columns(outcome_id if segment == Segment.outcome else feature_id).write_parquet(tmp_path / FILES[segment])
     with pytest.raises(ValueError, match="same ID type"):
         preprocess(tmp_path)

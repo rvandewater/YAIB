@@ -401,12 +401,14 @@ def join_id_dtype(stays: pl.Series, data: dict[str, pl.DataFrame], id_col: str) 
     """The dtype all segments' IDs are cast to for the split joins: integer IDs are widened, others (e.g. strings) kept.
 
     Integer IDs in one file and string IDs in another would not match after the cast ("001" is not "1"), so the join
-    would silently drop those stays' features; that is rejected instead.
+    would silently drop those stays' features; float and string IDs can also collapse ("1" and "01" are both 1.0).
+    Such mixes are rejected instead.
     """
     for segment, frame in data.items():
-        if frame.schema[id_col].is_integer() != stays.dtype.is_integer():
+        dtype = frame.schema[id_col]
+        if dtype.is_integer() != stays.dtype.is_integer() or dtype.is_numeric() != stays.dtype.is_numeric():
             raise ValueError(
-                f"Stay IDs ({id_col}) are {stays.dtype} in the outcome data but {frame.schema[id_col]} in the {segment} "
+                f"Stay IDs ({id_col}) are {stays.dtype} in the outcome data but {dtype} in the {segment} "
                 "data; use the same ID type in every file."
             )
     return pl.datatypes.Int64 if stays.dtype.is_integer() else stays.dtype
