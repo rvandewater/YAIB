@@ -46,7 +46,7 @@ Check that the CLI is available:
 uv run icu-benchmarks train -h
 ```
 
-To get the datasets for this paper, please see the [YAIB-cohorts repository](https://github.com/rvandewater/YAIB-cohorts) and the [page on the YAIB wiki](https://github.com/rvandewater/YAIB/wiki/Generating-Cohorts). You will need to get access to the ICU datasets that you want to run by following the relevant credentialing procedure.
+To get the datasets for this paper, please see the [YAIB-cohorts repository](https://github.com/rvandewater/YAIB-cohorts) and the [cohort generation page of the documentation](https://rvandewater.github.io/YAIB/getting-started/cohorts/). You will need to get access to the ICU datasets that you want to run by following the relevant credentialing procedure.
 
 ## Training
 

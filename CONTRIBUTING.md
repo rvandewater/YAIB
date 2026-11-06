@@ -41,7 +41,7 @@ uv run ruff check --line-length 127 --statistics
 ## Pull Request Process
 
 1. Ensure documentation is updated for any interface changes, including installation, environment variables, paths, and configuration changes.
-2. Update `README.md`, `PAPER.md`, or wiki pages when setup or usage instructions change.
+2. Update `README.md`, `PAPER.md`, or the documentation in `docs/` when setup or usage instructions change (see [Documentation](https://rvandewater.github.io/YAIB/development/documentation/)).
 3. Keep `pyproject.toml` and `uv.lock` in sync when dependencies change.
 4. Use [SemVer](http://semver.org/) for versioning-related updates.
 5. You may merge a pull request once you have the required reviewer approval, or request a reviewer to merge it for you if you do not have permission.
