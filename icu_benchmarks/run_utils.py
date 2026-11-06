@@ -336,13 +336,18 @@ def load_pretrained_imputation_model(use_pretrained_imputation):
 def bind_selected_label(label: str | None = None) -> None:
     """Bind the label that preprocessing trains on into the vars macro, so the datasets use that label too.
 
-    preprocess_data picks one of the configured labels (--label, else the first), but the datasets get their own copy of
-    %vars from gin and would otherwise read every configured label.
+    preprocess_data picks one of the configured labels (--label, else a preprocess.label binding, else the first), but the
+    datasets get their own copy of %vars from gin and would otherwise read every configured label.
     """
     try:
         vars = gin.query_parameter("vars/gin.macro.value")
     except ValueError:
         return  # The configs define no vars macro
+    if label is None:
+        try:
+            label = gin.query_parameter("preprocess.label")
+        except ValueError:
+            pass  # Nothing binds it, so preprocessing uses the first label
     selected_label = select_label(vars, label)
     if selected_label != vars[VarType.label]:
         gin.bind_parameter("vars/gin.macro.value", {**vars, VarType.label: selected_label})

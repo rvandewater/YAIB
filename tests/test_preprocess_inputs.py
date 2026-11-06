@@ -78,6 +78,24 @@ def test_selected_label_reaches_the_dataset(tmp_path, label, expected):
     assert dataset.vars["LABEL"] == expected and labels.ndim == 1
 
 
+def test_label_bound_in_gin_reaches_the_dataset(tmp_path):
+    # Without --label, a config's preprocess.label binding is the label preprocessing uses, so %vars must hold it too
+    write_data(tmp_path, list(range(24)))
+    gin.clear_config()
+    try:
+        gin.parse_config(
+            'vars = {"GROUP": "stay_id", "SEQUENCE": "time", "LABEL": ["label", "label2"], "DYNAMIC": ["x"], '
+            '"STATIC": ["age", "sex"]}\npreprocess.vars = %vars\npreprocess.label = "label2"\n'
+            "PredictionPolarsDataset.vars = %vars"
+        )
+        bind_selected_label(None)
+        data, _ = preprocess_data(data_dir=tmp_path, file_names=dict(FILES), cv_repetitions=2, cv_folds=2)
+        dataset = PredictionPolarsDataset(data, split=Split.train)
+    finally:
+        gin.clear_config()
+    assert dataset.vars["LABEL"] == "label2"
+
+
 def test_unconfigured_string_static_column_is_encoded(tmp_path):
     # Static columns not listed in vars stay in the features, so string ones must be encoded; a string ID must not be
     stays = [f"s{i}" for i in range(24)]
