@@ -85,6 +85,13 @@ class CommonPolarsDataset(Dataset):
         # The group column is not a model input, see get_data_and_labels and _build_item
         return [c for c in self.features_df.columns if c != self.vars["GROUP"]]
 
+    def get_input_names(self) -> List[str]:
+        """The columns of the deep learning input tensors (``self[i][0]``), in order.
+
+        Unlike get_feature_names in prediction datasets, this keeps every feature column, including ``counter``.
+        """
+        return [c for c in self.features_df.columns if c != self.vars["GROUP"]]
+
     def to_tensor(self) -> tuple[Union[Tensor, np.ndarray], ...]:
         values: list[list] = []
         for entry in self:
@@ -173,6 +180,10 @@ class PredictionPolarsDataset(CommonPolarsDataset):
         if self._cached_dataset is not None:
             return self._cached_dataset[idx]
         return self._build_item(idx)
+
+    def get_stay_ids(self) -> list:
+        """The stay ID of each item, in item order."""
+        return list(self._stay_order)
 
     def get_feature_names(self) -> List[str]:
         names = super().get_feature_names()

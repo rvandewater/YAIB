@@ -33,8 +33,8 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install YAIB and dependencies
-        # The imputation extra lets the tests exercise the hyperimpute/pypots models
-        run: uv sync --locked --extra imputation
+        # The imputation extra lets the tests exercise the hyperimpute/pypots models, the explain extra the DL attributions
+        run: uv sync --locked --extra imputation --extra explain
 
       - name: Run the test suite with coverage
         run: |

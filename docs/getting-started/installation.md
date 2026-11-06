@@ -40,6 +40,7 @@ it with `source .venv/bin/activate` and drop the `uv run` prefix.
 | Command                      | Adds                                                                                                                                                                                                   |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `uv sync --extra imputation` | The hyperimpute and PyPOTS imputation baselines (MissForest, GAIN, MIWAE, MIRACLE, Sinkhorn, SoftImpute, BRITS, SAITS, Attention) and the SSSD models. About 100 extra packages, including TensorFlow. |
+| `uv sync --extra explain`    | [Captum](https://captum.ai/), for the feature attributions of deep learning models with `--explain-features`.                                                                                          |
 | `uv sync --dev`              | Tests, coverage, linting and pre-commit, for [development](../development/contributing.md).                                                                                                            |
 | `uv sync --only-group docs`  | The tools to build this documentation, see [Documentation](../development/documentation.md).                                                                                                           |
 
