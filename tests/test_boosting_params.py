@@ -1,0 +1,123 @@
+"""XGBoost and LightGBM wrappers must pass their configured parameters to the estimator (#234)."""
+
+import gin
+import numpy as np
+import pytest
+import torch
+import wandb
+import xgboost as xgb
+from joblib import dump
+
+from icu_benchmarks.constants import RunMode
+from icu_benchmarks.models.ml_models.lgbm import LGBMClassifier, LGBMRegressor
+from icu_benchmarks.models.ml_models.xgboost import XGBClassifier
+from icu_benchmarks.models.train import load_model
+
+
+@pytest.fixture(autouse=True)
+def clean_gin():
+    gin.clear_config()
+    yield
+    gin.clear_config()
+
+
+def test_xgb_hyperparameters_reach_estimator():
+    # XGBClassifier.__init__ only declares **kwargs, which used to drop every hyperparameter.
+    gin.bind_parameter("XGBClassifier.max_depth", 3)
+    gin.bind_parameter("XGBClassifier.eval_metric", "aucpr")
+    params = XGBClassifier(run_mode=RunMode.classification, n_estimators=50).model.get_params()
+    assert (params["max_depth"], params["eval_metric"], params["n_estimators"]) == (3, "aucpr", 50)
+    assert (params["device"], params["verbosity"]) == ("cpu", 0)
+
+
+def test_xgb_device_bindable_through_gin():
+    gin.bind_parameter("XGBClassifier.device", "cuda")
+    assert XGBClassifier(run_mode=RunMode.classification).model.get_params()["device"] == "cuda"
+
+
+@pytest.mark.parametrize(
+    ("device", "cpu", "cuda_available", "expected"),
+    [
+        ("auto", False, True, "cuda"),
+        ("auto", False, False, "cpu"),
+        ("auto", True, True, "cpu"),
+        ("cuda", True, True, "cpu"),
+        ("cuda:1", False, False, "cuda:1"),
+    ],
+)
+def test_xgb_resolve_device(monkeypatch, device, cpu, cuda_available, expected):
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: cuda_available)
+    assert XGBClassifier.resolve_device(device, cpu=cpu) == expected
+
+
+@pytest.mark.parametrize(
+    ("model_cls", "mode"), [(LGBMClassifier, RunMode.classification), (LGBMRegressor, RunMode.regression)]
+)
+def test_lgbm_quiet_by_default(model_cls, mode):
+    assert model_cls(run_mode=mode).model.get_params()["verbosity"] == -1
+    gin.bind_parameter(f"{model_cls.__name__}.verbosity", 1)
+    assert model_cls(run_mode=mode).model.get_params()["verbosity"] == 1
+
+
+def test_xgb_early_stopping_uses_patience():
+    rng = np.random.default_rng(0)
+    x = rng.normal(size=(200, 3))
+    y = (x[:, 0] > 0).astype(int)
+    gin.bind_parameter("MLWrapper.patience", 2)
+    model = XGBClassifier(run_mode=RunMode.classification, n_estimators=500, learning_rate=0.5)
+    model.fit_model(x[:100], y[:100], x[100:], y[100:])
+    assert model.model.best_iteration + 1 < 500
+
+
+def test_xgb_booster_parameters_reach_estimator():
+    # Booster-specific parameters such as DART's are not in a default estimator's get_params()
+    params = XGBClassifier(run_mode=RunMode.classification, booster="dart", rate_drop=0.5, patience=3).model.get_params()
+    assert (params["booster"], params["rate_drop"]) == ("dart", 0.5)
+    assert not {"run_mode", "cpu", "patience"} & params.keys()  # The wrapper's own arguments stay out
+
+
+@pytest.mark.parametrize("booster", ["gbtree", "gblinear"])
+def test_xgb_fits_with_an_active_wandb_run(monkeypatch, booster):
+    # XGBoost >= 2.0 rejects the legacy callback function that wandb_callback() returns, and gblinear has no "gain"
+    monkeypatch.setenv("WANDB_SILENT", "true")
+    rng = np.random.default_rng(0)
+    features = rng.normal(size=(80, 3))
+    labels = (features[:, 0] > 0).astype(int)
+    run = wandb.init(mode="disabled")
+    try:
+        model = XGBClassifier(run_mode=RunMode.classification, n_estimators=5, booster=booster)
+        model.fit_model(features[:60], labels[:60], features[60:], labels[60:])
+    finally:
+        run.finish()
+
+
+@pytest.mark.parametrize(("cpu", "device"), [(True, "cpu"), (False, "cuda")])
+def test_restored_xgb_estimator_honours_cpu(tmp_path, cpu, device):
+    # A restored estimator keeps the device it was trained on unless --cpu is given
+    dump(xgb.XGBClassifier(device="cuda"), tmp_path / "model.joblib")
+    loaded = load_model(XGBClassifier, tmp_path, mode=RunMode.classification, cpu=cpu)
+    assert loaded.model.get_params()["device"] == device
+
+
+def test_restored_fitted_xgb_with_several_metrics_predicts_on_cpu(tmp_path):
+    # set_params on a fitted estimator replays every parameter into the booster, which reads a list eval_metric as
+    # one unknown metric name and fails at predict time
+    features = np.random.default_rng(0).normal(size=(40, 3))
+    labels = (features[:, 0] > 0).astype(int)
+    estimator = xgb.XGBClassifier(n_estimators=2, eval_metric=["logloss", "aucpr"], device="cpu").fit(features, labels)
+    estimator.device = "cuda"  # As if trained on a GPU, without needing one here
+    dump(estimator, tmp_path / "model.joblib")
+    loaded = load_model(XGBClassifier, tmp_path, mode=RunMode.classification, cpu=True)
+    assert loaded.model.get_params()["device"] == "cpu"
+    assert loaded.model.predict_proba(features).shape == (40, 2)
+
+
+@pytest.mark.parametrize("model_cls", [LGBMClassifier, LGBMRegressor])
+def test_lgbm_trains_quietly(model_cls, capfd):
+    # verbosity=-1 silences the estimator, but the early-stopping callback prints on its own unless verbose=False
+    rng = np.random.default_rng(0)
+    features = rng.normal(size=(80, 3))
+    labels = (features[:, 0] > 0).astype(int)
+    mode = RunMode.classification if model_cls is LGBMClassifier else RunMode.regression
+    model_cls(run_mode=mode, n_estimators=20, patience=2).fit_model(features[:60], labels[:60], features[60:], labels[60:])
+    assert capfd.readouterr().out == ""
