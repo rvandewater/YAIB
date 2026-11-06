@@ -93,6 +93,15 @@ def test_pandas_dataset_matches_polars():
     assert pandas.to_tensor()[0].shape == (2, 2)
 
 
+def test_pandas_hourly_ml_rows_keep_the_hour():
+    with pytest.warns(DeprecationWarning):
+        pandas = PredictionPandasDataset(splits(hourly=True, frame=pd.DataFrame), vars=VARS)
+    _, labels, rows = pandas.get_data_and_labels()
+    # The saved predictions need the hour to tell the rows of a stay apart
+    np.testing.assert_array_equal(rows, PredictionPolarsDataset(splits(hourly=True), vars=VARS).get_data_and_labels()[2])
+    assert labels.tolist() == [0, 1, 0, 0]
+
+
 def test_imputation_prediction_dataset_groups_rows_per_stay():
     frame = pd.DataFrame({"stay_id": [1, 1, 2], "x": [1.0, np.nan, 3.0], "y": [4.0, 5.0, 6.0]})
     dataset = ImputationPredictionDataset(frame, "stay_id", ["x"], ram_cache=False)

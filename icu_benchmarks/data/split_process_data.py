@@ -304,10 +304,11 @@ def modality_selection(
     selected_columns = [modality_mapping[cols] for cols in selected_modalities if cols in modality_mapping.keys()]
     if not any(col in modality_mapping.keys() for col in selected_modalities):
         raise ValueError("None of the selected modalities found in modality mapping.")
+    # Flatten first: the selected modalities can map to empty lists of columns
+    selected_columns = [col for cols in selected_columns for col in cols]
     if selected_columns == []:
         logging.info("No columns selected. Using all columns.")
         return data, vars
-    selected_columns = [col for cols in selected_columns for col in cols]
 
     group_val = vars[VarType.group]
     label_val = vars[VarType.label]

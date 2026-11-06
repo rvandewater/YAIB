@@ -156,15 +156,16 @@ def test_debug_saves_hourly_class_probabilities(tmp_path, monkeypatch):
     assert ((saved[:, 4] > 0.5) == saved[:, 2]).mean() > 0.85
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="#275: The probabilities of one-row-per-stay tasks are not saved: their indicators have 1 column",
-)
 def test_debug_saves_per_stay_class_probabilities(tmp_path, monkeypatch):
     monkeypatch.setattr(MLWrapper, "debug", True)
-    train(LogisticRegression, tmp_path, RunMode.classification, {}, splits(regression=False))
-    assert (tmp_path / "pred_indicators.csv").exists()
+    data = splits(regression=False)
+    train(LogisticRegression, tmp_path, RunMode.classification, {}, data)
+    saved = np.loadtxt(tmp_path / "pred_indicators.csv", delimiter=",")
+    # One row per stay: stay id, label and the probability of each class
+    assert saved.shape == (STAYS, 4)
+    np.testing.assert_array_equal(saved[:, 0], np.arange(STAYS))
+    np.testing.assert_array_equal(saved[:, 1], data[Split.test][Segment.outcome]["label"].to_numpy())
+    np.testing.assert_allclose(saved[:, 2] + saved[:, 3], 1)
 
 
 def test_debug_saves_regression_predictions_in_label_units(tmp_path, monkeypatch):
@@ -196,9 +197,6 @@ def test_fitted_wrapper_pickles_without_transforms():
     np.testing.assert_array_equal(restored.predict(features), model.predict(features))
 
 
-@pytest.mark.xfail(
-    strict=True, raises=TypeError, reason="#275: validation_step passes the val loss to log_metrics instead of log"
-)
 def test_validation_step_logs_loss_and_metrics(monkeypatch):
     train_set, val_set, _ = datasets(splits(regression=False))
     model = LogisticRegression(run_mode=RunMode.classification)
