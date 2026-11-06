@@ -99,6 +99,19 @@ def test_restored_xgb_estimator_honours_cpu(tmp_path, cpu, device):
     assert loaded.model.get_params()["device"] == device
 
 
+def test_restored_fitted_xgb_with_several_metrics_predicts_on_cpu(tmp_path):
+    # set_params on a fitted estimator replays every parameter into the booster, which reads a list eval_metric as
+    # one unknown metric name and fails at predict time
+    features = np.random.default_rng(0).normal(size=(40, 3))
+    labels = (features[:, 0] > 0).astype(int)
+    estimator = xgb.XGBClassifier(n_estimators=2, eval_metric=["logloss", "aucpr"], device="cpu").fit(features, labels)
+    estimator.device = "cuda"  # As if trained on a GPU, without needing one here
+    dump(estimator, tmp_path / "model.joblib")
+    loaded = load_model(XGBClassifier, tmp_path, mode=RunMode.classification, cpu=True)
+    assert loaded.model.get_params()["device"] == "cpu"
+    assert loaded.model.predict_proba(features).shape == (40, 2)
+
+
 @pytest.mark.parametrize("model_cls", [LGBMClassifier, LGBMRegressor])
 def test_lgbm_trains_quietly(model_cls, capfd):
     # verbosity=-1 silences the estimator, but the early-stopping callback prints on its own unless verbose=False

@@ -327,7 +327,14 @@ def load_model(
             model.model = artifact["model"]
             if cpu and "device" in model.model.get_params():
                 # The estimator keeps the device it was trained on (e.g. XGBoost's "cuda"), but --cpu holds here too
-                model.model.set_params(device="cpu")
+                if hasattr(model.model, "get_booster"):
+                    # set_params on a fitted XGBoost estimator replays every parameter into the booster, which breaks
+                    # a list eval_metric, so only the device changes
+                    model.model.device = "cpu"
+                    if model.model.__sklearn_is_fitted__():
+                        model.model.get_booster().set_param("device", "cpu")
+                else:
+                    model.model.set_params(device="cpu")
             if "target_transform" in artifact:
                 model.target_transform = TargetTransform(**artifact["target_transform"])
             if artifact.get("trained_columns") is not None:
