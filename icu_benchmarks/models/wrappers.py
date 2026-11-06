@@ -790,6 +790,7 @@ class ImputationWrapper(DLWrapper):
     def predict_step(self, data, amputation_mask=None):
         return self(data, amputation_mask)
 
+    @torch.no_grad()  # The diffusion imputers' reverse loop would otherwise keep a graph over all T steps
     def predict(self, data):
         self.eval()
         data = data.to(self.device)

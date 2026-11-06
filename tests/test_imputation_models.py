@@ -179,31 +179,7 @@ def test_evaluation_step_gives_finite_loss(name, prefix):
     assert torch.isfinite(torch.as_tensor(logged))
 
 
-# ImputationWrapper.predict calls forward(data, mask), which these models neither implement nor override
-PREDICT_BROKEN = {
-    "diffusion": (RuntimeError, "#273: Diffusion.forward takes a diffusion timestep, so predict passes the mask as one"),
-    "simple_diffusion": (
-        RuntimeError,
-        "#273: Simple_Diffusion.forward takes a diffusion timestep, so predict passes the mask as one",
-    ),
-    "diffwave": (TypeError, "#273: DiffWave.forward takes one (noise, conditional, mask, steps) tuple"),
-    "sssdsa": (TypeError, "#273: SSSDSA.forward takes one (noise, conditional, mask, steps) tuple"),
-}
-
-
-@pytest.mark.parametrize(
-    "name",
-    [
-        pytest.param(
-            name,
-            marks=[pytest.mark.xfail(strict=True, raises=PREDICT_BROKEN[name][0], reason=PREDICT_BROKEN[name][1])]
-            if name in PREDICT_BROKEN
-            else [],
-        )
-        for name in MODELS
-        if name not in {"mlp", "rnn", "brnn"}  # Covered in test_imputation
-    ],
-)
+@pytest.mark.parametrize("name", [name for name in MODELS if name not in {"mlp", "rnn", "brnn"}])  # Covered in test_imputation
 def test_predict_fills_only_missing_values(name):
     model = ready(name)
     data = batch()[0]
@@ -211,7 +187,49 @@ def test_predict_fills_only_missing_values(name):
     with torch.no_grad():
         imputed = model.predict(data.clone())
     assert imputed.shape == data.shape and torch.isfinite(imputed).all()
-    torch.testing.assert_close(imputed[observed], data[observed])
+    assert torch.equal(imputed[observed], data[observed])  # Observed values are returned unchanged
+
+
+@pytest.mark.parametrize("name", ["mlp", "rnn", "diffusion", "simple_diffusion", "diffwave"])
+def test_predict_builds_no_autograd_graph(name):
+    # Called directly, without the caller's torch.no_grad(); a diffusion graph spans all T reverse steps
+    imputed = ready(name).predict(batch()[0])
+    assert not imputed.requires_grad
+
+
+def test_diffusion_test_step_imputes_values_in_place(monkeypatch):
+    model = ready("diffusion")
+    target = batch()[2]
+    # With a reverse step that recovers the target exactly, imputing at the missing positions reproduces the target
+    monkeypatch.setattr(model, "backward_diffusion_sample", lambda *args, **kwargs: target.clone())
+    _, logged = run_step(model, "test")
+    assert logged == pytest.approx(0)
+
+
+@pytest.mark.parametrize("name", ["diffusion", "simple_diffusion"])
+def test_diffusion_schedule_moves_with_the_model(name):
+    model = MODELS[name]()
+    assert {"betas", "sqrt_alphas_cumprod", "posterior_variance"} <= dict(model.named_buffers()).keys()
+    # Derived from the configuration and not saved, so checkpoints from before the schedule became buffers still load
+    assert "betas" not in model.state_dict()
+    model.to(torch.float64)
+    assert model.betas.dtype == torch.float64
+
+
+ACCELERATOR = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else None
+
+
+@pytest.mark.skipif(ACCELERATOR is None, reason="needs a CUDA or MPS device")
+@pytest.mark.parametrize("name", ["diffusion", "simple_diffusion", "diffwave", "sssdsa"])
+def test_restored_diffusion_model_predicts_on_accelerator(name):
+    # A restored model is moved to the device without on_fit_start, so everything predict uses must follow .to()
+    if name == "sssdsa" and not S4_INSTALLED:
+        pytest.skip("SSSDSA needs einops and opt_einsum")
+    torch.manual_seed(0)
+    model = MODELS[name]().to(ACCELERATOR)
+    with torch.no_grad():
+        imputed = model.predict(batch()[0].to(ACCELERATOR))
+    assert imputed.device.type == ACCELERATOR and torch.isfinite(imputed).all()
 
 
 @pytest.mark.parametrize("schedule", ["linear", "quadratic", "cosine", "sigmoid"])
