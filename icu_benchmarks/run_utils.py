@@ -344,10 +344,9 @@ def bind_selected_label(label: str | None = None) -> None:
     except ValueError:
         return  # The configs define no vars macro
     if label is None:
-        try:
-            label = gin.query_parameter("preprocess.label")
-        except ValueError:
-            pass  # Nothing binds it, so preprocessing uses the first label
+        # get_bindings resolves macros such as preprocess.label = %selected; query_parameter would return the reference.
+        # Without a binding, preprocessing uses the first label.
+        label = gin.get_bindings("preprocess").get("label")
     selected_label = select_label(vars, label)
     if selected_label != vars[VarType.label]:
         gin.bind_parameter("vars/gin.macro.value", {**vars, VarType.label: selected_label})

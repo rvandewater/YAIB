@@ -78,15 +78,15 @@ def test_selected_label_reaches_the_dataset(tmp_path, label, expected):
     assert dataset.vars["LABEL"] == expected and labels.ndim == 1
 
 
-def test_label_bound_in_gin_reaches_the_dataset(tmp_path):
+@pytest.mark.parametrize("binding", ['preprocess.label = "label2"', 'selected = "label2"\npreprocess.label = %selected'])
+def test_label_bound_in_gin_reaches_the_dataset(tmp_path, binding):
     # Without --label, a config's preprocess.label binding is the label preprocessing uses, so %vars must hold it too
     write_data(tmp_path, list(range(24)))
     gin.clear_config()
     try:
         gin.parse_config(
             'vars = {"GROUP": "stay_id", "SEQUENCE": "time", "LABEL": ["label", "label2"], "DYNAMIC": ["x"], '
-            '"STATIC": ["age", "sex"]}\npreprocess.vars = %vars\npreprocess.label = "label2"\n'
-            "PredictionPolarsDataset.vars = %vars"
+            f'"STATIC": ["age", "sex"]}}\npreprocess.vars = %vars\n{binding}\nPredictionPolarsDataset.vars = %vars'
         )
         bind_selected_label(None)
         data, _ = preprocess_data(data_dir=tmp_path, file_names=dict(FILES), cv_repetitions=2, cv_folds=2)
