@@ -190,6 +190,13 @@ def test_predict_fills_only_missing_values(name):
     assert torch.equal(imputed[observed], data[observed])  # Observed values are returned unchanged
 
 
+@pytest.mark.parametrize("name", ["mlp", "rnn", "diffusion", "simple_diffusion", "diffwave"])
+def test_predict_builds_no_autograd_graph(name):
+    # Called directly, without the caller's torch.no_grad(); a diffusion graph spans all T reverse steps
+    imputed = ready(name).predict(batch()[0])
+    assert not imputed.requires_grad
+
+
 def test_diffusion_test_step_imputes_values_in_place(monkeypatch):
     model = ready("diffusion")
     target = batch()[2]
