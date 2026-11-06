@@ -8,6 +8,7 @@ import icu_benchmarks.models.dl_models.bat
 import icu_benchmarks.models.dl_models.rnn
 import icu_benchmarks.models.dl_models.transformer
 import icu_benchmarks.models.dl_models.tcn
+import icu_benchmarks.models.dl_models.mamba
 import icu_benchmarks.models.utils
 
 # Do not generate features from dynamic data

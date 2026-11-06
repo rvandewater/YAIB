@@ -16,6 +16,7 @@ from icu_benchmarks.data.loader import PredictionPolarsDataset
 from icu_benchmarks.models.dl_models.bat import BAT
 from icu_benchmarks.models.dl_models.grud import GRUD
 from icu_benchmarks.models.dl_models.layers import SelfAttention, SparseBlock, parallel_recomb
+from icu_benchmarks.models.dl_models.mamba import Mamba
 from icu_benchmarks.models.dl_models.rnn import GRUNet, LSTMNet, RNNet
 from icu_benchmarks.models.dl_models.tcn import TemporalConvNet
 from icu_benchmarks.models.dl_models.transformer import LocalTransformer, Transformer
@@ -37,6 +38,7 @@ MODELS = {
     "local_transformer": lambda: LocalTransformer(
         INPUT_SIZE, hidden=8, heads=2, ff_hidden_mult=2, depth=2, num_classes=CLASSES, local_context=2
     ),
+    "mamba": lambda: Mamba(INPUT_SIZE, hidden=8, depth=2, num_classes=CLASSES, d_state=4, d_conv=3),
 }
 
 
@@ -135,6 +137,7 @@ MODEL_PARAMS = {
     TemporalConvNet: {"num_channels": [4]},
     Transformer: {"hidden": 4, "heads": 1, "ff_hidden_mult": 1, "depth": 1},
     LocalTransformer: {"hidden": 4, "heads": 1, "ff_hidden_mult": 1, "depth": 1, "local_context": 2},
+    Mamba: {"hidden": 4, "depth": 1, "d_state": 4},
 }
 
 
@@ -161,7 +164,7 @@ def test_train_common_one_epoch(model_cls, tmp_path):
 
 @pytest.mark.parametrize(
     "model_cls",
-    [BAT, GRUNet, GRUD, TemporalConvNet, Transformer, LocalTransformer],
+    [BAT, GRUNet, GRUD, TemporalConvNet, Mamba, Transformer, LocalTransformer],
 )
 def test_reload_reproduces_test_predictions(model_cls, tmp_path):
     train(model_cls, tmp_path, weight="balanced")

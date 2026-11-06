@@ -1,0 +1,24 @@
+# Settings for the Mamba selective state-space model (see icu_benchmarks/models/dl_models/mamba.py).
+
+# Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
+
+# Train params
+train_common.model = @Mamba
+
+# Optimizer params
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+# Mamba is usually trained with higher learning rates (around 1e-3) than YAIB's RNNs and Transformers
+optimizer/hyperparameter.lr = (1e-5, 1e-3, "log")
+
+# Encoder params
+model/hyperparameter.class_to_tune = @Mamba
+model/hyperparameter.num_classes = %NUM_CLASSES
+model/hyperparameter.hidden = (32, 256, "log")
+model/hyperparameter.depth = (1, 4)
+model/hyperparameter.dropout = (0.0, 0.4)
+# Fixed to the defaults of the Mamba paper (and EHRMamba)
+model/hyperparameter.d_state = 16
+model/hyperparameter.d_conv = 4
+model/hyperparameter.expand = 2
