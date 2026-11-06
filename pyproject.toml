@@ -93,6 +93,13 @@ dev = [
   "pytest-runner==6.0.1",
   "ruff",
 ]
+# Documentation site (zensical.toml). mkdocstrings reads the docstrings without importing icu_benchmarks, so
+# `uv run --only-group docs zensical build` needs neither torch nor the other runtime dependencies.
+# Both packages need Python 3.11 or newer.
+docs = [
+  "zensical>=0.1.0; python_version >= '3.11'",
+  "mkdocstrings-python>=2.0.10; python_version >= '3.11'",
+]
 
 [[tool.uv.index]]
 name = "pytorch-cu118"

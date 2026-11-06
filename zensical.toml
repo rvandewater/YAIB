@@ -1,0 +1,161 @@
+# Documentation site for YAIB, built with Zensical (https://zensical.org).
+# Preview locally:  uv run --only-group docs zensical serve
+# Build:            uv run --only-group docs zensical build --clean
+
+[project]
+site_name = "YAIB"
+site_description = "Yet Another ICU Benchmark: a flexible multi-center framework for clinical machine learning"
+site_author = "Robin van de Water, Hendrik Schmidt, Patrick Rockenschaub"
+site_url = "https://rvandewater.github.io/YAIB/"
+repo_url = "https://github.com/rvandewater/YAIB"
+repo_name = "rvandewater/YAIB"
+edit_uri = "edit/development/docs/"
+docs_dir = "docs"
+copyright = "Released under the MIT license. YAIB does not own any of the datasets it supports."
+
+nav = [
+  { "Home" = "index.md" },
+  { "Getting started" = [
+    "getting-started/installation.md",
+    "getting-started/quickstart.md",
+    "getting-started/datasets.md",
+    "getting-started/cohorts.md",
+  ] },
+  { "User guide" = [
+    "user-guide/running-experiments.md",
+    "user-guide/cli.md",
+    "user-guide/configuration.md",
+    "user-guide/hyperparameter-tuning.md",
+    "user-guide/evaluation-and-transfer.md",
+    "user-guide/regression.md",
+    "user-guide/feature-explanations.md",
+    "user-guide/imputation.md",
+    "user-guide/pooled-datasets.md",
+    "user-guide/weights-and-biases.md",
+    "user-guide/reproducing-paper-results.md",
+  ] },
+  { "Extending YAIB" = [
+    "extending/datasets.md",
+    "extending/clinical-concepts.md",
+    "extending/tasks.md",
+    "extending/preprocessing.md",
+    "extending/models.md",
+    "extending/imputation-models.md",
+    "extending/metrics.md",
+  ] },
+  { "Development" = [
+    "development/contributing.md",
+    "development/documentation.md",
+    "development/releases.md",
+  ] },
+  { "API reference" = [
+    "reference/index.md",
+    "reference/run.md",
+    "reference/data.md",
+    "reference/models.md",
+    "reference/dl-models.md",
+    "reference/ml-models.md",
+    "reference/imputation.md",
+    "reference/tuning.md",
+  ] },
+]
+
+[project.theme]
+language = "en"
+logo = "figures/yaib_logo.png"
+favicon = "figures/yaib_logo.png"
+features = [
+  "content.action.edit",
+  "content.code.annotate",
+  "content.code.copy",
+  "content.tabs.link",
+  "content.tooltips",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.instant.prefetch",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.tabs",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+  "toc.follow",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/rvandewater/YAIB"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/python"
+link = "https://pypi.org/project/yaib/"
+
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+def_list = {}
+footnotes = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.betterem = {}
+pymdownx.details = {}
+pymdownx.highlight.anchor_linenums = true
+pymdownx.highlight.line_spans = "__span"
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.inlinehilite = {}
+pymdownx.keys = {}
+pymdownx.magiclink = {}
+pymdownx.mark = {}
+pymdownx.snippets.base_path = ["."]
+pymdownx.snippets.check_paths = true
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.tabbed.alternate_style = true
+pymdownx.tasklist.custom_checkbox = true
+
+# API reference from the docstrings (Google style). mkdocstrings reads the source with griffe and does not import it.
+[project.plugins.mkdocstrings]
+default_handler = "python"
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["."]
+inventories = ["https://docs.python.org/3/objects.inv"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+docstring_section_style = "table"
+filters = ["!^_"]
+group_by_category = true
+heading_level = 2
+members_order = "source"
+merge_init_into_class = true
+separate_signature = true
+show_root_heading = true
+show_root_full_path = true
+show_signature_annotations = true
+show_source = true
+show_symbol_type_heading = true
+show_symbol_type_toc = true
+signature_crossrefs = true
+summary = true

@@ -3,6 +3,7 @@
 # 🧪 Yet Another ICU Benchmark
 
 [![CI](https://github.com/rvandewater/YAIB/actions/workflows/code-quality.yml/badge.svg?branch=development)](https://github.com/rvandewater/YAIB/actions/workflows/code-quality.yml)
+[![Docs](https://github.com/rvandewater/YAIB/actions/workflows/docs.yml/badge.svg?branch=development)](https://rvandewater.github.io/YAIB/)
 [![codecov](https://codecov.io/gh/rvandewater/YAIB/branch/development/graph/badge.svg)](https://codecov.io/gh/rvandewater/YAIB)
 ![Platform](https://img.shields.io/badge/platform-linux--64%20%7C%20win--64%20%7C%20osx--64-lightgrey)
 [![arXiv](https://img.shields.io/badge/arXiv-2306.05109-b31b1b.svg)](http://arxiv.org/abs/2306.05109)
@@ -128,7 +129,7 @@ YAIB will automatically list available processors at initialization in its log f
 
 # 👩‍💻 Usage
 
-Please refer to [our wiki](https://github.com/rvandewater/YAIB/wiki) for detailed information on how to use YAIB.
+Please refer to the [documentation](https://rvandewater.github.io/YAIB/) for detailed information on how to use and extend YAIB, including the [API reference](https://rvandewater.github.io/YAIB/reference/).
 
 ## Quickstart 🚀 (demo data)
 
@@ -311,7 +312,7 @@ The benchmark provides (among others) the following built-in models:
 
 # 🛠️ Development
 
-To adapt YAIB to your own use case, you can use the [development information](https://github.com/rvandewater/YAIB/wiki/Contribution-and-development) page as a reference.
+To adapt YAIB to your own use case, see [Extending YAIB](https://rvandewater.github.io/YAIB/extending/models/) and the [development guide](https://rvandewater.github.io/YAIB/development/contributing/) in the documentation.
 We appreciate contributions to the project. Please read the [contribution guidelines](CONTRIBUTING.md) before submitting a pull request.
 
 # Acknowledgements

@@ -27,7 +27,7 @@ identifiers:
     value: 10.48550/arXiv.2306.05109
     description: Research paper
 repository-code: 'https://github.com/rvandewater/YAIB'
-url: 'https://github.com/rvandewater/YAIB/wiki'
+url: 'https://rvandewater.github.io/YAIB/'
 keywords:
   - machine-learning
   - ehr
