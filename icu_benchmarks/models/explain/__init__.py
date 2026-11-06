@@ -48,6 +48,12 @@ def require_captum() -> None:
         ) from error
 
 
+def require_polars(polars: bool) -> None:
+    """Fails before training when the datasets are Pandas ones: the explanations read stay IDs and hours from Polars."""
+    if not polars:
+        raise NotImplementedError("Explaining deep learning models needs the Polars datasets (train_common.polars = True).")
+
+
 def stay_times(dataset) -> dict:
     """The sequence value (e.g. the hour) of each input row, per stay, in the dataset's input order."""
     group, sequence = dataset.vars["GROUP"], dataset.vars["SEQUENCE"]
@@ -135,7 +141,7 @@ def explain_predictions(
                     attributions[method], deltas = integrated_gradients(
                         model, stay_inputs, stays, hours, baseline, group_of, n_variables, ig_steps, batch_size
                     )
-                    results[f"explain/{method}/convergence_delta"] = float(np.mean(deltas))
+                    results[f"explain/{method}/convergence_delta"] = float(np.mean(deltas)) / scale(model)
                 elif method == "FeatureAblation":
                     attributions[method] = feature_ablation(
                         stay_inputs, stay_outputs, explained, model, baseline, group_of, n_variables, batch_size

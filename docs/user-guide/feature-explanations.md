@@ -48,7 +48,8 @@ uv run icu-benchmarks train \
 ```
 
 This works for all deep learning prediction models (`GRU`, `LSTM`, `RNN`, `GRUD`, `TCN`, `Transformer`,
-`LocalTransformer`, `BAT`, `Mamba`) on binary classification and regression tasks.
+`LocalTransformer`, `BAT`, `Mamba`) on binary classification and regression tasks, with the default Polars datasets
+(`train_common.polars = True`).
 
 ### What is explained
 
@@ -61,6 +62,10 @@ This works for all deep learning prediction models (`GRU`, `LSTM`, `RNN`, `GRUD`
     attribution is summed over both columns and over all hours up to the explained one. Removing a variable means "not
     measured": its value is set to 0 (the training mean, after standardisation) and its missingness indicator to 1, for its
     whole history.
+- **Columns without a missingness indicator** are set to 0 as well, so for them removal means "replaced by the training
+    mean" (or by 0 without scaling), not "not measured". These are the variables in `vars_to_exclude` and, when feature
+    generation is on, the generated features (`counter` and the `*_hist` columns); deep learning models do not generate
+    features by default.
 
 ### Methods
 

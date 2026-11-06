@@ -151,6 +151,25 @@ def test_regression_attributions_are_in_native_units(tmp_path):
     assert native.to_numpy() == pytest.approx(scaled.to_numpy() / 0.5)
 
 
+class ExponentialRegression(CumulativeRegression):
+    def forward(self, x):
+        return super().forward(x).exp()  # not polynomial, so Integrated Gradients with few steps leaves a convergence delta
+
+
+def test_regression_metrics_are_in_native_units(tmp_path):
+    dataset = PredictionPolarsDataset(hourly_data(stays=4, hours=3), split=Split.test, vars=VARS, ram_cache=False)
+    model = ExponentialRegression([1.0, 0.5, 0.0, 0.0, 0.0, 0.0])
+    kwargs = dict(methods=("IntegratedGradients",), metrics=("deletion",), ig_steps=2)
+    scaled = explain_predictions(model, dataset, tmp_path, **kwargs)
+    model.target_transform = SimpleNamespace(scale=0.5)
+    native = explain_predictions(model, dataset, tmp_path, **kwargs)
+    for metric in ["convergence_delta", "deletion"]:
+        assert scaled[f"explain/IntegratedGradients/{metric}"] > 1e-3
+        assert native[f"explain/IntegratedGradients/{metric}"] == pytest.approx(
+            scaled[f"explain/IntegratedGradients/{metric}"] / 0.5
+        )
+
+
 DL_MODELS = {
     "GRUNet": lambda size: GRUNet(size, hidden_dim=4, layer_dim=1, num_classes=2),
     "LSTMNet": lambda size: LSTMNet(size, hidden_dim=4, layer_dim=1, num_classes=2),
@@ -241,6 +260,28 @@ def test_multiclass_models_are_rejected():
     model = GRUNet((4, 5, 6), hidden_dim=4, layer_dim=1, num_classes=3)
     with pytest.raises(NotImplementedError, match="binary classification and regression"):
         model.set_explain_features(True)
+
+
+def test_multiclass_models_are_rejected_before_tuning():
+    gin.parse_config(
+        "import icu_benchmarks.models.dl_models.rnn\n"
+        "import icu_benchmarks.tuning.gin_utils\n"
+        "train_common.model = @GRUNet\n"
+        "NUM_CLASSES = 3\n"
+        "model/hyperparameter.num_classes = %NUM_CLASSES"
+    )
+    with pytest.raises(NotImplementedError, match="not 3 classes"):
+        check_explain_features(True)
+
+
+def test_pandas_datasets_are_rejected_before_training(tmp_path):
+    gin.parse_config("import icu_benchmarks.models.dl_models.rnn\ntrain_common.model = @GRUNet\ntrain_common.polars = False")
+    with pytest.raises(NotImplementedError, match="Polars"):
+        check_explain_features(True)
+    kwargs = dict(model=GRUNet, mode=RunMode.classification, epochs=1, batch_size=4, cpu=True, num_workers=0)
+    with pytest.raises(NotImplementedError, match="Polars"):
+        train_common(hourly_data(), log_dir=tmp_path, explain_features=True, polars=False, **kwargs)
+    assert not (tmp_path / "model.ckpt").exists()
 
 
 def test_dl_models_pass_the_check_before_tuning():

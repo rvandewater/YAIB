@@ -28,7 +28,7 @@ from icu_benchmarks.data.loader import (
     PredictionPolarsDataset,
 )
 from icu_benchmarks.models import DLModel, MLModelClassifier, MLModelRegression
-from icu_benchmarks.models.explain import explain_predictions  # registers its gin configurable
+from icu_benchmarks.models.explain import explain_predictions, require_polars  # registers its gin configurable
 from icu_benchmarks.models.constants import ImputationInit
 from icu_benchmarks.models.utils import JSONMetricsLogger, save_config_file
 
@@ -112,6 +112,8 @@ def train_common(
 
     if mode == RunMode.regression and target_transform is None:
         raise ValueError("Regression training/evaluation requires its preprocessing target transform.")
+    if explain_features and getattr(model, "explain_with_captum", False):
+        require_polars(polars)
     if dataset_names is None:
         dataset_names = {"train": "default", "val": "default", "test": "default"}
 

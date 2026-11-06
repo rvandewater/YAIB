@@ -404,9 +404,23 @@ def check_explain_features(explain_features: bool | None) -> None:
     if not explain_features or model is None:
         return
     if getattr(model, "explain_with_captum", False):
-        from icu_benchmarks.models.explain import require_captum
+        from icu_benchmarks.models.explain import require_captum, require_polars
 
         require_captum()
+        require_polars(bindings.get("polars", True))
+        # Tuning binds the model's num_classes later, from model/hyperparameter (set by the task config's NUM_CLASSES)
+        num_classes = None
+        for selector in ("model/hyperparameter", model.__name__):
+            try:
+                num_classes = gin.get_bindings(selector).get("num_classes")
+            except ValueError:  # No configurable of that name
+                continue
+            if num_classes is not None:
+                break
+        if isinstance(num_classes, int) and num_classes > 2:
+            raise NotImplementedError(
+                f"{model.__name__} explanations support binary classification and regression, not {num_classes} classes."
+            )
     elif getattr(model, "explainer_cls", None) is None:
         raise NotImplementedError(f"{model.__name__} does not support SHAP explanations.")
 
