@@ -130,8 +130,9 @@ def preprocess_data(
         vars_to_exclude = None
 
     cache_dir = data_dir / "cache"
+    # The version prefix invalidates old caches; bump it whenever the preprocessed output changes
     cache_filename = (
-        f"v2_s_{seed}_r_{repetition_index}of{cv_repetitions}_f_{fold_index}of{cv_folds}"
+        f"v3_s_{seed}_r_{repetition_index}of{cv_repetitions}_f_{fold_index}of{cv_folds}"
         f"_t_{train_size}_d_{debug}_full_{complete_train}"
     )
     preprocessor_instance: Preprocessor = preprocessor(
