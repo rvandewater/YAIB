@@ -129,7 +129,7 @@ def build_parser() -> ArgumentParser:
         type=int,
         help="Finetune model with amount of train data.",
     )
-    parser.add_argument("-sn", "--source-name", type=Path, help="Name of the source dataset.")
+    parser.add_argument("-sn", "--source-name", help="Name of the source dataset.")
     parser.add_argument("--source-dir", type=Path, help="Directory containing gin and model weights.")
     parser.add_argument(
         "-sa",

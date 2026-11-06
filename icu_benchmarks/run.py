@@ -125,14 +125,17 @@ def main(my_args=tuple(sys.argv[1:])):
         if args.source_dir is None:
             raise ValueError("Please specify a source directory when evaluating or fine-tuning.")
         log_dir /= f"_from_{args.source_name}"
-        name_datasets(args.source_name, args.source_name, args.name)
         if args.fine_tune:
             log_dir /= f"fine_tune_{args.fine_tune}"
-            name_datasets(args.name, args.name, args.name)
         run_dir = create_run_dir(log_dir)
         source_dir = args.source_dir
         logging.info(f"Will load weights from {source_dir} and bind train gin-config. Note: this might override your config.")
         gin.parse_config_file(source_dir / "train_config.gin")
+        # The source config binds the dataset names of the source run
+        if args.fine_tune:
+            name_datasets(args.name, args.name, args.name)
+        else:
+            name_datasets(args.source_name, args.source_name, args.name)
         # Each path binds the custom preprocessor after parsing its configs, which bind the default one (#274)
         if args.preprocessor:
             bind_custom_preprocessor(args.preprocessor)
