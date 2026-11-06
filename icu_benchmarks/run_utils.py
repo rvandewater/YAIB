@@ -380,15 +380,13 @@ def check_explain_features(explain_features: bool | None) -> None:
     Args:
         explain_features: The --explain-features flag; None falls back to the train_common.explain_features binding.
     """
+    # get_bindings resolves macros and references; query_parameter returns them unresolved, and a reference is always truthy
+    bindings = gin.get_bindings("train_common")
     if explain_features is None:
-        try:
-            explain_features = gin.query_parameter("train_common.explain_features")
-        except ValueError:
-            explain_features = False
-    if explain_features:
-        model = gin.query_parameter("train_common.model").configurable.wrapped
-        if getattr(model, "explainer_cls", None) is None:
-            raise NotImplementedError(f"{model.__name__} does not support SHAP explanations.")
+        explain_features = bindings.get("explain_features", False)
+    model = bindings.get("model")
+    if explain_features and model is not None and getattr(model, "explainer_cls", None) is None:
+        raise NotImplementedError(f"{model.__name__} does not support SHAP explanations.")
 
 
 def setup_logging(date_format, log_format, verbose):

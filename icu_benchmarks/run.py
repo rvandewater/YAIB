@@ -184,6 +184,10 @@ def main(my_args=tuple(sys.argv[1:])):
             wandb=args.wandb_sweep,
         )
 
+    if args.explain_features is not None:
+        # Bound after tuning, whose trials train without SHAP. A binding, unlike an argument, is saved in train_config.gin,
+        # so a run that replays that config (--eval, --samples, fine-tuning) keeps the setting unless the flag is given.
+        gin.bind_parameter("train_common.explain_features", args.explain_features)
     log_full_line(f"Logging to {run_dir.resolve()}", level=logging.INFO)
     if evaluate:
         mode_string = "STARTING EVALUATION"
@@ -212,7 +216,6 @@ def main(my_args=tuple(sys.argv[1:])):
         cpu=args.cpu,
         wandb=args.wandb_sweep,
         complete_train=args.complete_train,
-        explain_features=args.explain_features,
     )
 
     log_full_line("FINISHED TRAINING", level=logging.INFO, char="=", num_newlines=3)
