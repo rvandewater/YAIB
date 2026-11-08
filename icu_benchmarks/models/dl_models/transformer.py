@@ -24,7 +24,6 @@ class BaseTransformer(DLPredictionWrapper):
         depth,
         num_classes,
         dropout=0.0,
-        l1_reg=0,
         pos_encoding=True,
         dropout_att=0.0,
         local_context=None,
@@ -59,7 +58,6 @@ class BaseTransformer(DLPredictionWrapper):
 
         self.t_blocks = nn.Sequential(*t_blocks)
         self.logit = nn.Linear(hidden, num_classes)
-        self.l1_reg = l1_reg
 
     def forward(self, x):
         x = self.input_embedding(x)

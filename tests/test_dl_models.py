@@ -73,6 +73,13 @@ def test_transformer_rejects_local_context():
         Transformer(INPUT_SIZE, hidden=4, heads=1, ff_hidden_mult=1, depth=1, num_classes=CLASSES, local_context=2)
 
 
+def test_old_l1_reg_bindings_still_load():
+    # l1_reg was tuned but never used, so it was removed (#247); train_config.gin of earlier runs may still bind it
+    gin.parse_config("Transformer.l1_reg = 0.5\nLocalTransformer.l1_reg = 0.0")
+    Transformer(INPUT_SIZE, hidden=4, heads=1, ff_hidden_mult=1, depth=1, num_classes=CLASSES)
+    LocalTransformer(INPUT_SIZE, hidden=4, heads=1, ff_hidden_mult=1, depth=1, num_classes=CLASSES, local_context=2)
+
+
 def test_attention_masks():
     t = torch.arange(1, 5, dtype=torch.float).reshape(1, -1)
     causal = parallel_recomb(t.clone(), t.clone(), "all")[0]
