@@ -226,6 +226,11 @@ def pypots_data(dataset) -> dict:
     ``X`` holds the values with YAIB's amputation, ``X_ori`` the values before it (missing where never measured). PyPOTS
     marks what is observed in ``X_ori`` but missing in ``X``, i.e. YAIB's amputated values, as the values to impute.
     """
+    lengths = dataset.features_df.groupby(level=0).size()  # The rows are indexed by stay
+    if (lengths != dataset.maxlen).any():
+        raise ValueError(
+            f"PyPOTS models need stays of equal length, but they have {lengths.min()} to {lengths.max()} time steps."
+        )
     shape = (-1, dataset.maxlen, dataset.features_df.shape[1])
     measured = dataset.features_df.mask(dataset.target_missingness_mask)  # features_df has its missing values set to 0
     return {"X": dataset.amputated_values.values.reshape(shape), "X_ori": measured.values.reshape(shape)}

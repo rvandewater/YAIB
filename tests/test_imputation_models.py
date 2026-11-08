@@ -273,7 +273,8 @@ def imputation_split(seed=0, stays=4 * BATCH):
     values = torch.randn(stays * STEPS, FEATURES, generator=generator)
     never_measured = torch.rand(values.shape, generator=generator) < 0.2
     amputated = torch.rand(values.shape, generator=generator) < 0.3
-    measured = pd.DataFrame(values.masked_fill(never_measured, float("nan")).numpy())
+    stay_ids = pd.Index(torch.arange(stays).repeat_interleave(STEPS).numpy(), name="stay_id")
+    measured = pd.DataFrame(values.masked_fill(never_measured, float("nan")).numpy(), index=stay_ids)
     split = SimpleNamespace(
         maxlen=STEPS,
         features_df=measured.fillna(0),  # as the dataset stores it
@@ -329,6 +330,16 @@ def test_pypots_masked_models_learn_to_impute_the_yaib_amputation(name, monkeypa
         first, again = dataset[0], dataset[0]
         assert all(torch.equal(a, b) for a, b in zip(first, again))  # no fresh random mask per epoch
     assert imputer.imputer.best_model_dict is not None
+
+
+def test_pypots_data_rejects_stays_of_unequal_length():
+    split = imputation_split(stays=3)
+    shorter = split.features_df.index != 0
+    shorter[0] = True  # Stay 0 keeps one time step, so the rows no longer reshape into whole stays
+    for name in ["features_df", "target_missingness_mask", "amputated_values"]:
+        setattr(split, name, getattr(split, name)[shorter])
+    with pytest.raises(ValueError, match="equal length"):
+        baselines.pypots_data(split)
 
 
 def test_pypots_brits_keeps_the_epoch_that_best_imputes_the_yaib_amputation(monkeypatch):
