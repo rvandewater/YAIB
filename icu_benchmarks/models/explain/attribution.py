@@ -2,9 +2,10 @@
 
 A variable is a value column together with its ``MissingIndicator_<name>`` column, so that removing a variable means
 "not measured": its value is set to 0 (the training mean, after YAIB's standardisation) and its indicator to 1. Columns
-without an indicator (``vars_to_exclude`` and generated features such as ``counter``) are set to 0 too, which means
-"replaced by the training mean" rather than "not measured". All methods return one attribution per explained hour and variable, summed over the hours before it and over the variable's
-columns.
+without an indicator (``vars_to_exclude`` and generated features) are set to 0 too, which means "set to 0" rather than
+"not measured": the training mean for scaled columns, but not for the ``*min_hist``, ``*max_hist`` and ``*mean_hist``
+features, which are computed from scaled values and not rescaled. All methods return one attribution per explained hour
+and variable, summed over the hours before it and over the variable's columns.
 
 The explained output is the log-odds of the positive class for binary classification (logit 1 minus logit 0) and the
 predicted value for regression, at the hour being explained.
@@ -46,8 +47,9 @@ def variable_groups(columns: list[str]) -> tuple[list[str], np.ndarray]:
 def missing_baseline(columns: list[str]) -> Tensor:
     """The input of a removed variable: 0 for values, 1 for missingness indicators.
 
-    For a variable with an indicator this is "never measured". A column without one gets 0, the training mean after
-    standardisation, so removing it replaces it by the mean.
+    For a variable with an indicator this is "never measured". A column without one gets 0: the training mean of a
+    standardised column, but not of the ``*min_hist``, ``*max_hist`` and ``*mean_hist`` features, which are computed
+    from scaled values and not rescaled.
     """
     return torch.tensor([1.0 if column.startswith(INDICATOR_PREFIX) else 0.0 for column in columns])
 
