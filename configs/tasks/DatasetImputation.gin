@@ -19,6 +19,10 @@ preprocess.file_names = {
     "STATIC": "sta.parquet",
 }
 
+# Imputation needs no outcome: the stays come from the static data
+preprocess.required_var_types = ["GROUP", "SEQUENCE"]
+preprocess.required_segments = ["STATIC", "DYNAMIC"]
+
 preprocess.preprocessor = @base_imputation_preprocessor
 
 preprocess.vars = %vars

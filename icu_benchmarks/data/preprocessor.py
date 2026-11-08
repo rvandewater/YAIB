@@ -611,6 +611,7 @@ class PandasImputationPreprocessor(Preprocessor):
         filter_missing_values: bool = True,
         save_cache: Optional[Union[str, Path]] = None,
         load_cache: Optional[Union[str, Path]] = None,
+        vars_to_exclude: Optional[list[str]] = None,
     ):
         super().__init__(
             generate_features=False,
@@ -618,6 +619,7 @@ class PandasImputationPreprocessor(Preprocessor):
             use_static_features=use_static_features,
             save_cache=save_cache,
             load_cache=load_cache,
+            vars_to_exclude=vars_to_exclude,
         )
         self.scaling = scaling
         self.use_static_features = use_static_features
@@ -635,7 +637,14 @@ class PandasImputationPreprocessor(Preprocessor):
         Returns:
             Preprocessed data.
         """
-        logging.info("Preprocessor static features.")
+        # preprocess_data splits the data as Polars frames, the imputation datasets read Pandas frames
+        data = {
+            split: {
+                segment: frame.to_pandas() if isinstance(frame, pl.DataFrame) else frame for segment, frame in segments.items()
+            }
+            for split, segments in data.items()
+        }
+        logging.info("Preprocessing dynamic features.")
         data = {step: self._process_dynamic_data(data[step], vars) for step in data}
 
         dyn_rec = Recipe(

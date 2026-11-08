@@ -25,8 +25,10 @@ from icu_benchmarks.run_utils import (
     setup_logging,
     import_preprocessor,
     bind_custom_preprocessor,
+    bind_modalities,
     name_datasets,
     get_config_files,
+    model_config_dir,
 )
 from icu_benchmarks.constants import RunMode
 
@@ -58,22 +60,19 @@ def main(my_args=tuple(sys.argv[1:])):
     evaluate = args.eval
     experiment = args.experiment
     source_dir = args.source_dir
-    modalities = args.modalities
-    if modalities:
-        logging.debug(f"Binding modalities: {modalities}")
-        gin.bind_parameter("preprocess.selected_modalities", modalities)
     if args.label:
         logging.debug(f"Binding label: {args.label}")
         gin.bind_parameter("preprocess.label", args.label)
-    tasks, models = get_config_files(Path("configs"))
-    if task not in tasks or model not in models:
-        raise ValueError(
-            f"Invalid task or model. Task: {task} {'not ' if task not in tasks else ''} found. "
-            f"Model: {model} {'not ' if model not in models else ''}found."
-        )
+    tasks, _ = get_config_files(Path("configs"))
+    if task not in tasks:
+        raise ValueError(f"Invalid task or model. Task: {task} not found.")
     # Load task config
     gin.parse_config_file(f"configs/tasks/{task}.gin")
     mode = get_mode()
+    # The run mode decides where the model configs are: imputation tasks train the models in configs/imputation_models
+    _, models = get_config_files(Path("configs"), mode)
+    if model not in models:
+        raise ValueError(f"Invalid task or model. Model: {model} not found in configs/{model_config_dir(mode)}.")
 
     # Set experiment name
     if name is None:
@@ -141,12 +140,15 @@ def main(my_args=tuple(sys.argv[1:])):
         if args.preprocessor:
             bind_custom_preprocessor(args.preprocessor)
         bind_selected_label(args.label)
+        # Like the custom preprocessor, the modalities are bound over the configs, which can select them too
+        bind_modalities(args.modalities)
     elif args.samples and args.source_dir is not None:  # Train model with limited samples and bind existing config
         logging.info("Binding train gin-config. Note: this might override your config.")
         gin.parse_config_file(args.source_dir / "train_config.gin")
         if args.preprocessor:
             bind_custom_preprocessor(args.preprocessor)
         bind_selected_label(args.label)
+        bind_modalities(args.modalities)
         log_dir /= f"samples_{args.samples}"
         name_datasets(args.name, args.name, args.name)
         run_dir = create_run_dir(log_dir)
@@ -154,9 +156,7 @@ def main(my_args=tuple(sys.argv[1:])):
         # Normal train and evaluate
         name_datasets(args.name, args.name, args.name)
         hp_checkpoint = log_dir / args.hp_checkpoint if args.hp_checkpoint else None
-        model_path = (
-            Path("configs") / ("imputation_models" if mode == RunMode.imputation else "prediction_models") / f"{model}.gin"
-        )
+        model_path = Path("configs") / model_config_dir(mode) / f"{model}.gin"
         gin_config_files = (
             [Path(f"configs/experiments/{args.experiment}.gin")]
             if args.experiment
@@ -165,8 +165,9 @@ def main(my_args=tuple(sys.argv[1:])):
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         if args.preprocessor:
             bind_custom_preprocessor(args.preprocessor)
-        # Before tuning, whose trials train on the label too
+        # Before tuning, whose trials train on the label and the modalities too
         bind_selected_label(args.label)
+        bind_modalities(args.modalities)
         log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
         run_dir = create_run_dir(log_dir)
         check_explain_features(args.explain_features)

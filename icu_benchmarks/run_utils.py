@@ -15,6 +15,7 @@ from pathlib import Path
 import scipy.stats as stats
 import shutil
 from statistics import mean, pstdev
+from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.constants import VarType
 from icu_benchmarks.data.split_process_data import select_label
 from icu_benchmarks.models.utils import JsonResultLoggingEncoder
@@ -381,6 +382,8 @@ def bind_selected_label(label: str | None = None) -> None:
         vars = gin.query_parameter("vars/gin.macro.value")
     except ValueError:
         return  # The configs define no vars macro
+    if VarType.label not in vars:
+        return  # Tasks without labels (imputation); preprocess_data rejects a requested label
     if label is None:
         # get_bindings resolves macros such as preprocess.label = %selected; query_parameter would return the reference.
         # Without a binding, preprocessing uses the first label.
@@ -388,6 +391,13 @@ def bind_selected_label(label: str | None = None) -> None:
     selected_label = select_label(vars, label)
     if selected_label != vars[VarType.label]:
         gin.bind_parameter("vars/gin.macro.value", {**vars, VarType.label: selected_label})
+
+
+def bind_modalities(modalities: list[str] | None) -> None:
+    """Bind --modalities over the configs, which can select modalities too (e.g. BinaryClassificationNoStatic.gin)."""
+    if modalities:
+        logging.debug(f"Binding modalities: {modalities}")
+        gin.bind_parameter("preprocess.selected_modalities", modalities)
 
 
 def check_explain_features(explain_features: bool | None) -> None:
@@ -454,11 +464,18 @@ def setup_logging(date_format, log_format, verbose):
         warnings.filterwarnings("default")
 
 
-def get_config_files(config_dir: Path):
+def model_config_dir(mode: RunMode = RunMode.classification) -> str:
+    """The directory in configs/ with the model configs of a run mode: imputation tasks train imputation models."""
+    return "imputation_models" if mode == RunMode.imputation else "prediction_models"
+
+
+def get_config_files(config_dir: Path, mode: RunMode = RunMode.classification):
     """
     Get all task and model config files in the specified directory.
     Args:
         config_dir: Name of the directory containing the config gin files.
+        mode: Run mode of the task, which decides the model configs: those in imputation_models for imputation tasks,
+            else those in prediction_models.
 
     Returns:
         tasks: List of task names
@@ -466,7 +483,7 @@ def get_config_files(config_dir: Path):
     """
     try:
         tasks = list((config_dir / "tasks").glob("*"))
-        models = list((config_dir / "prediction_models").glob("*"))
+        models = list((config_dir / model_config_dir(mode)).glob("*"))
         tasks = [task.stem for task in tasks if task.is_file()]
         models = [model.stem for model in models if model.is_file()]
     except Exception as e:

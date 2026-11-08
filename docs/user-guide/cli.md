@@ -15,13 +15,13 @@ training. Run `uv run icu-benchmarks train -h` for the help of your installed ve
 | `-t`, `--task TASK`                | **Required.** Task config in `configs/tasks/`, e.g. `BinaryClassification`, `Regression`, `DatasetImputation`.                                  |
 | `-n`, `--name NAME`                | Name of the (target) dataset, used for the log folder.                                                                                          |
 | `-tn`, `--task-name TASK_NAME`     | Name of the task, used for the log folder, e.g. `Mortality24`.                                                                                  |
-| `-m`, `--model MODEL`              | Model config in `configs/prediction_models/`, e.g. `LGBMClassifier`, `GRU`.                                                                     |
+| `-m`, `--model MODEL`              | Model config in `configs/prediction_models/`, e.g. `LGBMClassifier`, `GRU`; in `configs/imputation_models/` for imputation tasks.               |
 | `-e`, `--experiment EXPERIMENT`    | Experiment config in `configs/experiments/<EXPERIMENT>.gin`, used instead of the task and model configs.                                        |
 | `-l`, `--log-dir LOG_DIR`          | Log directory for results and model weights.                                                                                                    |
 | `-s`, `--seed SEED`                | Random seed for preprocessing, tuning and training.                                                                                             |
 | `-hp`, `--hyperparams HP [HP ...]` | Gin bindings that override the configs, e.g. `-hp train_common.epochs=10 'LGBMClassifier.max_depth=5'`. Pass all bindings after a single `-hp`. |
 | `--label LABEL`                    | Label to use when the task config lists several.                                                                                                |
-| `-mo`, `--modalities MO [MO ...]`  | Modalities to use, as keys of the task's `modality_mapping` (e.g. `DYNAMIC`, `STATIC`).                                                         |
+| `-mo`, `--modalities MO [MO ...]`  | Modalities to use, as keys of the task's `modality_mapping` (e.g. `DYNAMIC`, `STATIC`); overrides the selection of the configs.                 |
 
 ## Data and preprocessing
 
