@@ -62,9 +62,19 @@ include "configs/tasks/common/Dataloader.gin"
 
 Then run it with `-t MyTask`. The file name is the task name.
 
-Variants of the defaults show smaller changes: `BinaryClassificationNoStatic.gin` and `BinaryClassificationNoDynamic.gin`
-train without the static or the dynamic variables. You can also select variable groups at run time with `--modalities`
-and a `modality_mapping`, as in `PredictionTaskVariables.gin`.
+Variants of the defaults show smaller changes. `BinaryClassificationNoStatic.gin` and
+`BinaryClassificationNoDynamic.gin` include `BinaryClassification.gin` and train without the static or the dynamic
+variables, by selecting a key of the `modality_mapping` in `PredictionTaskVariables.gin`:
+
+```python title="configs/tasks/BinaryClassificationNoStatic.gin"
+--8<--
+configs/tasks/BinaryClassificationNoStatic.gin
+--8<--
+```
+
+`--modalities` selects the variable groups at run time instead, and overrides `preprocess.selected_modalities` in the
+configs. A task without labels, such as `DatasetImputation.gin`, sets `preprocess.required_var_types` and
+`preprocess.required_segments`, which by default require a `LABEL` and an outcome file.
 
 For multiclass classification, set `NUM_CLASSES` to the number of classes; the metrics switch to the multiclass set
 (accuracy, balanced accuracy, AUC).

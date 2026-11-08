@@ -24,12 +24,11 @@ uv run icu-benchmarks train \
     -l ../yaib_logs/
 ```
 
-!!! bug "Known issue"
-
-    On the current `development` branch the CLI rejects imputation models with
-    `Invalid task or model ... Model: Mean not found`: it checks the model name against `configs/prediction_models/`
-    only, before it knows the run mode. Until this is fixed, imputation models can only be trained through the Python
-    API (see `tests/test_imputation.py` for examples).
+With an imputation task (`Run.mode = "Imputation"`), `-m` names a config in `configs/imputation_models/`. The task needs
+no outcome file or label: the stays to split come from the static file, and only the dynamic variables in `vars` are
+imputed. By default, the preprocessor drops the stays that have a missing value in any of these variables
+(`base_imputation_preprocessor.filter_missing_values`), so the model is trained and evaluated on fully observed stays.
+On the MIMIC demo, this keeps 15 of the 99 stays.
 
 To train, YAIB masks part of the observed values (amputation) and learns to reconstruct them. The amputation is set in
 the dataset:
@@ -69,5 +68,12 @@ uv run icu-benchmarks train \
 Use the fold's `model.ckpt` (the best epoch) for trained models, or `last.ckpt` for models that are only fitted, such
 as the baselines. The preprocessor then fills the missing values of the dynamic variables with the imputation model
 before training the prediction model. The checkpoint is loaded with full unpickling, so only use files you trust.
+
+!!! bug "Known issue"
+
+    `-imp` currently has no effect. The checkpoint is loaded, but `preprocess_data` passes it only to the deprecated
+    Pandas classification preprocessor, which the current pipeline cannot run
+    ([#214](https://github.com/rvandewater/YAIB/issues/214)). The default preprocessors fill the missing values with
+    their usual rules.
 
 To add your own imputation model, see [Adding imputation models](../extending/imputation-models.md).

@@ -115,15 +115,19 @@ def preprocess_data(
         file_names.pop(DataSegment.static)
         vars.pop(DataSegment.static)
 
-    selected_label = select_label(vars, label)
-    if selected_label != vars[VarType.label]:
-        vars[VarType.label] = selected_label
-        logging.info(f"Using label: {vars[VarType.label]}")
+    # Tasks without labels (imputation) leave LABEL out of required_var_types and vars
+    if VarType.label in vars:
+        selected_label = select_label(vars, label)
+        if selected_label != vars[VarType.label]:
+            vars[VarType.label] = selected_label
+            logging.info(f"Using label: {vars[VarType.label]}")
 
-    if not vars[VarType.label]:
-        raise ValueError("No label selected after filtering.")
-    if runmode == RunMode.regression and isinstance(vars[VarType.label], list):
-        vars[VarType.label] = vars[VarType.label][0]
+        if not vars[VarType.label]:
+            raise ValueError("No label selected after filtering.")
+        if runmode == RunMode.regression and isinstance(vars[VarType.label], list):
+            vars[VarType.label] = vars[VarType.label][0]
+    elif label is not None:
+        raise ValueError(f"Label {label} was requested, but the task configures no labels.")
 
     dumped_file_names = json.dumps(file_names, sort_keys=True)
     dumped_vars = json.dumps(vars, sort_keys=True)
@@ -220,24 +224,26 @@ def preprocess_data(
     sanitized_data = preprocessor_instance.apply(sanitized_data, vars)
     end = timer()
     logging.info(f"Preprocessing took {end - start:.2f} seconds.")
-    logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
-    for _dict in sanitized_data.values():
-        for key, val in _dict.items():
-            # Preserve missing labels for dataset masks/filtering, rather than inventing zero targets or negatives.
-            if key == DataSegment.outcome:
-                continue
-            logging.debug(f"Data type: {key}")
-            logging.debug("Is NaN:")
-            sel = _dict[key].select(pl.selectors.numeric().is_nan().max())
-            logging.debug(sel.select(col.name for col in sel if col.item(0)))
-            logging.debug("Has nulls:")
-            sel = _dict[key].select(pl.all().has_nulls())
-            logging.debug(sel.select(col.name for col in sel if col.item(0)))
-            _dict[key] = val.fill_null(strategy="zero")
-            _dict[key] = _dict[key].fill_nan(0)
-            logging.debug("Dropping columns with nulls")
-            sel = _dict[key].select(pl.all().has_nulls())
-            logging.debug(sel.select(col.name for col in sel if col.item(0)))
+    # Imputation models learn from the missing values (the imputation dataset masks them), so they are kept
+    if runmode != RunMode.imputation:
+        logging.info(f"Checking for NaNs and nulls in {data.keys()}.")
+        for _dict in sanitized_data.values():
+            for key, val in _dict.items():
+                # Preserve missing labels for dataset masks/filtering, rather than inventing zero targets or negatives.
+                if key == DataSegment.outcome:
+                    continue
+                logging.debug(f"Data type: {key}")
+                logging.debug("Is NaN:")
+                sel = _dict[key].select(pl.selectors.numeric().is_nan().max())
+                logging.debug(sel.select(col.name for col in sel if col.item(0)))
+                logging.debug("Has nulls:")
+                sel = _dict[key].select(pl.all().has_nulls())
+                logging.debug(sel.select(col.name for col in sel if col.item(0)))
+                _dict[key] = val.fill_null(strategy="zero")
+                _dict[key] = _dict[key].fill_nan(0)
+                logging.debug("Dropping columns with nulls")
+                sel = _dict[key].select(pl.all().has_nulls())
+                logging.debug(sel.select(col.name for col in sel if col.item(0)))
 
     # Generate cache
     if generate_cache:
@@ -397,6 +403,14 @@ def _time_sort_key(df: pl.DataFrame, vars: dict[str, Union[str, list[str]]]) -> 
     return [sequence] if isinstance(sequence, str) and sequence in df.columns else []
 
 
+def stay_segment(data: dict[str, pl.DataFrame]) -> str:
+    """The segment to take the stays to split from: the outcomes, or for tasks without labels (imputation) the static data."""
+    for segment in (DataSegment.outcome, DataSegment.static, DataSegment.dynamic):
+        if segment in data:
+            return segment
+    raise ValueError(f"No segment to take the stays from, got {list(data)}.")
+
+
 def join_id_dtype(stays: pl.Series, data: dict[str, pl.DataFrame], id_col: str) -> pl.DataType:
     """The dtype all segments' IDs are cast to for the split joins: integer IDs are widened, others (e.g. strings) kept.
 
@@ -429,24 +443,22 @@ def make_train_val_polars(
     For a more detailed documentation refer to make_train_val(...)
     """
     _id = vars[VarType.group]
-    label = vars[VarType.label]
-    if not (isinstance(_id, str) and isinstance(label, str)):
+    label = vars.get(VarType.label)  # None for tasks without labels (imputation)
+    if not (isinstance(_id, str) and (label is None or isinstance(label, str))):
         raise TypeError(
             f'Expected keys "{VarType.group}" and "{VarType.label}" to be of type str, '
             f"got {type(_id)} and {type(label)} instead."
         )
 
+    stay_source = stay_segment(data)
     if debug:
         logging.info("Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets.")
-        sampled_ids = data[DataSegment.outcome][_id].unique().sample(fraction=0.01, seed=seed)
-        data[DataSegment.outcome] = data[DataSegment.outcome].filter(pl.col(_id).is_in(sampled_ids))
-        if DataSegment.dynamic in data:
-            data[DataSegment.dynamic] = data[DataSegment.dynamic].filter(pl.col(_id).is_in(sampled_ids))
-        if DataSegment.static in data:
-            data[DataSegment.static] = data[DataSegment.static].filter(pl.col(_id).is_in(sampled_ids))
+        sampled_ids = data[stay_source][_id].unique().sample(fraction=0.01, seed=seed)
+        for segment in data:
+            data[segment] = data[segment].filter(pl.col(_id).is_in(sampled_ids))
 
     # Sort the stays and their labels the same way, so the split is reproducible and the labels line up with the stays
-    stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique()).sort()
+    stays = pl.Series(name=_id, values=data[stay_source][_id].unique()).sort()
 
     if VarType.label in vars and runmode is RunMode.classification:
         labels = data[DataSegment.outcome].group_by(_id).max().sort(_id)[label]
@@ -617,17 +629,14 @@ def make_single_split_polars(
     """
     # ID variable
     _id = vars[VarType.group]
+    stay_source = stay_segment(data)
     if debug:
         logging.info("Using only 1% of the stay_id's for debugging. Note that this might lead to errors for small datasets.")
-        sampled_ids = data[DataSegment.outcome][_id].unique().sample(fraction=0.01, seed=seed)
-        data[DataSegment.outcome] = data[DataSegment.outcome].filter(pl.col(_id).is_in(sampled_ids))
-        if DataSegment.dynamic in data:
-            data[DataSegment.dynamic] = data[DataSegment.dynamic].filter(pl.col(_id).is_in(sampled_ids))
-        if DataSegment.static in data:
-            data[DataSegment.static] = data[DataSegment.static].filter(pl.col(_id).is_in(sampled_ids))
+        sampled_ids = data[stay_source][_id].unique().sample(fraction=0.01, seed=seed)
+        for segment in data:
+            data[segment] = data[segment].filter(pl.col(_id).is_in(sampled_ids))
 
-    # Get stay IDs from outcome segment
-    stays = pl.Series(name=_id, values=data[DataSegment.outcome][_id].unique()).sort()
+    stays = pl.Series(name=_id, values=data[stay_source][_id].unique()).sort()
     # If there are labels, and the task is classification, use stratified k-fold
     if VarType.label in vars and runmode is RunMode.classification:
         # Get labels from outcome data (takes the highest value (or True) in case seq2seq classification)

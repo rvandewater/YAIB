@@ -17,7 +17,7 @@ cd ${YAIB_PATH}
 eval "$(conda shell.bash hook)"
 conda activate yaib_new
 
-TASK=BinaryClassificationNoStatic # BinaryClassification
+TASK=BinaryClassificationNoStatic # BinaryClassification, BinaryClassificationNoDynamic
 EXPERIMENT_PATH=../${TASK_NAME}
 DATASET_ROOT_PATH=/dhc/home/robin.vandewater/projects/yaib/data/YAIB_Datasets/data
 DATASETS=(aumc hirid eicu miiv)
@@ -48,5 +48,4 @@ icu-benchmarks train \
   -s 1111 \
   -l ${EXPERIMENT_PATH} \
   --no-verbose \
-  --tune \
-  --checkpoint test
+  --tune

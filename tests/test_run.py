@@ -11,6 +11,7 @@ import pytest
 
 import icu_benchmarks.run
 from icu_benchmarks.run import main
+from icu_benchmarks.run_utils import load_pretrained_imputation_model
 
 ROOT = Path(__file__).parent.parent
 FAST = ["execute_repeated_cv.cv_repetitions_to_train=1", "execute_repeated_cv.cv_folds_to_train=3"]
@@ -100,12 +101,39 @@ def test_complete_train_of_dl_model_on_hourly_task(tmp_path, monkeypatch):
     assert "GRUNet.hidden_dim = 4" in (fold / "train_config.gin").read_text()
 
 
-def test_unknown_model_is_rejected(tmp_path, monkeypatch):
-    with pytest.raises(ValueError, match="Invalid task or model"):
-        run(
-            ["-d", "demo_data/mortality24/mimic_demo", "-t", "BinaryClassification", "-m", "NoSuchModel", "-l", str(tmp_path)],
-            monkeypatch,
-        )
+@pytest.mark.parametrize(
+    ("task", "model"),
+    [("BinaryClassification", "NoSuchModel"), ("BinaryClassification", "Mean"), ("DatasetImputation", "LGBMClassifier")],
+)
+def test_unknown_model_is_rejected(task, model, tmp_path, monkeypatch):
+    # Imputation tasks take the models in configs/imputation_models, prediction tasks those in configs/prediction_models
+    with pytest.raises(ValueError, match=f"Model: {model} not found"):
+        run(["-d", "demo_data/mortality24/mimic_demo", "-t", task, "-m", model, "-l", str(tmp_path)], monkeypatch)
+
+
+def test_unknown_task_is_rejected(tmp_path, monkeypatch):
+    with pytest.raises(ValueError, match="Task: NoSuchTask not found"):
+        run(["-d", "demo_data/mortality24/mimic_demo", "-t", "NoSuchTask", "-l", str(tmp_path)], monkeypatch)
+
+
+def test_train_imputation_model_on_demo_data(tmp_path, monkeypatch):
+    # #254: the CLI found only prediction models, and the imputation task config could not be preprocessed
+    args = ["-d", "demo_data/mortality24/mimic_demo", "-n", "mimic_demo", "-t", "DatasetImputation", "-m", "Mean", "--cpu"]
+    run([*args, "-l", str(tmp_path), "-hp", *ONE_FOLD], monkeypatch)
+    (fold,) = (tmp_path / "mimic_demo" / "DatasetImputation" / "Mean").glob("*/repetition_0/fold_0")
+    metrics = json.loads((fold / "test_metrics.json").read_text())
+    assert {"loss", "rmse", "mae", "jsd"} <= set(metrics) and all(np.isfinite(value) for value in metrics.values())
+    # The checkpoint that prediction tasks take with -imp
+    model = load_pretrained_imputation_model(str(fold / "last.ckpt"))
+    assert model.trained_columns == ["hr", "map", "sbp", "dbp", "resp", "o2sat"]
+
+
+def test_modalities_override_the_task_config(tmp_path, monkeypatch):
+    # BinaryClassificationNoDynamic.gin selects the static variables. -mo is bound after the configs, so it wins
+    args = ["-d", "demo_data/mortality24/mimic_demo", "-t", "BinaryClassificationNoDynamic", "-m", "LogisticRegression"]
+    run([*args, "--cpu", "-l", str(tmp_path), "-mo", "DYNAMIC", "-hp", *ONE_FOLD], monkeypatch)
+    (fold,) = tmp_path.glob("mimic_demo/BinaryClassificationNoDynamic/LogisticRegression/*/repetition_0/fold_0")
+    assert bound(fold, "preprocess.selected_modalities") == ["DYNAMIC"]
 
 
 MORTALITY = ["-t", "BinaryClassification", "-tn", "Mortality24", "-m", "LogisticRegression", "--cpu"]

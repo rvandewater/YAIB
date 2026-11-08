@@ -88,6 +88,12 @@ def test_get_config_files():
     assert get_config_files(Path("does_not_exist")) == ([], [])
 
 
+def test_get_config_files_of_imputation_tasks():
+    tasks, models = get_config_files(CONFIGS, RunMode.imputation)
+    assert "DatasetImputation" in tasks
+    assert {"Mean", "MLP"} <= set(models) and "LGBMClassifier" not in models
+
+
 def test_get_config_files_skips_common_files(tmp_path):
     for config in ("tasks/Task.gin", "tasks/common.gin", "prediction_models/Model.gin", "prediction_models/common"):
         (tmp_path / config).parent.mkdir(exist_ok=True)
