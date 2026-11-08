@@ -1,8 +1,10 @@
 """Baseline imputation methods. These methods imported from other frameworks and are used as baselines for comparison."""
 
 import importlib
+from functools import partial
 
 import torch
+from torch.utils.data import DataLoader
 from sklearn.experimental import enable_iterative_imputer  # noqa: F401
 from sklearn.impute import KNNImputer, SimpleImputer, IterativeImputer
 from sklearn.linear_model import LinearRegression
@@ -218,10 +220,44 @@ MiwaeImputation = wrap_hyperimpute_model("miwae", "Miwae")
 HyperImputation = wrap_hyperimpute_model("hyperimpute", "HyperImpute")
 
 
-def pypots_fit(imputer, train_dataset):
-    """PyPOTS models train on a dict holding the (stays, time steps, features) array with missing values."""
-    values = train_dataset.amputated_values.values.reshape(-1, train_dataset.maxlen, train_dataset.features_df.shape[1])
-    imputer.fit({"X": values})
+def pypots_data(dataset) -> dict:
+    """A YAIB split as the PyPOTS arrays of shape (stays, time steps, features).
+
+    ``X`` holds the values with YAIB's amputation, ``X_ori`` the values before it (missing where never measured). PyPOTS
+    marks what is observed in ``X_ori`` but missing in ``X``, i.e. YAIB's amputated values, as the values to impute.
+    """
+    lengths = dataset.features_df.groupby(level=0).size()  # The rows are indexed by stay
+    if (lengths != dataset.maxlen).any():
+        raise ValueError(
+            f"PyPOTS models need stays of equal length, but they have {lengths.min()} to {lengths.max()} time steps."
+        )
+    shape = (-1, dataset.maxlen, dataset.features_df.shape[1])
+    measured = dataset.features_df.mask(dataset.target_missingness_mask)  # features_df has its missing values set to 0
+    return {"X": dataset.amputated_values.values.reshape(shape), "X_ori": measured.values.reshape(shape)}
+
+
+def pypots_fit(imputer, train_dataset, val_dataset, masked_dataset_cls=None) -> None:
+    """Trains a PyPOTS model on YAIB's amputation, keeping the epoch with the lowest error on the amputated validation values.
+
+    PyPOTS's own ``fit`` trains models with a masked-imputation loss (SAITS, Transformer) on a fresh random 20% of the
+    observed values in every epoch, whatever YAIB's amputation mechanism and proportion (#162). These models pass the
+    PyPOTS dataset class of that loss, ``masked_dataset_cls``, to learn to impute YAIB's amputated training values instead,
+    like YAIB's own imputation models. Models without such a loss (BRITS) learn from the observed values only and train
+    with PyPOTS's ``fit``.
+    """
+    train = pypots_data(train_dataset)
+    val = pypots_data(val_dataset) if val_dataset is not None else None
+    if masked_dataset_cls is None:
+        imputer.fit({"X": train["X"]}, val_set=val)
+        return
+    # The models' fit, except that the training data keeps its given missingness too (return_X_ori=True)
+    loader = partial(DataLoader, batch_size=imputer.batch_size, num_workers=imputer.num_workers)
+    train_loader = loader(masked_dataset_cls(train, return_X_ori=True, return_y=False), shuffle=True)
+    val_loader = None
+    if val is not None:
+        val_loader = loader(masked_dataset_cls(val, return_X_ori=True, return_y=False), shuffle=False)
+    imputer._train_model(train_loader, val_loader)
+    imputer.model.load_state_dict(imputer.best_model_dict)
 
 
 def pypots_impute(imputer, amputated_values):
@@ -256,7 +292,7 @@ class BRITSImputation(ImputationWrapper):
         )
 
     def fit(self, train_dataset, val_dataset):
-        pypots_fit(self.imputer, train_dataset)
+        pypots_fit(self.imputer, train_dataset, val_dataset)
 
     def forward(self, amputated_values, amputation_mask):
         return pypots_impute(self.imputer, amputated_values)
@@ -296,6 +332,8 @@ class SAITSImputation(ImputationWrapper):
             **kwargs,
         )
         SAITS = import_optional("pypots.imputation", "pypots").SAITS
+        # The dataset class of SAITS's masked-imputation training, which PyPOTS's Transformer uses too
+        self.masked_dataset_cls = import_optional("pypots.imputation.saits.data", "pypots").DatasetForSAITS
         self.imputer = SAITS(
             n_steps=input_size[1],
             n_features=input_size[2],
@@ -310,7 +348,7 @@ class SAITSImputation(ImputationWrapper):
         )
 
     def fit(self, train_dataset, val_dataset):
-        pypots_fit(self.imputer, train_dataset)
+        pypots_fit(self.imputer, train_dataset, val_dataset, self.masked_dataset_cls)
 
     def forward(self, amputated_values, amputation_mask):
         return pypots_impute(self.imputer, amputated_values)
@@ -351,6 +389,8 @@ class AttentionImputation(ImputationWrapper):
             **kwargs,
         )
         Transformer = import_optional("pypots.imputation", "pypots").Transformer
+        # The dataset class of SAITS's masked-imputation training, which PyPOTS's Transformer uses too
+        self.masked_dataset_cls = import_optional("pypots.imputation.saits.data", "pypots").DatasetForSAITS
         self.imputer = Transformer(
             n_steps=input_size[1],
             n_features=input_size[2],
@@ -365,7 +405,7 @@ class AttentionImputation(ImputationWrapper):
         )
 
     def fit(self, train_dataset, val_dataset):
-        pypots_fit(self.imputer, train_dataset)
+        pypots_fit(self.imputer, train_dataset, val_dataset, self.masked_dataset_cls)
 
     def forward(self, amputated_values, amputation_mask):
         return pypots_impute(self.imputer, amputated_values)

@@ -267,6 +267,25 @@ def test_wrapped_package_models_construct(package, model, params):
             model(**params)
 
 
+def imputation_split(seed=0, stays=4 * BATCH):
+    """A split as ImputationPandasDataset holds it: values with real missingness and YAIB's amputation of them."""
+    generator = torch.Generator().manual_seed(seed)
+    values = torch.randn(stays * STEPS, FEATURES, generator=generator)
+    never_measured = torch.rand(values.shape, generator=generator) < 0.2
+    amputated = torch.rand(values.shape, generator=generator) < 0.3
+    stay_ids = pd.Index(torch.arange(stays).repeat_interleave(STEPS).numpy(), name="stay_id")
+    measured = pd.DataFrame(values.masked_fill(never_measured, float("nan")).numpy(), index=stay_ids)
+    split = SimpleNamespace(
+        maxlen=STEPS,
+        features_df=measured.fillna(0),  # as the dataset stores it
+        target_missingness_mask=measured.isna(),
+        amputated_values=measured.mask(amputated.numpy()),
+    )
+    # The values to impute that have a ground truth: amputated, but measured
+    split.scored = (amputated & ~never_measured).reshape(stays, STEPS, FEATURES)
+    return split
+
+
 # MissForest goes through the same wrapper as ICE but takes about 25 s
 @pytest.mark.parametrize("name", ["ICE", "SoftImpute", "BRITS", "SAITS", "Attention"])
 def test_wrapped_package_models_fit_and_impute(name):
@@ -274,16 +293,74 @@ def test_wrapped_package_models_fit_and_impute(name):
     if not INSTALLED[package]:
         pytest.skip(f"{package} is installed with the imputation extra")
     torch.manual_seed(0)
-    stays = torch.randn(4 * BATCH, STEPS, FEATURES)
-    stays[torch.rand(stays.shape) < 0.2] = float("nan")
-    rows = pd.DataFrame(stays.reshape(-1, FEATURES).numpy())
+    train = imputation_split(seed=0)
+    stays = torch.tensor(train.amputated_values.values).reshape(-1, STEPS, FEATURES)
     imputer = model(**params)
-    imputer.fit(SimpleNamespace(amputated_values=rows, maxlen=STEPS, features_df=rows), None)
+    imputer.fit(train, imputation_split(seed=1))
     batch = stays[:BATCH]
     observed = ~batch.isnan()
     imputed = imputer(batch, observed)
     assert imputed.shape == batch.shape and not imputed.isnan().any()
     assert torch.allclose(imputed[observed], batch[observed], atol=1e-5)
+
+
+@pytest.mark.parametrize("name", ["SAITS", "Attention"])
+def test_pypots_masked_models_learn_to_impute_the_yaib_amputation(name, monkeypatch):
+    # PyPOTS's own fit hides a fresh random 20% of the observed values instead (#162)
+    package, model, params = WRAPPED[name]
+    if not INSTALLED[package]:
+        pytest.skip(f"{package} is installed with the imputation extra")
+    imputer = model(**params)
+    loaders = {}
+    train_model = imputer.imputer._train_model
+
+    def record(train_loader, val_loader=None):
+        loaders.update(train=train_loader, val=val_loader)
+        train_model(train_loader, val_loader)
+
+    monkeypatch.setattr(imputer.imputer, "_train_model", record)
+    train, val = imputation_split(seed=0), imputation_split(seed=1)
+    imputer.fit(train, val)
+
+    for split, loader in [(train, loaders["train"]), (val, loaders["val"])]:
+        dataset = loader.dataset
+        assert torch.equal(dataset.indicating_mask.bool(), split.scored)  # the loss and validation targets
+        observed = ~torch.tensor(split.amputated_values.values).reshape(split.scored.shape).isnan()
+        assert torch.equal(dataset.missing_mask.bool(), observed)  # the input: YAIB's amputation and no more
+        first, again = dataset[0], dataset[0]
+        assert all(torch.equal(a, b) for a, b in zip(first, again))  # no fresh random mask per epoch
+    assert imputer.imputer.best_model_dict is not None
+
+
+def test_pypots_data_rejects_stays_of_unequal_length():
+    split = imputation_split(stays=3)
+    shorter = split.features_df.index != 0
+    shorter[0] = True  # Stay 0 keeps one time step, so the rows no longer reshape into whole stays
+    for name in ["features_df", "target_missingness_mask", "amputated_values"]:
+        setattr(split, name, getattr(split, name)[shorter])
+    with pytest.raises(ValueError, match="equal length"):
+        baselines.pypots_data(split)
+
+
+def test_pypots_brits_keeps_the_epoch_that_best_imputes_the_yaib_amputation(monkeypatch):
+    package, model, params = WRAPPED["BRITS"]
+    if not INSTALLED[package]:
+        pytest.skip(f"{package} is installed with the imputation extra")
+    imputer = model(**params)
+    calls = {}
+    fit = imputer.imputer.fit
+
+    def record(train_set, val_set=None, **kwargs):
+        calls.update(train=train_set, val=val_set)
+        fit(train_set, val_set=val_set, **kwargs)
+
+    monkeypatch.setattr(imputer.imputer, "fit", record)
+    train, val = imputation_split(seed=0), imputation_split(seed=1)
+    imputer.fit(train, val)
+
+    assert set(calls["train"]) == {"X"}  # BRITS learns from the observed values only
+    amputated_but_measured = torch.tensor(calls["val"]["X"]).isnan() & ~torch.tensor(calls["val"]["X_ori"]).isnan()
+    assert torch.equal(amputated_but_measured, val.scored)  # PyPOTS validates on these
 
 
 def imports(config):

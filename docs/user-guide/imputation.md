@@ -53,6 +53,10 @@ Imputation is evaluated with the RMSE, MAE and Jensen-Shannon divergence of the 
 | Neural networks     | `MLP`, `RNN`, `BRNN`, `NP` (neural process)                                                              |
 | Diffusion           | `CSDI`, `Diffusion`, `Simple_Diffusion`, `DiffWave`, `SSSDS4`, `SSSDSA` (the SSSD models need the extra) |
 
+The PyPOTS models train on YAIB's amputation of the training split. `SAITS` and `Attention` learn to impute the
+amputated values, with the configured mechanism and proportion. `BRITS` has no such loss and learns from the observed
+values. All 3 keep the epoch with the lowest error on the amputated values of the validation split.
+
 ## Use a trained imputation model
 
 Pass the checkpoint of an imputation run to a prediction task with `-imp` (`--pretrained-imputation`):
