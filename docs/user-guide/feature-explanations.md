@@ -8,7 +8,9 @@ predictions:
     with metrics of how faithful these attributions are.
 
 Explanations are not computed during tuning trials, which would be slow and unused. YAIB checks before tuning starts that
-the model supports them, so an unsupported model fails immediately instead of after a long run.
+the model supports them, so an unsupported model fails immediately instead of after a long run. A multiclass deep learning
+model is caught before tuning only when its class count is bound in the configs, as the task configs do with
+`NUM_CLASSES`; otherwise it fails when the final model is built, after tuning.
 
 ## Tree-based models: SHAP values
 
@@ -62,10 +64,11 @@ This works for all deep learning prediction models (`GRU`, `LSTM`, `RNN`, `GRUD`
     attribution is summed over both columns and over all hours up to the explained one. Removing a variable means "not
     measured": its value is set to 0 (the training mean, after standardisation) and its missingness indicator to 1, for its
     whole history.
-- **Columns without a missingness indicator** are set to 0 as well, so for them removal means "replaced by the training
-    mean" (or by 0 without scaling), not "not measured". These are the variables in `vars_to_exclude` and, when feature
-    generation is on, the generated features (`counter` and the `*_hist` columns); deep learning models do not generate
-    features by default.
+- **Columns without a missingness indicator** are set to 0 as well, so for them removal means "set to 0", not "not
+    measured". These are the variables in `vars_to_exclude` and, when feature generation is on, the generated features;
+    deep learning models do not generate features by default. With scaling, 0 is the training mean of `vars_to_exclude`,
+    `counter` and the `*count_hist` columns. The `*min_hist`, `*max_hist` and `*mean_hist` columns are computed from
+    scaled values and are not rescaled, so for them 0 is the training mean of the underlying variable, not of the column.
 
 ### Methods
 
