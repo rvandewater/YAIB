@@ -76,7 +76,8 @@ module-name = "icu_benchmarks"
 # Packages used only by imputation models (hyperimpute/PyPOTS baselines, SSSD's S4 layers); they add ~100 dependencies
 imputation = [
   "hyperimpute>=0.1.17",
-  "pypots>=1.0",
+  # <2: the PyPOTS baselines train through its internal _train_model (icu_benchmarks/imputation/baselines.py)
+  "pypots>=1.0,<2",
   "einops==0.6.1",
   "opt-einsum>=3.3.0",
   # hyperimpute's MIRACLE pulls in TensorFlow with Keras 3; transformers (from PyPOTS) needs tf-keras next to it,

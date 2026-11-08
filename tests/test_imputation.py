@@ -1,6 +1,7 @@
 """Amputation and the imputation models must only fill the values that are missing."""
 
 import logging
+from importlib.util import find_spec
 
 import gin
 import numpy as np
@@ -12,6 +13,7 @@ from icu_benchmarks.constants import RunMode
 from icu_benchmarks.data.constants import DataSegment as Segment, DataSplit as Split
 from icu_benchmarks.data.loader import ImputationPandasDataset
 from icu_benchmarks.imputation.amputations import ampute_data
+from icu_benchmarks.imputation.baselines import SAITSImputation, pypots_data
 from icu_benchmarks.imputation.mlp import MLPImputation
 from icu_benchmarks.imputation.rnn import BRNNImputation, RNNImputation
 from icu_benchmarks.models.constants import ImputationInit
@@ -94,6 +96,36 @@ def test_train_common_trains_and_reloads_imputation_model(tmp_path, clean_gin, c
     assert "Testing on test-set" in caplog.text
     loaded = load_pretrained_imputation_model(str(tmp_path / "model.ckpt"))
     assert isinstance(loaded, MLPImputation) and loaded.trained_columns == VARS["DYNAMIC"]
+
+
+def splits_with_missing_values(stays=8, steps=4):
+    data = imputation_splits(stays, steps)
+    for split in data.values():  # Some values that were never measured, next to the ones YAIB amputates
+        split[Segment.features].loc[::5, "x"] = np.nan
+    return data
+
+
+def test_pypots_data_matches_the_imputation_dataset():
+    torch.manual_seed(0)
+    with pytest.warns(DeprecationWarning):
+        dataset = ImputationPandasDataset(splits_with_missing_values(), vars=VARS, mask_proportion=0.3, ram_cache=False)
+    arrays = pypots_data(dataset)
+    for stay in range(len(dataset)):
+        amputated, amputation_mask, target, never_measured = dataset[stay]
+        np.testing.assert_allclose(arrays["X"][stay], amputated.numpy(), rtol=1e-6)  # NaN: amputated or never measured
+        np.testing.assert_allclose(arrays["X_ori"][stay], target.masked_fill(never_measured.bool(), np.nan).numpy(), rtol=1e-6)
+
+
+@pytest.mark.skipif(find_spec("pypots") is None, reason="pypots is installed with the imputation extra")
+def test_train_common_trains_pypots_saits_on_the_yaib_amputation(tmp_path, clean_gin):
+    torch.manual_seed(0)
+    gin.bind_parameter("ImputationPandasDataset.vars", VARS)
+    layers = dict(epochs=2, n_layers=1, d_model=8, d_inner=8, n_head=2, d_k=4, d_v=4, dropout=0.0)
+    for name, value in layers.items():
+        gin.bind_parameter(f"SAITS.{name}", value)
+    kwargs = dict(model=SAITSImputation, mode=RunMode.imputation, epochs=2, batch_size=4, cpu=True, num_workers=0)
+    loss = train_common(splits_with_missing_values(), log_dir=tmp_path, **kwargs)
+    assert np.isfinite(loss)
 
 
 @pytest.mark.parametrize(
